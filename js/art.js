@@ -779,6 +779,16 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         path(starPath(46, 64, 5, 2), COLORS.pink, '') + path(starPath(74, 62, 5, 2), COLORS.zing, '') +
         `<circle cx="60" cy="66" r="2.4" fill="#fff"/>`;
       break;
+    case 'easel':
+      // tripod easel with a blank canvas (the town overlays the chosen artwork on .easel-slot)
+      inner =
+        `<line x1="40" y1="118" x2="52" y2="60" ${ink}/>` +
+        `<line x1="80" y1="118" x2="68" y2="60" ${ink}/>` +
+        `<line x1="60" y1="120" x2="60" y2="70" ${ink}/>` +
+        `<rect class="easel-slot" x="30" y="30" width="60" height="48" rx="4" fill="#FFF8F0" ${ink}/>` +
+        `<rect x="34" y="34" width="52" height="40" rx="2" fill="#E9DEFF"/>` +
+        `<rect x="34" y="72" width="52" height="8" rx="2" fill="${COLORS.cocoa}" ${ink}/>`;
+      break;
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);
   }
@@ -797,7 +807,102 @@ export function renderAccessory(item, { size = 120, cls = '' } = {}) {
 // Generic render router used by collection/town.
 // opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {
+  if (item.custom) return renderCustomBoo(item.custom, opts);
   if (item.kind === 'deco') return renderDeco(item, opts);
   if (item.kind === 'accessory') return renderAccessory(item, opts);
   return renderBoo(item, opts);
+}
+
+// ---- Build-a-Boo custom renderer (RUN3 C6) ----
+// A parametric Boo from parts: body (4), ears (5), eyes (4), mouth (4), tail (3),
+// pattern + a colour. Cute rules: big low eyes, wide body, oversized ears, thick outlines.
+export const BUILD_PARTS = {
+  body: ['round', 'tall', 'wide', 'blob'],
+  ears: ['none', 'small', 'tall', 'floppy', 'round'],
+  eyes: ['round', 'sleepy', 'star', 'wink'],
+  mouth: ['smile', 'grin', 'oh', 'fang'],
+  tail: ['none', 'curl', 'puff'],
+  pattern: ['none', 'spots', 'stripes', 'heart'],
+  colour: ['#FF7AC6', '#C6A9F0', '#8FC7FF', '#35D0BA', '#FFC93C', '#FF9F68', '#7FD8C3', '#B39DFF', '#FF8FB1', '#9AE6B4', '#FFD166', '#8A5A44']
+};
+export function normalizeCustom(p = {}) {
+  return {
+    body: BUILD_PARTS.body.includes(p.body) ? p.body : 'round',
+    ears: BUILD_PARTS.ears.includes(p.ears) ? p.ears : 'round',
+    eyes: BUILD_PARTS.eyes.includes(p.eyes) ? p.eyes : 'round',
+    mouth: BUILD_PARTS.mouth.includes(p.mouth) ? p.mouth : 'smile',
+    tail: BUILD_PARTS.tail.includes(p.tail) ? p.tail : 'none',
+    pattern: BUILD_PARTS.pattern.includes(p.pattern) ? p.pattern : 'none',
+    colour: /^#?[0-9A-Fa-f]{6}$/.test(String(p.colour || '')) ? (p.colour[0] === '#' ? p.colour : '#' + p.colour) : BUILD_PARTS.colour[0]
+  };
+}
+export function renderCustomBoo(partsIn, { size = 120, cls = '' } = {}) {
+  const p = normalizeCustom(partsIn);
+  const ink = '#2A1B4E', fill = p.colour;
+  const dark = shade(fill, -0.22), light = shade(fill, 0.28);
+  const cid = 'cust' + (++_uid);
+  // body silhouette per shape
+  const bodies = {
+    round: `<ellipse cx="60" cy="70" rx="42" ry="40"/>`,
+    tall:  `<ellipse cx="60" cy="68" rx="34" ry="46"/>`,
+    wide:  `<ellipse cx="60" cy="74" rx="48" ry="34"/>`,
+    blob:  `<path d="M18 74 Q14 40 44 34 Q60 30 76 34 Q106 40 102 74 Q104 104 60 106 Q16 104 18 74 Z"/>`
+  };
+  const bodyShape = bodies[p.body];
+  // ears (two, mirrored) behind the body
+  const earShapes = {
+    none: '',
+    small: `<ellipse cx="34" cy="40" rx="10" ry="12"/><ellipse cx="86" cy="40" rx="10" ry="12"/>`,
+    tall:  `<ellipse cx="34" cy="26" rx="9" ry="20"/><ellipse cx="86" cy="26" rx="9" ry="20"/>`,
+    floppy:`<path d="M30 30 Q18 44 30 54 Q40 50 40 38 Z"/><path d="M90 30 Q102 44 90 54 Q80 50 80 38 Z"/>`,
+    round: `<circle cx="32" cy="38" r="14"/><circle cx="88" cy="38" r="14"/>`
+  };
+  const ears = earShapes[p.ears];
+  // eyes (low on the face)
+  const ex = 46, ex2 = 74, ey = 66, er = 9;
+  const eyeShapes = {
+    round: `<circle cx="${ex}" cy="${ey}" r="${er}" fill="#fff" stroke="${ink}" stroke-width="2"/><circle cx="${ex2}" cy="${ey}" r="${er}" fill="#fff" stroke="${ink}" stroke-width="2"/><circle cx="${ex}" cy="${ey + 1}" r="4.5" fill="${ink}"/><circle cx="${ex2}" cy="${ey + 1}" r="4.5" fill="${ink}"/><circle cx="${ex + 2}" cy="${ey - 1}" r="1.6" fill="#fff"/><circle cx="${ex2 + 2}" cy="${ey - 1}" r="1.6" fill="#fff"/>`,
+    sleepy: `<path d="M${ex - 8} ${ey} q8 6 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/><path d="M${ex2 - 8} ${ey} q8 6 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`,
+    star: starEye(ex, ey) + starEye(ex2, ey),
+    wink: `<circle cx="${ex}" cy="${ey}" r="${er}" fill="#fff" stroke="${ink}" stroke-width="2"/><circle cx="${ex}" cy="${ey + 1}" r="4.5" fill="${ink}"/><path d="M${ex2 - 8} ${ey} q8 6 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`
+  };
+  const eyes = eyeShapes[p.eyes];
+  const mouths = {
+    smile: `<path d="M52 84 q8 8 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`,
+    grin:  `<path d="M50 82 q10 12 20 0 Z" fill="#fff" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/>`,
+    oh:    `<ellipse cx="60" cy="86" rx="6" ry="7" fill="${ink}"/>`,
+    fang:  `<path d="M52 84 q8 8 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/><path d="M56 85 l2 5 2-5 Z" fill="#fff" stroke="${ink}" stroke-width="1"/>`
+  };
+  const mouth = mouths[p.mouth];
+  const tails = {
+    none: '',
+    curl: `<path d="M100 84 q18 2 14 18 q-2 10 -12 8" fill="none" stroke="${ink}" stroke-width="6" stroke-linecap="round"/>`,
+    puff: `<circle cx="106" cy="88" r="12" fill="${light}" stroke="${ink}" stroke-width="3"/>`
+  };
+  const tail = tails[p.tail];
+  // pattern clipped to the body
+  let pat = '';
+  if (p.pattern === 'spots') pat = `<g clip-path="url(#${cid})"><circle cx="44" cy="66" r="7" fill="${dark}"/><circle cx="76" cy="58" r="6" fill="${dark}"/><circle cx="66" cy="86" r="8" fill="${dark}"/><circle cx="40" cy="90" r="5" fill="${dark}"/></g>`;
+  else if (p.pattern === 'stripes') pat = `<g clip-path="url(#${cid})"><path d="M20 60 h80 M16 74 h90 M22 88 h74" stroke="${dark}" stroke-width="6" opacity="0.7"/></g>`;
+  else if (p.pattern === 'heart') pat = `<g clip-path="url(#${cid})"><path d="M60 92 l-10-10 q-6-7 1-12 q6-4 9 3 q3-7 9-3 q7 5 1 12 Z" fill="${dark}"/></g>`;
+
+  const belly = `<ellipse cx="60" cy="84" rx="20" ry="18" fill="${light}" opacity="0.7"/>`;
+  const ar = 1;
+  const w = size;
+  return `<svg viewBox="0 0 120 120" width="${w}" height="${(w * ar).toFixed(1)}" class="boo-svg custom-boo ${cls}" role="img" aria-label="your custom Boo" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">` +
+    `<defs><clipPath id="${cid}">${bodyShape}</clipPath></defs>` +
+    `<g fill="${fill}" stroke="${ink}" stroke-width="3.5" stroke-linejoin="round">${ears}</g>` +
+    `<g fill="${fill}" stroke="${ink}" stroke-width="4" stroke-linejoin="round">${bodyShape}</g>` +
+    belly + pat + `<g>${tail}</g>` + eyes + mouth +
+    `</svg>`;
+}
+function starEye(cx, cy) {
+  return `<path d="M${cx} ${cy - 8} l2.4 5 5.4.6 -4 3.8 1.1 5.3 -4.9 -2.8 -4.9 2.8 1.1 -5.3 -4 -3.8 5.4 -.6 Z" fill="#FFC93C" stroke="#2A1B4E" stroke-width="1.2" stroke-linejoin="round"/>`;
+}
+function shade(hex, amt) {
+  const h = hex.replace('#', ''); if (h.length !== 6) return hex;
+  let r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  const f = amt < 0 ? (1 + amt) : 1; const add = amt > 0 ? amt * 255 : 0;
+  r = Math.max(0, Math.min(255, Math.round(r * f + add))); g = Math.max(0, Math.min(255, Math.round(g * f + add))); b = Math.max(0, Math.min(255, Math.round(b * f + add)));
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
 }

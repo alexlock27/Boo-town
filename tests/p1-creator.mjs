@@ -32,7 +32,7 @@ await page.waitForSelector('.hub', { timeout: 5000 });
 
 console.log('== old v1 save migrates losslessly ==');
 let s = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
-assert(s.version === 3, 'save version bumped to 3 (' + s.version + ')');
+assert(s.version === 4, 'save version bumped to 4 (' + s.version + ')');   // v4: RUN3 C6 IndexedDB/customs
 assert(s.guide.species === 'giraffe', 'guide.species defaults to giraffe');
 assert(s.guide.body === 'lilac', 'body preserved');
 assert(s.guide.patternColour === 'pink', 'old patch -> patternColour preserved (' + s.guide.patternColour + ')');

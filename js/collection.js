@@ -7,6 +7,7 @@ import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY } from '../data/catalogu
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
+import { ownedCustomItems } from './customs.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -76,7 +77,24 @@ export function mount(container, params, ctx) {
     wardGrid
   ]);
 
-  const scroll = el('div', { class: 'coll-scroll' }, [myCharCard, grid, wardrobe]);
+  // ---- My Boos: custom Boos she built and won (RUN3 C6) ----
+  const customs = ownedCustomItems();
+  let customsSection = null;
+  if (customs.length) {
+    const cgrid = el('div', { class: 'coll-grid customs-grid' });
+    for (const item of customs) {
+      cgrid.appendChild(el('button', { class: 'coll-tile owned rar-custom', onclick: () => { sfx.tap(); showItem(item, 1); } }, [
+        el('div', { class: 'coll-art', html: renderItem(item, { size: 84, cls: 'art-idle' }) }),
+        el('div', { class: 'coll-name', text: item.name })
+      ]));
+    }
+    customsSection = el('section', { class: 'my-boos' }, [
+      el('div', { class: 'wardrobe-head' }, [el('h3', { text: '🧩 Boos you built' }), el('span', { class: 'coll-count small', text: `${customs.length}` })]),
+      cgrid
+    ]);
+  }
+
+  const scroll = el('div', { class: 'coll-scroll' }, [myCharCard, grid, ...(customsSection ? [customsSection] : []), wardrobe]);
 
   // ---- Journal tab (RUN3 C4): a scrapbook of dated stamp stickers on flippable pages ----
   const journalView = el('div', { class: 'coll-scroll journal-view', style: { display: 'none' } });
@@ -132,7 +150,7 @@ export function mount(container, params, ctx) {
     const body = el('div', { class: 'item-detail' }, [
       el('div', { class: 'item-detail-art', html: renderItem(item, { size: 150, equipArt: isBoo ? equippedArt(item.id) : null, cls: item.fx ? '' : 'art-idle' }) }),
       showsNick ? el('div', { class: 'item-detail-official', text: officialName(item.id) }) : null,
-      el('div', { class: 'item-detail-rarity', text: RARITY[item.rarity].label + (count > 1 ? ` · you have ${count}` : '') }),
+      el('div', { class: 'item-detail-rarity', text: (RARITY[item.rarity] || { label: 'Your very own Boo!' }).label + (count > 1 ? ` · you have ${count}` : '') }),
       el('p', { class: 'item-detail-blurb', text: item.blurb })
     ]);
     const buttons = isBoo

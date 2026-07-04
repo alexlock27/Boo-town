@@ -28,9 +28,10 @@ export function mount(container, params, ctx) {
     if (!result) { ctx.go('hub'); return; }
     clear(root);
     music.play('calm');
-    // daily quest + Journal (RUN3 C4)
+    // daily quest + Journal (RUN3 C4/C6)
     noteQuest('boxOpen');
-    if (result.rarity === 'rare') stampJournal('firstRare');
+    if (result.isCustom) stampJournal('firstCustomWin');
+    else if (result.rarity === 'rare') stampJournal('firstRare');
     else if (result.rarity === 'ultra') stampJournal('firstUltra');
     else if (result.rarity === 'secret') stampJournal('firstSecret');
 
@@ -58,15 +59,16 @@ export function mount(container, params, ctx) {
     });
 
     function reveal() {
-      const rar = RARITY[result.rarity];
+      const rar = RARITY[result.rarity] || { label: 'Your very own Boo!' };
       sfx.fanfare();
-      confetti({ count: result.rarity === 'secret' ? 160 : result.rarity === 'ultra' ? 120 : 80, power: result.rarity === 'secret' ? 1.3 : 1 });
+      confetti({ count: result.isCustom || result.rarity === 'secret' ? 160 : result.rarity === 'ultra' ? 120 : 80, power: result.isCustom || result.rarity === 'secret' ? 1.3 : 1 });
       clear(root);
 
       const kind = result.item.kind;
-      const glowClass = 'glow-' + result.rarity;
+      const glowClass = result.isCustom ? 'glow-secret' : 'glow-' + result.rarity;
+      const banner = result.isCustom ? "IT'S YOUR BOO! 🎨" : (TYPE_BANNER[kind] || 'A TREASURE!');
       const card = el('div', { class: 'reveal-card ' + glowClass }, [
-        el('div', { class: 'reveal-banner type-' + kind, text: TYPE_BANNER[kind] || 'A TREASURE!' }),
+        el('div', { class: 'reveal-banner type-' + kind, text: banner }),
         el('div', { class: 'reveal-art', html: renderItem(result.item, { size: 172, cls: result.item.fx ? '' : 'art-idle' }) }),
         el('div', { class: 'reveal-rarity', text: rar.label }),
         el('h2', { class: 'reveal-name', text: result.duplicate ? `Another ${result.item.name}!` : result.item.name }),
@@ -91,7 +93,8 @@ export function mount(container, params, ctx) {
         buttons.appendChild(el('button', { class: 'btn big', text: 'Yay! 🎉', onclick: next }));
       } else {
         const seasonLine = { summer: 'summerReveal', spooky: 'spookyReveal', winter: 'winterReveal' };
-        const key = result.item.id === 'boo_twiglet' ? 'twigletReveal'
+        const key = result.isCustom ? 'boxCustom'
+          : result.item.id === 'boo_twiglet' ? 'twigletReveal'
           : kind === 'accessory' ? 'revealAccessory'
           : result.item.season ? seasonLine[result.item.season]
           : result.rarity === 'secret' ? 'boxSecret' : result.rarity === 'ultra' ? 'boxUltra'

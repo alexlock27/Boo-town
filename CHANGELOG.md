@@ -2,6 +2,23 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 6: Boo Studio (paint, collage, build-a-Boo, gallery)
+- A Studio joins the bottom bar. Artworks + audio now live in IndexedDB (js/idb.js); the
+  core save stays in localStorage and bumps to v4 with lossless migration. Gallery holds 20;
+  a kind prompt appears when full.
+- Paint-a-Boo: species outline templates + a blank egg; brush (3 sizes), flood fill, sparkle
+  pen, eraser, 12 colours + rainbow, undo (10). Saves a ≤640px PNG to the gallery.
+- Collage: pick a background, place your own Boos (with accessories), 12 props and text;
+  drag, scale, rotate; saved as a rasterised PNG.
+- Build-a-Boo: a parts workshop (bodies/ears/eyes/mouths/tails/patterns + colour). Name and
+  SEAL it; sealed customs (cap 5) enter the mystery-box pool with a 10% slice while unwon.
+  Winning one plays the ceremony with an "It's YOUR Boo!" banner, leaves the pool, and it
+  then lives in the collection ("Boos you built") and town like any Boo.
+- Gallery: grid, full-screen view, press-and-hold to delete. A free Art Easel deco is granted
+  with the Studio — place it in the town and choose an artwork to display on it.
+- Journal stamps: first custom built + first custom won. New js/customs.js + a parametric
+  custom-Boo renderer in art.js.
+
 ## Run 3 — Phase 5: Clock Shop
 - New game: Boos queue at a shop counter with time orders ("Half past 3, please!"). She
   sets a large analogue clock by dragging the hands — the hour hand moves proportionally

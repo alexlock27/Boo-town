@@ -6,6 +6,9 @@ import { el, clear, confetti, REDUCED } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
+import { resolveItem } from './customs.js';
+import { listArtworks } from './studio.js';
+import { idbGet } from './idb.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
@@ -125,7 +128,7 @@ export function mount(container, params, ctx) {
     const st = getState();
     let count = 0;
     for (const t of st.town) {
-      const item = BY_ID[t.item];
+      const item = resolveItem(t.item);
       if (!item) continue;
       const zi = ZONE_INDEX[t.zone] ?? 0;
       const x = clamp01(t.x);
@@ -140,6 +143,40 @@ export function mount(container, params, ctx) {
       if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) { actors.push(makeActor(wrap, item, t)); count++; }
     }
     applyDance();
+    decorateEasels();
+  }
+
+  // Overlay the chosen artwork onto any placed Easel (RUN3 C6).
+  async function decorateEasels() {
+    const artId = getState().easelArt;
+    const easels = ground.querySelectorAll('.t-item[data-item="deco_easel"]');
+    if (!easels.length) return;
+    let png = null;
+    if (artId) { const rec = await idbGet('artworks', artId).catch(() => null); png = rec && rec.png; }
+    easels.forEach(wrap => {
+      const slot = wrap.querySelector('.easel-slot');
+      wrap.querySelectorAll('image.easel-photo').forEach(n => n.remove());
+      if (slot && png) {
+        const NS = 'http://www.w3.org/2000/svg';
+        const img = document.createElementNS(NS, 'image');
+        img.setAttribute('class', 'easel-photo');
+        img.setAttribute('x', +slot.getAttribute('x') + 4); img.setAttribute('y', +slot.getAttribute('y') + 4);
+        img.setAttribute('width', +slot.getAttribute('width') - 8); img.setAttribute('height', +slot.getAttribute('height') - 8);
+        img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+        img.setAttribute('href', png); img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', png);
+        slot.parentNode.appendChild(img);
+      }
+    });
+  }
+
+  async function chooseEaselArt() {
+    const arts = await listArtworks();
+    const ov = el('div', { class: 'overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } });
+    const grid = el('div', { class: 'easel-choose-grid' });
+    if (!arts.length) grid.appendChild(el('p', { text: 'Paint or build some art in the Studio first!' }));
+    arts.forEach(a => { const b = el('button', { class: 'easel-choose-tile', onclick: () => { mutate(s => { s.easelArt = a.id; }); ov.remove(); renderPlaced(); } }); b.appendChild(el('img', { src: a.png, class: 'easel-choose-img' })); grid.appendChild(b); });
+    ov.appendChild(el('div', { class: 'card', style: { padding: '18px', maxWidth: '480px' } }, [el('h3', { text: 'Choose art for your easel' }), grid, el('button', { class: 'btn soft', text: 'Close', onclick: () => ov.remove() })]));
+    root.appendChild(ov);
   }
 
   // Dance Stage: Boos near a stage bop.
@@ -235,7 +272,7 @@ export function mount(container, params, ctx) {
     for (const t of st.town) placed[t.item] = (placed[t.item] || 0) + 1;
     const free = {};
     for (const [id, n] of Object.entries(st.inventory)) {
-      if (!BY_ID[id] || BY_ID[id].kind === 'accessory') continue; // accessories are worn
+      const rit = resolveItem(id); if (!rit || rit.kind === "accessory") continue; // accessories are worn
       const f = n - (placed[id] || 0);
       if (f > 0) free[id] = f;
     }
@@ -246,8 +283,8 @@ export function mount(container, params, ctx) {
       return;
     }
     for (const id of ids) {
-      const item = BY_ID[id];
-      const chip = el('button', { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
+      const item = resolveItem(id);
+      const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
         onclick: () => selectHold(id) }, [
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
         free[id] > 1 ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
@@ -320,6 +357,7 @@ export function mount(container, params, ctx) {
     closeMenu();
     const btns = [];
     if (item.kind === 'boo') btns.push(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => { e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderPlaced() }); } }));
+    if (item.deco === 'easel') btns.push(el('button', { class: 'btn soft', text: 'Choose art 🖼️', onclick: (e) => { e.stopPropagation(); closeMenu(); chooseEaselArt(); } }));
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
     btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
@@ -343,7 +381,7 @@ export function mount(container, params, ctx) {
       if (!dragging) return;
       if (!moved && Math.hypot(e.clientX - sX, e.clientY - sY) > 10) {
         moved = true; holding = id; placeMode = true;
-        ghost = el('div', { class: 'drag-ghost', html: renderItem(BY_ID[id], { size: 80, equipArt: BY_ID[id].kind === 'boo' ? equippedArt(id) : null }) });
+        { const rit = resolveItem(id); ghost = el('div', { class: 'drag-ghost', html: renderItem(rit, { size: 80, equipArt: rit.kind === 'boo' ? equippedArt(id) : null }) }); }
         document.body.appendChild(ghost);
       }
       if (moved && ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; }

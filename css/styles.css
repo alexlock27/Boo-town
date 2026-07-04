@@ -722,6 +722,75 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .golden-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
 .golden-sub { font-size: 15px; opacity: 0.85; }
 
+/* ---- Boo Studio (RUN3 C6) ---- */
+.studio, .paint-screen, .collage-screen, .build-screen, .gallery-screen { min-height: 100%; display: flex; flex-direction: column; padding: 10px; gap: 10px; }
+.studio-header { display: flex; align-items: center; gap: 12px; }
+.studio-header h2 { color: var(--card); font-family: var(--font-display); }
+.studio-header .gallery-count { margin-left: auto; color: var(--star); font-family: var(--font-display); }
+.studio-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 640px; margin: 20px auto; width: 100%; }
+.studio-card { background: var(--card); border-radius: 22px; box-shadow: var(--card-shadow); padding: 26px 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.studio-card:active { transform: scale(0.97) translateY(2px); }
+.sc-emoji { font-size: 48px; }
+.sc-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--ink); }
+.sc-tag { font-size: 14px; color: var(--sky-mid); }
+
+/* Paint */
+.paint-templates, .paint-swatches, .paint-tools, .paint-sizes, .paint-actions, .paint-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.paint-stage { display: flex; justify-content: center; }
+.paint-canvas { width: min(70vh, 420px); max-width: 92vw; aspect-ratio: 1; background: #FFF8F0; border-radius: 18px; border: 3px solid var(--ink); touch-action: none; }
+.paint-swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink); }
+.paint-swatch.sel { transform: scale(1.2); box-shadow: 0 0 0 3px var(--star); }
+.paint-swatch.rainbow { background: conic-gradient(#FF7AC6,#FFC93C,#35D0BA,#8FC7FF,#C6A9F0,#FF7AC6); }
+.paint-tool, .paint-size { width: 48px; height: 48px; border-radius: 14px; border: 3px solid var(--ink); background: var(--card); font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.paint-tool.sel, .paint-size.sel { background: var(--star); }
+.ps-dot { display: block; background: var(--ink); border-radius: 50%; }
+.paint-tmpl, .collage-bg, .collage-pick { background: var(--card); border-radius: 12px; border: 2px solid var(--ink); padding: 6px 12px; font-family: var(--font-display); color: var(--ink); }
+.paint-tmpl:active { transform: scale(0.96); }
+
+/* Build-a-Boo */
+.build-top { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.build-preview { background: var(--card); border-radius: 20px; padding: 10px; box-shadow: var(--card-shadow); }
+.build-name-wrap { display: flex; flex-direction: column; gap: 8px; }
+.build-name { max-width: 220px; }
+.build-rows { display: flex; flex-direction: column; gap: 8px; max-width: 640px; margin: 0 auto; width: 100%; }
+.build-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.build-label { font-family: var(--font-display); color: var(--card); min-width: 66px; }
+.build-opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.build-opt { background: var(--card); border: 2px solid var(--ink); border-radius: 10px; padding: 6px 12px; color: var(--ink); font-size: 15px; }
+.build-opt.sel { background: var(--zing); }
+.build-colour { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--ink); }
+.build-colour.sel { transform: scale(1.2); box-shadow: 0 0 0 3px var(--star); }
+.build-actions { display: flex; justify-content: center; }
+.build-seal { font-size: 22px; }
+.build-msg { text-align: center; color: var(--card); max-width: 460px; margin: 6px auto; }
+.build-msg.ok { color: var(--zing); font-weight: 700; }
+
+/* Collage */
+.collage-stage { display: flex; justify-content: center; }
+.collage-svg { width: min(80vw, 560px); aspect-ratio: 4/3; border-radius: 16px; border: 3px solid var(--ink); touch-action: none; background: var(--card); }
+.collage-svg .sel { outline: 2px dashed var(--pop); }
+.collage-handles, .collage-bgs, .collage-stickers, .collage-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.collage-hint { color: var(--card); font-size: 14px; }
+.cp-label { color: var(--star); font-family: var(--font-display); font-size: 14px; margin-top: 6px; text-align: center; }
+.collage-pick { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; padding: 2px; }
+.collage-pick.emoji { font-size: 28px; }
+.collage-bg.sel { background: var(--star); }
+
+/* Gallery */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 8px; }
+.gallery-tile { border-radius: 14px; overflow: hidden; border: 3px solid var(--ink); background: var(--card); padding: 0; }
+.gallery-img { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }
+.gallery-empty { text-align: center; color: var(--card); margin: 40px auto; }
+.ge-big { font-size: 60px; }
+.gallery-view { position: fixed; inset: 0; background: rgba(30,21,80,0.85); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.gv-inner { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 90vw; }
+.gv-img { max-width: 88vw; max-height: 74vh; border-radius: 16px; border: 4px solid var(--card); }
+.easel-choose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; max-height: 50vh; overflow-y: auto; }
+.easel-choose-tile { border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; padding: 0; }
+.easel-choose-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.rar-custom { border-color: var(--pop) !important; }
+.customs-grid, .my-boos { width: 100%; }
+
 /* ---- Clock Shop (RUN3 C5) ---- */
 .clockshop .shell-area, .screen.clockshop { }
 .shop-counter { display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap; }

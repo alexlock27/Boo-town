@@ -14,6 +14,7 @@ export const SECRET_MIN_OWNED = 10;  // Secret can only drop after owning 10+ it
 // Accessories never drop until at least 3 Boos are owned.
 export const TYPE_WEIGHTS = { boo: 70, deco: 15, accessory: 15 };
 export const ACCESSORY_MIN_BOOS = 3;
+export const CUSTOM_SLICE = 0.10;    // sealed customs claim a 10% type slice while any remain unwon (RUN3 C6)
 
 // Convert a round's stars into meter points and bank any boxes.
 // Returns { pointsAdded, boxesEarned, meter, boxes }.
@@ -101,14 +102,25 @@ export function openOneBox() {
   let result = null;
   mutate(st => {
     st.boxes -= 1;
-    const type = rollType(st);
-    const rolled = rollRarity(st);
-    const picked = pickItem(type, rolled);
-    const item = picked.item;
-    const rarity = picked.rarity;
 
-    // pity bookkeeping (tracks the effective rarity actually awarded)
-    if (rarity === 'common') st.pity.commons += 1; else st.pity.commons = 0;
+    // Sealed customs claim a 10% slice while any remain unwon (RUN3 C6).
+    const unwon = (st.customs || []).filter(c => c.sealed && !c.won);
+    const forced = typeof window !== 'undefined' && window.__forceCustomDrop;   // test-only
+    let item, rarity, isCustom = false;
+    if (unwon.length && (forced || Math.random() < CUSTOM_SLICE)) {
+      if (forced && typeof window !== 'undefined') window.__forceCustomDrop = false;
+      const c = unwon[Math.floor(Math.random() * unwon.length)];
+      c.won = true; c.wonAt = Date.now();
+      item = { id: 'custom:' + c.id, kind: 'boo', name: c.name, custom: c.parts, rarity: 'custom', blurb: 'A Boo you built yourself!' };
+      rarity = 'custom'; isCustom = true;
+      st.pity.commons = 0;   // a custom is not a common
+    } else {
+      const type = rollType(st);
+      const rolled = rollRarity(st);
+      const picked = pickItem(type, rolled);
+      item = picked.item; rarity = picked.rarity;
+      if (rarity === 'common') st.pity.commons += 1; else st.pity.commons = 0;
+    }
 
     const had = st.inventory[item.id] || 0;
     const duplicate = had > 0;
@@ -121,7 +133,7 @@ export function openOneBox() {
       st.meter += DUPLICATE_POINTS;
       while (st.meter >= METER_CAP) { st.meter -= METER_CAP; st.boxes += 1; extraBoxes += 1; }
     }
-    result = { item, rarity, duplicate, bonusPoints, extraBoxes, meter: st.meter, boxes: st.boxes };
+    result = { item, rarity, duplicate, isCustom, bonusPoints, extraBoxes, meter: st.meter, boxes: st.boxes };
   });
   return result;
 }

@@ -101,7 +101,10 @@ export const CATALOGUE = [
   { id: 'acc_wizardhat',    kind: 'accessory', name: 'Wizard Hat',     rarity: 'rare',   art: 'wizardhat',    blurb: 'Pointy, starry, and possibly a bit enchanted.' },
   { id: 'acc_goldcrown',    kind: 'accessory', name: 'Golden Crown',   rarity: 'ultra',  art: 'goldcrown',    blurb: 'Solid gold, extremely shiny, absolutely deserved.' },
   { id: 'acc_cape',         kind: 'accessory', name: 'Sparkle Cape',   rarity: 'ultra',  art: 'cape',    fx: 'shimmer', blurb: 'Swishes dramatically even when there is no wind.' },
-  { id: 'acc_djheadphones', kind: 'accessory', name: 'DJ Headphones',  rarity: 'rare',   art: 'djheadphones', blurb: 'Drop the beat! (DJ Boo already has a pair, thanks.)' }
+  { id: 'acc_djheadphones', kind: 'accessory', name: 'DJ Headphones',  rarity: 'rare',   art: 'djheadphones', blurb: 'Drop the beat! (DJ Boo already has a pair, thanks.)' },
+
+  // --- Free Easel (RUN3 C6): granted with the Studio, never drops from boxes ---
+  { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' }
 ];
 
 // Convenience lookups.
@@ -109,11 +112,12 @@ export const BY_ID = Object.fromEntries(CATALOGUE.map(it => [it.id, it]));
 
 // Collectibles (Boos + decorations) fill the collection grid + "found X of N" counter.
 // Accessories are a separate wardrobe (equipped, not counted here).
-export const COLLECTIBLES = CATALOGUE.filter(it => it.kind !== 'accessory');
+export const COLLECTIBLES = CATALOGUE.filter(it => it.kind !== 'accessory' && !it.free);
 export const ACCESSORIES  = CATALOGUE.filter(it => it.kind === 'accessory');
 
-// Grouped by kind then rarity for the type-first drop roll (RUN2 C2).
+// Grouped by kind then rarity for the type-first drop roll (RUN2 C2). Free items never drop.
 export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
+  if (it.free) return m;
   ((m[it.kind] ||= {})[it.rarity] ||= []).push(it);
   return m;
 }, {});

@@ -73,8 +73,11 @@ export function mount(container, params, ctx) {
   const collBtn = el('button', { class: 'bar-btn', onclick: () => ctx.go('collection') }, [
     el('span', { class: 'bar-ic', html: '📖' }), el('span', { text: 'Collection' })
   ]);
+  const studioBtn = el('button', { class: 'bar-btn', onclick: () => ctx.go('studio') }, [
+    el('span', { class: 'bar-ic', html: '🎨' }), el('span', { text: 'Studio' })
+  ]);
   const cog = makeCog(() => ctx.go('grownups'));
-  const bar = el('nav', { class: 'bottom-bar' }, [townBtn, collBtn, cog]);
+  const bar = el('nav', { class: 'bottom-bar' }, [townBtn, collBtn, studioBtn, cog]);
 
   // ---- Golden Round + daily quests cards (RUN3 C3/C4) ----
   const specials = el('section', { class: 'hub-specials' });

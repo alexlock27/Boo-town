@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 3;
+export const VERSION = 4;   // v4 (RUN3 C6): artworks/audio move to IndexedDB; +customs. localStorage core migrates via deepDefaults.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -44,6 +44,9 @@ function freshSave() {
     goldenLastDouble: '',       // local-day key (YYYY-MM-DD) the daily double stars were last awarded
     quests: { day: '', list: [], done: [], progress: {}, boxDay: '' }, // 3 daily quests (RUN3 C4), no streaks
     journal: {},                // Boo Journal stamps: uniqueKey -> date (RUN3 C4)
+    customs: [],                // Build-a-Boo sealed customs (RUN3 C6): [{ id, name, parts, sealed, won, wonAt? }]
+    studioSeen: false,          // whether the free Easel deco has been granted with the Studio
+    easelArt: '',               // artwork id displayed on the town Easel (RUN3 C6)
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true },
     created: 0,

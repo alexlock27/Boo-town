@@ -58,6 +58,7 @@ export const LINES = {
   ],
   boxUltra: ["NO WAY. An ULTRA?! It sparkles!!"],
   boxSecret: ["I don't believe it. THE secret Boo. DJ Boo is real!!"],
+  boxCustom: ["It's the Boo YOU built! It came to live in your town!", "You dreamed this one up yourself, {name}! Amazing!"],
   duplicate: [
     "Twins! I'll turn the spare into stars for you.",
     "Another one! More stars for the meter, then."

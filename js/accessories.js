@@ -9,14 +9,20 @@ import { BY_ID, ACCESSORIES } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { noteQuest } from './quests.js';
+import { resolveCustomItem } from './customs.js';
 
 // Display name: nickname if set, else the catalogue name.
+function baseName(id) {
+  if (BY_ID[id]) return BY_ID[id].name;
+  if (id && id.startsWith && id.startsWith('custom:')) { const it = resolveCustomItem(id); if (it) return it.name; }
+  return id;
+}
 export function getDisplayName(id) {
   const s = getState();
   const nick = s && s.nicknames && s.nicknames[id];
-  return nick || (BY_ID[id] ? BY_ID[id].name : id);
+  return nick || baseName(id);
 }
-export function officialName(id) { return BY_ID[id] ? BY_ID[id].name : id; }
+export function officialName(id) { return baseName(id); }
 
 // The art key of the accessory equipped on a Boo (or null).
 export function equippedArt(booId) {
