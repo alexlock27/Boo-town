@@ -117,10 +117,13 @@ export function mount(container, params, ctx) {
       band.style.top = groundY + 'px'; band.style.height = (viewH - groundY) + 'px';
       ground.appendChild(band);
       if (locked) {
+        // star requirement as current / required with a mini progress bar (job 5)
+        const pct = Math.max(0, Math.min(100, Math.round(stars / z.unlock * 100)));
         const sign = el('div', { class: 't-signpost' }, [
           el('div', { class: 't-sign-ic', html: signSVG() }),
           el('div', { class: 't-sign-name', text: z.name }),
-          el('div', { class: 't-sign-req', text: `opens at ${z.unlock} ⭐` })
+          el('div', { class: 't-sign-req', text: `${stars} / ${z.unlock} ⭐` }),
+          el('div', { class: 't-sign-bar' }, [el('i', { style: { width: pct + '%' } })])
         ]);
         sign.style.left = (i * zoneW + zoneW / 2) + 'px';
         sign.style.top = (groundY - 150) + 'px';
@@ -439,7 +442,7 @@ export function mount(container, params, ctx) {
   function flashLocked(zi) {
     const band = ground.querySelectorAll('.t-band')[zi];
     if (band) { band.classList.remove('shake'); void band.offsetWidth; band.classList.add('shake'); }
-    hint.textContent = `${ZONES[zi].name} opens at ${ZONES[zi].unlock} stars!`;
+    hint.textContent = `${ZONES[zi].name}: ${totalStars()} / ${ZONES[zi].unlock} ⭐`;
   }
 
   function updateHint() {

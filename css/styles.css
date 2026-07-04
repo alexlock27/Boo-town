@@ -262,6 +262,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* the shared back control pinned to the corner on header-less screens (DASH_PATCH job 3) */
 .screen-back { position: absolute; top: 10px; left: 10px; z-index: 60; }
 
+/* total-stars chip beside the meter (job 5) */
+.stars-total {
+  display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.14);
+  border-radius: 999px; padding: 6px 12px 6px 9px; flex-shrink: 0;
+}
+.stars-total .st-n { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--star); min-width: 22px; text-align: center; }
+.stars-total .st-ic { display: inline-flex; }
+.stars-total.grow { animation: sttpulse 0.9s ease-out; }
+@keyframes sttpulse { 0%,100% { transform: scale(1); } 40% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .stars-total.grow { animation: none !important; } }
+
 .meter-wrap { flex: 1; display: flex; align-items: center; gap: 12px; }
 .meter-track { flex: 1; display: flex; gap: 6px; height: 22px; max-width: 520px; }
 .meter-track.big { height: 28px; width: min(340px, 80%); max-width: 340px; margin: 8px auto; }
@@ -1171,6 +1182,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-signpost { position: absolute; z-index: 4; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; }
 .t-sign-name { font-family: var(--font-display); font-weight: 700; color: var(--card); font-size: 18px; text-shadow: 0 2px 0 rgba(0,0,0,0.3); }
 .t-sign-req { font-family: var(--font-display); color: var(--star); font-size: 15px; background: rgba(20,12,48,0.6); padding: 2px 10px; border-radius: 12px; margin-top: 2px; }
+/* mini progress toward the unlock (job 5) */
+.t-sign-bar { width: 92px; height: 9px; margin-top: 4px; border-radius: 6px; background: rgba(20,12,48,0.55); border: 1.5px solid rgba(255,255,255,0.35); overflow: hidden; }
+.t-sign-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--star), #FFB300); border-radius: 6px; }
 
 .t-item { position: absolute; z-index: 3; cursor: pointer; touch-action: none; }
 .t-item svg { display: block; }
@@ -1277,6 +1291,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .hub .hub-top .meter-wrap { gap: 8px; }
   .hub .hub-top .meter-track { height: 16px; gap: 4px; }
   .hub .hub-top .gift-btn { min-width: 46px; min-height: 46px; }
+  .hub .stars-total { padding: 4px 9px 4px 7px; gap: 4px; }
+  .hub .stars-total .st-n { font-size: 16px; min-width: 16px; }
   /* hero: never shrinks, never clips — the guide fills it properly */
   .hub .hub-guide { flex: 0 0 auto; min-height: auto; overflow: visible; padding: 2px 0; }
   .hub .guide-block { align-items: center; gap: 6px; max-width: 100%; }

@@ -2,6 +2,13 @@
 
 All notable changes to Boo Town. Newest first.
 
+## DASH_PATCH job 5: your total stars, always visible
+- A small star chip beside the hub meter now shows the total star count, with a brief
+  count-up whenever it has grown since last time.
+- Every star requirement now reads as current / required: locked town zone signposts show
+  e.g. "26 / 40 ⭐" with a mini progress bar, and the locked-zone tap hint matches. Read
+  from the existing save total — no economy changes.
+
 ## DASH_PATCH job 4: the age question
 - Onboarding gains one friendly step after the name: "How old are you?" with big number
   buttons (5 or younger … 12 and up). The answer quietly sets the content amount: 7 and

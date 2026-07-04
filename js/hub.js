@@ -1,6 +1,6 @@
 // js/hub.js — the home screen (spec §2, §5.2).
 
-import { el, clear, giftSVG, starsRow } from './ui.js';
+import { el, clear, giftSVG, starsRow, REDUCED } from './ui.js';
 import { getState, mutate } from './state.js';
 import { createGuideBubble, guideLine } from './guide.js';
 import { music, sfx } from './sfx.js';
@@ -44,8 +44,32 @@ export function mount(container, params, ctx) {
     updateSpeaker();
   });
 
+  // ---- total stars beside the meter (job 5): a small chip that counts up when it grows ----
+  const totalChip = el('div', { class: 'stars-total', 'aria-label': 'your total stars' }, [
+    el('span', { class: 'st-ic', html: chipStar() }),
+    el('span', { class: 'st-n', text: '0' })
+  ]);
+  {
+    const target = s.stars.total;
+    const from = Math.min((s.seen.lastStarsShown != null ? s.seen.lastStarsShown : target), target);
+    const nEl = totalChip.querySelector('.st-n');
+    if (from < target && !REDUCED) {
+      // brief count-up (read-only juice; no economy change)
+      totalChip.classList.add('grow');
+      const t0 = performance.now(), dur = 900;
+      const tick = (now) => {
+        const p = Math.min(1, (now - t0) / dur);
+        const e = 1 - Math.pow(1 - p, 3);
+        nEl.textContent = String(Math.round(from + (target - from) * e));
+        if (p < 1) requestAnimationFrame(tick); else totalChip.classList.remove('grow');
+      };
+      requestAnimationFrame(tick);
+    } else nEl.textContent = String(target);
+    mutate(st => { st.seen.lastStarsShown = target; });
+  }
+
   const meterWrap = el('div', { class: 'meter-wrap' });
-  const top = el('header', { class: 'hub-top' }, [speaker, meterWrap]);
+  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap]);
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
@@ -281,4 +305,9 @@ function dashIcon() {
 }
 function clockIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="30" cy="30" r="22" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><circle cx="30" cy="30" r="22" fill="none" stroke="var(--star)" stroke-width="3" opacity="0.5"/><line x1="30" y1="30" x2="30" y2="17" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="30" x2="40" y2="34" stroke="var(--pop)" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="30" r="2.5" fill="var(--ink)"/></svg>`;
+}
+
+// small star for the total-stars chip (job 5)
+function chipStar() {
+  return `<svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 16.8 6.2 19.8l1.1-6.4L2.6 8.8l6.5-.9z" fill="var(--star)" stroke="#E0A81E" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 }
