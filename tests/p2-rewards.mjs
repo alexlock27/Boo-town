@@ -37,7 +37,7 @@ console.log('== first pick is always a chosen Boo ==');
   const names = await page.$$eval('.firstpick-name', els => els.map(e => e.textContent));
   assert(JSON.stringify(names) === JSON.stringify(['Inky', 'Lolly', 'Chomp']), 'first pick offers Inky/Lolly/Chomp (' + names + ')');
   await page.click('.firstpick-card');
-  await page.waitForSelector('.town', { timeout: 4000 });
+  await page.waitForSelector('.town2', { timeout: 4000 });
   const s = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
   const ids = Object.keys(s.inventory);
   assert(ids.length === 1 && ids[0] === 'boo_inky', 'exactly the chosen Boo is owned (' + ids + ')');
@@ -71,7 +71,7 @@ async function revealCase(rand, expectBanner, expectBtn) {
   if (expectBtn === 'Wear it') {
     assert(await page.locator('.acc-chooser').count() > 0, 'Wear it -> equip picker');
   } else {
-    assert(await page.locator('.town').count() > 0, `${expectBtn} -> town place mode`);
+    assert(await page.locator('.town2').count() > 0, `${expectBtn} -> town place mode`);
   }
   await ctx.close();
 }

@@ -1,10 +1,8 @@
-// js/town.js — the town: her reward space (spec §9.3).
-// 6x4 plot grid on a grassy hillside. Inventory drawer of owned-but-unplaced items.
-// Place by tap-select-then-tap-plot OR by dragging. Tap a placed item for Move / Put away.
-// Boos idle-bounce on offset timers; tapping a Boo squeaks + pops a heart.
-// Dance Stage makes Boos on the 8 surrounding plots bop.
+// js/town.js — Town 2.0: a living side-view world (spec RUN2 C3).
+// Horizontally scrolling scene with three parallax layers, four star-gated zones,
+// drag placement along the ground band, wandering Boos, and real-clock day/night.
 
-import { el, clear } from './ui.js';
+import { el, clear, confetti, REDUCED } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
@@ -12,255 +10,485 @@ import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 
-const COLS = 6, ROWS = 4, PLOTS = COLS * ROWS;
+// Zone unlock thresholds (named constants).
+export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
+export const ZONES = [
+  { key: 'meadow',    name: 'Meadow',    unlock: 0 },
+  { key: 'riverside', name: 'Riverside', unlock: RIVERSIDE_STARS },
+  { key: 'hilltop',   name: 'Hilltop',   unlock: HILLTOP_STARS },
+  { key: 'beach',     name: 'Beach',     unlock: BEACH_STARS }
+];
+const ZONE_INDEX = Object.fromEntries(ZONES.map((z, i) => [z.key, i]));
+const MAX_WANDERERS = 30;
+const GROUND_FRAC = 0.80;   // ground line as a fraction of viewport height
+
+export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
+export function unlockedZones(stars) { return ZONES.filter(z => stars >= z.unlock); }
+
+function currentHour() {
+  if (typeof window !== 'undefined' && window.__bootownHour != null) return window.__bootownHour | 0;
+  try { return new Date().getHours(); } catch { return 12; }
+}
+const isNight = (h) => h >= 19 || h < 7;
 
 export function mount(container, params, ctx) {
   const s = getState();
   music.play('calm');
-  let holding = (params && params.place) || null; // item id being placed
+
+  let holding = (params && params.place) || null;   // item id being placed
   let placeMode = !!holding;
+  let scrollX = 0, worldW = 0, zoneW = 0, viewH = 0, groundY = 0;
+  let raf = null, actors = [], fx = [];
 
-  const root = el('div', { class: 'town' });
-
+  const root = el('div', { class: 'town2' });
   const back = el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('hub'); } });
   const title = el('h2', { text: 'My Town' });
   const hint = el('span', { class: 'town-hint' });
   const header = el('header', { class: 'town-header' }, [back, title, hint]);
 
-  const grid = el('div', { class: 'town-grid' });
-  const drawer = el('div', { class: 'town-drawer' });
-  const grass = el('div', { class: 'town-grass' }, [grid]);
+  const sky = el('div', { class: 't-layer t-sky' });
+  const hills = el('div', { class: 't-layer t-hills' });
+  const ground = el('div', { class: 't-layer t-ground' });
+  const air = el('div', { class: 't-layer t-air' });   // fireflies / butterflies
+  const viewport = el('div', { class: 't-viewport' }, [sky, hills, ground, air]);
 
-  root.append(header, grass, drawer);
+  const drawer = el('div', { class: 'town-drawer' });
+  root.append(header, viewport, drawer);
   container.appendChild(root);
 
-  renderGrid();
-  renderDrawer();
-  updateHint();
+  // Day / night tint.
+  const night = isNight(currentHour());
+  root.classList.toggle('night', night);
 
-  // If arriving from the ceremony or first-pick holding an item, guide welcomes + nudges.
-  if (placeMode && (params.from === 'ceremony' || params.from === 'firstpick')) showGuideNudge();
+  requestAnimationFrame(() => { layout(); renderDrawer(); updateHint(); maybeCelebrateUnlock(); startLoop(); });
+  const onResize = () => layout();
+  window.addEventListener('resize', onResize);
 
-  function placedByPlot() {
-    const m = {};
-    for (const t of getState().town) m[t.plot] = t.item;
-    return m;
+  // ---- layout / render ----------------------------------------------------
+  function layout() {
+    viewH = viewport.clientHeight || 400;
+    zoneW = viewport.clientWidth || 600;
+    worldW = zoneW * ZONES.length;
+    groundY = viewH * GROUND_FRAC;
+    for (const L of [sky, hills, ground, air]) { L.style.width = worldW + 'px'; L.style.height = viewH + 'px'; }
+    renderScenery();
+    renderPlaced();
+    clampScroll();
+    applyScroll();
   }
 
-  function unplacedCounts() {
+  function renderScenery() {
+    clear(sky); clear(hills); clear(ground);
+    // sky: gradient + a scatter of stars across the whole world
+    sky.appendChild(el('div', { class: 't-skygrad' }));
+    const starN = 90;
+    const sf = document.createDocumentFragment();
+    for (let i = 0; i < starN; i++) {
+      const st = el('i', { class: 't-star' });
+      st.style.left = (i / starN * 100).toFixed(2) + '%';
+      st.style.top = (Math.abs(Math.sin(i * 12.9898) ) * 55).toFixed(1) + '%';
+      st.style.setProperty('--tw', (1.5 + (i % 5) * 0.4) + 's');
+      sf.appendChild(st);
+    }
+    sky.appendChild(el('div', { class: 't-stars' }, [])).appendChild(sf);
+
+    const stars = totalStars();
+    ZONES.forEach((z, i) => {
+      const locked = stars < z.unlock;
+      // midground scenery
+      const scene = el('div', { class: 't-zone-scene ' + z.key + (locked ? ' locked' : ''), html: sceneryFor(z.key, zoneW, viewH) });
+      scene.style.left = (i * zoneW) + 'px'; scene.style.width = zoneW + 'px';
+      hills.appendChild(scene);
+      // ground band
+      const band = el('div', { class: 't-band ' + z.key + (locked ? ' locked' : '') });
+      band.style.left = (i * zoneW) + 'px'; band.style.width = zoneW + 'px';
+      band.style.top = groundY + 'px'; band.style.height = (viewH - groundY) + 'px';
+      ground.appendChild(band);
+      if (locked) {
+        const sign = el('div', { class: 't-signpost' }, [
+          el('div', { class: 't-sign-ic', html: signSVG() }),
+          el('div', { class: 't-sign-name', text: z.name }),
+          el('div', { class: 't-sign-req', text: `opens at ${z.unlock} ⭐` })
+        ]);
+        sign.style.left = (i * zoneW + zoneW / 2) + 'px';
+        sign.style.top = (groundY - 150) + 'px';
+        ground.appendChild(sign);
+      }
+    });
+  }
+
+  function renderPlaced() {
+    ground.querySelectorAll('.t-item').forEach(n => n.remove());
+    actors = [];
     const st = getState();
-    const placedCount = {};
-    for (const t of st.town) placedCount[t.item] = (placedCount[t.item] || 0) + 1;
-    const out = {};
-    for (const [id, n] of Object.entries(st.inventory)) {
-      if (!BY_ID[id] || BY_ID[id].kind === 'accessory') continue; // accessories are worn, not placed
-      const free = n - (placedCount[id] || 0);
-      if (free > 0) out[id] = free;
+    let count = 0;
+    for (const t of st.town) {
+      const item = BY_ID[t.item];
+      if (!item) continue;
+      const zi = ZONE_INDEX[t.zone] ?? 0;
+      const x = clamp01(t.x);
+      const px = zi * zoneW + x * zoneW;
+      const size = 92;
+      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item } });
+      wrap.style.left = (px - size / 2) + 'px';
+      wrap.style.top = (groundY - size + 8) + 'px';
+      wrap.innerHTML = renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
+      attachItemPointer(wrap, t, item);
+      ground.appendChild(wrap);
+      if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) { actors.push(makeActor(wrap, item, t)); count++; }
     }
-    // the item currently in hand (picked up / from ceremony) also shows as available
-    return out;
+    applyDance();
   }
 
-  function danceNeighbours() {
-    const map = placedByPlot();
-    const dancing = new Set();
-    for (const [plotStr, id] of Object.entries(map)) {
-      if (id === 'deco_stage') {
-        const p = Number(plotStr), r = Math.floor(p / COLS), c = p % COLS;
-        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-          if (!dr && !dc) continue;
-          const nr = r + dr, nc = c + dc;
-          if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) dancing.add(nr * COLS + nc);
-        }
-      }
+  // Dance Stage: Boos near a stage bop.
+  function applyDance() {
+    const st = getState();
+    const stages = st.town.filter(t => t.item === 'deco_stage');
+    for (const a of actors) {
+      const near = stages.some(sg => (ZONE_INDEX[sg.zone] === ZONE_INDEX[a.place.zone]) && Math.abs(sg.x - a.place.x) < 0.14);
+      a.dancing = near;
+      a.wrap.querySelector('svg')?.classList.toggle('art-dance', near && !REDUCED);
     }
-    return dancing;
   }
 
-  function renderGrid() {
-    clear(grid);
-    grid.classList.toggle('place-mode', placeMode);
-    const map = placedByPlot();
-    const dancing = danceNeighbours();
-    for (let p = 0; p < PLOTS; p++) {
-      const cell = el('div', { class: 'plot', dataset: { plot: String(p) } });
-      if (map[p]) {
-        const item = BY_ID[map[p]];
-        const wrap = el('div', { class: 'placed', dataset: { plot: String(p) } });
-        wrap.innerHTML = renderItem(item, { size: 100, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
-        const svg = wrap.firstChild;
-        if (svg) {
-          if (item.kind === 'boo' && !item.fx) {
-            svg.classList.add(dancing.has(p) ? 'art-dance' : 'art-idle');
-            svg.style.animationDelay = (p % 7) * 0.18 + 's';
-          }
-        }
-        wrap.addEventListener('click', (e) => { e.stopPropagation(); onPlacedTap(p, item, wrap); });
-        cell.appendChild(wrap);
-      } else if (placeMode) {
-        cell.classList.add('open');
-      }
-      cell.addEventListener('click', () => onPlotTap(p));
-      grid.appendChild(cell);
-    }
+  // ---- scrolling (momentum) ----------------------------------------------
+  function applyScroll() {
+    ground.style.transform = `translateX(${-scrollX}px)`;
+    hills.style.transform = `translateX(${-scrollX * 0.55}px)`;
+    sky.style.transform = `translateX(${-scrollX * 0.22}px)`;
+    air.style.transform = `translateX(${-scrollX}px)`;
+  }
+  function clampScroll() { scrollX = Math.max(0, Math.min(scrollX, Math.max(0, worldW - zoneW))); }
+  function scrollToZone(zi, smooth = true) {
+    const target = Math.max(0, Math.min(zi * zoneW, worldW - zoneW));
+    if (!smooth || REDUCED) { scrollX = target; clampScroll(); applyScroll(); return; }
+    const from = scrollX, dt0 = performance.now();
+    (function step(now) {
+      const p = Math.min(1, (now - dt0) / 650);
+      const e = 1 - Math.pow(1 - p, 3);
+      scrollX = from + (target - from) * e; clampScroll(); applyScroll();
+      if (p < 1) requestAnimationFrame(step);
+    })(dt0);
+  }
+
+  let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
+  viewport.addEventListener('pointerdown', e => {
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost')) return; // items handle their own
+    if (momRaf) { cancelAnimationFrame(momRaf); momRaf = null; }
+    dragScroll = true; movedScroll = false; sx = e.clientX; sScroll = scrollX; vel = 0; lastX = e.clientX; lastT = performance.now();
+    viewport.setPointerCapture(e.pointerId);
+  });
+  viewport.addEventListener('pointermove', e => {
+    if (!dragScroll) return;
+    const dx = e.clientX - sx;
+    if (Math.abs(dx) > 4) movedScroll = true;
+    scrollX = sScroll - dx; clampScroll(); applyScroll();
+    const now = performance.now(); const dt = now - lastT;
+    if (dt > 0) vel = (e.clientX - lastX) / dt;
+    lastX = e.clientX; lastT = now;
+  });
+  const endScroll = (e) => {
+    if (!dragScroll) return;
+    dragScroll = false;
+    // place-mode: a tap on empty ground places the held item here
+    if (placeMode && holding && !movedScroll) { placeAtClient(e.clientX, e.clientY); return; }
+    let v = vel * 16; // momentum
+    if (Math.abs(v) < 0.5 || REDUCED) return;
+    (function mom() {
+      scrollX -= v; v *= 0.92; clampScroll(); applyScroll();
+      if (Math.abs(v) > 0.4 && scrollX > 0 && scrollX < worldW - zoneW) momRaf = requestAnimationFrame(mom);
+    })();
+  };
+  viewport.addEventListener('pointerup', endScroll);
+  viewport.addEventListener('pointercancel', () => { dragScroll = false; });
+  viewport.addEventListener('wheel', e => { scrollX += e.deltaY + e.deltaX; clampScroll(); applyScroll(); }, { passive: true });
+
+  // ---- placement ----------------------------------------------------------
+  function clientToWorld(cx) {
+    const r = viewport.getBoundingClientRect();
+    return (cx - r.left) + scrollX;
+  }
+  function zoneAndXAt(worldX) {
+    let zi = Math.floor(worldX / zoneW);
+    zi = Math.max(0, Math.min(ZONES.length - 1, zi));
+    const x = clamp01((worldX - zi * zoneW) / zoneW);
+    return { zi, x };
+  }
+  function canPlaceIn(zi) { return totalStars() >= ZONES[zi].unlock; }
+
+  function placeAtClient(cx, cy) {
+    const { zi, x } = zoneAndXAt(clientToWorld(cx));
+    if (!canPlaceIn(zi)) { flashLocked(zi); return; }
+    const id = holding;
+    mutate(st => { st.town.push({ zone: ZONES[zi].key, x: +x.toFixed(3), item: id }); });
+    holding = null; placeMode = false;
+    renderPlaced(); renderDrawer(); updateHint();
+    sfx.pop();
   }
 
   function renderDrawer() {
     clear(drawer);
-    const free = unplacedCounts();
+    const st = getState();
+    const placed = {};
+    for (const t of st.town) placed[t.item] = (placed[t.item] || 0) + 1;
+    const free = {};
+    for (const [id, n] of Object.entries(st.inventory)) {
+      if (!BY_ID[id] || BY_ID[id].kind === 'accessory') continue; // accessories are worn
+      const f = n - (placed[id] || 0);
+      if (f > 0) free[id] = f;
+    }
     const ids = Object.keys(free);
+    if (holding && !ids.includes(holding)) ids.unshift(holding);
     if (!ids.length && !holding) {
       drawer.appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
       return;
     }
     for (const id of ids) {
       const item = BY_ID[id];
-      const chip = el('button', {
-        class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
-        onclick: () => selectHold(id)
-      }, [
-        el('div', { class: 'drawer-art', html: renderItem(item, { size: 64 }) }),
+      const chip = el('button', { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
+        onclick: () => selectHold(id) }, [
+        el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
         free[id] > 1 ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
       ]);
-      makeDraggable(chip, id);
+      makeDrawerDraggable(chip, id);
       drawer.appendChild(chip);
     }
   }
-
   function selectHold(id) {
     sfx.tap();
     holding = (holding === id) ? null : id;
     placeMode = !!holding;
-    renderGrid(); renderDrawer(); updateHint();
+    renderDrawer(); updateHint();
   }
 
-  function onPlotTap(p) {
-    if (!holding) return;
-    const map = placedByPlot();
-    if (map[p]) return; // occupied
-    place(p, holding);
+  // ---- placed-item pointer: tap (squeak+menu) or drag-move ----------------
+  function attachItemPointer(wrap, place, item) {
+    let down = false, moved = false, dsx = 0, dsy = 0, ghost = null;
+    wrap.addEventListener('pointerdown', e => {
+      if (placeMode) return;
+      e.stopPropagation();
+      down = true; moved = false; dsx = e.clientX; dsy = e.clientY;
+      wrap.setPointerCapture(e.pointerId);
+    });
+    wrap.addEventListener('pointermove', e => {
+      if (!down) return;
+      if (!moved && Math.hypot(e.clientX - dsx, e.clientY - dsy) > 10) {
+        moved = true; wrap.classList.add('dragging');
+      }
+      if (moved) {
+        const { zi, x } = zoneAndXAt(clientToWorld(e.clientX));
+        wrap.style.left = (zi * zoneW + x * zoneW - wrap.offsetWidth / 2) + 'px';
+        wrap.dataset._zi = zi; wrap.dataset._x = x;
+      }
+    });
+    wrap.addEventListener('pointerup', e => {
+      if (!down) return; down = false;
+      wrap.classList.remove('dragging');
+      if (moved) {
+        const zi = +wrap.dataset._zi, x = +wrap.dataset._x;
+        if (canPlaceIn(zi)) {
+          mutate(st => { const t = st.town.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); } });
+        }
+        renderPlaced();
+      } else {
+        onTap(wrap, place, item);
+      }
+    });
+    wrap.addEventListener('pointercancel', () => { down = false; wrap.classList.remove('dragging'); });
   }
 
-  function place(p, id) {
-    sfx.pop();
-    mutate(st => { st.town.push({ plot: p, item: id }); });
-    holding = null; placeMode = false;
-    renderGrid(); renderDrawer(); updateHint();
-  }
-
-  function onPlacedTap(p, item, wrap) {
-    if (placeMode) return; // ignore while placing
-    if (item.kind === 'boo') { squeak(wrap, item); }
-    openMenu(p, item, wrap);
+  function onTap(wrap, place, item) {
+    if (item.kind === 'boo') squeak(wrap, item);
+    openMenu(wrap, place, item);
   }
 
   function squeak(wrap, item) {
     sfx.pop();
-    const svg = wrap.firstChild;
-    if (svg) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
-    const heart = el('div', { class: 'pop-heart', text: '❤' });
-    wrap.appendChild(heart);
+    const svg = wrap.querySelector('svg');
+    if (svg && !REDUCED) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
+    const heart = el('div', { class: 'pop-heart', text: '❤' }); wrap.appendChild(heart);
     setTimeout(() => heart.remove(), 900);
-    if (item) {
-      const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) });
-      wrap.appendChild(tag);
-      setTimeout(() => tag.remove(), 1100);
-    }
+    const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) }); wrap.appendChild(tag);
+    setTimeout(() => tag.remove(), 1100);
   }
 
   let openPopover = null;
-  function openMenu(p, item, wrap) {
+  function openMenu(wrap, place, item) {
     closeMenu();
-    const btns = [
-      el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(p, item); } }),
-      el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(p); } })
-    ];
-    if (item.kind === 'boo') {
-      btns.unshift(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => {
-        e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderGrid() });
-      } }));
-    }
+    const btns = [];
+    if (item.kind === 'boo') btns.push(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => { e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderPlaced() }); } }));
+    btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
+    btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
     wrap.appendChild(menu);
     openPopover = menu;
-    setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
+    setTimeout(() => document.addEventListener('pointerdown', closeMenu, { once: true }), 0);
   }
   function closeMenu() { if (openPopover) { openPopover.remove(); openPopover = null; } }
 
-  function pickUp(p, item) {
-    closeMenu();
-    mutate(st => { st.town = st.town.filter(t => t.plot !== p); });
-    holding = item.id; placeMode = true;
-    renderGrid(); renderDrawer(); updateHint();
+  function removePlacement(place) {
+    mutate(st => { const i = st.town.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) st.town.splice(i, 1); });
   }
-  function putAway(p) {
-    closeMenu();
-    sfx.tap();
-    mutate(st => { st.town = st.town.filter(t => t.plot !== p); });
-    renderGrid(); renderDrawer(); updateHint();
-  }
+  function pickUp(place) { closeMenu(); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); }
+  function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); }
 
-  function updateHint() {
-    hint.textContent = holding ? 'Tap a spot to place it!' : 'Tap a Boo to move it or say hi';
-  }
-
-  function showGuideNudge() {
-    const line = guideLine('townFirst');
-    hint.textContent = line;
-    speakMaybe(line);
-  }
-
-  // ---- drag support (pointer events) ----
-  function makeDraggable(chip, id) {
-    let dragging = false, ghost = null, startX = 0, startY = 0, moved = false;
-    chip.addEventListener('pointerdown', e => {
-      startX = e.clientX; startY = e.clientY; moved = false;
-      dragging = true;
-      chip.setPointerCapture(e.pointerId);
-    });
+  // ---- drawer drag to place ----------------------------------------------
+  function makeDrawerDraggable(chip, id) {
+    let dragging = false, ghost = null, sX = 0, sY = 0, moved = false;
+    chip.addEventListener('pointerdown', e => { sX = e.clientX; sY = e.clientY; moved = false; dragging = true; chip.setPointerCapture(e.pointerId); });
     chip.addEventListener('pointermove', e => {
       if (!dragging) return;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
-      if (!moved && Math.hypot(dx, dy) > 10) {
-        moved = true;
-        holding = id; placeMode = true; renderGrid();
-        ghost = el('div', { class: 'drag-ghost', html: renderItem(BY_ID[id], { size: 80 }) });
+      if (!moved && Math.hypot(e.clientX - sX, e.clientY - sY) > 10) {
+        moved = true; holding = id; placeMode = true;
+        ghost = el('div', { class: 'drag-ghost', html: renderItem(BY_ID[id], { size: 80, equipArt: BY_ID[id].kind === 'boo' ? equippedArt(id) : null }) });
         document.body.appendChild(ghost);
       }
-      if (moved && ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; highlightPlot(e.clientX, e.clientY); }
+      if (moved && ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; }
     });
     chip.addEventListener('pointerup', e => {
-      if (!dragging) return;
-      dragging = false;
+      if (!dragging) return; dragging = false;
       if (ghost) { ghost.remove(); ghost = null; }
       if (moved) {
-        const p = plotUnder(e.clientX, e.clientY);
-        clearPlotHighlight();
-        const map = placedByPlot();
-        if (p != null && !map[p]) place(p, id);
-        else { renderGrid(); renderDrawer(); updateHint(); }
+        const r = viewport.getBoundingClientRect();
+        if (e.clientY >= r.top && e.clientY <= r.bottom) placeAtClient(e.clientX, e.clientY);
+        else { renderDrawer(); updateHint(); }
       }
-      // a non-moved tap falls through to the click handler (selectHold)
     });
     chip.addEventListener('pointercancel', () => { dragging = false; if (ghost) { ghost.remove(); ghost = null; } });
   }
-  function highlightPlot(x, y) {
-    clearPlotHighlight();
-    const p = plotUnder(x, y);
-    if (p != null) { const c = grid.querySelector(`.plot[data-plot="${p}"]`); if (c && !c.querySelector('.placed')) c.classList.add('drop-hi'); }
-  }
-  function clearPlotHighlight() { grid.querySelectorAll('.drop-hi').forEach(c => c.classList.remove('drop-hi')); }
-  function plotUnder(x, y) {
-    for (const c of grid.querySelectorAll('.plot')) {
-      const r = c.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return Number(c.dataset.plot);
-    }
-    return null;
+
+  function flashLocked(zi) {
+    const band = ground.querySelectorAll('.t-band')[zi];
+    if (band) { band.classList.remove('shake'); void band.offsetWidth; band.classList.add('shake'); }
+    hint.textContent = `${ZONES[zi].name} opens at ${ZONES[zi].unlock} stars!`;
   }
 
-  return { unmount() { closeMenu(); } };
+  function updateHint() {
+    hint.textContent = holding ? 'Tap the ground to place it! 🌱' : (placeMode ? 'Tap the ground to place it!' : 'Drag from the tray. Tap a Boo to say hi!');
+  }
+
+  // ---- zone unlock ceremony ----------------------------------------------
+  function maybeCelebrateUnlock() {
+    const st = getState();
+    const seen = st.seen.zonesUnlocked || [];
+    const nowUnlocked = unlockedZones(st.stars.total).map(z => z.key);
+    const fresh = nowUnlocked.filter(k => k !== 'meadow' && !seen.includes(k));
+    if (params && params.simulateUnlock) { /* tests can pass a zone to force */ }
+    if (!fresh.length) return;
+    const key = fresh[0];
+    mutate(s2 => { s2.seen.zonesUnlocked = [...seen, ...fresh]; });
+    const z = ZONES[ZONE_INDEX[key]];
+    scrollToZone(ZONE_INDEX[key]);
+    setTimeout(() => {
+      sfx.fanfare();
+      confetti({ count: 110, power: 1.1 });
+      const line = guideLine('zoneUnlock');
+      hint.textContent = `✨ ${z.name} is open! ✨`;
+      speakMaybe(line);
+    }, REDUCED ? 0 : 500);
+  }
+
+  // ---- actors: gentle wandering (transform-only) -------------------------
+  function makeActor(wrap, item, place) {
+    return { wrap, item, place, dancing: false,
+      home: 0, dx: 0, vx: 0, state: 'pause', t: 0, next: 400 + Math.random() * 1200, hopT: 0 };
+  }
+  function startLoop() {
+    if (REDUCED) return;              // reduced motion: static poses, no wandering
+    let last = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(48, now - last); last = now;
+      if (!document.hidden) stepActors(dt);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+  function stepActors(dt) {
+    for (const a of actors) {
+      // skip offscreen actors (cheap)
+      const px = parseFloat(a.wrap.style.left) - scrollX;
+      if (px < -140 || px > zoneW + 140) continue;
+      if (a.dancing) continue; // dancing handled by CSS
+      a.t += dt;
+      if (a.t >= a.next) {
+        a.t = 0;
+        const roll = Math.random();
+        if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.next = 700 + Math.random() * 1600; }
+        else if (roll < 0.85) { a.state = 'walk'; a.vx = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.01); a.next = 500 + Math.random() * 900; }
+        else { a.state = 'hop'; a.hopT = 0; a.next = 500 + Math.random() * 900; }
+      }
+      if (a.state === 'walk') { a.dx += a.vx * dt; a.dx = Math.max(-26, Math.min(26, a.dx)); }
+      let ty = 0, flip = a.vx < 0 ? -1 : 1;
+      if (a.state === 'hop') { a.hopT += dt; const p = Math.min(1, a.hopT / 420); ty = -Math.sin(p * Math.PI) * 12; if (p >= 1) a.state = 'pause'; }
+      a.wrap.querySelector('svg').style.transform = `translate(${a.dx.toFixed(1)}px, ${ty.toFixed(1)}px) scaleX(${flip})`;
+    }
+  }
+
+  // ---- day/night ambient fx ----------------------------------------------
+  buildAmbient(air, night);
+
+  return {
+    unmount() {
+      if (raf) cancelAnimationFrame(raf);
+      if (momRaf) cancelAnimationFrame(momRaf);
+      window.removeEventListener('resize', onResize);
+      closeMenu();
+    }
+  };
 }
 
+function buildAmbient(air, night) {
+  if (REDUCED) return;
+  const n = night ? 10 : 8;
+  for (let i = 0; i < n; i++) {
+    const e2 = el('div', { class: night ? 't-firefly' : 't-butterfly', text: night ? '' : '🦋' });
+    e2.style.left = (Math.random() * 100) + '%';
+    e2.style.top = (30 + Math.random() * 45) + '%';
+    e2.style.animationDelay = (Math.random() * 6) + 's';
+    e2.style.animationDuration = (6 + Math.random() * 6) + 's';
+    air.appendChild(e2);
+  }
+}
+
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+// ---- per-zone background scenery (inline SVG) ---------------------------
+function sceneryFor(key, w, h) {
+  const W = 100, H = 100; // drawn in a 100x100 viewBox, stretched to the zone
+  if (key === 'riverside') {
+    return svg(W, H, `
+      <path d="M0 78 Q25 70 50 76 T100 74 L100 100 L0 100 Z" fill="#6FBF7A"/>
+      <path d="M0 88 Q30 82 60 88 T100 86 L100 100 L0 100 Z" fill="#59A867"/>
+      <path d="M0 79 Q50 86 100 79 L100 92 Q50 98 0 92 Z" fill="#7FC7E8" opacity="0.9"/>
+      <ellipse cx="70" cy="85" rx="7" ry="2.2" fill="#A6DDF2"/>
+      <ellipse cx="30" cy="87" rx="5" ry="1.8" fill="#A6DDF2"/>`);
+  }
+  if (key === 'hilltop') {
+    return svg(W, H, `
+      <path d="M0 82 Q22 40 44 60 Q60 74 78 44 Q92 24 100 46 L100 100 L0 100 Z" fill="#7CC98A"/>
+      <path d="M0 90 Q40 70 100 88 L100 100 L0 100 Z" fill="#5FA76C"/>
+      <circle cx="80" cy="24" r="9" fill="#FFE08A" opacity="0.85"/>`);
+  }
+  if (key === 'beach') {
+    return svg(W, H, `
+      <path d="M0 74 Q50 80 100 74 L100 88 Q50 94 0 88 Z" fill="#8FD3EF"/>
+      <path d="M0 86 Q30 82 60 86 T100 85 L100 100 L0 100 Z" fill="#F2DDA6"/>
+      <path d="M0 90 Q50 96 100 90 L100 100 L0 100 Z" fill="#E9CE8E"/>
+      <path d="M0 80 Q10 78 20 80" stroke="#fff" stroke-width="1.2" fill="none" opacity="0.7"/>`);
+  }
+  // meadow
+  return svg(W, H, `
+    <path d="M0 80 Q30 66 60 78 T100 74 L100 100 L0 100 Z" fill="#8AD48F"/>
+    <path d="M0 90 Q40 82 100 90 L100 100 L0 100 Z" fill="#6FBF77"/>
+    <circle cx="18" cy="86" r="1.6" fill="#FF7AC6"/><circle cx="34" cy="90" r="1.6" fill="#FFD166"/><circle cx="72" cy="88" r="1.6" fill="#C6A9F0"/><circle cx="86" cy="92" r="1.6" fill="#FF7AC6"/>`);
+}
+function svg(w, h, inner) {
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+
+function signSVG() {
+  return `<svg viewBox="0 0 60 70" width="52" height="60"><rect x="27" y="30" width="6" height="38" fill="#8A5A44" stroke="#2A1B4E" stroke-width="2.5"/><rect x="8" y="8" width="44" height="26" rx="5" fill="#F2D6B8" stroke="#2A1B4E" stroke-width="3"/><text x="30" y="26" font-family="Fredoka,sans-serif" font-size="16" fill="#2A1B4E" text-anchor="middle">🔒</text></svg>`;
+}
 function backArrow() {
   return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }

@@ -57,7 +57,7 @@ await page.screenshot({ path: 'screenshots/m2-firstpick.png' });
 const firstNames = await page.$$eval('.firstpick-name', els => els.map(e => e.textContent));
 assert(JSON.stringify(firstNames) === JSON.stringify(['Inky', 'Lolly', 'Chomp']), 'first pick offers Inky/Lolly/Chomp');
 await page.click('.firstpick-card');                 // pick the first Boo
-await page.waitForSelector('.town', { timeout: 4000 });
+await page.waitForSelector('.town2', { timeout: 4000 });
 
 const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
 assert(save.name === 'Maya', 'name saved');
@@ -68,7 +68,7 @@ assert(save.opened === 1, 'opened count = 1 (the chosen Boo)');
 assert(save.boxes === 0, 'no free random box — first reward is a chosen character');
 
 // the guide walks her into the town to place her new friend
-assert(await page.$('.town'), 'lands in the town to place the new Boo');
+assert(await page.$('.town2'), 'lands in the town to place the new Boo');
 await page.evaluate(() => window.BooTown.go('hub'));
 await page.waitForSelector('.hub', { timeout: 4000 });
 assert(true, 'reaches the hub');

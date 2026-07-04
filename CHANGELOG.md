@@ -2,6 +2,23 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 3: Town 2.0 (a living scrolling world)
+- The 6x4 grid is replaced by a horizontally scrolling side-view world with three
+  parallax layers (starry sky, soft hills, ground band) and momentum touch scroll.
+- Four zones, each about a screen wide: Meadow (open), Riverside (40 stars), Hilltop
+  (100), Beach (180) — named constants. Locked zones show pretty silhouettes with a
+  signpost ("opens at N stars"); unlocking plays a fanfare, confetti, a guide line and
+  pans the camera into the new zone (celebrated once, recorded in the save).
+- Placement: drag items from the tray onto the ground band anywhere, or tap-to-place in
+  place mode; drag placed items to move; menu to Dress up / Move / Put away. Old grid
+  placements migrate to Meadow positions in order.
+- Life: placed Boos gently wander with pauses and the odd hop (transform-only, ≤30 active,
+  paused offscreen or when hidden); tapping squeaks, pops a heart and shows the nickname.
+  Dance Stage still makes nearby Boos bop. Real-clock day/night: 19:00–07:00 deepens the
+  sky, brightens the stars and drifts fireflies; daytime gets butterflies. Reduced-motion
+  stills the wanderers into calm static poses.
+- Save v3 town entries are { zone, x, item }; v1/v2 saves migrate losslessly.
+
 ## Run 2 — Phase 2: Rewards clarity, accessories, nicknames
 - Scripted first gift: onboarding now ends with "Pick your first Boo!" (Inky/Lolly/Chomp,
   side by side). The first reward is always a character she chooses, then the guide walks

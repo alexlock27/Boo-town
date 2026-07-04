@@ -70,10 +70,21 @@ function migrate(obj) {
   const o = obj || {};
   // v1 giraffe guide { body, patch, acc, name } -> v3 guide object.
   if (o.guide && !o.guide.species) o.guide = migrateGuideShape(o.guide);
+  // Town grid { plot, item } -> scrolling-world { zone, x, item } (Meadow, in order).
+  if (Array.isArray(o.town) && o.town.some(t => t && t.plot !== undefined && t.zone === undefined)) {
+    o.town = migrateTown(o.town);
+  }
   const base = freshSave();
   const merged = deepDefaults(o, base);
   merged.version = VERSION;
   return merged;
+}
+
+// Old 6x4 grid placements spread across the Meadow, keeping their order.
+function migrateTown(town) {
+  const items = town.filter(t => t && t.item).sort((a, b) => (a.plot || 0) - (b.plot || 0));
+  const n = items.length || 1;
+  return items.map((t, i) => ({ zone: 'meadow', x: +(0.08 + (i + 0.5) / n * 0.84).toFixed(3), item: t.item }));
 }
 
 // Map the old giraffe-only guide to the new 5-species shape without losing anything.

@@ -104,7 +104,7 @@ for (let i = 0; i < 3; i++) { await page.click('.intro-block'); await page.waitF
 console.log('== pick first Boo (scripted first reward) ==');
 await page.waitForSelector('.firstpick-row');
 await page.click('.firstpick-card');                 // no keyboard
-await page.waitForSelector('.town');
+await page.waitForSelector('.town2');
 await page.evaluate(() => window.BooTown.go('hub'));
 await page.waitForSelector('.hub');
 let save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
