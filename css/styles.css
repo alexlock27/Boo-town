@@ -1205,3 +1205,35 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .wobble-idle, .squash-1, .squash-2, .squash-3, .reveal-card, .glow-secret, .fly-star { animation: none !important; }
   .reveal-card { transform: none; opacity: 1; }
 }
+
+/* ============================================================
+   Hub on phones (DASH_PATCH job 1). CSS only, scoped to .hub and
+   narrow viewports so tablets and other screens are untouched.
+   The top strip (sound + meter + gift) sits on its own compact row;
+   the hero below keeps its full height so the guide is never
+   clipped or overlapped; the speech bubble clamps on-screen; the
+   quests/golden cards and game grid simply start lower and scroll.
+   ============================================================ */
+@media (max-width: 550px) {
+  .hub { padding: 6px 10px 0; gap: 8px; }
+  .hub .hub-top { flex: 0 0 auto; min-height: 44px; gap: 8px; }
+  .hub .hub-top .icon-btn { min-width: 44px; min-height: 44px; }
+  .hub .hub-top .meter-wrap { gap: 8px; }
+  .hub .hub-top .meter-track { height: 16px; gap: 4px; }
+  .hub .hub-top .gift-btn { min-width: 46px; min-height: 46px; }
+  /* hero: never shrinks, never clips — the guide fills it properly */
+  .hub .hub-guide { flex: 0 0 auto; min-height: auto; overflow: visible; padding: 2px 0; }
+  .hub .guide-block { align-items: center; gap: 6px; max-width: 100%; }
+  .hub .hub-guide .guide-art svg { max-height: 24vh; }
+  /* the bubble always fits beside the guide, fully inside the viewport */
+  .hub .speech-bubble { max-width: calc(100vw - 196px); font-size: 17px; padding: 10px 12px; margin-top: 0; }
+  /* content below shifts down naturally; the card grid takes the scroll */
+  .hub .hub-specials { padding: 0 4px; }
+  .hub .quest-card { padding: 8px 12px; }
+  .hub .golden-card { padding: 9px 12px; }
+  .hub .golden-title { font-size: 19px; }
+  .hub .game-cards { gap: 8px; }
+  .hub .game-card { min-width: 132px; padding: 10px 12px; }
+  .hub .bottom-bar { gap: 5px; padding: 8px 0 10px; }
+  .hub .bar-btn { padding: 7px 10px; font-size: 14px; gap: 5px; }
+}
