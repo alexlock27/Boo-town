@@ -22,18 +22,21 @@ await page.click('.ob-splash .btn');
 await page.fill('.text-input', 'Maya');
 await page.click('.ob-name .btn');
 
-console.log('== guide creator ==');
+console.log('== character creator (5-species rig) ==');
 await page.waitForSelector('.creator');
-// pick lilac body (2nd swatch in first row), pink patch, crown accessory
-const bodySwatches = await page.$$('.cc-group:nth-child(1) .swatch');
-await bodySwatches[1].click();
-const patchSwatches = await page.$$('.cc-group:nth-child(2) .swatch');
-await patchSwatches[2].click();
-const accChips = await page.$$('.acc-chip');
-await accChips[3].click(); // crown
-await page.waitForTimeout(300);
+// group order: 1 Animal, 2 Colour, 3 Pattern, 4 Pattern colour, 5 Eyes, 6 Accessory, 7 Name
+async function pickChip(groupIdx, text) {
+  await page.click(`.cc-group:nth-child(${groupIdx}) .acc-chip:has-text("${text}")`);
+}
+await pickChip(1, 'Kitten');                 // species
+const colourSwatches = await page.$$('.cc-group:nth-child(2) .swatch');
+await colourSwatches[1].click();             // lilac body
+await pickChip(3, 'Spots');                  // pattern
+await pickChip(5, 'Sparkle');                // eyes
+await pickChip(6, 'Crown');                  // accessory
+await page.waitForTimeout(250);
 await page.screenshot({ path: 'screenshots/m2-creator.png' });
-// shuffle then set guide name
+// shuffle then set the character's name
 await page.click('.creator-btns .btn.soft');
 await page.waitForTimeout(200);
 await page.fill('.text-input.small', 'Zoomer');
@@ -61,6 +64,7 @@ await page.screenshot({ path: 'screenshots/m2-reveal.png' });
 const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
 assert(save.name === 'Maya', 'name saved');
 assert(save.guide && save.guide.name === 'Zoomer', 'guide name saved (' + (save.guide && save.guide.name) + ')');
+assert(save.guide && ['giraffe','puppy','kitten','penguin','bunny'].includes(save.guide.species), 'guide has a valid species (' + (save.guide && save.guide.species) + ')');
 assert(Object.keys(save.inventory).length === 1, 'exactly one Boo owned after free box');
 assert(save.opened === 1, 'opened count = 1');
 assert(save.boxes === 0, 'the free box was consumed');

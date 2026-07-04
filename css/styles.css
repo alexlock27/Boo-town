@@ -195,6 +195,48 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .acc-chip.sel { background: var(--pop); border-color: var(--card); }
 .text-input.small { font-size: 20px; padding: 8px 14px; width: 200px; }
 .creator-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+/* denser layout for the fuller 7-option creator */
+.creator-preview { min-height: 150px; }
+.creator-preview svg { max-height: 22vh; }
+.cc-group { align-items: flex-start; }
+.cc-label { padding-top: 8px; }
+.chip-row { flex: 1; }
+/* Landscape: preview pinned left, controls scroll right, Done always in view. */
+@media (orientation: landscape) {
+  .creator {
+    display: grid;
+    grid-template-columns: minmax(210px, 32%) 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "title title" "preview controls" "preview btns";
+    gap: 4px 22px; width: 100%; max-width: 920px; height: 100%;
+    align-items: start; overflow: hidden; padding: 8px 10px;
+  }
+  .creator > h2 { grid-area: title; margin: 2px 0; }
+  .creator-preview { grid-area: preview; align-self: center; justify-self: center; min-height: 0; }
+  .creator-preview svg { max-height: 44vh; }
+  .creator-controls { grid-area: controls; max-width: none; overflow-y: auto; max-height: 100%; align-self: stretch; padding-right: 6px; }
+  .creator-btns { grid-area: btns; justify-content: flex-start; padding-top: 4px; }
+  .cc-label { width: 108px; }
+}
+@media (orientation: landscape) and (max-height: 640px) {
+  .acc-chip { padding: 7px 12px; font-size: 15px; min-height: 42px; }
+  .swatch { width: 42px; height: 42px; }
+  .cc-label { font-size: 16px; }
+}
+
+/* ---- "My character" card (Collection) ---- */
+.mychar-card {
+  display: flex; align-items: center; gap: 14px; width: calc(100% - 12px); max-width: 520px;
+  margin: 4px auto 12px; padding: 10px 16px; border: none; cursor: pointer; text-align: left;
+  background: var(--card); border-radius: 20px; box-shadow: 0 4px 0 rgba(42,27,78,0.25);
+}
+.mychar-card:active { transform: scale(0.98); }
+.mychar-art { width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mychar-art svg { max-width: 76px; max-height: 80px; }
+.mychar-meta { display: flex; flex-direction: column; gap: 2px; }
+.mychar-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; color: var(--ink); }
+.mychar-name { font-size: 17px; color: var(--pop); font-weight: 700; }
+.mychar-hint { font-size: 14px; color: rgba(42,27,78,0.6); }
 
 /* ---- intro bubbles ---- */
 .intro-block { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; padding: 20px; }

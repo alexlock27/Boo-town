@@ -64,9 +64,18 @@ function silhouette(shapes, { haloW = 10, inkW = 4 } = {}) {
 }
 
 // ---- eyes ----------------------------------------------------------------
+// kinds: round (glossy), star/sparkle (star pupils), sleepy (half-lidded, peaceful)
 function eyes(lx, rx, cy, r, kind = 'round') {
+  if (kind === 'sleepy') {
+    const lash = (x) =>
+      `<path d="M${(x - r).toFixed(1)} ${(cy - 1).toFixed(1)} Q${x} ${(cy + r * 0.95).toFixed(1)} ${(x + r).toFixed(1)} ${(cy - 1).toFixed(1)}" ` +
+      `fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+      `<path d="M${(x - r * 0.7).toFixed(1)} ${(cy + r * 0.5).toFixed(1)} q${(-r * 0.25).toFixed(1)} ${(r * 0.35).toFixed(1)} ${(-r * 0.05).toFixed(1)} ${(r * 0.6).toFixed(1)}" ` +
+      `fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
+    return lash(lx) + lash(rx);
+  }
   const pupil = (x) => {
-    if (kind === 'star') {
+    if (kind === 'star' || kind === 'sparkle') {
       return path(starPath(x, cy + 1, r * 0.8, r * 0.36, -90), COLORS.gold, `stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"`);
     }
     return `<circle cx="${x}" cy="${cy + 1.5}" r="${r * 0.62}" fill="${INK}"/>` +
@@ -245,126 +254,274 @@ export function renderBoo(item, { size = 120, cls = '' } = {}) {
   `</svg>`;
 }
 
-// ---- public: render the guide giraffe -----------------------------------
-// guide = { body, patch, acc, name }; view = 'full' | 'head'
-export function renderGuide(guide, { size = 200, view = 'full', cls = '' } = {}) {
+// ==========================================================================
+// The guide / player character — FIVE species on one shared layered SVG rig.
+// guide = { species, body, pattern, patternColour, eyes, acc, name }
+// All species share: body-colour fill, pattern overlay (none/spots/stripes),
+// eye style (round/sparkle/sleepy), one accessory slot, and the halo+ink look.
+// Distinct silhouettes: giraffe neck+ossicones, puppy floppy ears, kitten
+// pointy ears, penguin flippers+belly, bunny tall ears.
+// ==========================================================================
+
+export const GUIDE_SPECIES = [
+  { key: 'giraffe', label: 'Giraffe' },
+  { key: 'puppy',   label: 'Puppy'   },
+  { key: 'kitten',  label: 'Kitten'  },
+  { key: 'penguin', label: 'Penguin' },
+  { key: 'bunny',   label: 'Bunny'   }
+];
+export const GUIDE_BODIES = [
+  { key: 'sunshine',  hex: '#FFD166' }, { key: 'lilac', hex: '#C6A9F0' },
+  { key: 'sky',       hex: '#8FC7FF' }, { key: 'bubblegum', hex: '#FF7AC6' },
+  { key: 'teal',      hex: '#35D0BA' }, { key: 'cream', hex: '#FFF8F0' }
+];
+export const GUIDE_PATTERNS = [
+  { key: 'none', label: 'Plain' }, { key: 'spots', label: 'Spots' }, { key: 'stripes', label: 'Stripes' }
+];
+export const GUIDE_PATTERN_COLOURS = [
+  { key: 'cocoa', hex: '#8A5A44' }, { key: 'indigo', hex: '#3B2E7E' },
+  { key: 'pink',  hex: '#FF7AC6' }, { key: 'white',  hex: '#FFFFFF' }
+];
+export const GUIDE_EYES = [
+  { key: 'round', label: 'Round' }, { key: 'sparkle', label: 'Sparkle' }, { key: 'sleepy', label: 'Sleepy' }
+];
+// Base built-in accessories (owned accessory items are appended by the creator UI).
+export const GUIDE_ACCS = [
+  { key: 'none',       label: 'None' },
+  { key: 'bow',        label: 'Bow' },
+  { key: 'sunglasses', label: 'Star shades' },
+  { key: 'crown',      label: 'Crown' },
+  { key: 'headphones', label: 'Headphones' }
+];
+
+let _uid = 0;
+
+// Bring any older guide shape up to the new one (defensive; state.js also migrates).
+export function normalizeGuide(g) {
+  if (!g) return { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'bow', name: 'Twiggy' };
+  if (g.species) return g;
+  return {
+    species: 'giraffe',
+    body: g.body || 'sunshine',
+    pattern: 'spots',
+    patternColour: g.patch || 'cocoa',
+    eyes: 'round',
+    acc: g.acc || 'none',
+    name: g.name || 'Twiggy'
+  };
+}
+
+export function renderGuide(guideIn, { size = 200, view = 'full', cls = '' } = {}) {
+  const guide = normalizeGuide(guideIn);
   const bodyFill = c(guide.body || 'sunshine');
-  const patch = c(guide.patch || 'cocoa');
-  const face = renderGiraffeFace(bodyFill, patch, guide.acc, view);
-  if (view === 'head') {
-    return `<svg viewBox="0 0 120 150" width="${size*0.8}" height="${size}" class="guide-svg ${cls}" role="img" aria-label="${guide.name || 'guide'}" xmlns="http://www.w3.org/2000/svg">${face.headOnly}</svg>`;
-  }
-  return `<svg viewBox="0 0 160 200" width="${size}" height="${size*200/160}" class="guide-svg ${cls}" role="img" aria-label="${guide.name || 'guide'}" xmlns="http://www.w3.org/2000/svg">${face.full}</svg>`;
+  const patCol = c({ cocoa: 'cocoa', indigo: 'indigo', pink: 'pink', white: '#FFFFFF' }[guide.patternColour] || guide.patternColour || 'cocoa');
+  const g = characterGeom(guide.species || 'giraffe', bodyFill);
+
+  const outline = silhouette(g.outline, { haloW: 11, inkW: 4 });
+  const cid = 'gpat' + (++_uid);
+  const patternSvg = patternLayer(guide.pattern, patCol, cid);
+  const defs = (guide.pattern && guide.pattern !== 'none')
+    ? `<defs><clipPath id="${cid}">${g.clipEls}</clipPath></defs>` : '';
+
+  const face = eyes(g.eye.lx, g.eye.rx, g.eye.cy, g.eye.r, guide.eyes || 'round') + g.face;
+  const acc = guideAccessory(guide.acc, g.anchor);
+
+  const inner = defs + outline.halo + outline.color + (g.belly || '') + patternSvg + (g.details || '') + face + acc;
+
+  const box = view === 'head' ? g.headBox : '0 0 120 140';
+  const vb = box.split(' ').map(Number);
+  const ar = vb[3] / vb[2];
+  const w = view === 'head' ? size * 0.86 : size;
+  return `<svg viewBox="${box}" width="${w}" height="${(w * ar).toFixed(1)}" class="guide-svg ${cls}" ` +
+    `role="img" aria-label="${guide.name || 'guide'}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">${inner}</svg>`;
 }
 
-function renderGiraffeFace(bodyFill, patch, acc, view) {
-  // Head + neck used in both views; full adds body + legs.
-  const ink = (s, w = 4) => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
-  const halo = (w = 10) => `stroke="${HALO}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+// Pattern overlay clipped to the body/head silhouette. Generic scatter/bands,
+// clipped so only the parts over the body show — works for every species.
+function patternLayer(pattern, colourHex, cid) {
+  if (!pattern || pattern === 'none') return '';
+  let marks = '';
+  if (pattern === 'spots') {
+    const spots = [[42,54,7],[74,50,6],[38,78,7],[82,80,6],[54,96,8],[60,66,5],
+                   [30,98,5],[90,66,5],[46,116,6],[74,116,6],[60,120,5]];
+    marks = spots.map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${colourHex}" opacity="0.9"/>`).join('');
+  } else { // stripes
+    marks = [34,52,70,88,106,124].map(y =>
+      `<rect x="6" y="${y}" width="108" height="8" fill="${colourHex}" opacity="0.82" transform="rotate(-12 60 ${y})"/>`
+    ).join('');
+  }
+  return `<g clip-path="url(#${cid})">${marks}</g>`;
+}
 
-  // --- shapes drawn twice (halo then colour) ---
-  // ossicones (horns)
-  const ossicone = (x) =>
-    `<line x1="${x}" y1="40" x2="${x}" y2="24" S/>` ;
-  // We build head/neck geometry as reusable string with a placeholder for stroke.
-  function headNeck(strokeAttr, fill, isHalo) {
-    let s = '';
+// Per-species geometry in a shared 0 0 120 140 viewBox.
+// Returns { outline:[shapes], clipEls, belly, details, face, eye:{lx,rx,cy,r}, anchor, headBox }
+function characterGeom(species, bodyFill) {
+  const ink = (w = 4) => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+  const lite = lighten(bodyFill);
+  const S = (svg) => ({ fill: bodyFill, svg });        // body-coloured outline shape
+
+  if (species === 'puppy') {
+    const outline = [
+      // floppy ears (behind)
+      S((f, s) => ell(22, 70, 13, 30, f, `transform="rotate(12 22 70)" ${s}`)),
+      S((f, s) => ell(98, 70, 13, 30, f, `transform="rotate(-12 98 70)" ${s}`)),
+      S((f, s) => ell(60, 116, 31, 21, f, s)),          // body
+      S((f, s) => ell(60, 52, 35, 31, f, s))            // head
+    ];
+    const clipEls = ell(60,116,31,21,bodyFill) + ell(60,52,35,31,bodyFill);
+    const belly = ell(60, 118, 18, 13, lite, ink(2.4));
+    const details =
+      ell(24, 74, 6, 16, COLORS.blush, `transform="rotate(12 24 74)" opacity="0.75"`) +
+      ell(96, 74, 6, 16, COLORS.blush, `transform="rotate(-12 96 74)" opacity="0.75"`) +
+      ell(60, 64, 17, 13, lite, ink(3)) +                // snout
+      rrect(44,132,15,9,5, bodyFill, ink(3)) + rrect(61,132,15,9,5, bodyFill, ink(3)) + // feet
+      `<path d="M90 112 Q104 104 98 92" fill="none" ${ink(4)}/>`;   // tail
+    const face =
+      cheeks(40, 80, 60) +
+      `<ellipse cx="60" cy="58" rx="5.5" ry="4.5" fill="${INK}"/>` +   // nose
+      `<path d="M60 62 Q60 70 52 70 M60 62 Q60 70 68 70" fill="none" ${ink(2.4)}/>`; // mouth
+    return { outline, clipEls, belly, details, face,
+      eye: { lx: 46, rx: 74, cy: 51, r: 9 },
+      anchor: { cx: 60, headTopY: 22, eyeY: 51, headR: 35, headCy: 52 },
+      headBox: '4 12 112 96' };
+  }
+
+  if (species === 'kitten') {
+    const outline = [
+      S((f, s) => path('M30 36 L18 4 L50 30 Z', f, s)),   // left ear
+      S((f, s) => path('M90 36 L102 4 L70 30 Z', f, s)),  // right ear
+      S((f, s) => ell(60, 118, 28, 18, f, s)),            // body
+      S((f, s) => ell(60, 56, 33, 30, f, s))              // head
+    ];
+    const clipEls = ell(60,118,28,18,bodyFill) + ell(60,56,33,30,bodyFill);
+    const belly = ell(60, 120, 16, 11, lite, ink(2.2));
+    const details =
+      path('M32 30 L24 12 L44 28 Z', COLORS.blush, `opacity="0.8" ${ink(2)}`) +
+      path('M88 30 L96 12 L76 28 Z', COLORS.blush, `opacity="0.8" ${ink(2)}`) +
+      rrect(46,130,14,9,5, bodyFill, ink(3)) + rrect(60,130,14,9,5, bodyFill, ink(3)) +
+      `<path d="M86 122 Q108 118 100 96" fill="none" ${ink(4)}/>` +          // tail
+      // whiskers
+      `<path d="M40 62 L18 58 M40 68 L18 68 M40 74 L20 80" stroke="${INK}" stroke-width="1.8" fill="none" stroke-linecap="round"/>` +
+      `<path d="M80 62 L102 58 M80 68 L102 68 M80 74 L100 80" stroke="${INK}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+    const face =
+      cheeks(42, 78, 66) +
+      path('M55 62 L65 62 L60 68 Z', COLORS.blush, ink(2)) +                 // nose
+      `<path d="M60 68 Q60 73 54 73 M60 68 Q60 73 66 73" fill="none" ${ink(2.2)}/>`;
+    return { outline, clipEls, belly, details, face,
+      eye: { lx: 47, rx: 73, cy: 55, r: 9 },
+      anchor: { cx: 60, headTopY: 26, eyeY: 55, headR: 33, headCy: 56 },
+      headBox: '6 0 108 100' };
+  }
+
+  if (species === 'penguin') {
+    const outline = [
+      S((f, s) => ell(20, 86, 8, 26, f, `transform="rotate(18 20 86)" ${s}`)),  // left flipper
+      S((f, s) => ell(100, 86, 8, 26, f, `transform="rotate(-18 100 86)" ${s}`)), // right flipper
+      S((f, s) => path('M60 20 C24 20 22 78 30 104 C38 128 82 128 90 104 C98 78 96 20 60 20 Z', f, s)) // egg body+head
+    ];
+    const clipEls = path('M60 20 C24 20 22 78 30 104 C38 128 82 128 90 104 C98 78 96 20 60 20 Z', bodyFill);
+    const belly = `<path d="M60 40 C40 40 38 84 46 104 C52 120 68 120 74 104 C82 84 80 40 60 40 Z" fill="${COLORS.cream}" ${ink(2.6)}/>`;
+    const details =
+      // webbed feet
+      path('M40 124 Q46 136 56 126 Z', COLORS.gold, ink(2.6)) +
+      path('M64 126 Q74 136 80 124 Z', COLORS.gold, ink(2.6)) +
+      // beak
+      path('M52 63 L60 58 L68 63 L60 70 Z', COLORS.gold, ink(2.6));
+    const face =
+      cheeks(44, 76, 60) +
+      `<path d="M60 70 Q60 74 56 74 M60 70 Q60 74 64 74" fill="none" ${ink(2)}/>`;
+    return { outline, clipEls, belly, details, face,
+      eye: { lx: 50, rx: 70, cy: 50, r: 8.5 },
+      anchor: { cx: 60, headTopY: 22, eyeY: 50, headR: 30, headCy: 48 },
+      headBox: '8 12 104 90' };
+  }
+
+  if (species === 'bunny') {
+    const outline = [
+      S((f, s) => ell(49, 26, 10, 30, f, `transform="rotate(-8 49 26)" ${s}`)),  // left ear
+      S((f, s) => ell(71, 26, 10, 30, f, `transform="rotate(8 71 26)" ${s}`)),   // right ear
+      S((f, s) => ell(60, 118, 29, 18, f, s)),           // body
+      S((f, s) => ell(60, 62, 31, 29, f, s))             // head
+    ];
+    const clipEls = ell(60,118,29,18,bodyFill) + ell(60,62,31,29,bodyFill);
+    const belly = ell(60, 120, 16, 11, lite, ink(2.2));
+    const details =
+      ell(49, 30, 4.5, 20, COLORS.blush, `transform="rotate(-8 49 30)" opacity="0.75"`) +
+      ell(71, 30, 4.5, 20, COLORS.blush, `transform="rotate(8 71 30)" opacity="0.75"`) +
+      rrect(46,130,14,9,5, bodyFill, ink(3)) + rrect(60,130,14,9,5, bodyFill, ink(3)) +
+      `<circle cx="90" cy="120" r="8" fill="${HALO}" ${ink(3)}/>`;   // cotton tail
+    const face =
+      cheeks(43, 77, 70) +
+      path('M56 66 L64 66 L60 71 Z', COLORS.blush, ink(2)) +          // nose
+      `<path d="M60 71 L60 76 M60 76 Q56 78 55 74 M60 76 Q64 78 65 74" fill="none" ${ink(2.2)}/>` +
+      rrect(56.5, 78, 3.2, 6, 1, COLORS.toothW, ink(1.2)) + rrect(60.3, 78, 3.2, 6, 1, COLORS.toothW, ink(1.2)); // teeth
+    return { outline, clipEls, belly, details, face,
+      eye: { lx: 48, rx: 72, cy: 60, r: 9 },
+      anchor: { cx: 60, headTopY: 36, eyeY: 60, headR: 31, headCy: 62 },
+      headBox: '10 0 100 100' };
+  }
+
+  // ---- giraffe (default) ----
+  const outline = [
     // ossicones
-    s += `<line x1="52" y1="36" x2="49" y2="18" ${isHalo ? halo(9) : ink(5)}/>`;
-    s += `<line x1="70" y1="36" x2="73" y2="18" ${isHalo ? halo(9) : ink(5)}/>`;
-    if (!isHalo) {
-      s += `<circle cx="49" cy="17" r="5.5" fill="${patch}" ${ink(3)}/>`;
-      s += `<circle cx="73" cy="17" r="5.5" fill="${patch}" ${ink(3)}/>`;
-    }
-    // neck
-    s += `<path d="M50 150 Q46 96 58 60 L82 60 Q80 100 78 150 Z" fill="${fill}" ${strokeAttr}/>`;
-    // head
-    s += `<ellipse cx="62" cy="52" rx="30" ry="26" fill="${fill}" ${strokeAttr}/>`;
-    // snout
-    s += `<ellipse cx="62" cy="66" rx="18" ry="14" fill="${isHalo ? HALO : lighten(fill)}" ${strokeAttr}/>`;
-    return s;
-  }
-
-  function headDetails() {
-    let s = '';
-    // ears
-    s += `<ellipse cx="34" cy="50" rx="11" ry="7" fill="${bodyFill}" ${ink(3.5)} transform="rotate(-24 34 50)"/>`;
-    s += `<ellipse cx="90" cy="50" rx="11" ry="7" fill="${bodyFill}" ${ink(3.5)} transform="rotate(24 90 50)"/>`;
-    // patches on neck/head
-    s += `<circle cx="66" cy="44" r="6" fill="${patch}" opacity="0.9"/>`;
-    s += `<circle cx="52" cy="80" r="6" fill="${patch}" opacity="0.9"/>`;
-    s += `<circle cx="72" cy="96" r="6.5" fill="${patch}" opacity="0.9"/>`;
-    s += `<circle cx="60" cy="120" r="6.5" fill="${patch}" opacity="0.85"/>`;
-    // big eyes set low
-    s += eyes(52, 72, 54, 11, 'round');
-    // cheeks + nostrils + smile
-    s += cheeks(46, 78, 66);
-    s += `<ellipse cx="56" cy="66" rx="2" ry="2.6" fill="${INK}"/><ellipse cx="68" cy="66" rx="2" ry="2.6" fill="${INK}"/>`;
-    s += `<path d="M56 72 Q62 77 68 72" fill="none" ${ink(2.4)}/>`;
-    // tuft of hair
-    s += `<path d="M62 20 Q60 30 62 36 Q64 30 62 20" fill="${patch}" ${ink(2.5)}/>`;
-    return s;
-  }
-
-  const headHalo = headNeck(halo(10), HALO, true);
-  const headColor = headNeck(ink(4), bodyFill, false);
-  const accSvg = guideAccessory(acc);
-
-  const headOnly = headHalo + headColor + headDetails() + accSvg;
-
-  // full body: add torso + legs behind neck
-  function bodyHalo() {
-    return `<ellipse cx="96" cy="150" rx="46" ry="34" fill="${HALO}" ${halo(11)}/>` +
-           legStr(HALO, halo(10));
-  }
-  function bodyColor() {
-    return `<ellipse cx="96" cy="150" rx="46" ry="34" fill="${bodyFill}" ${ink(4)}/>` +
-           legStr(bodyFill, ink(4)) +
-           // body patches
-           `<circle cx="86" cy="140" r="8" fill="${patch}" opacity="0.9"/>` +
-           `<circle cx="112" cy="150" r="8" fill="${patch}" opacity="0.9"/>` +
-           `<circle cx="98" cy="164" r="7" fill="${patch}" opacity="0.85"/>` +
-           // tail
-           `<path d="M140 150 Q156 156 150 176" fill="none" ${ink(4)}/>` +
-           `<circle cx="150" cy="178" r="5" fill="${patch}" ${ink(3)}/>`;
-  }
-  function legStr(fill, stroke) {
-    return rrect(74, 168, 13, 30, 6, fill, stroke) +
-           rrect(104, 168, 13, 30, 6, fill, stroke);
-  }
-
-  // In full view the neck/head sit to the left, body to the right.
-  const full = `<g transform="translate(6,0)">` +
-    bodyHalo() + headHalo +
-    bodyColor() +
-    headColor + headDetails() + accSvg +
-  `</g>`;
-
-  return { headOnly, full };
+    { fill: bodyFill, svg: (f, s) => `<line x1="49" y1="42" x2="47" y2="22" ${f===HALO?`stroke="${HALO}" stroke-width="10"`:ink(5)} stroke-linecap="round"/>` },
+    { fill: bodyFill, svg: (f, s) => `<line x1="71" y1="42" x2="73" y2="22" ${f===HALO?`stroke="${HALO}" stroke-width="10"`:ink(5)} stroke-linecap="round"/>` },
+    S((f, s) => path('M46 122 Q42 84 50 60 L70 60 Q78 84 74 122 Z', f, s)),  // neck
+    S((f, s) => ell(60, 120, 34, 19, f, s)),                                 // body
+    S((f, s) => ell(60, 44, 27, 24, f, s))                                   // head
+  ];
+  const clipEls = ell(60,120,34,19,bodyFill) + path('M46 122 Q42 84 50 60 L70 60 Q78 84 74 122 Z', bodyFill) + ell(60,44,27,24,bodyFill);
+  const belly = ell(60, 52, 16, 12, lite, ink(2.6));                          // snout
+  const details =
+    ell(34, 48, 11, 7, bodyFill, `${ink(3.2)} transform="rotate(-24 34 48)"`) +
+    ell(86, 48, 11, 7, bodyFill, `${ink(3.2)} transform="rotate(24 86 48)"`) +
+    `<circle cx="47" cy="21" r="5.5" fill="${lite}" ${ink(3)}/>` +
+    `<circle cx="73" cy="21" r="5.5" fill="${lite}" ${ink(3)}/>` +
+    rrect(46,132,13,8,5, bodyFill, ink(3)) + rrect(61,132,13,8,5, bodyFill, ink(3)) +
+    `<path d="M92 118 Q106 122 100 138" fill="none" ${ink(4)}/>`;              // tail
+  const face =
+    cheeks(46, 74, 52) +
+    `<ellipse cx="55" cy="52" rx="2" ry="2.6" fill="${INK}"/><ellipse cx="65" cy="52" rx="2" ry="2.6" fill="${INK}"/>` +
+    `<path d="M55 57 Q60 61 65 57" fill="none" ${ink(2.4)}/>`;
+  return { outline, clipEls, belly, details, face,
+    eye: { lx: 51, rx: 69, cy: 43, r: 8.5 },
+    anchor: { cx: 60, headTopY: 20, eyeY: 43, headR: 27, headCy: 44 },
+    headBox: '20 6 80 78' };
 }
 
-function guideAccessory(acc) {
+// Accessory rendered relative to a species head anchor {cx, headTopY, eyeY, headR, headCy}.
+// Accepts a base key (bow/sunglasses/crown/headphones) or an owned accessory item id
+// (resolved in phase 2 via accessoryArt); returns SVG string.
+function guideAccessory(acc, a) {
   if (!acc || acc === 'none') return '';
+  const cx = a.cx, top = a.headTopY, eyeY = a.eyeY, R = a.headR;
   switch (acc) {
-    case 'bow':
-      return path('M62 30 L50 22 L50 40 Z', COLORS.pink, `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`) +
-             path('M62 30 L74 22 L74 40 Z', COLORS.pink, `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`) +
-             `<circle cx="62" cy="31" r="5" fill="${COLORS.pink}" stroke="${INK}" stroke-width="2.6"/>`;
+    case 'bow': {
+      const x = cx - R * 0.5, y = top + 6;
+      return path(`M${x} ${y} L${x-13} ${y-9} L${x-13} ${y+9} Z`, COLORS.pink, `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`) +
+             path(`M${x} ${y} L${x+13} ${y-9} L${x+13} ${y+9} Z`, COLORS.pink, `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`) +
+             `<circle cx="${x}" cy="${y}" r="5" fill="${COLORS.pink}" stroke="${INK}" stroke-width="2.6"/>`;
+    }
     case 'sunglasses':
-      return path(starPath(52, 54, 12, 5.4), INK, `stroke="${INK}" stroke-width="1"`) +
-             path(starPath(72, 54, 12, 5.4), INK, `stroke="${INK}" stroke-width="1"`) +
-             `<line x1="60" y1="52" x2="64" y2="52" stroke="${INK}" stroke-width="3"/>`;
+      return path(starPath(cx - 12, eyeY, 12, 5.4), INK, `stroke="${INK}" stroke-width="1"`) +
+             path(starPath(cx + 12, eyeY, 12, 5.4), INK, `stroke="${INK}" stroke-width="1"`) +
+             `<line x1="${cx-2}" y1="${eyeY-2}" x2="${cx+2}" y2="${eyeY-2}" stroke="${INK}" stroke-width="3"/>`;
     case 'crown':
-      return path('M44 34 L50 20 L56 30 L62 18 L68 30 L74 20 L80 34 Z', COLORS.gold, `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`) +
-             `<circle cx="50" cy="20" r="2.4" fill="${COLORS.pop||'#FF7AC6'}"/><circle cx="62" cy="18" r="2.6" fill="${COLORS.bubblegum}"/><circle cx="74" cy="20" r="2.4" fill="${COLORS.teal}"/>`;
+      return path(`M${cx-18} ${top+8} L${cx-13} ${top-6} L${cx-6} ${top+4} L${cx} ${top-8} L${cx+6} ${top+4} L${cx+13} ${top-6} L${cx+18} ${top+8} Z`, COLORS.gold, `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`) +
+             `<circle cx="${cx-13}" cy="${top-6}" r="2.4" fill="${COLORS.pink}"/><circle cx="${cx}" cy="${top-8}" r="2.6" fill="${COLORS.bubblegum}"/><circle cx="${cx+13}" cy="${top-6}" r="2.4" fill="${COLORS.teal}"/>`;
     case 'headphones':
-      return path('M30 54 Q62 8 94 54', 'none', `stroke="${COLORS.pink}" stroke-width="7" fill="none" stroke-linecap="round"`) +
-             rrect(24, 48, 14, 22, 6, COLORS.pink, `stroke="${INK}" stroke-width="3"`) +
-             rrect(86, 48, 14, 22, 6, COLORS.pink, `stroke="${INK}" stroke-width="3"`);
+      return path(`M${cx-R} ${eyeY} Q${cx} ${top-8} ${cx+R} ${eyeY}`, 'none', `stroke="${COLORS.pink}" stroke-width="7" fill="none" stroke-linecap="round"`) +
+             rrect(cx-R-7, eyeY-6, 14, 22, 6, COLORS.pink, `stroke="${INK}" stroke-width="3"`) +
+             rrect(cx+R-7, eyeY-6, 14, 22, 6, COLORS.pink, `stroke="${INK}" stroke-width="3"`);
     default:
-      return '';
+      // owned accessory item id (phase 2): fall back to nothing until accessoryArt exists
+      return accessoryItemArt ? accessoryItemArt(acc, a) : '';
   }
 }
+
+// Hook set by phase 2 so owned accessory items render on the player character too.
+let accessoryItemArt = null;
+export function setAccessoryItemArt(fn) { accessoryItemArt = fn; }
 
 // Lighten a hex colour toward cream for snouts/bellies.
 function lighten(hex) {

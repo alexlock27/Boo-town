@@ -4,33 +4,14 @@
 import { el, clear } from './ui.js';
 import * as State from './state.js';
 import { renderGuide } from './art.js';
+import { buildCreator } from './creator.js';
 import { initAudio, sfx, music } from './sfx.js';
 import { guideLineAt, speakMaybe } from './guide.js';
-
-const BODIES = [
-  { key: 'sunshine', label: 'Sunshine', hex: '#FFD166' },
-  { key: 'lilac',    label: 'Lilac',    hex: '#C6A9F0' },
-  { key: 'sky',      label: 'Sky',      hex: '#8FC7FF' }
-];
-const PATCHES = [
-  { key: 'cocoa',  label: 'Cocoa',  hex: '#8A5A44' },
-  { key: 'indigo', label: 'Indigo', hex: '#3B2E7E' },
-  { key: 'pink',   label: 'Pink',   hex: '#FF7AC6' }
-];
-const ACCS = [
-  { key: 'none',       label: 'None' },
-  { key: 'bow',        label: 'Bow' },
-  { key: 'sunglasses', label: 'Star shades' },
-  { key: 'crown',      label: 'Crown' },
-  { key: 'headphones', label: 'Headphones' }
-];
-
-const rand = (n) => (Math.random() * n) | 0;
 
 export function mount(container, params, ctx) {
   let step = 0;
   let name = '';
-  const guide = { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' };
+  const guide = { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'bow', name: 'Twiggy' };
 
   const root = el('div', { class: 'onboard' });
   container.appendChild(root);
@@ -77,74 +58,20 @@ export function mount(container, params, ctx) {
   }
 
   function creatorStep() {
-    const preview = el('div', { class: 'creator-preview', html: renderGuide(guide, { view: 'full', size: 180, cls: 'art-idle' }) });
-    function refresh() { preview.innerHTML = renderGuide(guide, { view: 'full', size: 180, cls: 'art-idle' }); }
-
-    const bodyRow = swatchRow(BODIES, () => guide.body, k => { guide.body = k; sfx.tap(); refresh(); });
-    const patchRow = swatchRow(PATCHES, () => guide.patch, k => { guide.patch = k; sfx.tap(); refresh(); });
-    const accRow = chipRow(ACCS, () => guide.acc, k => { guide.acc = k; sfx.tap(); refresh(); });
-
-    const nameInput = el('input', {
-      class: 'text-input small', type: 'text', maxlength: '14', autocomplete: 'off',
-      autocapitalize: 'words', value: guide.name, 'aria-label': "Your guide's name"
+    const creator = buildCreator(guide, {
+      doneLabel: 'Done ✨',
+      onChange(g) { Object.assign(guide, g); },
+      onDone(g) {
+        Object.assign(guide, g);
+        State.initNew(name, { ...guide });
+        ctx.refreshAudio && ctx.refreshAudio();
+        step = 3; render();
+      }
     });
-    nameInput.addEventListener('input', () => { guide.name = nameInput.value.trim() || 'Twiggy'; });
-
-    const shuffle = el('button', { class: 'btn soft', text: '🎲 Surprise me', onclick: () => {
-      sfx.tap();
-      guide.body = BODIES[rand(BODIES.length)].key;
-      guide.patch = PATCHES[rand(PATCHES.length)].key;
-      guide.acc = ACCS[rand(ACCS.length)].key;
-      refresh();
-      // reflect selection state
-      [bodyRow, patchRow, accRow].forEach(r => r._sync && r._sync());
-    }});
-
-    const done = el('button', { class: 'btn big', text: 'Done ✨', onclick: () => {
-      sfx.tap();
-      guide.name = nameInput.value.trim() || 'Twiggy';
-      State.initNew(name, { ...guide });
-      ctx.refreshAudio && ctx.refreshAudio();
-      step = 3; render();
-    }});
-
     root.appendChild(el('div', { class: 'creator' }, [
-      el('h2', { text: 'Make your guide!' }),
-      preview,
-      el('div', { class: 'creator-controls' }, [
-        el('div', { class: 'cc-group' }, [ el('span', { class: 'cc-label', text: 'Colour' }), bodyRow ]),
-        el('div', { class: 'cc-group' }, [ el('span', { class: 'cc-label', text: 'Patches' }), patchRow ]),
-        el('div', { class: 'cc-group' }, [ el('span', { class: 'cc-label', text: 'Accessory' }), accRow ]),
-        el('div', { class: 'cc-group' }, [ el('span', { class: 'cc-label', text: 'Name' }), nameInput ])
-      ]),
-      el('div', { class: 'creator-btns' }, [ shuffle, done ])
+      el('h2', { text: 'Make your character!' }),
+      ...creator.nodes
     ]));
-  }
-
-  function swatchRow(options, getSel, onPick) {
-    const row = el('div', { class: 'swatch-row' });
-    const btns = options.map(o => {
-      const b = el('button', {
-        class: 'swatch', 'aria-label': o.label, title: o.label,
-        style: { background: o.hex }, onclick: () => { onPick(o.key); sync(); }
-      });
-      return b;
-    });
-    btns.forEach(b => row.appendChild(b));
-    function sync() { options.forEach((o, i) => btns[i].classList.toggle('sel', getSel() === o.key)); }
-    row._sync = sync; sync();
-    return row;
-  }
-
-  function chipRow(options, getSel, onPick) {
-    const row = el('div', { class: 'chip-row' });
-    const btns = options.map(o => el('button', {
-      class: 'acc-chip', text: o.label, onclick: () => { onPick(o.key); sync(); }
-    }));
-    btns.forEach(b => row.appendChild(b));
-    function sync() { options.forEach((o, i) => btns[i].classList.toggle('sel', getSel() === o.key)); }
-    row._sync = sync; sync();
-    return row;
   }
 
   function introStep() {

@@ -2,7 +2,7 @@
 
 import { el, dialog } from './ui.js';
 import { getState } from './state.js';
-import { renderItem } from './art.js';
+import { renderItem, renderGuide } from './art.js';
 import { CATALOGUE, TOTAL_ITEMS, RARITY } from '../data/catalogue.js';
 import { sfx, music } from './sfx.js';
 
@@ -20,6 +20,19 @@ export function mount(container, params, ctx) {
     el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` })
   ]);
 
+  // "My character" card — opens the full creator (spec RUN2 C1).
+  const myCharCard = el('button', {
+    class: 'mychar-card', 'aria-label': 'Edit my character',
+    onclick: () => { sfx.tap(); ctx.go('editguide', { from: 'collection' }); }
+  }, [
+    el('div', { class: 'mychar-art', html: renderGuide(s.guide, { view: 'full', size: 96, cls: 'art-idle' }) }),
+    el('div', { class: 'mychar-meta' }, [
+      el('div', { class: 'mychar-title', text: 'My character' }),
+      el('div', { class: 'mychar-name', text: s.guide.name || 'Twiggy' }),
+      el('div', { class: 'mychar-hint', text: 'Tap to change anything ✏️' })
+    ])
+  ]);
+
   const grid = el('div', { class: 'coll-grid' });
   for (const item of CATALOGUE) {
     const count = owned[item.id] || 0;
@@ -35,11 +48,7 @@ export function mount(container, params, ctx) {
     grid.appendChild(tile);
   }
 
-  const footer = el('div', { class: 'coll-footer' }, [
-    el('button', { class: 'btn', text: '✏️ Edit my guide', onclick: () => { sfx.tap(); ctx.go('editguide', { from: 'collection' }); } })
-  ]);
-
-  root.append(header, grid, footer);
+  root.append(header, myCharCard, grid);
   container.appendChild(root);
 
   function showItem(item, count) {

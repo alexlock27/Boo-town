@@ -69,5 +69,14 @@ export const LINES = {
     "I heard the Dance Stage makes Boos do a little bop...",
     "Three stars fills the meter faster. Just saying!",
     "Which Boo is your favourite? I won't tell the others."
-  ]
+  ],
+
+  // ---- Run 2 additions (RUN2.md part D) ----
+  firstPick: ["Three little Boos want to be your very first friend. Who's it going to be?"],
+  revealAccessory: ["Ooh, dress-up! Tap Wear it and pick who gets it."],
+  dressUp: ["Looking GOOD. Ten out of ten."],
+  zoneUnlock: ["{name}! Your stars opened a whole new place! Come see!"],
+  nightTown: ["Shhh... the fireflies are out."],
+  djRefuse: ["DJ Boo says one pair of headphones is plenty, thanks."],
+  speciesChange: ["A new look! Love it. Same me, same you, new us!"]
 };

@@ -3,7 +3,7 @@
 import { el, clear, giftSVG, starsRow } from './ui.js';
 import { getState, mutate } from './state.js';
 import { createGuideBubble, guideLine } from './guide.js';
-import { music } from './sfx.js';
+import { music, sfx } from './sfx.js';
 import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 
@@ -38,6 +38,9 @@ export function mount(container, params, ctx) {
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
   const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
+  // Long-press the guide to open the character creator (spec RUN2 C1).
+  attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });
+  gb.art.setAttribute('aria-label', 'Your character — press and hold to change');
 
   // ---- game cards ----
   const cards = el('section', { class: 'game-cards' });
@@ -143,6 +146,24 @@ function makeCog(onOpen) {
   btn.addEventListener('pointerleave', cancel);
   btn.addEventListener('pointercancel', cancel);
   return btn;
+}
+
+// Fire onHold after `ms` of a steady press; cancel on release or drift.
+function attachLongPress(node, ms, onHold) {
+  if (!node) return;
+  let timer = null, sx = 0, sy = 0;
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  node.addEventListener('pointerdown', (e) => {
+    sx = e.clientX; sy = e.clientY;
+    clear();
+    timer = setTimeout(() => { timer = null; onHold(); }, ms);
+  });
+  node.addEventListener('pointermove', (e) => {
+    if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) clear();
+  });
+  node.addEventListener('pointerup', clear);
+  node.addEventListener('pointerleave', clear);
+  node.addEventListener('pointercancel', clear);
 }
 
 // ---- tiny card icons ----

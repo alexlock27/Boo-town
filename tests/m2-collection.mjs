@@ -44,17 +44,19 @@ assert(blurb, 'item detail card shows a blurb');
 await page.click('.dialog .btn'); // close
 await page.waitForTimeout(200);
 
-console.log('== edit my guide -> save persists ==');
-await page.click('.coll-footer .btn');
+console.log('== My character card -> creator -> save persists ==');
+await page.click('.mychar-card');
 await page.waitForSelector('.creator');
 await page.screenshot({ path: 'screenshots/m2-editguide.png' });
-// change body to the 3rd swatch (sky) and save
-const bodySwatches = await page.$$('.cc-group:nth-child(1) .swatch');
+// change species to penguin and body to the 3rd Colour swatch (sky), then save
+await page.click('.cc-group:nth-child(1) .acc-chip:has-text("Penguin")');
+const bodySwatches = await page.$$('.cc-group:nth-child(2) .swatch');
 await bodySwatches[2].click();
 await page.click('.creator-btns .btn.big'); // Save
 await page.waitForSelector('.coll-grid', { timeout: 4000 }); // returns to collection
 const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
 assert(save.guide.body === 'sky', 'guide edit saved (body=' + save.guide.body + ')');
+assert(save.guide.species === 'penguin', 'species change saved (' + save.guide.species + ')');
 
 console.log('== errors ==');
 if (errors.length) console.log(errors.map(e => '  ! ' + e).join('\n'));

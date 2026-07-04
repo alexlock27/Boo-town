@@ -2,15 +2,18 @@
 // One localStorage key. Debounced autosave. Persistent-storage request.
 // Backup codes = base64 of the JSON with a BOO1. prefix.
 
+// Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
+// the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 1;
+export const VERSION = 3;
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
   return {
     version: VERSION,
     name: '',
-    guide: { body: 'sunshine', patch: 'cocoa', acc: 'none', name: 'Twiggy' },
+    // Run-2 guide shape (5 species on one rig). See art.js normalizeGuide.
+    guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'Twiggy' },
     stars: {
       total: 0,
       byGame: {
@@ -24,7 +27,9 @@ function freshSave() {
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
     inventory: {},              // itemId -> count
-    town: [],                   // [{ plot, item }]
+    town: [],                   // [{ zone, x, item }] (v3); old [{ plot, item }] migrated in phase 3
+    nicknames: {},              // itemId -> nickname (owned Boos)
+    equips: {},                 // Boo itemId -> accessory itemId
     spellingMastery: {},        // word -> lifetime correct count
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true },
@@ -58,13 +63,30 @@ export function load() {
   }
 }
 
-// Ensure a loaded object has every current field (forward-compatible defaults).
+// Ensure a loaded object has every current field (forward-compatible defaults),
+// plus shape transforms for older schema versions. Shape-detected so it is safe to
+// re-run and robust to partial states. Old saves migrate losslessly.
 function migrate(obj) {
+  const o = obj || {};
+  // v1 giraffe guide { body, patch, acc, name } -> v3 guide object.
+  if (o.guide && !o.guide.species) o.guide = migrateGuideShape(o.guide);
   const base = freshSave();
-  const merged = deepDefaults(obj, base);
-  // future: if (obj.version < VERSION) { ...transform...; merged.version = VERSION; }
+  const merged = deepDefaults(o, base);
   merged.version = VERSION;
   return merged;
+}
+
+// Map the old giraffe-only guide to the new 5-species shape without losing anything.
+function migrateGuideShape(old) {
+  return {
+    species: 'giraffe',
+    body: old.body || 'sunshine',
+    pattern: old.patch ? 'spots' : 'none',   // old giraffes always had patches
+    patternColour: old.patch || 'cocoa',
+    eyes: 'round',
+    acc: old.acc || 'none',
+    name: old.name || 'Twiggy'
+  };
 }
 
 function deepDefaults(src, def) {

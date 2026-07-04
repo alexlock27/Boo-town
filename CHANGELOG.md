@@ -2,6 +2,19 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 1: Character creator 2.0
+- The guide is now any of five species on one shared layered-SVG rig: giraffe (neck +
+  ossicones), puppy (floppy ears), kitten (pointy ears + whiskers), penguin (flippers +
+  belly + beak), bunny (tall ears + cotton tail). Distinct silhouettes, identical option hooks.
+- Full option set: body colour (6), pattern (none/spots/stripes) with pattern colour (4),
+  eyes (round/sparkle/sleepy), accessory (bow/star-shades/crown/headphones + owned items),
+  editable name. Live preview updates per tap; Surprise-me shuffle; big Done.
+- Re-enterable any time: a "My character" card in the Collection and a long-press on the
+  hub guide both open the full creator. Changing species carries all speech and progress over.
+- Save v3 guide object { species, body, pattern, patternColour, eyes, acc, name }; old
+  giraffe saves migrate losslessly (species → giraffe, patch → patternColour). Added
+  nicknames/equips maps. Landscape creator relaid out (preview left, controls scroll right).
+
 ## Milestone 3 — "it's installable"
 - Town: 6×4 grassy plot grid; place by tap-select or drag; Move / Put-away menu; tap a Boo to squeak + pop a
   heart; idle-bounce on offset timers; Dance Stage makes the 8 neighbouring Boos bop; ceremony hands items in.
