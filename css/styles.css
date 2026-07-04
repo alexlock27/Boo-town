@@ -722,6 +722,46 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .golden-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
 .golden-sub { font-size: 15px; opacity: 0.85; }
 
+/* daily quests card + overlay (RUN3 C4) */
+.quest-card {
+  display: flex; align-items: center; gap: 12px; width: 100%; max-width: 760px; margin: 0 auto;
+  background: var(--card); border: 3px solid var(--zing); border-radius: 18px; padding: 10px 16px; color: var(--ink);
+  box-shadow: 0 3px 0 rgba(30,90,80,0.3);
+}
+.quest-card.all-done { border-color: var(--star); background: #FFF6DE; }
+.quest-card:active { transform: scale(0.98) translateY(2px); }
+.quest-ic { font-size: 24px; }
+.quest-body { display: flex; flex-direction: column; flex: 1; text-align: left; }
+.quest-title { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+.quest-sub { font-size: 13px; opacity: 0.8; }
+.quest-badge { font-family: var(--font-display); font-weight: 700; font-size: 18px; background: var(--zing); color: var(--card); border-radius: 999px; padding: 3px 12px; }
+.quest-card.all-done .quest-badge { background: var(--star); color: var(--ink); }
+.quests-overlay { position: fixed; inset: 0; background: rgba(30,21,80,0.6); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.quests-panel { max-width: 440px; width: 90%; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.quest-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: #F3ECFF; }
+.quest-row.done { background: #E4F8F3; }
+.qr-ic { font-size: 22px; }
+.qr-label { flex: 1; font-size: 17px; color: var(--ink); }
+.qr-prog { font-family: var(--font-display); font-weight: 700; color: var(--zing); }
+.quests-note { font-size: 14px; color: var(--sky-mid); text-align: center; }
+
+/* Boo Journal (RUN3 C4) */
+.coll-tabs { display: flex; gap: 8px; justify-content: center; padding: 8px 0; }
+.coll-tab { background: rgba(255,255,255,0.12); color: var(--card); border-radius: 999px; padding: 8px 18px; font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+.coll-tab.sel { background: var(--pop); color: var(--card); }
+.journal-view { padding: 10px; }
+.journal-page { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; max-width: 700px; margin: 0 auto; }
+.journal-stamp { background: var(--card); border: 3px dashed var(--star); border-radius: 16px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; transform: rotate(-1.5deg); }
+.journal-stamp:nth-child(even) { transform: rotate(1.5deg); border-color: var(--pop); }
+.js-icon { font-size: 34px; }
+.js-label { font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 15px; }
+.js-date { font-size: 12px; color: var(--sky-mid); }
+.journal-nav { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+.journal-nav .btn { min-width: 48px; font-size: 24px; }
+.journal-page-no { font-size: 14px; color: var(--card); }
+.journal-empty { text-align: center; color: var(--card); max-width: 420px; margin: 30px auto; }
+.je-big { font-size: 60px; }
+
 .golden-choice { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .gc-q { background: var(--card); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 16px 22px; font-family: var(--font-display); font-size: 24px; color: var(--ink); max-width: 640px; text-align: center; }
 .gc-options { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }

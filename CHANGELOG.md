@@ -2,6 +2,17 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 4: Daily quests + the Boo Journal
+- Three fresh quests each local day (from a template pool, filtered to installed features),
+  shown as a hub card with a 0–3 badge and a tap-through list. Completing all three awards a
+  bonus box. No streak counters, no missed-day guilt — a new day simply offers three new quests.
+- The Boo Journal: a scrapbook tab in Collection that self-stamps dated stickers — first
+  rare/ultra/secret, first 3-star per game, each zone unlock, a golden 3-star, an all-quests
+  day (one per day), and (wired for later phases) first custom Boo / first dance routine.
+  Stickers sit on flippable pages.
+- New js/quests.js (quest logic + Journal). Events wired from results, town, ceremony,
+  accessories, blocks and beat via noteQuest()/stampJournal().
+
 ## Run 3 — Phase 3: Golden Round
 - Grown-ups corner gains a Golden Round editor: up to 10 spelling words (each with an
   optional sound-twin flag + rival spelling + clue) and up to 5 choice questions, all

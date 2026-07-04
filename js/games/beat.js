@@ -7,6 +7,7 @@
 import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
 import { getState, mutate, recordResult } from '../state.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { noteQuest } from '../quests.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
@@ -199,6 +200,7 @@ export function mount(container, params, ctx) {
     function finish() {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = starsForBeat(correct, perfects);
+      if (perfects > 0) noteQuest('perfects', { count: perfects });   // daily quest (RUN3 C4)
       ctx.go('results', { game: 'beat', gameName: 'Boo Beat', stars, tricky: collector.items(), replay: () => ctx.go('beat') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }

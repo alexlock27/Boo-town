@@ -8,6 +8,7 @@ import { guideLine, speakMaybe } from './guide.js';
 import { sfx, music } from './sfx.js';
 import { openOneBox } from './rewards.js';
 import { openEquipPicker } from './accessories.js';
+import { noteQuest, stampJournal } from './quests.js';
 
 // Reveal cards announce what the item is (spec RUN2 C2).
 const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
@@ -27,6 +28,11 @@ export function mount(container, params, ctx) {
     if (!result) { ctx.go('hub'); return; }
     clear(root);
     music.play('calm');
+    // daily quest + Journal (RUN3 C4)
+    noteQuest('boxOpen');
+    if (result.rarity === 'rare') stampJournal('firstRare');
+    else if (result.rarity === 'ultra') stampJournal('firstUltra');
+    else if (result.rarity === 'secret') stampJournal('firstSecret');
 
     let taps = 0;
     const box = el('button', { class: 'gift-box wobble-idle', 'aria-label': 'Tap the box to open it', html: bigGift() });

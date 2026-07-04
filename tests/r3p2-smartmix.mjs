@@ -42,29 +42,36 @@ assert(d8.boostRate > d8.plainRate * 1.4, `weak twins/th appear at ~double weigh
 
 // ---- D8: Smart Mix draws from ALL installed content (words + twins, any tier) ----
 console.log('== D8: draws from all content (weak items surface) ==');
-// seed the ledger so exactly two items are weak: a th word ("Thursday") and a twin set (toTooTwo)
-await page.evaluate(() => {
-  const save = JSON.parse(localStorage.getItem('bootown.save.v1'));
-  save.ledger = { 'Thursday': { rights: 0, misses: 3, lastSeen: 1 }, 'twin:toTooTwo': { rights: 0, misses: 3, lastSeen: 2 } };
-  localStorage.setItem('bootown.save.v1', JSON.stringify(save));
+// seed the ledger via the app's own mutate (no reload) so exactly two items are weak:
+// a th word ("Thursday") and a twin set (toTooTwo). Seeding localStorage + reloading races
+// with the hub's debounced autosave, so drive the real in-memory state instead.
+await page.evaluate(async () => {
+  const st = await import('./js/state.js');
+  st.mutate(s => { s.ledger = { 'Thursday': { rights: 0, misses: 3, lastSeen: 1 }, 'twin:toTooTwo': { rights: 0, misses: 3, lastSeen: 2 } }; });
 });
-await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
 // play Smart Mix in Spell Boo and collect the identities presented across the round
 await page.evaluate(() => window.BooTown.go('spellboo'));
 await page.waitForSelector('.picker');
 await page.click('.picker-choice.mix');
 await page.click('.picker-levels .mix-start');
 await page.waitForSelector('.spell-stage');
-const seen = new Set();
-for (let g = 0; g < 30; g++) {
+// Atomic step: inspect cur() + record its identity + act, all in ONE evaluate (no race
+// with the ~250ms advance gap between items). Identities accumulate in window.__seen.
+await page.evaluate(() => { window.__seen = []; });
+for (let g = 0; g < 40; g++) {
   if (await page.$('.result-card')) break;
-  const info = await page.evaluate(() => ({ kind: window.__spell.curKind(), word: window.__spell.word ? window.__spell.word() : null, item: window.__spell.item ? window.__spell.item() : null }));
-  if (info.kind === 'word' && info.word) { seen.add(info.word); await page.evaluate(() => window.__spell.typeCorrect()); }
-  else if (info.kind === 'twin' && info.item) { seen.add('twin:' + info.item.setId); await page.evaluate(() => window.__spell.pick(window.__spell.item().answer)); await sleep(300); await page.evaluate(() => window.__spell.typeCorrect()); }
-  await sleep(1500);
+  const did = await page.evaluate(() => {
+    const c = window.__spell; if (!c) return 'none';
+    const kind = c.curKind();
+    if (kind === 'word') { const w = c.word(); if (w && !window.__seen.includes(w)) window.__seen.push(w); c.typeCorrect(); return 'word'; }
+    if (kind === 'twin') { const it = c.item(); const id = it && 'twin:' + it.setId; if (id && !window.__seen.includes(id)) window.__seen.push(id); if (c.phase() === 'pick') { c.pick(it.answer); return 'twin-pick'; } c.typeCorrect(); return 'twin-spell'; }
+    return 'wait';
+  });
+  await sleep(did === 'twin-pick' ? 350 : did === 'wait' ? 250 : 1450);
 }
-const mixMixed = await page.evaluate(() => true);
-assert([...seen].some(x => x.startsWith('twin:')) , 'Smart Mix round includes twin items (draws across content types)');
+const seenArr = await page.evaluate(() => window.__seen.slice());
+const seen = new Set(seenArr);
+assert([...seen].some(x => x.startsWith('twin:')), 'Smart Mix round includes twin items (draws across content types): ' + JSON.stringify(seenArr));
 assert(seen.has('Thursday') || seen.has('twin:toTooTwo'), 'a seeded weak hidden-set item (th word / twin) surfaces in Smart Mix');
 // leave results
 if (await page.$('.result-card')) { await page.waitForSelector('.result-btns .btn.soft', { timeout: 4000 }); await page.click('.result-btns .btn.soft'); await page.waitForSelector('.hub'); }

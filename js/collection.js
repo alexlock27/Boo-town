@@ -6,6 +6,7 @@ import { renderItem, renderGuide } from './art.js';
 import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY } from '../data/catalogue.js';
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
 import { sfx, music } from './sfx.js';
+import { journalEntries } from './quests.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -76,7 +77,52 @@ export function mount(container, params, ctx) {
   ]);
 
   const scroll = el('div', { class: 'coll-scroll' }, [myCharCard, grid, wardrobe]);
-  root.append(header, scroll);
+
+  // ---- Journal tab (RUN3 C4): a scrapbook of dated stamp stickers on flippable pages ----
+  const journalView = el('div', { class: 'coll-scroll journal-view', style: { display: 'none' } });
+  const PER_PAGE = 6;
+  let jpage = 0;
+  function renderJournal() {
+    journalView.innerHTML = '';
+    const entries = journalEntries();
+    if (!entries.length) {
+      journalView.appendChild(el('div', { class: 'journal-empty' }, [
+        el('div', { class: 'je-big', text: '📖' }),
+        el('p', { text: 'Your Boo Journal is ready! Win rare Boos, 3-star games and unlock places to fill it with stickers.' })
+      ]));
+      return;
+    }
+    const pages = Math.ceil(entries.length / PER_PAGE);
+    jpage = Math.max(0, Math.min(jpage, pages - 1));
+    const slice = entries.slice(jpage * PER_PAGE, jpage * PER_PAGE + PER_PAGE);
+    const page = el('div', { class: 'journal-page' }, slice.map(e => el('div', { class: 'journal-stamp' }, [
+      el('div', { class: 'js-icon', text: e.icon }),
+      el('div', { class: 'js-label', text: e.label }),
+      el('div', { class: 'js-date', text: e.date })
+    ])));
+    const nav = el('div', { class: 'journal-nav' }, [
+      el('button', { class: 'btn soft', text: '‹', disabled: jpage === 0 ? '' : undefined, onclick: () => { if (jpage > 0) { jpage--; sfx.tap(); renderJournal(); } } }),
+      el('span', { class: 'journal-page-no', text: `Page ${jpage + 1} of ${pages} · ${entries.length} sticker${entries.length === 1 ? '' : 's'}` }),
+      el('button', { class: 'btn soft', text: '›', disabled: jpage >= pages - 1 ? '' : undefined, onclick: () => { if (jpage < pages - 1) { jpage++; sfx.tap(); renderJournal(); } } })
+    ]);
+    journalView.append(page, nav);
+  }
+  renderJournal();
+
+  const tabs = el('div', { class: 'coll-tabs' }, [
+    el('button', { class: 'coll-tab sel', text: '🧸 Collection', onclick: (e) => switchTab('coll', e.currentTarget) }),
+    el('button', { class: 'coll-tab', text: '📖 Journal', onclick: (e) => switchTab('journal', e.currentTarget) })
+  ]);
+  function switchTab(which, btn) {
+    sfx.tap();
+    tabs.querySelectorAll('.coll-tab').forEach(t => t.classList.remove('sel'));
+    btn.classList.add('sel');
+    scroll.style.display = which === 'coll' ? '' : 'none';
+    journalView.style.display = which === 'journal' ? '' : 'none';
+    if (which === 'journal') renderJournal();
+  }
+
+  root.append(header, tabs, scroll, journalView);
   container.appendChild(root);
 
   function showItem(item, count) {

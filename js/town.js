@@ -9,6 +9,7 @@ import { BY_ID } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
+import { noteQuest, stampJournal } from './quests.js';
 
 // Zone unlock thresholds (named constants).
 export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
@@ -34,6 +35,7 @@ const isNight = (h) => h >= 19 || h < 7;
 export function mount(container, params, ctx) {
   const s = getState();
   music.play('calm');
+  noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
 
   let holding = (params && params.place) || null;   // item id being placed
   let placeMode = !!holding;
@@ -304,6 +306,7 @@ export function mount(container, params, ctx) {
 
   function squeak(wrap, item) {
     sfx.pop();
+    noteQuest('sayHello', { count: 1 });   // daily quest: say hello to Boos (RUN3 C4)
     const svg = wrap.querySelector('svg');
     if (svg && !REDUCED) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
     const heart = el('div', { class: 'pop-heart', text: '❤' }); wrap.appendChild(heart);
@@ -376,6 +379,7 @@ export function mount(container, params, ctx) {
     if (params && params.simulateUnlock) { /* tests can pass a zone to force */ }
     if (!fresh.length) return;
     const key = fresh[0];
+    fresh.forEach(k => stampJournal('zone_' + k));   // Journal: each zone unlock (RUN3 C4)
     mutate(s2 => { s2.seen.zonesUnlocked = [...seen, ...fresh]; });
     const z = ZONES[ZONE_INDEX[key]];
     scrollToZone(ZONE_INDEX[key]);

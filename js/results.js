@@ -7,6 +7,7 @@ import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { bankStars, addMeterPoints, METER_CAP, meterState } from './rewards.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
+import { noteQuest, stampJournal } from './quests.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null } = params || {};
@@ -24,6 +25,11 @@ export function mount(container, params, ctx) {
   // Golden Round banks a caller-computed meter total (double stars etc.); others use bankStars.
   const banked = meterOverride != null ? addMeterPoints(meterOverride) : bankStars(stars);
   const lineKey = stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
+
+  // daily quests + Journal (RUN3 C4)
+  noteQuest('roundEnd', { game, stars });
+  if (stars >= 3) stampJournal('star3_' + game);
+  if (game === 'golden' && stars >= 3) stampJournal('golden3');
 
   const root = el('div', { class: 'screen results' });
   container.appendChild(root);

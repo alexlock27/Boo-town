@@ -11,6 +11,7 @@ import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { makeQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { noteQuest } from '../quests.js';
 
 const N = 9;                 // 9x9 board
 const END_PIECES = 12;       // round ends after 12 placed pieces
@@ -303,6 +304,7 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true;
       shell.cleanup();
       const stars = starsForBlocks(correct, lines, hintsUsed);
+      if (lines > 0) noteQuest('linesCleared', { count: lines });   // daily quest (RUN3 C4)
       ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, tricky: collector.items(), replay: () => ctx.go('blocks') });
     }
 

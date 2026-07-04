@@ -41,6 +41,8 @@ function freshSave() {
     trickyPile: [],             // unrescued missed items carried between rounds (RUN3 C2)
     golden: null,               // parent-typed Golden Round { words:[...], choices:[...], savedAt } (RUN3 C3)
     goldenLastDouble: '',       // local-day key (YYYY-MM-DD) the daily double stars were last awarded
+    quests: { day: '', list: [], done: [], progress: {}, boxDay: '' }, // 3 daily quests (RUN3 C4), no streaks
+    journal: {},                // Boo Journal stamps: uniqueKey -> date (RUN3 C4)
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true },
     created: 0,

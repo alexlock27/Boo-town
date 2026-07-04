@@ -8,6 +8,7 @@ import { renderItem, renderGuide } from './art.js';
 import { BY_ID, ACCESSORIES } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
+import { noteQuest } from './quests.js';
 
 // Display name: nickname if set, else the catalogue name.
 export function getDisplayName(id) {
@@ -45,6 +46,7 @@ function refuses(booId, accId) {
 
 export function equip(booId, accId) {
   mutate(s => { s.equips[booId] = accId; });
+  noteQuest('dressUp');   // daily quest: dress up a Boo (RUN3 C4)
 }
 export function unequip(booId) {
   mutate(s => { delete s.equips[booId]; });

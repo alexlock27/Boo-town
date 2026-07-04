@@ -6,6 +6,7 @@ import { createGuideBubble, guideLine } from './guide.js';
 import { music, sfx } from './sfx.js';
 import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
+import { questState } from './quests.js';
 
 const GAMES = [
   { id: 'teachme',   name: 'Teach Me',     tag: 'Little lessons', accent: 'var(--zing)', icon: teachIcon, group: 'Learn' },
@@ -74,8 +75,38 @@ export function mount(container, params, ctx) {
   const cog = makeCog(() => ctx.go('grownups'));
   const bar = el('nav', { class: 'bottom-bar' }, [townBtn, collBtn, cog]);
 
-  // ---- Golden Round card (RUN3 C3), shown when a grown-up has published one ----
+  // ---- Golden Round + daily quests cards (RUN3 C3/C4) ----
   const specials = el('section', { class: 'hub-specials' });
+
+  // Daily quests card with a 0–3 badge (no streaks, no missed-day guilt — rule 1).
+  const qs = questState();
+  const questCard = el('button', { class: 'quest-card' + (qs.allDone ? ' all-done' : ''), onclick: () => { sfx.tap(); showQuests(); } }, [
+    el('span', { class: 'quest-ic', text: '🎯' }),
+    el('span', { class: 'quest-body' }, [
+      el('span', { class: 'quest-title', text: 'Today\'s quests' }),
+      el('span', { class: 'quest-sub', text: qs.allDone ? 'All done — bonus box earned!' : 'Three little things to try' })
+    ]),
+    el('span', { class: 'quest-badge', text: qs.doneCount + '/3' })
+  ]);
+  specials.appendChild(questCard);
+
+  function showQuests() {
+    const st = questState();
+    const ov = el('div', { class: 'overlay quests-overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } });
+    const panel = el('div', { class: 'card quests-panel' }, [
+      el('h3', { text: `Today's quests · ${st.doneCount}/3` }),
+      ...st.items.map(it => el('div', { class: 'quest-row' + (it.done ? ' done' : '') }, [
+        el('span', { class: 'qr-ic', text: it.done ? '✅' : it.icon }),
+        el('span', { class: 'qr-label', text: it.label }),
+        el('span', { class: 'qr-prog', text: it.need > 1 ? `${it.progress}/${it.need}` : (it.done ? '✓' : '') })
+      ])),
+      el('p', { class: 'quests-note', text: st.allDone ? '🎁 All three done — a bonus box is on your meter!' : 'Do all three for a bonus box. Fresh quests tomorrow!' }),
+      el('button', { class: 'btn', text: 'Close', onclick: () => ov.remove() })
+    ]);
+    ov.appendChild(panel);
+    root.appendChild(ov);
+  }
+
   const g = s.golden;
   if (g && ((g.words || []).length || (g.choices || []).length)) {
     const wc = (g.words || []).length, cc = (g.choices || []).length;

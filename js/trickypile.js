@@ -8,6 +8,7 @@ import { el, sparkleAt } from './ui.js';
 import { getState, mutate } from './state.js';
 import { sfx } from './sfx.js';
 import { addMeterPoints } from './rewards.js';
+import { noteQuest } from './quests.js';
 
 export const PUZZLED_CAP = 3;
 const rand = (n) => (Math.random() * n) | 0;
@@ -116,6 +117,7 @@ export function mountRescue(container, items, { onGift, onDone, onRescue } = {})
       const r = panel.getBoundingClientRect();
       sparkleAt(r.left + r.width / 2, r.top + 40);
       const banked = addMeterPoints(1);
+      noteQuest('rescue');
       onRescue && onRescue();
       if (banked.boxesEarned > 0 && onGift) onGift();
       pending.shift();
