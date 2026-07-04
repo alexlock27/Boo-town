@@ -8,12 +8,14 @@ import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 
 const GAMES = [
-  { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon },
-  { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon },
-  { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon },
-  { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon },
-  { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon },
-  { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon }
+  { id: 'teachme',   name: 'Teach Me',     tag: 'Little lessons', accent: 'var(--zing)', icon: teachIcon, group: 'Learn' },
+  { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon, group: 'Learn' },
+  { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon, group: 'Learn' },
+  { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
+  { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
+  { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
+  { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
+  { id: 'dash',      name: 'Boo Dash',     tag: 'Fluency run',   accent: 'var(--pop)',  icon: dashIcon, group: 'Play' }
 ];
 
 export function mount(container, params, ctx) {
@@ -45,20 +47,21 @@ export function mount(container, params, ctx) {
   attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });
   gb.art.setAttribute('aria-label', 'Your character — press and hold to change');
 
-  // ---- game cards ----
-  const cards = el('section', { class: 'game-cards' });
-  for (const g of GAMES) {
+  // ---- game cards, grouped Learn / Play (RUN2 part D) ----
+  const cards = el('section', { class: 'game-cards-groups' });
+  const makeCard = (g) => {
     const best = s.stars.byGame[g.id] ? s.stars.byGame[g.id].best : 0;
-    const card = el('button', {
-      class: 'game-card', style: { '--accent': g.accent },
-      onclick: () => ctx.go(g.id)
-    }, [
+    return el('button', { class: 'game-card', style: { '--accent': g.accent }, onclick: () => ctx.go(g.id) }, [
       el('div', { class: 'gc-icon', html: g.icon() }),
       el('div', { class: 'gc-name', text: g.name }),
       el('div', { class: 'gc-tag', text: g.tag }),
-      el('div', { class: 'gc-stars', html: starsRow(best, { size: 24 }) })
+      el('div', { class: 'gc-stars', html: starsRow(best, { size: 22 }) })
     ]);
-    cards.appendChild(card);
+  };
+  for (const groupName of ['Learn', 'Play']) {
+    const row = el('div', { class: 'game-cards' });
+    GAMES.filter(g => g.group === groupName).forEach(g => row.appendChild(makeCard(g)));
+    cards.append(el('div', { class: 'group-label', text: groupName }), row);
   }
 
   // ---- bottom bar ----
@@ -187,4 +190,10 @@ function bounceIcon() {
 }
 function beatIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="10" height="40" rx="4" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/><rect x="25" y="10" width="10" height="40" rx="4" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.5"/><rect x="40" y="10" width="10" height="40" rx="4" fill="var(--star)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="30" cy="40" r="7" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><path d="M15 40h30" stroke="#fff" stroke-width="2.5" opacity="0.7"/></svg>`;
+}
+function teachIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M12 18 L30 12 L48 18 L30 24 Z" fill="var(--star)" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round"/><path d="M18 22 L18 36 Q30 44 42 36 L42 22" fill="var(--zing)" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round"/><path d="M48 18 L48 30" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><circle cx="48" cy="32" r="3" fill="var(--pop)"/></svg>`;
+}
+function dashIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M8 46 Q30 40 52 46" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M16 44 Q16 26 30 26 Q44 26 44 44" fill="none" stroke="var(--star)" stroke-width="4"/><circle cx="30" cy="40" r="9" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><circle cx="27" cy="39" r="1.8" fill="#fff"/><circle cx="33" cy="39" r="1.8" fill="#fff"/><path d="M6 20 h10 M4 28 h8" stroke="var(--zing)" stroke-width="3" stroke-linecap="round"/></svg>`;
 }

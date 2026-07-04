@@ -43,7 +43,7 @@ await page.setViewportSize({ width: 1024, height: 768 });
 await page.waitForTimeout(300);
 
 log('\n== Enter Bubble Pop, pick level 2 ==');
-await page.click('.game-card');                  // first card = Bubble Pop
+await page.click('.game-card:has-text("Bubble Pop")');  // Bubble Pop card (hub is grouped Learn/Play)
 await page.waitForSelector('.start-card');
 await page.screenshot({ path: 'screenshots/m1-bubblepop-start.png' });
 const lvBtns = await page.$$('.level-btn');

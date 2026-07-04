@@ -2,6 +2,23 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 8: Teach Me + Boo Dash (EXPANSION_2 frames 1 & 4)
+- Teach Me: short guide-led mini-lessons, each concept explained two ways. Six lessons at
+  launch (hundreds/tens/ones, jumping over ten, counting up, fractions, times tables, telling
+  the time), each a sequence of cards — a hook, explanation A, a tap-through worked example,
+  explanation B, then a three-question quick check. Five visual primitives (place-value towers,
+  number line with hops, fraction circle, dot array, clock) are implemented once; all lessons
+  are data. A wrong check routes back to the explanation, the guide encourages, and re-asks a
+  variant. Stars: 3 all-right, 2 one slip, 1 finished.
+- Boo Dash: a gentle fluency runner. The player's character trots along a path; a gate shows a
+  fact; three arches span the path (one correct); tap the correct arch to trot through. A wrong
+  arch is a soft bonk — the same fact returns, slower — with no death or countdown. 12 gates,
+  reusing the Bubble Pop generators. Stars: 3 clean, 2 up to three bonks, 1 finished.
+- Hub regrouped into labelled Learn and Play rows (Teach Me first in Learn) — eight games,
+  equal-size cards, readable at a glance in both orientations.
+- Story Nook and Puzzle Plates stay parked: their content is authored and ready in
+  data/stories.js and data/puzzles.js for a future run.
+
 ## Run 2 — Phase 7: EXPANSION_1 content (deep Year 3/4)
 - Bubble Pop gains four new question categories alongside Times tables (now with a Starter
   level): Number bonds, Add & subtract, Doubles & halves, and More or less (place value,

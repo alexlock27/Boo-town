@@ -292,7 +292,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .speech-bubble.pop { animation: bubblepop 240ms ease-out; }
 @keyframes bubblepop { from { transform: scale(0.85); opacity: 0.3; } to { transform: scale(1); opacity: 1; } }
 
-.game-cards { display: flex; gap: 12px; justify-content: center; align-items: stretch; padding: 6px 0; flex-wrap: wrap; max-width: 760px; margin: 0 auto; }
+.game-cards-groups { display: flex; flex-direction: column; gap: 2px; max-width: 860px; margin: 0 auto; width: 100%; overflow-y: auto; }
+.group-label { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--star); text-transform: uppercase; letter-spacing: 1.5px; text-align: left; padding: 2px 4px 0; }
+.game-cards { display: flex; gap: 10px; justify-content: center; align-items: stretch; padding: 4px 0 8px; flex-wrap: wrap; }
 .game-card {
   background: var(--card); border: none; border-top: 8px solid var(--accent); border-radius: var(--radius);
   box-shadow: var(--card-shadow); padding: 14px 16px; cursor: pointer; min-width: 150px; flex: 1; max-width: 220px;
@@ -438,6 +440,63 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   background: linear-gradient(180deg, rgba(59,46,126,0.55), rgba(30,21,80,0.55)); box-shadow: inset 0 2px 12px rgba(0,0,0,0.3); }
 .bounce-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .bounce-canvas:active { cursor: grabbing; }
+
+/* ---- Teach Me ---- */
+.teachme-list .lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; width: 100%; max-width: 520px; }
+.lesson-card { background: #F4EEFF; border: none; border-radius: 18px; padding: 14px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: var(--card-shadow); min-height: 110px; justify-content: center; }
+.lesson-card:active { transform: scale(0.96); }
+.lesson-ic { font-size: 40px; }
+.lesson-name { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); text-align: center; }
+.lesson-badge { display: flex; }
+.tm-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 12px; overflow-y: auto; }
+.tm-guide-row { display: flex; align-items: flex-start; gap: 8px; max-width: 560px; }
+.tm-guide { flex-shrink: 0; }
+.tm-bubble { font-size: 21px; max-width: 400px; }
+.tm-visual { width: 100%; max-width: 540px; display: flex; justify-content: center; }
+.tm-caption { color: var(--card); font-size: 16px; text-align: center; margin: 0; max-width: 420px; }
+.tm-next { margin-top: 4px; }
+.tm-worked-title { font-family: var(--font-display); font-weight: 700; font-size: 26px; color: var(--card); }
+.tm-steps { display: flex; flex-direction: column; gap: 8px; max-width: 480px; width: 100%; }
+.tm-step { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 10px 16px; font-size: 18px; color: rgba(255,255,255,0.5); opacity: 0.5; transition: all 200ms; }
+.tm-step.on { background: var(--card); color: var(--ink); opacity: 1; }
+.tm-step.cur { box-shadow: 0 0 0 3px var(--star); }
+.tm-check-q { font-family: var(--font-display); font-weight: 700; font-size: 26px; color: var(--card); text-align: center; max-width: 520px; }
+.tm-check-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 420px; }
+.tm-opt { font-size: 22px; padding: 16px; background: var(--zing); min-height: 60px; }
+.tm-opt.right { box-shadow: 0 0 0 3px #fff, 0 0 16px var(--zing); }
+.tm-opt.wrong { background: var(--oops); }
+
+/* ---- Boo Dash ---- */
+.dash .game-area { display: flex; flex-direction: column; }
+.dash-track {
+  flex: 1; position: relative; margin: 6px 4px; border-radius: 18px; overflow: hidden;
+  background: linear-gradient(180deg, #6EA8E0 0%, #9AD0A0 62%, #7FBF7A 100%);
+  display: flex; flex-direction: column; align-items: center;
+}
+.dash-track.slow { animation: trackshake 0.5s ease; }
+@keyframes trackshake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.dash-fact {
+  margin: 14px auto 6px; background: var(--card); border: 4px solid var(--ink); border-radius: 18px; padding: 8px 26px;
+  font-family: var(--font-display); font-weight: 700; font-size: 32px; color: var(--ink); box-shadow: var(--card-shadow); z-index: 3;
+}
+.dash-arches { display: flex; gap: 14px; justify-content: center; flex: 1; align-items: center; width: 100%; padding: 0 10px; }
+.dash-arch {
+  position: relative; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0;
+  flex: 1; max-width: 150px;
+}
+.arch-top { width: 100%; height: 74px; border: 5px solid var(--star); border-bottom: none; border-radius: 80px 80px 0 0; background: rgba(255,255,255,0.18); }
+.arch-label { margin-top: -40px; font-family: var(--font-display); font-weight: 700; font-size: 30px; color: var(--ink); background: var(--card); border: 3px solid var(--ink); border-radius: 14px; padding: 2px 14px; z-index: 2; }
+.dash-arch:active { transform: scale(0.97); }
+.dash-arch.through .arch-top { background: var(--zing); box-shadow: 0 0 18px var(--zing); }
+.dash-arch.bonked { animation: bonkshake 0.4s ease; }
+@keyframes bonkshake { 0%,100% { transform: translateX(0); } 30% { transform: translateX(-8px) rotate(-3deg); } 70% { transform: translateX(8px) rotate(3deg); } }
+.dash-runner { margin: 4px auto 14px; z-index: 3; }
+.dash-runner.run { animation: dashrun 0.45s ease; }
+@keyframes dashrun { 0% { transform: translateY(0) scale(1); } 50% { transform: translateY(-16px) scale(1.08); } 100% { transform: translateY(0) scale(1); } }
+.dash-runner.bonk { animation: bonkshake 0.4s ease; }
+.dash-runner.fast { animation: trot 0.4s ease-in-out infinite; }
+@keyframes trot { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { .dash-runner.run, .dash-runner.bonk, .dash-runner.fast, .dash-arch.bonked, .dash-track.slow { animation: none !important; } }
 
 /* ---- Boo Beat ---- */
 .beat .game-area { display: flex; flex-direction: column; }

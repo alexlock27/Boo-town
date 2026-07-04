@@ -73,6 +73,14 @@ export const LINES = {
     "I heard somewhere out there is a tiny giraffe Boo. Probably just a legend..."
   ],
 
+  // ---- EXPANSION_2 Teach Me encourage lines ----
+  encourage: [
+    "Nearly! Let's take another little look.",
+    "So close. Here's another way to see it.",
+    "Good try! Let me show you once more.",
+    "Almost! We've got this together."
+  ],
+
   // ---- EXPANSION_1 §4 seasonal + Twiglet lines ----
   summerReveal: ["A summer Boo! It smells like sun cream!"],
   spookyReveal: ["Ooooh, a spooky one! I'm not scared. You're scared."],
