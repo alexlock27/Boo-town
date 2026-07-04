@@ -470,55 +470,96 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .tm-opt.right { box-shadow: 0 0 0 3px #fff, 0 0 16px var(--zing); }
 .tm-opt.wrong { background: var(--oops); }
 
-/* ---- Boo Dash (runner with real motion) ---- */
+/* ---- Boo Dash: run-up-and-wait, behind-the-character (DASH_PATCH job 2) ---- */
 .dash .game-area { display: flex; flex-direction: column; }
 .dash-track {
   flex: 1; position: relative; margin: 6px 4px; border-radius: 18px; overflow: hidden;
-  background: linear-gradient(180deg, #6EA8E0 0%, #9AD0A0 62%, #7FBF7A 100%);
-  display: flex; flex-direction: column; align-items: center;
+  background: #8FC7FF;
 }
-/* the ground scrolls toward the runner so the trot reads as forward motion */
-.dash-ground {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 58%; pointer-events: none; z-index: 0;
+/* layered scenery: sky + clouds + hills at the horizon, grass, a perspective road */
+.d2-sky { position: absolute; left: 0; right: 0; top: 0; height: 32%; background: linear-gradient(180deg, #5D9FE8 0%, #9CD2FF 100%); pointer-events: none; }
+.d2-clouds { position: absolute; left: 0; right: -40%; top: 0; height: 30%; pointer-events: none; will-change: transform; }
+.d2-cloud { position: absolute; width: 90px; height: 30px; border-radius: 20px; background: rgba(255,255,255,0.9); box-shadow: 22px -10px 0 -4px rgba(255,255,255,0.9), 46px 0 0 -2px rgba(255,255,255,0.85); }
+.d2-cloud.c0 { left: 12%; top: 18%; } .d2-cloud.c1 { left: 48%; top: 42%; transform: scale(0.7); } .d2-cloud.c2 { left: 84%; top: 12%; transform: scale(1.15); }
+.d2-hills {
+  position: absolute; left: -4%; right: -4%; top: 21%; height: 12%; pointer-events: none;
   background:
-    repeating-linear-gradient(to bottom, rgba(255,255,255,0.16) 0 4px, transparent 4px 52px),
-    repeating-linear-gradient(105deg, rgba(255,255,255,0.05) 0 26px, transparent 26px 60px);
-  animation: groundscroll 1s linear infinite;
+    radial-gradient(58% 100% at 18% 100%, #7FD8A8 99%, transparent 100%),
+    radial-gradient(48% 86% at 52% 100%, #6BC894 99%, transparent 100%),
+    radial-gradient(60% 94% at 86% 100%, #7FD8A8 99%, transparent 100%);
 }
-.dash-track.speedy .dash-ground { animation-duration: 0.55s; }
-@keyframes groundscroll { from { background-position: 0 0, 0 0; } to { background-position: 0 52px, 0 0; } }
-.dash-fact {
-  margin: 12px auto 4px; background: var(--card); border: 4px solid var(--ink); border-radius: 18px; padding: 8px 26px;
-  font-family: var(--font-display); font-weight: 700; font-size: 32px; color: var(--ink); box-shadow: var(--card-shadow); z-index: 4;
+.d2-ground { position: absolute; left: 0; right: 0; top: 30%; bottom: 0; background: linear-gradient(180deg, #7CC98F 0%, #5FB878 100%); pointer-events: none; }
+/* the road: a trapezoid narrowing to the horizon, with sweeping cross-stripes and two
+   converging dashed lane dividers (dashes flow toward the camera while running) */
+.d2-roadwrap { position: absolute; left: 0; right: 0; top: 30%; bottom: 0; overflow: hidden; pointer-events: none; }
+.d2-road {
+  position: absolute; inset: 0;
+  clip-path: polygon(44.5% 0, 55.5% 0, 89% 100%, 11% 100%);
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.16) 0 10px, transparent 10px 64px),
+    linear-gradient(180deg, #D9BE8C 0%, #CFA972 100%);
+  will-change: background-position;
 }
-/* the gate: starts small up the path, grows + descends as it approaches (JS transform) */
-.dash-arches {
-  display: flex; gap: 14px; justify-content: center; align-items: flex-end; padding: 6px 10px 0; z-index: 2;
-  will-change: transform; transform-origin: 50% 0;
+.d2-road::before, .d2-road::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 6px;
+  background: repeating-linear-gradient(180deg, rgba(255,248,240,0.9) 0 22px, transparent 22px 60px);
+  background-position: inherit; transform-origin: 50% 100%;
 }
-.dash-arches.waiting .dash-arch { animation: archbob 1.3s ease-in-out infinite; }
-@keyframes archbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-.dash-arch {
-  position: relative; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0;
-  width: min(150px, 26vw);
+.d2-road::before { left: calc(50% - 13.3%); transform: skewX(-12deg); }
+.d2-road::after  { left: calc(50% + 13.3%); transform: skewX(12deg); }
+.d2-props, .d2-gates { position: absolute; inset: 0; pointer-events: none; }
+.d2-prop { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform; }
+/* gates: one per lane, always all three; doors swing open on the correct tap */
+.d2-gate {
+  position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform;
+  border: none; background: transparent; padding: 0; cursor: pointer; pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; width: min(132px, 24vw);
 }
-.arch-top { width: 100%; height: 74px; border: 5px solid var(--star); border-bottom: none; border-radius: 80px 80px 0 0; background: rgba(255,255,255,0.18); }
-.arch-label { margin-top: -40px; font-family: var(--font-display); font-weight: 700; font-size: 30px; color: var(--ink); background: var(--card); border: 3px solid var(--ink); border-radius: 14px; padding: 2px 14px; z-index: 2; }
-.dash-arch:active { transform: scale(0.97); }
-.dash-arch.through .arch-top { background: var(--zing); box-shadow: 0 0 18px var(--zing); }
-.dash-arch.bonked { animation: bonkshake 0.4s ease; }
+.g-frame { position: relative; width: 100%; height: 92px; }
+.g-post { position: absolute; bottom: 0; width: 11px; height: 78px; background: #B9793F; border: 3px solid var(--ink); border-radius: 5px; }
+.g-post.left { left: 0; } .g-post.right { right: 0; }
+.g-top { position: absolute; top: 0; left: -4px; right: -4px; height: 26px; background: var(--star); border: 3.5px solid var(--ink); border-radius: 12px; z-index: 2; }
+.g-door {
+  position: absolute; top: 20px; bottom: 0; width: calc(50% - 8px); z-index: 1;
+  background: repeating-linear-gradient(90deg, #FFE9A8 0 12px, #FFDD7E 12px 24px); border: 3px solid var(--ink); border-radius: 4px;
+  transition: transform 260ms ease-in, opacity 260ms ease-in;
+}
+.g-door.left { left: 8px; transform-origin: left center; }
+.g-door.right { right: 8px; transform-origin: right center; }
+.d2-gate.open .g-door.left { transform: perspective(320px) rotateY(-74deg); opacity: 0.85; }
+.d2-gate.open .g-door.right { transform: perspective(320px) rotateY(74deg); opacity: 0.85; }
+.d2-gate.open .g-top { background: var(--zing); box-shadow: 0 0 16px var(--zing); }
+.g-label {
+  margin-top: -78px; position: relative; z-index: 3; font-family: var(--font-display); font-weight: 700; font-size: 27px;
+  color: var(--ink); background: var(--card); border: 3px solid var(--ink); border-radius: 13px; padding: 1px 13px;
+  box-shadow: 0 3px 0 rgba(42,27,78,0.3);
+}
+.d2-gate.bonked .g-frame { animation: bonkshake 0.4s ease; }
 @keyframes bonkshake { 0%,100% { transform: translateX(0); } 30% { transform: translateX(-8px) rotate(-3deg); } 70% { transform: translateX(8px) rotate(3deg); } }
-/* the runner trots in place at the bottom and slides sideways to steer */
-.dash-runner { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); transition: left 240ms ease; z-index: 3; }
-.dash-runner-inner { animation: trot 0.55s ease-in-out infinite; }
-.dash-track.speedy .dash-runner-inner { animation-duration: 0.36s; }
-@keyframes trot { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-7px) rotate(1.5deg); } }
-.dash-runner-inner.run { animation: dashrun 0.45s ease; }
-@keyframes dashrun { 0% { transform: translateY(0) scale(1); } 50% { transform: translateY(-18px) scale(1.1); } 100% { transform: translateY(0) scale(1); } }
-.dash-runner-inner.bonk { animation: bonkshake 0.4s ease; }
+/* the Boo, seen from behind the shoulder: trots on the run, jogs on the spot while waiting */
+.d2-boo { position: absolute; bottom: 3%; left: 50%; transform: translateX(-50%); z-index: 40; transition: left 420ms ease; pointer-events: none; }
+.d2-boo-inner.trot-run { animation: d2trot 0.3s linear infinite; transform-origin: 50% 100%; }
+.dash-track.speedy .d2-boo-inner.trot-run { animation-duration: 0.22s; }
+.d2-boo-inner.trot-jog { animation: d2jog 0.62s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes d2trot {
+  0% { transform: translateY(0) rotate(-2deg) scale(1, 1); }
+  25% { transform: translateY(-9px) rotate(0deg) scale(0.98, 1.04); }
+  50% { transform: translateY(-2px) rotate(2deg) scale(1.02, 0.97); }
+  75% { transform: translateY(-9px) rotate(0deg) scale(0.98, 1.04); }
+  100% { transform: translateY(0) rotate(-2deg) scale(1, 1); }
+}
+@keyframes d2jog { 0%,100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-5px) scale(0.99, 1.02); } }
+.d2-boo-inner.bonk { animation: bonkshake 0.4s ease; }
+.d2-shadow { width: 64px; height: 12px; margin: -6px auto 0; border-radius: 50%; background: rgba(42,27,78,0.28); }
+.dash-fact {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 50;
+  background: var(--card); border: 4px solid var(--ink); border-radius: 18px; padding: 8px 26px;
+  font-family: var(--font-display); font-weight: 700; font-size: 32px; color: var(--ink); box-shadow: var(--card-shadow);
+  white-space: nowrap;
+}
 @media (prefers-reduced-motion: reduce) {
-  .dash-ground, .dash-runner-inner, .dash-runner-inner.run, .dash-runner-inner.bonk,
-  .dash-arch.bonked, .dash-arches.waiting .dash-arch { animation: none !important; }
+  .d2-boo-inner.trot-run, .d2-boo-inner.trot-jog, .d2-boo-inner.bonk, .d2-gate.bonked .g-frame { animation: none !important; }
+  .g-door, .d2-boo { transition: none !important; }
 }
 
 /* ---- Boo Beat ---- */

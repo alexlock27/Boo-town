@@ -190,48 +190,59 @@ if (run(6)) try {
   await page.context().close();
 } catch (e) { record(6, 'Boo Beat', false, 'ERROR ' + e.message); }
 
-// ---- Item 7: Boo Dash — arches measurably closer + lane change after tap + streak pace ----
+// ---- Item 7: Boo Dash (run-up-and-wait, DASH_PATCH job 2) — scenery moves during the
+// run-up; jog-in-place while waiting; correct tap opens the gate; 3-streak speeds runs ----
 if (run(7)) try {
   const page = await freshPage();
   await goPlay(page, 'dash');
   await page.waitForSelector('.dash-track', { timeout: 4000 });
-  const probe = async (pg) => pg.evaluate(() => {
-    const aw = document.querySelector('.dash-arches'); const rn = document.querySelector('.dash-runner');
-    return { ty: aw ? getComputedStyle(aw).transform : 'none', runnerLeft: rn ? rn.style.left : '', speedy: document.querySelector('.dash-track')?.classList.contains('speedy') || false, state: window.__dash ? window.__dash.state() : null };
-  });
   const clip = await areaClip(page, '.dash-track');
-  const { probes, deltas } = await captureSeries(page, { prefix: 'dash', count: 7, gapMs: 480, clip, probe });
-  const tys = probes.map(p => parseTY(p.ty));
-  // arches approach: translateY should increase over most of the approach frames
-  let increases = 0; for (let i = 1; i < tys.length; i++) if (tys[i] > tys[i - 1] + 1) increases++;
-  const approaching = increases >= 3;
-  const s = summariseDeltas(deltas, 30);
-  // lane change: the runner slides under whichever arch is tapped (steering happens before
-  // the correct/wrong branch). Tap the LEFTMOST arch by position so a move is guaranteed.
-  const geo = await page.evaluate(() => {
-    const arches = [...document.querySelectorAll('.dash-arch')].map(a => { const r = a.getBoundingClientRect(); return r.left + r.width / 2; });
-    const tr = document.querySelector('.dash-track').getBoundingClientRect();
-    return { arches, trackMid: tr.left + tr.width / 2 };
-  });
-  const leftArchCx = Math.min(...geo.arches);
-  const runnerBefore = await page.evaluate(() => { const r = document.querySelector('.dash-runner').getBoundingClientRect(); return r.left + r.width / 2; });
-  await page.evaluate(() => { const a = [...document.querySelectorAll('.dash-arch')].sort((x, y) => x.getBoundingClientRect().left - y.getBoundingClientRect().left)[0]; a.click(); });
-  await page.waitForTimeout(90);
-  const runnerAfter = await page.evaluate(() => { const r = document.querySelector('.dash-runner').getBoundingClientRect(); return r.left + r.width / 2; });
-  // runner should have moved decisively left, ending left of the track centre (toward the left arch)
-  const laneChanged = runnerAfter < runnerBefore - 40 && runnerAfter < geo.trackMid;
-  record(7, 'Boo Dash', approaching && laneChanged && s.moved >= 4, `arches approach (translateY ${tys.map(t => t | 0).join('→')}, increases=${increases}), pixels moved ${s.moved}/${s.pairs}, runner steered ${runnerBefore | 0}→${runnerAfter | 0} toward left arch @${leftArchCx | 0}; screenshots/audit/dash-0..6.png`);
+  // (a) never an ungated lane: every row is 3 labelled gates
+  const rowOk = await page.evaluate(() => { const labels = [...document.querySelectorAll('.d2-gate')].filter(g => g.style.display !== 'none').map(g => g.querySelector('.g-label').textContent); return labels.length === 3 && labels.every(l => l.length > 0); });
+  // (b) scenery motion across scripted play (>=3s): drive taps while capturing frames + worldZ
+  await page.evaluate(() => { window.__drv = setInterval(() => { const D = window.__dash; if (D && !D.ended() && D.state().phase === 'wait') D.tap(true); }, 160); });
+  const probe = async (pg) => pg.evaluate(() => ({ z: window.__dash.state().worldZ, phase: window.__dash.state().phase }));
+  const { probes, deltas } = await captureSeries(page, { prefix: 'dash', count: 7, gapMs: 520, clip, probe });
+  await page.evaluate(() => clearInterval(window.__drv));
+  const s = summariseDeltas(deltas, 40);
+  const zs = probes.map(p => p.z);
+  const travelled = zs[zs.length - 1] - zs[0];
+  // (c) jog-in-place while waiting: sample the Boo's animated transform during a wait
+  await page.waitForFunction(() => window.__dash.state().phase === 'wait', { timeout: 6000 });
+  const jogSamples = [];
+  for (let i = 0; i < 4; i++) { jogSamples.push(await page.$eval('.d2-boo-inner', n => getComputedStyle(n).transform)); await page.waitForTimeout(170); }
+  const jogging = new Set(jogSamples).size >= 2;
+  // (d) gate-open transition on a scripted correct tap (before / mid / after frames)
+  const f0 = await page.screenshot({ clip });
+  await page.evaluate(() => window.__dash.tap(true));
+  await page.waitForTimeout(140);
+  const f1 = await page.screenshot({ clip });
+  const opened = await page.evaluate(() => !!document.querySelector('.d2-gate.open'));
+  await page.waitForTimeout(320);
+  const f2 = await page.screenshot({ clip });
+  const dOpen1 = (await pngDelta(f0, f1)).changed, dOpen2 = (await pngDelta(f1, f2)).changed;
+  const { writeFileSync } = await import('fs');
+  writeFileSync('screenshots/audit/dash-open-0.png', f0); writeFileSync('screenshots/audit/dash-open-1.png', f1); writeFileSync('screenshots/audit/dash-open-2.png', f2);
+  // (e) streak speed-up: after 3+ correct in a row the run stretch is measurably shorter
+  await page.evaluate(() => { window.__drv = setInterval(() => { const D = window.__dash; if (D && !D.ended() && D.state().phase === 'wait') D.tap(true); }, 160); });
+  await page.waitForFunction(() => window.__dash.state().streak >= 3 && window.__dash.state().phase === 'wait', { timeout: 15000 });
+  await page.evaluate(() => clearInterval(window.__drv));
+  const st = await page.evaluate(() => window.__dash.state());
+  const speedUp = st.speedy && st.lastRunMs > 0 && st.lastRunMs < 1100;   // fast stretches ~900ms vs ~1350ms
+  record(7, 'Boo Dash', rowOk && s.moved >= 4 && travelled > 60 && jogging && opened && dOpen1 > 150 && dOpen2 > 150 && speedUp,
+    `3 labelled gates/row=${rowOk}; scenery moved ${s.moved}/${s.pairs} pairs over ~3.1s (worldZ +${travelled.toFixed(0)}u); jog-in-place transforms ${new Set(jogSamples).size}/4 distinct; gate-open deltas ${dOpen1}/${dOpen2}px (open class=${opened}); streak run ${st.lastRunMs}ms (speedy=${st.speedy}); screenshots/audit/dash-*`);
   await page.context().close();
 } catch (e) { record(7, 'Boo Dash', false, 'ERROR ' + e.message); }
 
-// ---- Item 7b: Dash steady mode only under reduced-motion (default check in item 12) ----
+// ---- Item 7b: Dash steady only via reduced-motion / explicit toggle (never default) ----
 if (run(7)) try {
   const page = await freshPage({ reduced: true });
   await goPlay(page, 'dash');
   await page.waitForSelector('.dash-track', { timeout: 4000 });
+  await page.waitForTimeout(150);
   const st = await page.evaluate(() => window.__dash.state());
-  const steadyish = st.phase === 'hold' || st.prog >= 0.85; // reduced motion: gate sits at the line
-  record(70, 'Boo Dash reduced-motion', steadyish, `under prefers-reduced-motion the gate sits at the line (phase=${st.phase} prog=${st.prog}); steady is media-query only`);
+  const ok = st.steady === true && st.phase === 'wait' && st.worldZ === st.stopZ;
+  record(70, 'Boo Dash reduced-motion', ok, `under prefers-reduced-motion the gates sit at the line immediately (steady=${st.steady}, phase=${st.phase}, worldZ=${st.worldZ}/${st.stopZ})`);
   await page.context().close();
 } catch (e) { record(70, 'Boo Dash reduced-motion', false, 'ERROR ' + e.message); }
 
@@ -362,8 +373,8 @@ if (run(12)) try {
   await page2.waitForSelector('.dash-track');
   const dashState = await page2.evaluate(() => window.__dash.state());
   await page2.context().close();
-  const ok = beatSteady === false && dashState.phase !== 'hold'; // motion by default, not steady/at-line
-  record(12, 'Defaults', ok, `beat steady default=${beatSteady} (false=ok), dash default phase=${dashState.phase} (approach=motion); no reduced/steady default`);
+  const ok = beatSteady === false && dashState.steady === false; // motion by default, steady is opt-in only
+  record(12, 'Defaults', ok, `beat steady default=${beatSteady} (false=ok), dash steady default=${dashState.steady} (false=ok, phase=${dashState.phase}); no reduced/steady default`);
 } catch (e) { record(12, 'Defaults', false, 'ERROR ' + e.message); }
 
 // ---- Item 13: Clock Shop — hour hand moves proportionally on a real minute-hand drag + ghost fade ----

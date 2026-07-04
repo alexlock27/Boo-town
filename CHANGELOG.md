@@ -2,6 +2,28 @@
 
 All notable changes to Boo Town. Newest first.
 
+## DASH_PATCH job 2: Boo Dash, run-up-and-wait
+- Boo Dash rebuilt as a behind-the-character runner down a 3-lane path: parallax scenery
+  (converging road with sweeping stripes and dashed lane lines, roadside trees/bushes/flowers
+  at depth, drifting clouds) and a visible trot cycle.
+- Each question spawns three labelled gates ahead — one per lane, exactly one correct, never
+  an ungated lane — while the question stays readable on a fixed card at the top. The Boo runs
+  up, then the world eases to a stop and the Boo jogs on the spot: no timer, nothing keeps
+  approaching, nothing can be failed by waiting.
+- Tapping the correct gate swings its doors open with a sparkle and the run continues through
+  it; a 3-streak makes the running stretches faster and smoother (900 ms vs 1350 ms, one smooth
+  ease curve). A wrong tap is a soft bonk: the gate wobbles, a heart dims, the same question
+  stays. 12 gates a round; stars, categories, Smart Mix and the meter unchanged.
+- Steady mode (gates simply appear at the line) only via prefers-reduced-motion or the new
+  explicit 🐢 toggle on the start card — never the default.
+- Motion audit items 7/7b rewritten for the new mechanics (scenery frames, jog-in-place,
+  gate-open transition, streak speed-up, ungated-lane guard).
+
+## DASH_PATCH job 1: hub header phone hotfix
+- On phones (≤550px) the hub's top strip (sound, meter, gift) sits on its own compact row;
+  the guide below shows in full and is never overlapped; the speech bubble clamps on-screen;
+  everything below simply starts lower. CSS only; tablet layouts verified byte-identical.
+
 ## Run 3 — Phase 10: polish + full regression
 - Hub balance verified at every tier, both orientations: nine game cards (Learn/Play rows),
   the daily-quests card, the gold Golden-Round card, and Studio in the bottom bar all read
