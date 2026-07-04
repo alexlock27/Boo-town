@@ -1,0 +1,20 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+/test-results/
+/screenshots/tmp/
+
+.claude/
+
+# QA artifacts (regenerable via tests)
+screenshots/
+
+# Private planning docs — never published to the public repo
+BUILD_SPEC.md
+EXPANSION_1.md
+EXPANSION_2.md
+RUN2.md
+PROGRESS.md
+NEEDS_ALEX.md
+art-preview.html

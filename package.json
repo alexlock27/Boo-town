@@ -1,0 +1,15 @@
+{
+  "name": "boo-town",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dev-only tooling for Boo Town (Playwright for self-testing, sharp for one-off icon PNGs). NOTHING here ships to the runtime app, which is pure vanilla HTML/CSS/JS.",
+  "type": "module",
+  "scripts": {
+    "serve": "python -m http.server 8000",
+    "test": "node tests/run.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0",
+    "sharp": "^0.33.5"
+  }
+}

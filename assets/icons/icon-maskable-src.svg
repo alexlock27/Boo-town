@@ -1,0 +1,42 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#3B2E7E"/>
+      <stop offset="100%" stop-color="#1E1550"/>
+    </radialGradient>
+  </defs>
+  <!-- full-bleed background so the platform can mask to any shape -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#bg)"/>
+  <g fill="#FFFFFF">
+    <circle cx="90" cy="110" r="5" opacity="0.85"/>
+    <circle cx="430" cy="120" r="6" opacity="0.85"/>
+    <circle cx="120" cy="420" r="4" opacity="0.8"/>
+    <circle cx="410" cy="410" r="5" opacity="0.8"/>
+    <path d="M452 250l5 10 11 1-8 8 2 11-10-5-10 5 2-11-8-8 11-1z" fill="#FFC93C" opacity="0.9"/>
+    <path d="M50 250l5 10 11 1-8 8 2 11-10-5-10 5 2-11-8-8 11-1z" fill="#FFC93C" opacity="0.85"/>
+  </g>
+  <!-- boo inset into the maskable safe zone -->
+  <g transform="translate(256 262) scale(0.8) translate(-256 -300)">
+    <g stroke="#2A1B4E" stroke-width="12" stroke-linejoin="round">
+      <ellipse cx="150" cy="215" rx="52" ry="66" fill="#FFF8F0" stroke="#FFF8F0" stroke-width="26" transform="rotate(-14 150 215)"/>
+      <ellipse cx="362" cy="215" rx="52" ry="66" fill="#FFF8F0" stroke="#FFF8F0" stroke-width="26" transform="rotate(14 362 215)"/>
+      <ellipse cx="256" cy="300" rx="150" ry="140" fill="#FFF8F0" stroke="#FFF8F0" stroke-width="26"/>
+      <ellipse cx="150" cy="215" rx="52" ry="66" fill="#6E5CE0" transform="rotate(-14 150 215)"/>
+      <ellipse cx="362" cy="215" rx="52" ry="66" fill="#6E5CE0" transform="rotate(14 362 215)"/>
+      <ellipse cx="256" cy="300" rx="150" ry="140" fill="#6E5CE0"/>
+    </g>
+    <ellipse cx="150" cy="222" rx="26" ry="38" fill="#FF9EC4" opacity="0.85" transform="rotate(-14 150 222)"/>
+    <ellipse cx="362" cy="222" rx="26" ry="38" fill="#FF9EC4" opacity="0.85" transform="rotate(14 362 222)"/>
+    <ellipse cx="150" cy="345" rx="30" ry="18" fill="#FF9EC4" opacity="0.6"/>
+    <ellipse cx="362" cy="345" rx="30" ry="18" fill="#FF9EC4" opacity="0.6"/>
+    <circle cx="196" cy="315" r="46" fill="#fff" stroke="#2A1B4E" stroke-width="8"/>
+    <circle cx="316" cy="315" r="46" fill="#fff" stroke="#2A1B4E" stroke-width="8"/>
+    <circle cx="200" cy="322" r="28" fill="#2A1B4E"/>
+    <circle cx="320" cy="322" r="28" fill="#2A1B4E"/>
+    <circle cx="190" cy="310" r="11" fill="#fff"/>
+    <circle cx="310" cy="310" r="11" fill="#fff"/>
+    <path d="M232 372 Q256 392 280 372" fill="none" stroke="#2A1B4E" stroke-width="9" stroke-linecap="round"/>
+    <path d="M238 376 l8 16 8-16z" fill="#fff" stroke="#2A1B4E" stroke-width="4"/>
+    <path d="M266 376 l8 16 8-16z" fill="#fff" stroke="#2A1B4E" stroke-width="4"/>
+  </g>
+</svg>
