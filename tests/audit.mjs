@@ -366,6 +366,37 @@ if (run(12)) try {
   record(12, 'Defaults', ok, `beat steady default=${beatSteady} (false=ok), dash default phase=${dashState.phase} (approach=motion); no reduced/steady default`);
 } catch (e) { record(12, 'Defaults', false, 'ERROR ' + e.message); }
 
+// ---- Item 13: Clock Shop — hour hand moves proportionally on a real minute-hand drag + ghost fade ----
+if (run(13)) try {
+  const page = await freshPage();
+  await page.evaluate(() => window.BooTown.go('clockshop'));
+  await page.waitForSelector('.start-card');
+  await page.click('.level-row .level-btn >> nth=2'); // level 3 (fine 5-min snapping)
+  await page.waitForSelector('.clock-face');
+  await page.evaluate(() => window.__clock.set(3, 0));
+  await page.waitForTimeout(80);
+  const face = await page.$eval('.clock-face', n => { const r = n.getBoundingClientRect(); return { cx: r.x + r.width / 2, cy: r.y + r.height / 2, r: r.width / 2 }; });
+  const hourTY = () => page.evaluate(() => { const m = document.querySelector('.hour-hand').getAttribute('transform'); const g = m && m.match(/rotate\(([-\d.]+)/); return g ? parseFloat(g[1]) : 0; });
+  const beforeHour = await hourTY();
+  const clip = { x: Math.max(0, face.cx - face.r - 4), y: Math.max(0, face.cy - face.r - 4), width: face.r * 2 + 8, height: face.r * 2 + 8 };
+  // real drag of the minute hand from 12 o'clock round toward 6 o'clock; sample hour-hand angle
+  await page.mouse.move(face.cx, face.cy - face.r * 0.85); await page.mouse.down();
+  const hourAngles = [beforeHour];
+  const pts = [[0.6, -0.6], [0.85, 0], [0.6, 0.6], [0, 0.85], [-0.5, 0.6]];
+  const frames = [];
+  for (const [dx, dy] of pts) { await page.mouse.move(face.cx + dx * face.r * 0.85, face.cy + dy * face.r * 0.85, { steps: 4 }); hourAngles.push(await hourTY()); frames.push(await page.screenshot({ clip })); }
+  await page.mouse.up();
+  let hourMoved = 0; for (let i = 1; i < hourAngles.length; i++) if (Math.abs(hourAngles[i] - hourAngles[i - 1]) > 0.3) hourMoved++;
+  let framesDiff = 0; for (let i = 1; i < frames.length; i++) if ((await pngDelta(frames[i - 1], frames[i])).changed > 40) framesDiff++;
+  const { writeFileSync } = await import('fs'); frames.forEach((b, i) => writeFileSync(`screenshots/audit/clock-${i}.png`, b));
+  // ghost hint fades
+  await page.evaluate(() => window.__clock.hint());
+  await page.waitForTimeout(120); const ghostOn = await page.evaluate(() => window.__clock.ghostShown());
+  await page.waitForTimeout(1200); const ghostGone = await page.evaluate(() => window.__clock.ghostShown());
+  record(13, 'Clock Shop', hourMoved >= 3 && framesDiff >= 3 && ghostOn && !ghostGone, `hour hand tracked the minute drag (${hourAngles.map(a => a | 0).join('→')}, moves=${hourMoved}), ${framesDiff} frame deltas, ghost shown→faded=${ghostOn && !ghostGone}; screenshots/audit/clock-*`);
+  await page.context().close();
+} catch (e) { record(13, 'Clock Shop', false, 'ERROR ' + e.message); }
+
 await browser.close();
 
 // ---- summary ----

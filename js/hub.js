@@ -13,6 +13,7 @@ const GAMES = [
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon, group: 'Learn' },
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon, group: 'Learn' },
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
+  { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
@@ -242,4 +243,7 @@ function teachIcon() {
 }
 function dashIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M8 46 Q30 40 52 46" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M16 44 Q16 26 30 26 Q44 26 44 44" fill="none" stroke="var(--star)" stroke-width="4"/><circle cx="30" cy="40" r="9" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><circle cx="27" cy="39" r="1.8" fill="#fff"/><circle cx="33" cy="39" r="1.8" fill="#fff"/><path d="M6 20 h10 M4 28 h8" stroke="var(--zing)" stroke-width="3" stroke-linecap="round"/></svg>`;
+}
+function clockIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="30" cy="30" r="22" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><circle cx="30" cy="30" r="22" fill="none" stroke="var(--star)" stroke-width="3" opacity="0.5"/><line x1="30" y1="30" x2="30" y2="17" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="30" x2="40" y2="34" stroke="var(--pop)" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="30" r="2.5" fill="var(--ink)"/></svg>`;
 }

@@ -2,6 +2,16 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 5: Clock Shop
+- New game: Boos queue at a shop counter with time orders ("Half past 3, please!"). She
+  sets a large analogue clock by dragging the hands — the hour hand moves proportionally
+  as the minute hand travels (never jumps), with gentle level-based snapping.
+- Levels: 1 o'clock + half past; 2 quarter past + quarter to; 3 five-minute times with a
+  digital display to match. 8 orders a round; wrong settings wiggle the clock; the hint
+  ghosts the correct hands for ~1s then fades. Standard stars; feeds the meter.
+- New js/games/clockshop.js + a 9th hub card (Learn row). Added to the motion-evidence
+  audit (item 13: real minute-hand drag proves the proportional hour hand + ghost fade).
+
 ## Run 3 — Phase 4: Daily quests + the Boo Journal
 - Three fresh quests each local day (from a template pool, filtered to installed features),
   shown as a hub card with a 0–3 badge and a tap-through list. Completing all three awards a
