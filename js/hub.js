@@ -10,7 +10,8 @@ import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 const GAMES = [
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon },
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon },
-  { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon }
+  { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon },
+  { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon }
 ];
 
 export function mount(container, params, ctx) {
@@ -175,4 +176,7 @@ function feedIcon() {
 }
 function spellIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="8" y="20" width="16" height="16" rx="4" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="26" y="20" width="16" height="16" rx="4" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="44" y="20" width="10" height="16" rx="4" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><text x="16" y="33" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">A</text><text x="34" y="33" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">B</text></svg>`;
+}
+function blocksIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="16" height="16" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="10" width="16" height="16" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><rect x="10" y="28" width="16" height="16" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="28" width="16" height="16" rx="3" fill="var(--lilac,#C6A9F0)" stroke="var(--ink)" stroke-width="3"/><rect x="37" y="37" width="14" height="14" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/></svg>`;
 }

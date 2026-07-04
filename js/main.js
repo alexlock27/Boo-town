@@ -17,6 +17,7 @@ const registry = {
   bubblepop:  () => import('./games/bubblepop.js'),
   feedboos:   () => import('./games/feedboos.js'),
   spellboo:   () => import('./games/spellboo.js'),
+  blocks:     () => import('./games/blocks.js'),
   results:    () => import('./results.js'),
   ceremony:   () => import('./ceremony.js'),
   collection: () => import('./collection.js'),

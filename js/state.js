@@ -19,7 +19,10 @@ function freshSave() {
       byGame: {
         bubblepop: { best: 0, plays: 0 },
         feedboos:  { best: 0, plays: 0 },
-        spellboo:  { best: 0, plays: 0 }
+        spellboo:  { best: 0, plays: 0 },
+        blocks:    { best: 0, plays: 0 },
+        bounce:    { best: 0, plays: 0 },
+        beat:      { best: 0, plays: 0 }
       }
     },
     meter: 0,

@@ -2,6 +2,18 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 4: Boo Blocks (new game)
+- A 9x9 block puzzle where learning dispenses the pieces. A question card (Times tables or
+  Spelling, level picker) sits beside the board; each correct answer dispenses the next
+  polyomino from a fair bag into a three-slot tray. Three correct in a row awards a bonus
+  five-line. A wrong answer wobbles, dims a heart, re-asks once, then swaps the question.
+- Drag or tap-place pieces onto the board (valid cells highlight); completed rows and
+  columns clear with a sparkle pop. Round ends after 12 placed pieces or no legal move.
+  Hint highlights one legal placement. Stars: 3 = 10+ correct and 5 lines, no hints;
+  2 = 7+ correct and 3 lines; 1 = finished.
+- New shared question engine (js/questions.js) reused across the arcade games. Added a
+  fourth hub card. Hearts never end a round; the game is turn-based so it idles when hidden.
+
 ## Run 2 — Phase 3: Town 2.0 (a living scrolling world)
 - The 6x4 grid is replaced by a horizontally scrolling side-view world with three
   parallax layers (starry sky, soft hills, ground band) and momentum touch scroll.
