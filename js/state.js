@@ -48,7 +48,7 @@ function freshSave() {
     studioSeen: false,          // whether the free Easel deco has been granted with the Studio
     easelArt: '',               // artwork id displayed on the town Easel (RUN3 C6)
     seen: {},                   // one-time flags (game intros, town first, etc.)
-    settings: { sound: true, music: true, voice: true },
+    settings: { sound: true, music: true, voice: true, mic: true }, // mic: Boo voice recording (RUN3 C7)
     created: 0,
     lastPlayed: 0
   };

@@ -2,6 +2,19 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 7: Boo voices
+- From any owned Boo's card: "Give them a voice" — record up to 4s via the microphone, watch
+  a live level meter, play it back, redo, and choose a voice: normal, squeaky or deep
+  (pitch-shifted playback). Saved per Boo in IndexedDB (cap 15, oldest-first replacement prompt).
+- Tapping that Boo in the town plays her recording instead of the squeak — only ever on tap,
+  never ambient. A plain "recordings stay on this device only, nothing is ever uploaded" note
+  sits on the recording screen.
+- Grown-ups corner: a microphone on/off toggle (off hides all recording UI) and a
+  delete-all-recordings button that clears the IndexedDB audio store.
+- Bugfix: hand-rolled overlays (daily-quests popup, gallery view/delete, easel chooser, the
+  voice recorder) were in the DOM but invisible — they never got the `.show` class the base
+  `.overlay` needs. Now they fade in correctly.
+
 ## Run 3 — Phase 6: Boo Studio (paint, collage, build-a-Boo, gallery)
 - A Studio joins the bottom bar. Artworks + audio now live in IndexedDB (js/idb.js); the
   core save stays in localStorage and bumps to v4 with lossless migration. Gallery holds 20;

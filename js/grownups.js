@@ -4,6 +4,7 @@ import { el } from './ui.js';
 import { getState, mutate, exportCode, importCode, resetAll } from './state.js';
 import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
+import { deleteAllVoices, voiceCount } from './voices.js';
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -23,6 +24,16 @@ export function mount(container, params, ctx) {
     toggle('Music', s.settings.music, v => { mutate(st => st.settings.music = v); setMusicEnabled(v); if (v) music.play('calm'); }),
     toggle('Voice (reads words aloud)', s.settings.voice, v => { mutate(st => st.settings.voice = v); tts.setEnabled(v); }),
     el('p', { class: 'gu-note', text: tts.available() ? 'A voice is available on this device.' : 'No speech voice found — the Peek button covers spelling.' })
+  ]);
+
+  // ---- microphone / Boo voices (RUN3 C7) ----
+  const delMsg = el('span', { class: 'gu-msg' });
+  const delBtn = el('button', { class: 'btn danger', text: 'Delete all recordings', onclick: async () => { await deleteAllVoices(); delMsg.textContent = 'All recordings deleted.'; setTimeout(() => delMsg.textContent = '', 2500); } });
+  const micCard = el('div', { class: 'gu-card' }, [
+    el('h3', { text: 'Microphone & Boo voices' }),
+    toggle('Recording (Boo voices)', s.settings.mic !== false, v => { mutate(st => st.settings.mic = v); }),
+    el('p', { class: 'gu-note', text: 'When on, tapping a Boo\'s card offers "Give them a voice". Recordings are saved on THIS device only and never uploaded. Turn off to hide all recording buttons.' }),
+    el('div', { class: 'gu-row' }, [delBtn, delMsg])
   ]);
 
   // ---- backup ----
@@ -68,7 +79,7 @@ export function mount(container, params, ctx) {
     el('div', { class: 'gu-row' }, [resetInput, resetBtn])
   ]);
 
-  root.append(header, goldenEditor(s), toggles, backup, reset);
+  root.append(header, goldenEditor(s), toggles, micCard, backup, reset);
   container.appendChild(root);
 
   // ---- Golden Round editor (RUN3 C3): parent-typed weekly challenge ----

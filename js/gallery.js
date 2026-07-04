@@ -38,6 +38,7 @@ export function mount(container, params, ctx) {
       el('button', { class: 'btn', text: 'Close', onclick: () => ov.remove() })
     ]));
     root.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('show'));
   }
   function confirmDelete(a) {
     const ov = el('div', { class: 'overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } });
@@ -50,6 +51,7 @@ export function mount(container, params, ctx) {
       ])
     ]));
     root.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('show'));
   }
   return { unmount() {} };
 }

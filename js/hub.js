@@ -109,6 +109,7 @@ export function mount(container, params, ctx) {
     ]);
     ov.appendChild(panel);
     root.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('show'));
   }
 
   const g = s.golden;

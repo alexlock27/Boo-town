@@ -9,6 +9,7 @@ import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
 import { idbGet } from './idb.js';
+import { voiceBooIds, playVoice } from './voices.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
@@ -39,6 +40,8 @@ export function mount(container, params, ctx) {
   const s = getState();
   music.play('calm');
   noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
+  let voiceIds = new Set();  // Boo ids with a recorded voice (RUN3 C7)
+  voiceBooIds().then(s => { voiceIds = s; }).catch(() => {});
 
   let holding = (params && params.place) || null;   // item id being placed
   let placeMode = !!holding;
@@ -177,6 +180,7 @@ export function mount(container, params, ctx) {
     arts.forEach(a => { const b = el('button', { class: 'easel-choose-tile', onclick: () => { mutate(s => { s.easelArt = a.id; }); ov.remove(); renderPlaced(); } }); b.appendChild(el('img', { src: a.png, class: 'easel-choose-img' })); grid.appendChild(b); });
     ov.appendChild(el('div', { class: 'card', style: { padding: '18px', maxWidth: '480px' } }, [el('h3', { text: 'Choose art for your easel' }), grid, el('button', { class: 'btn soft', text: 'Close', onclick: () => ov.remove() })]));
     root.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('show'));
   }
 
   // Dance Stage: Boos near a stage bop.
@@ -342,7 +346,8 @@ export function mount(container, params, ctx) {
   }
 
   function squeak(wrap, item) {
-    sfx.pop();
+    // her own recorded voice plays instead of the squeak, only on tap (never ambient)
+    if (voiceIds.has(item.id)) playVoice(item.id); else sfx.pop();
     noteQuest('sayHello', { count: 1 });   // daily quest: say hello to Boos (RUN3 C4)
     const svg = wrap.querySelector('svg');
     if (svg && !REDUCED) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }

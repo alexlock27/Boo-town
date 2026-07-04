@@ -8,6 +8,7 @@ import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, 
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
 import { ownedCustomItems } from './customs.js';
+import { micEnabled, openVoiceRecorder } from './voices.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -156,6 +157,7 @@ export function mount(container, params, ctx) {
     const buttons = isBoo
       ? [
           { label: '👒 Dress up', value: 'dress' },
+          ...(micEnabled() ? [{ label: '🎤 Give a voice', value: 'voice', kind: 'soft' }] : []),
           { label: '✏️ Nickname', value: 'rename', kind: 'soft' },
           { label: 'Close', value: 'close', kind: 'soft' }
         ]
@@ -163,6 +165,7 @@ export function mount(container, params, ctx) {
     dialog({ title: nick, body, buttons, dismissable: true }).then(v => {
       if (v === 'dress') openDressUp(item, { onDone: () => ctx.go('collection') });
       else if (v === 'rename') openRename(item.id, { onDone: () => ctx.go('collection') });
+      else if (v === 'voice') openVoiceRecorder(item.id, nick);
     });
   }
 
