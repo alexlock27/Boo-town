@@ -5,7 +5,8 @@
 // Steady mode (and reduced-motion default): notes step one row per beat, no speed pressure.
 
 import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
-import { getState, mutate } from '../state.js';
+import { getState, mutate, recordResult } from '../state.js';
+import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
@@ -77,6 +78,7 @@ export function mount(container, params, ctx) {
     const character = el('div', { class: 'beat-character', html: renderGuide(getState().guide, { view: 'head', size: 76 }) });
     field.append(hitline, character);
     shell.area.append(qCard, field);
+    const collector = createTrickyCollector(shell.area);
     if (steady) field.classList.add('steady');
 
     const now = () => performance.now();
@@ -159,6 +161,7 @@ export function mount(container, params, ctx) {
       if (resolving) return;
       resolving = true;
       correct++; combo++; if (grade === 'perfect') perfects++;
+      recordResult(question.key, true);
       sfx.correct();
       note.node.classList.add('hit', grade);
       const rc = note.node.getBoundingClientRect();
@@ -181,7 +184,7 @@ export function mount(container, params, ctx) {
     function missOrReask() {
       resolving = true;
       if (!reAsked) { reAsked = true; shell.react(guideLine('oops'), { voice: false, hold: 1400 }); setTimeout(() => { if (!ended) scheduleNotes(2); }, 700); }
-      else { misses++; nextPhrase(false); }
+      else { misses++; recordResult(question.key, false); collector.add(choiceMiss({ id: question.key, game: 'beat', prompt: question.prompt, options: question.options, answer: question.options[question.correct] })); nextPhrase(false); }
     }
 
     function nextPhrase(wasCorrect) {
@@ -196,7 +199,7 @@ export function mount(container, params, ctx) {
     function finish() {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = starsForBeat(correct, perfects);
-      ctx.go('results', { game: 'beat', gameName: 'Boo Beat', stars, replay: () => ctx.go('beat') });
+      ctx.go('results', { game: 'beat', gameName: 'Boo Beat', stars, tricky: collector.items(), replay: () => ctx.go('beat') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 

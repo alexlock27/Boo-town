@@ -1,14 +1,16 @@
 // js/games/bubblepop.js — Game 1: Bubble Pop (maths fact fluency, spec §6).
 
 import { el, clear, starsRow, wobble, sparkleAt } from '../ui.js';
-import { getState } from '../state.js';
+import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { LEVELS, LEVEL_LABELS } from '../../data/tablesConfig.js';
 import { BUBBLE_CATEGORIES, BUBBLE_BY_KEY, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
-import { buildPicker, recordBest } from '../picker.js';
+import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
+import { mixPlan } from '../smartmix.js';
+import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 
 const ROUNDS = 10;
 const BUBBLE_COUNT = 6;
@@ -40,6 +42,7 @@ export function mount(container, params, ctx) {
       levelName: LEVEL_NAME,
       onStart: (catKey, level) => play(catKey, level)
     });
+    // (Smart Mix is prepended by buildPicker; play() handles MIX_KEY.)
     card.appendChild(picker.node);
     card.appendChild(el('div', { class: 'star-rule' }, [
       el('div', { html: starsRow(3, { size: 24 }) }),
@@ -50,8 +53,10 @@ export function mount(container, params, ctx) {
 
   function play(catKey, level) {
     clear(root);
+    const mix = catKey === MIX_KEY;
+    const plan = mix ? mixPlan(ROUNDS) : null;
     let prevKey = null;
-    let target = genQuestion(catKey, level, prevKey);
+    let target = nextTarget(0);
     prevKey = target.key;
     let solved = 0;
     let wrongPops = 0;
@@ -59,8 +64,23 @@ export function mount(container, params, ctx) {
     let locked = false;
     const fmt = () => (target.fmt || String);
 
+    // In Smart Mix, generate a weak-weighted question from ALL categories for this slot.
+    function nextTarget(slot) {
+      if (!mix) return genQuestion(catKey, level, prevKey);
+      const cls = plan[slot] || 'middle';
+      let best = null;
+      for (let t = 0; t < 12; t++) {
+        const cat = BUBBLE_CATEGORIES[rand(BUBBLE_CATEGORIES.length)];
+        const lv = cat.levels[rand(cat.levels.length)];
+        const q = genQuestion(cat.key, lv, prevKey);
+        if (!best) best = q;
+        if (ledgerClass(q.key) === cls) return q;
+      }
+      return best;
+    }
+
     shell = createGameShell({
-      title: 'Bubble Pop', rounds: ROUNDS, accent: 'var(--pop)',
+      title: mix ? 'Smart Mix' : 'Bubble Pop', rounds: ROUNDS, accent: 'var(--pop)',
       onBack: () => { stopLoop(); ctx.go('hub'); },
       onHint: doHint,
       hintEnabled: true
@@ -71,6 +91,7 @@ export function mount(container, params, ctx) {
     const targetCard = el('div', { class: 'target-card', html: targetHTML(target) });
     const field = el('div', { class: 'bubble-field' });
     shell.area.append(targetCard, field);
+    const collector = createTrickyCollector(shell.area);
 
     // build bubbles
     const bubbles = [];
@@ -176,6 +197,7 @@ export function mount(container, params, ctx) {
       if (b.correct) {
         locked = true;
         sfx.pop();
+        recordResult(target.key, true);
         const r = b.node.getBoundingClientRect();
         sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
         b.node.classList.add('burst');
@@ -183,7 +205,7 @@ export function mount(container, params, ctx) {
         shell.setProgress(solved);
         setTimeout(() => {
           if (solved >= ROUNDS) return finish();
-          target = genQuestion(catKey, level, prevKey);
+          target = nextTarget(solved);
           prevKey = target.key;
           targetCard.innerHTML = targetHTML(target);
           layoutValues();
@@ -192,6 +214,8 @@ export function mount(container, params, ctx) {
       } else {
         wrongPops++;
         sfx.oops();
+        recordResult(target.key, false);
+        collector.add(missFor(target));
         wobble(b.node);
         b.node.classList.add('dim');
         setTimeout(() => b.node.classList.remove('dim'), 420);
@@ -211,12 +235,18 @@ export function mount(container, params, ctx) {
       if (hintsUsed >= MAX_HINTS) shell.enableHint(false);
     }
 
+    function missFor(t) {
+      const f = t.fmt || String;
+      const ds = shuffle(t.distractors.slice()).filter(v => v !== t.answer).slice(0, 2);
+      return choiceMiss({ id: t.key, game: 'bubblepop', prompt: t.display, options: [t.answer, ...ds].map(f), answer: f(t.answer) });
+    }
+
     function finish() {
       stopLoop();
       shell.cleanup();
       const stars = starsFor(wrongPops, hintsUsed);
-      recordBest('bubblepop', catKey, stars);
-      ctx.go('results', { game: 'bubblepop', gameName: 'Bubble Pop', stars, level, replay: () => ctx.go('bubblepop') });
+      recordBest('bubblepop', mix ? MIX_KEY : catKey, stars);
+      ctx.go('results', { game: 'bubblepop', gameName: mix ? 'Smart Mix' : 'Bubble Pop', stars, level, tricky: collector.items(), replay: () => ctx.go('bubblepop') });
     }
   }
 

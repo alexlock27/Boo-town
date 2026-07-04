@@ -7,13 +7,15 @@
 // no falling behind. Pace quickens a little after a 3-streak. A round is 12 gates.
 
 import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
-import { getState } from '../state.js';
+import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { BUBBLE_BY_KEY, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
-import { buildPicker, recordBest } from '../picker.js';
+import { BUBBLE_BY_KEY, BUBBLE_CATEGORIES, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
+import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
+import { mixPlan } from '../smartmix.js';
+import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 
 const GATES = 12;
 const HOLD_AT = 0.86;         // gates wait at 86% of the path until she answers
@@ -55,12 +57,14 @@ export function mount(container, params, ctx) {
 
   function play(catKey, level) {
     clear(root);
+    const mix = catKey === MIX_KEY;
+    const plan = mix ? mixPlan(GATES) : null;
     let gate = 0, bonks = 0, streak = 0, ended = false;
     let question = null;
     let phase = 'approach';      // approach -> hold (waiting) -> dash -> resolve
     let prog = 0, duration = APPROACH_MS, pending = null;
 
-    shell = createGameShell({ title: 'Boo Dash', rounds: GATES, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false });
+    shell = createGameShell({ title: mix ? 'Smart Mix' : 'Boo Dash', rounds: GATES, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false });
     root.appendChild(shell.root);
 
     const track = el('div', { class: 'dash-track' });
@@ -72,6 +76,7 @@ export function mount(container, params, ctx) {
     ]);
     track.append(ground, factCard, archWrap, runner);
     shell.area.appendChild(track);
+    const collector = createTrickyCollector(shell.area);
     const runnerInner = runner.firstChild;
 
     newQuestion();
@@ -79,8 +84,22 @@ export function mount(container, params, ctx) {
     startLoop();
 
     // ---- gate lifecycle ---------------------------------------------------
+    // In Smart Mix, generate a weak-weighted fact from ALL dash categories per gate.
+    function nextQuestion(slot) {
+      if (!mix) return genQuestion(catKey, level, question && question.key);
+      const cls = plan[slot] || 'middle';
+      let best = null;
+      for (let t = 0; t < 12; t++) {
+        const k = DASH_CATS[rand(DASH_CATS.length)];
+        const lv = BUBBLE_BY_KEY[k].levels[rand(BUBBLE_BY_KEY[k].levels.length)];
+        const q = genQuestion(k, lv, question && question.key);
+        if (!best) best = q;
+        if (ledgerClass(q.key) === cls) return q;
+      }
+      return best;
+    }
     function newQuestion() {
-      question = genQuestion(catKey, level, question && question.key);
+      question = nextQuestion(gate);
       factCard.textContent = question.display;
       buildArches();
       if (typeof window !== 'undefined') window.__dashCorrect = question.answer;
@@ -151,6 +170,8 @@ export function mount(container, params, ctx) {
       } else {
         // soft bonk on the wrong arch — same fact re-approaches, slower
         bonks++; streak = 0; sfx.oops();
+        recordResult(question.key, false);
+        collector.add(missFor(question));
         arch.classList.add('bonked'); setTimeout(() => arch.classList.remove('bonked'), 400);
         runnerInner.classList.remove('run'); void runnerInner.offsetWidth; runnerInner.classList.add('bonk');
         shell.react(guideLine('oops'), { voice: false, hold: 1400 });
@@ -159,6 +180,7 @@ export function mount(container, params, ctx) {
     }
     function onArrive() {
       sfx.correct(); streak++;
+      recordResult(question.key, true);
       if (pending) {
         pending.classList.add('through');
         const r = pending.getBoundingClientRect();
@@ -177,12 +199,17 @@ export function mount(container, params, ctx) {
       const pool = q.distractors.filter(v => v !== q.answer);
       return shuffle(pool.slice()).slice(0, 2);
     }
+    function missFor(q) {
+      const f = q.fmt || String;
+      const ds = pickWrong(q);
+      return choiceMiss({ id: q.key, game: 'dash', prompt: q.display, options: [q.answer, ...ds].map(f), answer: f(q.answer) });
+    }
 
     function finish() {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = bonks === 0 ? 3 : bonks <= 3 ? 2 : 1;
-      recordBest('dash', catKey, stars);
-      ctx.go('results', { game: 'dash', gameName: 'Boo Dash', stars, replay: () => ctx.go('dash') });
+      recordBest('dash', mix ? MIX_KEY : catKey, stars);
+      ctx.go('results', { game: 'dash', gameName: mix ? 'Smart Mix' : 'Boo Dash', stars, tricky: collector.items(), replay: () => ctx.go('dash') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 

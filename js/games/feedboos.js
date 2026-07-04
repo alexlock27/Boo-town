@@ -1,14 +1,15 @@
 // js/games/feedboos.js — Game 2: Feed the Boos (sorting & reasoning, spec §7).
 
 import { el, clear, starsRow, wobble } from '../ui.js';
-import { getState } from '../state.js';
+import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderBoo } from '../art.js';
 import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { TEMPLATES } from '../../data/sorting.js';
 import { TEMPLATES_EXTRA } from '../../data/sortingExtra.js';
-import { buildPicker, recordBest } from '../picker.js';
+import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
+import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
@@ -25,6 +26,24 @@ function levelsForSubject(subject) {
 function pickTemplateFor(subject, level) {
   const pool = ALL_TEMPLATES.filter(t => t.level === level && subjectOf(t) === subject);
   return pool[rand(pool.length)];
+}
+// Smart Mix: pick a template from ALL installed content, preferring weak (recently missed),
+// then not-yet-mastered, then any. Feed the Boos is template-shaped, so the mix is per template.
+function pickMixTemplate() {
+  const weak = ALL_TEMPLATES.filter(t => ledgerClass('feed:' + t.id) === 'weak');
+  const fresh = ALL_TEMPLATES.filter(t => ledgerClass('feed:' + t.id) === 'middle');
+  const pool = weak.length ? weak : fresh.length ? fresh : ALL_TEMPLATES;
+  return pool[rand(pool.length)];
+}
+function itemLabel(item) {
+  if (item.kind === 'num') return String(item.value);
+  if (item.kind === 'frac') return item.num + '/' + item.den;
+  if (item.kind === 'unit') return item.caption;
+  if (item.kind === 'shape') return item.name;
+  if (item.kind === 'letter') return item.ch;
+  if (item.kind === 'angle') return item.deg + '°';
+  if (item.kind === 'text') return item.text;
+  return 'this one';
 }
 
 // distinct feeder Boo looks (cute, varied) assigned by index
@@ -66,19 +85,22 @@ export function mount(container, params, ctx) {
 
   function play(subject, level) {
     clear(root);
-    const template = pickTemplateFor(subject, level);
+    const mix = subject === MIX_KEY;
+    const template = mix ? pickMixTemplate() : pickTemplateFor(subject, level);
     const roundData = template.make();
     const items = roundData.items;
     const buckets = roundData.buckets;
+    const ledgerId = 'feed:' + template.id;
 
     let idx = 0, wrongDrops = 0, hintsUsed = 0, missesThisItem = 0, locked = false;
 
     shell = createGameShell({
-      title: 'Feed the Boos', rounds: roundData.length, accent: 'var(--zing)',
+      title: mix ? 'Smart Mix' : 'Feed the Boos', rounds: roundData.length, accent: 'var(--zing)',
       onBack: () => ctx.go('hub'),
       onHint: manualHint
     });
     root.appendChild(shell.root);
+    const collector = createTrickyCollector(shell.area);
 
     // feeders row
     const feedersWrap = el('div', { class: 'feeders' });
@@ -166,6 +188,7 @@ export function mount(container, params, ctx) {
     function onCorrect(food, item, bucket) {
       locked = true;
       sfx.correct();
+      recordResult(ledgerId, true);
       const fz = feederEls[bucket];
       fz.classList.add('nom');
       food.classList.add('eaten');
@@ -176,6 +199,8 @@ export function mount(container, params, ctx) {
     function onWrong(food, item, bucket) {
       wrongDrops++; missesThisItem++;
       sfx.oops();
+      recordResult(ledgerId, false);
+      if (missesThisItem === 1) collector.add(choiceMiss({ id: ledgerId + ':' + idx, game: 'feedboos', prompt: `Where does ${itemLabel(item)} go?`, options: buckets, answer: buckets[item.bucket] }));
       const fz = feederEls[bucket];
       fz.classList.add('raspberry');
       setTimeout(() => fz.classList.remove('raspberry'), 500);
@@ -199,8 +224,8 @@ export function mount(container, params, ctx) {
     function finish() {
       shell.cleanup();
       const stars = starsFor(wrongDrops, hintsUsed);
-      recordBest('feedboos', subject, stars);
-      ctx.go('results', { game: 'feedboos', gameName: 'Feed the Boos', stars, level, replay: () => ctx.go('feedboos') });
+      recordBest('feedboos', mix ? MIX_KEY : subject, stars);
+      ctx.go('results', { game: 'feedboos', gameName: mix ? 'Smart Mix' : 'Feed the Boos', stars, level, tricky: collector.items(), replay: () => ctx.go('feedboos') });
     }
   }
 

@@ -6,12 +6,13 @@
 // round). Round = 8 questions answered or the wall fully cleared twice.
 
 import { el, clear, starsRow, confetti, REDUCED } from '../ui.js';
-import { getState } from '../state.js';
+import { getState, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { makeQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 
 const COLS = 6, ROWS = 4;
 const QUESTIONS = 8;           // round ends after 8 questions answered
@@ -64,6 +65,7 @@ export function mount(container, params, ctx) {
     const qCard = el('div', { class: 'bounce-question' });
     const canvas = el('canvas', { class: 'bounce-canvas' });
     shell.area.append(qCard, el('div', { class: 'bounce-field' }, [canvas]));
+    const collector = createTrickyCollector(shell.area);
     const cx = canvas.getContext('2d');
 
     let W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -142,6 +144,8 @@ export function mount(container, params, ctx) {
       if (b.label != null) {
         if (b.correct) { correctAnswer(b); return; } // correctAnswer handles a cleared wall
         wrongBricks++; sfx.oops();
+        recordResult(question.key, false);
+        collector.add(choiceMiss({ id: question.key, game: 'bounce', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
         shell.react('Hmm!', { voice: false, hold: 1200 });
         const idx = labels.indexOf(b); if (idx >= 0) labels.splice(idx, 1);
         rehomeLabel(b.label, false);
@@ -150,6 +154,7 @@ export function mount(container, params, ctx) {
     }
     function correctAnswer(b) {
       sfx.correct();
+      recordResult(question.key, true);
       // clear the whole row of the correct brick
       bricks.filter(x => x.r === b.r).forEach(x => x.alive = false);
       if (!REDUCED) { const rc = canvas.getBoundingClientRect(); confetti({ count: 40, power: 0.7, origin: { x: rc.left + b.x + b.w / 2, y: rc.top + b.y } }); }
@@ -245,7 +250,7 @@ export function mount(container, params, ctx) {
     function finish() {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = starsForBounce(wrongBricks, ballLosses);
-      ctx.go('results', { game: 'bounce', gameName: 'Boo Bounce', stars, replay: () => ctx.go('bounce') });
+      ctx.go('results', { game: 'bounce', gameName: 'Boo Bounce', stars, tricky: collector.items(), replay: () => ctx.go('bounce') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 

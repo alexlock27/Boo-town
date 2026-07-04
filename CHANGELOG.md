@@ -2,6 +2,22 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 2: Smart Mix + the Tricky Pile
+- Mistake ledger in the save: every question identity (a fact key, a word, a twin set)
+  keeps { rights, misses, lastSeen }. Mastered = rights ≥ 3 and rights − misses ≥ 2.
+  All seven games now feed the ledger on every answer (weakness transfers between games
+  that share a fact key, e.g. Bubble Pop ↔ Boo Dash).
+- Smart Mix is the first card on every picker (games + Spell Boo): a weak-weighted round —
+  40% weak (recent first) / 40% level-appropriate not-mastered / 20% mastered due a refresh.
+  Sound Twins and Tricky Sounds th words get double weight while weak. Draws from ALL
+  installed content (light UI, full brain). Spell Boo mixes words + twin items in one round.
+- The Tricky Pile: a Puzzled Boo appears at the side of a round and collects up to 3 missed
+  items; the results screen offers a Rescue step (untimed, hints free, does not change the
+  round's stars) — each rescue sparkles and adds +1 meter. Unrescued items persist and seed
+  the next Smart Mix (they stay "weak" in the ledger).
+- New modules: js/smartmix.js (selection engine + ratio plan), js/trickypile.js (collector,
+  Rescue, persistence). rewards.js gains addMeterPoints(); results.js hosts the Rescue step.
+
 ## Run 3 — Phase 1: Spell Boo integrity + her weak spots
 - Auto-look replaces free Peek: every normal word flashes clearly for 2s at the start
   (the uniform, free "look" in look-cover-spell), then hides so she spells from memory.

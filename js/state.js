@@ -37,6 +37,8 @@ function freshSave() {
     equips: {},                 // Boo itemId -> accessory itemId
     catBest: {},                // 'game:choice' -> best stars (per-picker badges, EXPANSION_1 §5)
     spellingMastery: {},        // word -> lifetime correct count
+    ledger: {},                 // question identity -> { rights, misses, lastSeen } (RUN3 C2 Smart Mix brain)
+    trickyPile: [],             // unrescued missed items carried between rounds (RUN3 C2)
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true },
     created: 0,
@@ -142,6 +144,30 @@ export function mutate(fn) {
 export function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(commit, 400);
+}
+
+// ---- mistake ledger (RUN3 C2) ------------------------------------------------
+// Every question identity (a fact key like 'tmul7:8', a word, a twin set) keeps
+// { rights, misses, lastSeen }. Mastered = rights >= 3 AND rights - misses >= 2.
+const MASTER_RIGHTS = 3, MASTER_MARGIN = 2;
+
+export function recordResult(id, correct) {
+  if (!state || !id) return;
+  if (!state.ledger) state.ledger = {};
+  const e = state.ledger[id] || { rights: 0, misses: 0, lastSeen: 0 };
+  if (correct) e.rights++; else e.misses++;
+  e.lastSeen = Date.now();
+  state.ledger[id] = e;
+  scheduleSave();
+}
+export function ledgerEntry(id) { return (state && state.ledger && state.ledger[id]) || { rights: 0, misses: 0, lastSeen: 0 }; }
+export function isMastered(id) { const e = ledgerEntry(id); return e.rights >= MASTER_RIGHTS && (e.rights - e.misses) >= MASTER_MARGIN; }
+// weak = has been missed more than got right (recent trouble); mastered as above; else middle.
+export function ledgerClass(id) {
+  const e = ledgerEntry(id);
+  if (e.misses > e.rights && (e.rights + e.misses) > 0) return 'weak';
+  if (e.rights >= MASTER_RIGHTS && (e.rights - e.misses) >= MASTER_MARGIN) return 'mastered';
+  return 'middle';
 }
 
 // Write immediately.

@@ -4,12 +4,13 @@
 // full rows/columns clear. Round ends after 12 placed pieces or no legal move.
 
 import { el, clear, starsRow, wobble, sparkleAt } from '../ui.js';
-import { getState } from '../state.js';
+import { getState, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { makeQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 
 const N = 9;                 // 9x9 board
 const END_PIECES = 12;       // round ends after 12 placed pieces
@@ -109,6 +110,7 @@ export function mount(container, params, ctx) {
     const trayEl = el('div', { class: 'blk-tray' });
     const play2 = el('div', { class: 'blk-play' }, [boardEl, el('div', { class: 'blk-side' }, [qCard, trayEl])]);
     shell.area.appendChild(play2);
+    const collector = createTrickyCollector(shell.area);
 
     nextQuestion();
     renderTray();
@@ -153,12 +155,16 @@ export function mount(container, params, ctx) {
       if (locked || waitingSpace) return;
       if (i === question.correct) {
         locked = true; sfx.correct(); correct++; streak++;
+        recordResult(question.key, true);
         node.classList.add('right');
         dispensePiece();
         if (streak > 0 && streak % 3 === 0) dispensePiece(FIVE_LINE, true); // bonus five-line
         setTimeout(() => { if (!ended) afterDispense(); }, 260);
       } else {
-        wrong++; streak = 0; sfx.oops(); wobble(node); node.classList.add('wrongflash');
+        wrong++; streak = 0; sfx.oops();
+        recordResult(question.key, false);
+        collector.add(choiceMiss({ id: question.key, game: 'blocks', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
+        wobble(node); node.classList.add('wrongflash');
         setTimeout(() => node.classList.remove('wrongflash'), 420);
         const left = shell.dimHeart();
         if (!reAsked) { reAsked = true; shell.react(guideLine('oops'), { voice: false, hold: 1800 }); }
@@ -297,7 +303,7 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true;
       shell.cleanup();
       const stars = starsForBlocks(correct, lines, hintsUsed);
-      ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, replay: () => ctx.go('blocks') });
+      ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, tricky: collector.items(), replay: () => ctx.go('blocks') });
     }
 
     // ---- drag a tray piece onto the board ----

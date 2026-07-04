@@ -674,6 +674,40 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   padding: 12px 20px; font-size: 20px; max-width: 560px; text-align: center; margin: 4px auto;
 }
 
+.spell-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+
+/* ---- Smart Mix picker card + Tricky Pile (RUN3 C2) ---- */
+.picker-choice.mix { background: linear-gradient(120deg, var(--pop), var(--star)); color: var(--card); font-weight: 700; }
+.picker-choice.mix .pc-name { color: var(--card); }
+.level-btn.mix-start { background: linear-gradient(120deg, var(--pop), var(--star)); }
+
+.puzzled-boo {
+  position: absolute; right: 10px; bottom: 10px; z-index: 5; display: flex; flex-direction: column;
+  align-items: center; gap: 2px; pointer-events: none;
+}
+.puzzled-boo .pb-count {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
+  background: var(--star); border: 2px solid var(--ink); border-radius: 999px; min-width: 22px; text-align: center; padding: 0 6px;
+  margin-top: -8px;
+}
+.puzzled-boo.pop { animation: pbpop 400ms ease-out; }
+@keyframes pbpop { 0% { transform: scale(0.7); } 55% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+.result-rescue { width: 100%; display: flex; justify-content: center; }
+.rescue-panel {
+  background: #F3ECFF; border: 2px dashed var(--pop); border-radius: 18px; padding: 14px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 460px; width: 100%;
+}
+.rescue-head { display: flex; align-items: center; gap: 10px; }
+.rescue-title { font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 19px; }
+.rescue-count { font-size: 14px; color: var(--sky-mid); }
+.rescue-prompt { font-family: var(--font-display); font-size: 21px; color: var(--ink); text-align: center; }
+.rescue-options { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.rescue-opt { padding: 12px 20px; font-size: 20px; background: var(--zing); color: var(--ink); }
+.rescue-opt.wrong { background: var(--oops); }
+.rescue-skip { font-size: 15px; padding: 6px 16px; }
+.rescue-done { font-family: var(--font-display); font-weight: 700; color: var(--zing); font-size: 20px; }
+
 /* ---- results ---- */
 .results { align-items: center; justify-content: center; padding: 20px; }
 .result-card { max-width: 460px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }

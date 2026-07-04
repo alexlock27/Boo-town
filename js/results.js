@@ -6,10 +6,13 @@ import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { bankStars, METER_CAP, meterState } from './rewards.js';
+import { mountRescue, persistUnrescued } from './trickypile.js';
 
 export function mount(container, params, ctx) {
-  const { game, gameName = 'that round', stars = 1, replay } = params || {};
+  const { game, gameName = 'that round', stars = 1, replay, tricky = [] } = params || {};
   const s = getState();
+  // The Tricky Pile is already "collected"; persist immediately so an early exit keeps them.
+  if (tricky.length) persistUnrescued(tricky.map(t => t.id));
 
   // record the round
   const before = s.meter;
@@ -72,11 +75,29 @@ export function mount(container, params, ctx) {
     // fill meter: from `before` up to new meter (handle wrap visually)
     fillMeter(before, banked.meter, banked.boxesEarned);
 
+    // Tricky Pile rescue step (untimed, hints free, does not change the round's stars).
+    if (tricky.length) {
+      const rescueWrap = el('div', { class: 'result-rescue' });
+      card.insertBefore(rescueWrap, buttons);
+      mountRescue(rescueWrap, tricky, {
+        onGift: () => showGift(),
+        onRescue: () => relightMeter(),
+        onDone: () => { relightMeter(); }
+      });
+    }
+
     // buttons
     buttons.appendChild(el('button', { class: 'btn secondary', text: 'Play again', onclick: () => { sfx.tap(); replay ? replay() : ctx.go(game); } }));
     buttons.appendChild(el('button', { class: 'btn soft', text: 'Back to Boo Town', onclick: () => { sfx.tap(); ctx.go('hub'); } }));
 
     if (banked.boxesEarned > 0) showGift();
+  }
+
+  // Re-light meter segments from the current state (after rescue +1s).
+  function relightMeter() {
+    const segs = meterTrack.children;
+    const m = getState().meter;
+    for (let k = 0; k < segs.length; k++) segs[k].classList.toggle('on', k < m);
   }
 
   function fillMeter(from, to, wrapped) {

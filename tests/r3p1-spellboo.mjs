@@ -106,16 +106,15 @@ await page.waitForTimeout(1600);
 await page.waitForSelector('.spell-area .tile', { timeout: 3000 });
 const spellingPhase = await page.evaluate(() => window.__spell.phase());
 assert(spellingPhase === 'spell', 'after the explanation she must spell the correct twin from memory (buttons hidden)');
-// spell it and confirm it advances
+// spell it and confirm it advances to a fresh twin item (buttons back)
 await page.evaluate(() => window.__spell.typeCorrect());
-await page.waitForTimeout(1500);
-const advanced = await page.evaluate(() => window.__spell.state().ii);
+await page.waitForFunction(() => window.__spell.state().idx >= 1 && window.__spell.phase() === 'pick' && document.querySelectorAll('.twin-opt').length === 3, { timeout: 5000 });
+const advanced = await page.evaluate(() => window.__spell.state().idx);
 assert(advanced >= 1, 'spelling the correct twin advances to the next item');
 
 // right first pick -> straight to spelling (no explanation)
-const item1 = await page.evaluate(() => ({ answer: window.__spell.item().answer }));
 await page.evaluate(() => window.__spell.pick(window.__spell.item().answer));
-await page.waitForTimeout(200);
+await page.waitForTimeout(250);
 const rightFlow = await page.evaluate(() => ({ phase: window.__spell.phase(), explVisible: getComputedStyle(document.querySelector('.twin-explain')).display !== 'none' }));
 assert(rightFlow.phase === 'spell' && !rightFlow.explVisible, 'a correct first pick goes straight to tiles, no explanation');
 

@@ -18,7 +18,11 @@ export const ACCESSORY_MIN_BOOS = 3;
 // Convert a round's stars into meter points and bank any boxes.
 // Returns { pointsAdded, boxesEarned, meter, boxes }.
 export function bankStars(stars) {
-  const points = stars + (stars >= 3 ? THREE_STAR_BONUS : 0);
+  return addMeterPoints(stars + (stars >= 3 ? THREE_STAR_BONUS : 0));
+}
+
+// Add raw meter points (e.g. Tricky Pile rescues +1 each, Golden bonus), banking boxes on overflow.
+export function addMeterPoints(points) {
   let boxesEarned = 0, meter, boxes;
   mutate(s => {
     s.meter += points;
