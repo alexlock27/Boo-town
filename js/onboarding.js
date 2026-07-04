@@ -3,10 +3,14 @@
 
 import { el, clear } from './ui.js';
 import * as State from './state.js';
-import { renderGuide } from './art.js';
+import { renderGuide, renderItem } from './art.js';
 import { buildCreator } from './creator.js';
 import { initAudio, sfx, music } from './sfx.js';
-import { guideLineAt, speakMaybe } from './guide.js';
+import { guideLineAt, guideLine, speakMaybe } from './guide.js';
+import { grantItem } from './rewards.js';
+import { BY_ID } from '../data/catalogue.js';
+
+const FIRST_PICKS = ['boo_inky', 'boo_lolly', 'boo_chomp']; // three friendly commons (RUN2 C2)
 
 export function mount(container, params, ctx) {
   let step = 0;
@@ -22,7 +26,8 @@ export function mount(container, params, ctx) {
     if (step === 0) splash();
     else if (step === 1) nameStep();
     else if (step === 2) creatorStep();
-    else introStep();
+    else if (step === 3) introStep();
+    else firstPickStep();
   }
 
   function splash() {
@@ -93,14 +98,39 @@ export function mount(container, params, ctx) {
       sfx.tap();
       i++;
       if (i < 3) showLine();
-      else finish();
+      else { step = 4; render(); }
     }
   }
 
-  function finish() {
-    // free first box, straight into the ceremony so she owns a Boo within the first minute
-    State.mutate(s => { s.boxes += 1; s.seen.onboarded = true; });
-    ctx.go('ceremony');
+  // "Pick your first Boo!" — the first reward is always a character she chooses (RUN2 C2).
+  function firstPickStep() {
+    const bubble = el('div', { class: 'speech-bubble intro-bubble' });
+    bubble.textContent = guideLine('firstPick');
+    speakMaybe(bubble.textContent);
+
+    const row = el('div', { class: 'firstpick-row' });
+    for (const id of FIRST_PICKS) {
+      const item = BY_ID[id];
+      row.appendChild(el('button', { class: 'firstpick-card', 'aria-label': item.name, onclick: () => choose(item) }, [
+        el('div', { class: 'firstpick-art', html: renderItem(item, { size: 118, cls: 'art-idle' }) }),
+        el('div', { class: 'firstpick-name', text: item.name })
+      ]));
+    }
+
+    root.appendChild(el('div', { class: 'firstpick' }, [
+      el('div', { class: 'ob-guide small', html: renderGuide(guide, { view: 'head', size: 108 }) }),
+      el('h2', { text: 'Pick your first Boo!' }),
+      bubble,
+      row
+    ]));
+
+    function choose(item) {
+      sfx.star ? sfx.star() : sfx.tap();
+      grantItem(item.id);
+      State.mutate(s => { s.seen.onboarded = true; s.seen.firstPick = item.id; });
+      // Guide walks her straight into placing her new friend in the town.
+      ctx.go('town', { place: item.id, from: 'firstpick' });
+    }
   }
 
   return { unmount() {} };

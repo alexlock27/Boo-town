@@ -2,6 +2,21 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 2: Rewards clarity, accessories, nicknames
+- Scripted first gift: onboarding now ends with "Pick your first Boo!" (Inky/Lolly/Chomp,
+  side by side). The first reward is always a character she chooses, then the guide walks
+  her into the town to place it. Random boxes begin after that.
+- Reveal cards announce what things are: a big type banner ("A BOO!" / "A DECORATION!" /
+  "AN ACCESSORY!"), the name huge, a one-liner, and a matching action button that lands
+  where it says — Meet them / Place it (→ town place mode) or Wear it (→ equip picker).
+- Accessories are real items (10 new, type "accessory"): every Boo has one accessory slot;
+  equip from the Boo's card or a placed Boo's Dress-up menu; the player's own character
+  wears any owned accessory via the creator. Equipped accessories render in the collection,
+  the reveal ceremony and the town, and survive reload. New "👒 Wardrobe" in the Collection.
+- Drop rule: type first (Boo 70% / decoration 15% / accessory 15%), then rarity as before;
+  accessories never drop until at least 3 Boos are owned. DJ Boo refuses a second pair of
+  headphones. Nicknames: rename any owned Boo (official name kept in small print).
+
 ## Run 2 — Phase 1: Character creator 2.0
 - The guide is now any of five species on one shared layered-SVG rig: giraffe (neck +
   ossicones), puppy (floppy ears), kitten (pointy ears + whiskers), penguin (flippers +

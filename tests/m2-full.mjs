@@ -101,11 +101,15 @@ await page.waitForSelector('.creator');
 await page.click('.creator-btns .btn.big');    // Done with defaults (no keyboard)
 await page.waitForSelector('.intro-block');
 for (let i = 0; i < 3; i++) { await page.click('.intro-block'); await page.waitForTimeout(150); }
-console.log('== open free box (box 1) ==');
-await openCeremony();
+console.log('== pick first Boo (scripted first reward) ==');
+await page.waitForSelector('.firstpick-row');
+await page.click('.firstpick-card');                 // no keyboard
+await page.waitForSelector('.town');
+await page.evaluate(() => window.BooTown.go('hub'));
 await page.waitForSelector('.hub');
 let save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
-assert(save.opened === 1, 'box 1 (free) opened during onboarding');
+assert(save.opened === 1, 'first Boo chosen during onboarding');
+assert(Object.keys(save.inventory).length === 1 && save.boxes === 0, 'owns exactly the chosen first Boo, no free box');
 
 console.log('== play all three games (perfect rounds) ==');
 await playBubble(1);

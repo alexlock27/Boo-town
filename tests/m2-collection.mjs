@@ -25,24 +25,28 @@ await page.waitForSelector('.coll-grid');
 await page.waitForTimeout(400);
 await page.screenshot({ path: 'screenshots/m2-collection.png' });
 
-const tiles = await page.evaluate(() => document.querySelectorAll('.coll-tile').length);
+// scope to the main collectibles grid (the wardrobe grid also uses .coll-tile)
+const tiles = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile').length);
 assert(tiles === 32, 'grid shows all 32 slots (' + tiles + ')');
-const owned = await page.evaluate(() => document.querySelectorAll('.coll-tile.owned').length);
+const owned = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile.owned').length);
 assert(owned === 5, '5 owned tiles in colour (' + owned + ')');
-const locked = await page.evaluate(() => document.querySelectorAll('.coll-tile.locked').length);
+const locked = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile.locked').length);
 assert(locked === 27, '27 mystery silhouettes (' + locked + ')');
 const countText = await page.textContent('.coll-count');
 assert(countText.includes('5 of 32'), 'counter shows 5 of 32 (' + countText + ')');
 const badge = await page.evaluate(() => !!document.querySelector('.coll-badge'));
 assert(badge, 'a count badge shows for the item owned x3');
 
-console.log('== tap an owned item -> detail ==');
-await page.click('.coll-tile.owned');
+console.log('== tap an owned Boo -> detail (Dress up + Nickname) ==');
+await page.click('.coll-grid:not(.wardrobe-grid) .coll-tile.owned');
 await page.waitForSelector('.dialog');
 const blurb = await page.evaluate(() => !!document.querySelector('.item-detail-blurb'));
 assert(blurb, 'item detail card shows a blurb');
-await page.click('.dialog .btn'); // close
-await page.waitForTimeout(200);
+assert(await page.locator('.dialog .btn:has-text("Dress up")').count() > 0, 'Boo detail offers Dress up');
+assert(await page.locator('.dialog .btn:has-text("Nickname")').count() > 0, 'Boo detail offers Nickname');
+await page.click('.dialog .btn:has-text("Close")');
+await page.waitForTimeout(250);
+assert(await page.locator('.overlay').count() === 0, 'dialog closed cleanly');
 
 console.log('== My character card -> creator -> save persists ==');
 await page.click('.mychar-card');

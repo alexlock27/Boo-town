@@ -48,32 +48,30 @@ await page.waitForTimeout(200);
 await page.screenshot({ path: 'screenshots/m2-intro.png' });
 await page.click('.intro-block'); await page.waitForTimeout(150);
 await page.click('.intro-block'); await page.waitForTimeout(150);
-await page.click('.intro-block'); // -> finish -> ceremony
+await page.click('.intro-block'); // -> first pick
 
-console.log('== ceremony ==');
-await page.waitForSelector('.gift-box');
-await page.waitForTimeout(300);
-await page.screenshot({ path: 'screenshots/m2-ceremony-box.png' });
-await page.click('.gift-box', { force: true }); await page.waitForTimeout(250);
-await page.click('.gift-box', { force: true }); await page.waitForTimeout(250);
-await page.click('.gift-box', { force: true }); // 3rd tap -> reveal
-await page.waitForSelector('.reveal-card', { timeout: 4000 });
-await page.waitForTimeout(700);
-await page.screenshot({ path: 'screenshots/m2-reveal.png' });
+console.log('== pick your first Boo ==');
+await page.waitForSelector('.firstpick-row');
+await page.waitForTimeout(250);
+await page.screenshot({ path: 'screenshots/m2-firstpick.png' });
+const firstNames = await page.$$eval('.firstpick-name', els => els.map(e => e.textContent));
+assert(JSON.stringify(firstNames) === JSON.stringify(['Inky', 'Lolly', 'Chomp']), 'first pick offers Inky/Lolly/Chomp');
+await page.click('.firstpick-card');                 // pick the first Boo
+await page.waitForSelector('.town', { timeout: 4000 });
 
 const save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
 assert(save.name === 'Maya', 'name saved');
 assert(save.guide && save.guide.name === 'Zoomer', 'guide name saved (' + (save.guide && save.guide.name) + ')');
 assert(save.guide && ['giraffe','puppy','kitten','penguin','bunny'].includes(save.guide.species), 'guide has a valid species (' + (save.guide && save.guide.species) + ')');
-assert(Object.keys(save.inventory).length === 1, 'exactly one Boo owned after free box');
-assert(save.opened === 1, 'opened count = 1');
-assert(save.boxes === 0, 'the free box was consumed');
+assert(Object.keys(save.inventory).length === 1, 'exactly the chosen Boo owned');
+assert(save.opened === 1, 'opened count = 1 (the chosen Boo)');
+assert(save.boxes === 0, 'no free random box — first reward is a chosen character');
 
-// dismiss reveal -> hub
-const revealBtns = await page.$$('.reveal-btns .btn');
-await revealBtns[revealBtns.length - 1].click({ force: true }); // keep for later (or Yay)
+// the guide walks her into the town to place her new friend
+assert(await page.$('.town'), 'lands in the town to place the new Boo');
+await page.evaluate(() => window.BooTown.go('hub'));
 await page.waitForSelector('.hub', { timeout: 4000 });
-assert(true, 'returned to hub after opening');
+assert(true, 'reaches the hub');
 
 console.log('== errors ==');
 if (errors.length) console.log(errors.map(e => '  ! ' + e).join('\n'));

@@ -57,14 +57,40 @@ export const CATALOGUE = [
   { id: 'deco_lamp',     kind: 'deco', name: 'Fairy Lamp',   rarity: 'rare',   deco: 'lamp',   fx: 'glow', blurb: 'Glows warm and gold so no Boo is ever scared of the dark.' },
   { id: 'deco_flowers',  kind: 'deco', name: 'Flower Patch', rarity: 'rare',   deco: 'flowers',  blurb: 'A splash of petals that the Boos are strictly not allowed to eat.' },
   { id: 'deco_bench',    kind: 'deco', name: 'Cosy Bench',   rarity: 'rare',   deco: 'bench',    blurb: 'Seats two Boos, or one very spread-out Boo.' },
-  { id: 'deco_stage',    kind: 'deco', name: 'Dance Stage',  rarity: 'ultra',  deco: 'stage',  fx: 'stage', blurb: 'Any Boo nearby simply must bop. Those are the rules.' }
+  { id: 'deco_stage',    kind: 'deco', name: 'Dance Stage',  rarity: 'ultra',  deco: 'stage',  fx: 'stage', blurb: 'Any Boo nearby simply must bop. Those are the rules.' },
+
+  // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
+  // Wearable on any Boo (one slot each) and on the player's own character.
+  { id: 'acc_bow',          kind: 'accessory', name: 'Purple Bow',     rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
+  { id: 'acc_sunhat',       kind: 'accessory', name: 'Sun Hat',        rarity: 'common', art: 'sunhat',       blurb: 'Wide brim, tiny flower, maximum holiday energy.' },
+  { id: 'acc_shades',       kind: 'accessory', name: 'Star Sunglasses',rarity: 'common', art: 'shades',       blurb: 'Star-shaped shades for a Boo who is going places.' },
+  { id: 'acc_scarf',        kind: 'accessory', name: 'Cosy Scarf',     rarity: 'common', art: 'scarf',        blurb: 'Knitted with love and just a little bit of magic.' },
+  { id: 'acc_flowercrown',  kind: 'accessory', name: 'Flower Crown',   rarity: 'rare',   art: 'flowercrown',  blurb: 'A ring of little blooms for a woodland royal.' },
+  { id: 'acc_heartglasses', kind: 'accessory', name: 'Heart Glasses',  rarity: 'rare',   art: 'heartglasses', blurb: 'Everything looks lovelier through heart-shaped lenses.' },
+  { id: 'acc_wizardhat',    kind: 'accessory', name: 'Wizard Hat',     rarity: 'rare',   art: 'wizardhat',    blurb: 'Pointy, starry, and possibly a bit enchanted.' },
+  { id: 'acc_goldcrown',    kind: 'accessory', name: 'Golden Crown',   rarity: 'ultra',  art: 'goldcrown',    blurb: 'Solid gold, extremely shiny, absolutely deserved.' },
+  { id: 'acc_cape',         kind: 'accessory', name: 'Sparkle Cape',   rarity: 'ultra',  art: 'cape',    fx: 'shimmer', blurb: 'Swishes dramatically even when there is no wind.' },
+  { id: 'acc_djheadphones', kind: 'accessory', name: 'DJ Headphones',  rarity: 'rare',   art: 'djheadphones', blurb: 'Drop the beat! (DJ Boo already has a pair, thanks.)' }
 ];
 
 // Convenience lookups.
 export const BY_ID = Object.fromEntries(CATALOGUE.map(it => [it.id, it]));
+
+// Collectibles (Boos + decorations) fill the collection grid + "found X of N" counter.
+// Accessories are a separate wardrobe (equipped, not counted here).
+export const COLLECTIBLES = CATALOGUE.filter(it => it.kind !== 'accessory');
+export const ACCESSORIES  = CATALOGUE.filter(it => it.kind === 'accessory');
+
+// Grouped by kind then rarity for the type-first drop roll (RUN2 C2).
+export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
+  ((m[it.kind] ||= {})[it.rarity] ||= []).push(it);
+  return m;
+}, {});
+
+// Legacy: all items by rarity (kept for compatibility; drops use BY_TYPE_RARITY).
 export const BY_RARITY = CATALOGUE.reduce((m, it) => {
   (m[it.rarity] ||= []).push(it);
   return m;
 }, {});
 
-export const TOTAL_ITEMS = CATALOGUE.length; // 32
+export const TOTAL_ITEMS = COLLECTIBLES.length; // 32 (boos + decorations)

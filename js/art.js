@@ -4,6 +4,8 @@
 // ~4px ink outline + a cream halo. Keep each critter well under ~30 shapes.
 // Swapping in a CC0 asset pack later means only replacing this file.
 
+import { BY_ID } from '../data/catalogue.js';
+
 export const COLORS = {
   // Boo body colours
   indigo:    '#4B3AA0',   // lifted from --sky-mid so indigo Boos read on the dark sky
@@ -236,7 +238,9 @@ function speciesGeom(species, bodyFill, bellyFill) {
 }
 
 // ---- public: render a Boo -----------------------------------------------
-export function renderBoo(item, { size = 120, cls = '' } = {}) {
+// opts.equipArt = an accessory art key (from an equipped accessory item); when set it
+// renders instead of the Boo's built-in accessory (spec RUN2 C2: one accessory slot).
+export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) {
   const bodyFill = c(item.colors.body);
   const bellyFill = item.colors.belly ? c(item.colors.belly) : null;
   const g = speciesGeom(item.species, bodyFill, bellyFill);
@@ -248,9 +252,13 @@ export function renderBoo(item, { size = 120, cls = '' } = {}) {
                cheeks(40, 80, 90) +
                mouth(item.species);
 
+  const accSvg = equipArt
+    ? accessoryArt(equipArt, { cx: 60, topY: 30, eyeY: 80, earY: 70, R: 45 })
+    : accessory(item.acc);
+
   const fxCls = item.fx ? ` fx-${item.fx}` : '';
   return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130/120}" class="boo-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
-    halo + color + g.extras + face + accessory(item.acc) + fxSparkles(item.fx) +
+    halo + color + g.extras + face + accSvg + fxSparkles(item.fx) +
   `</svg>`;
 }
 
@@ -332,8 +340,11 @@ export function renderGuide(guideIn, { size = 200, view = 'full', cls = '' } = {
   const vb = box.split(' ').map(Number);
   const ar = vb[3] / vb[2];
   const w = view === 'head' ? size * 0.86 : size;
+  // Full view: overflow visible so tall accessories (wizard hat) aren't clipped.
+  // Head view: overflow hidden so the body is cropped to a head-and-shoulders peek.
+  const overflow = view === 'head' ? 'hidden' : 'visible';
   return `<svg viewBox="${box}" width="${w}" height="${(w * ar).toFixed(1)}" class="guide-svg ${cls}" ` +
-    `role="img" aria-label="${guide.name || 'guide'}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">${inner}</svg>`;
+    `role="img" aria-label="${guide.name || 'guide'}" xmlns="http://www.w3.org/2000/svg" style="overflow:${overflow}">${inner}</svg>`;
 }
 
 // Pattern overlay clipped to the body/head silhouette. Generic scatter/bands,
@@ -513,15 +524,94 @@ function guideAccessory(acc, a) {
       return path(`M${cx-R} ${eyeY} Q${cx} ${top-8} ${cx+R} ${eyeY}`, 'none', `stroke="${COLORS.pink}" stroke-width="7" fill="none" stroke-linecap="round"`) +
              rrect(cx-R-7, eyeY-6, 14, 22, 6, COLORS.pink, `stroke="${INK}" stroke-width="3"`) +
              rrect(cx+R-7, eyeY-6, 14, 22, 6, COLORS.pink, `stroke="${INK}" stroke-width="3"`);
-    default:
-      // owned accessory item id (phase 2): fall back to nothing until accessoryArt exists
-      return accessoryItemArt ? accessoryItemArt(acc, a) : '';
+    default: {
+      // An owned accessory item id (or bare art key) -> unified accessory art.
+      const artKey = (BY_ID[acc] && BY_ID[acc].art) || acc;
+      return accessoryArt(artKey, { cx: a.cx, topY: a.headTopY, eyeY: a.eyeY, earY: a.headCy, R: a.headR });
+    }
   }
 }
 
-// Hook set by phase 2 so owned accessory items render on the player character too.
-let accessoryItemArt = null;
-export function setAccessoryItemArt(fn) { accessoryItemArt = fn; }
+// ---- unified accessory art (RUN2 part D) --------------------------------
+// Renders any of the 10 wearable accessories in any coordinate space via an anchor:
+// a = { cx, topY (hat baseline), eyeY (glasses line), earY (headphone/scarf line), R (head half-width) }
+// Used on both Boos (renderBoo) and the player's own character (renderGuide).
+function smallFlower(x, y, r) {
+  let p = '';
+  for (let i = 0; i < 5; i++) { const a = i * 72 * Math.PI / 180; p += ell(x + r * Math.cos(a), y + r * Math.sin(a), r * 0.7, r * 0.7, COLORS.bubblegum, `stroke="${INK}" stroke-width="1.5"`); }
+  return p + `<circle cx="${x}" cy="${y}" r="${r * 0.55}" fill="${COLORS.gold}" stroke="${INK}" stroke-width="1.3"/>`;
+}
+function heartShape(x, y, r, fill) {
+  return path(`M${x} ${(y + r * 0.5).toFixed(1)} C${(x - r * 1.3).toFixed(1)} ${(y - r * 0.55).toFixed(1)}, ${(x - r * 0.5).toFixed(1)} ${(y - r * 1.15).toFixed(1)}, ${x} ${(y - r * 0.2).toFixed(1)} C${(x + r * 0.5).toFixed(1)} ${(y - r * 1.15).toFixed(1)}, ${(x + r * 1.3).toFixed(1)} ${(y - r * 0.55).toFixed(1)}, ${x} ${(y + r * 0.5).toFixed(1)} Z`, fill, `stroke="${INK}" stroke-width="2" opacity="0.92"`);
+}
+
+export function accessoryArt(key, a) {
+  const { cx, topY, eyeY, earY, R } = a;
+  const ink = (w = 2.6) => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+  const purple = '#9B6DE0', straw = '#F0D28C', cosy = '#EA6A73';
+  switch (key) {
+    case 'bow': {
+      const x = cx - R * 0.42, y = topY + 6;
+      return path(`M${x} ${y} L${x-13} ${y-9} L${x-13} ${y+9} Z`, purple, ink()) +
+             path(`M${x} ${y} L${x+13} ${y-9} L${x+13} ${y+9} Z`, purple, ink()) +
+             `<circle cx="${x}" cy="${y}" r="5" fill="${purple}" ${ink()}/>`;
+    }
+    case 'sunhat': {
+      const y = topY + 7;
+      return ell(cx, y, R * 0.98, R * 0.30, straw, ink()) +
+             path(`M${cx-R*0.55} ${y} Q${cx} ${topY-R*0.55} ${cx+R*0.55} ${y} Z`, straw, ink()) +
+             path(`M${cx-R*0.5} ${y-2} Q${cx} ${y-6} ${cx+R*0.5} ${y-2}`, 'none', `stroke="${cosy}" stroke-width="4" fill="none"`) +
+             smallFlower(cx + R * 0.34, y - 4, R * 0.14);
+    }
+    case 'shades': {
+      const r = R * 0.33, y = eyeY;
+      return path(starPath(cx - R * 0.42, y, r, r * 0.42), INK, `stroke="${COLORS.gold}" stroke-width="2.4"`) +
+             path(starPath(cx + R * 0.42, y, r, r * 0.42), INK, `stroke="${COLORS.gold}" stroke-width="2.4"`) +
+             `<line x1="${cx-R*0.1}" y1="${y}" x2="${cx+R*0.1}" y2="${y}" stroke="${COLORS.gold}" stroke-width="3"/>`;
+    }
+    case 'scarf': {
+      const y = eyeY + R * 0.58;
+      return path(`M${cx-R*0.8} ${y} Q${cx} ${y+R*0.28} ${cx+R*0.8} ${y} L${cx+R*0.72} ${y+R*0.22} Q${cx} ${y+R*0.5} ${cx-R*0.72} ${y+R*0.22} Z`, cosy, ink()) +
+             rrect(cx - R * 0.46, y + R * 0.12, R * 0.22, R * 0.5, 3, cosy, ink(2.4));
+    }
+    case 'flowercrown': {
+      let s = ''; const n = 5;
+      for (let i = 0; i < n; i++) { const t = i / (n - 1); const x = cx - R * 0.7 + t * R * 1.4; const y = topY + 8 - Math.sin(t * Math.PI) * R * 0.35; s += smallFlower(x, y, R * 0.17); }
+      return s;
+    }
+    case 'heartglasses': {
+      const y = eyeY;
+      return heartShape(cx - R * 0.42, y, R * 0.34, COLORS.pink) + heartShape(cx + R * 0.42, y, R * 0.34, COLORS.pink) +
+             `<line x1="${cx-R*0.1}" y1="${y}" x2="${cx+R*0.1}" y2="${y}" stroke="${INK}" stroke-width="3"/>`;
+    }
+    case 'wizardhat': {
+      const baseY = topY + 6, tipY = topY - R * 1.1, tipX = cx + R * 0.14;
+      return ell(cx, baseY, R * 0.85, R * 0.24, COLORS.midnight, ink()) +
+             path(`M${cx-R*0.55} ${baseY} Q${cx-R*0.2} ${tipY+R*0.3} ${tipX} ${tipY} Q${cx+R*0.35} ${baseY-R*0.2} ${cx+R*0.55} ${baseY} Z`, COLORS.midnight, ink()) +
+             path(starPath(tipX, tipY, 5, 2), COLORS.gold, `stroke="${INK}" stroke-width="1"`) +
+             `<circle cx="${cx}" cy="${(baseY-R*0.4).toFixed(1)}" r="2.6" fill="${COLORS.gold}"/><circle cx="${(cx+R*0.2).toFixed(1)}" cy="${(baseY-R*0.72).toFixed(1)}" r="2.2" fill="${COLORS.star}"/>`;
+    }
+    case 'goldcrown': {
+      const y = topY + 8;
+      return path(`M${cx-R*0.5} ${y} L${cx-R*0.36} ${y-R*0.42} L${cx-R*0.17} ${y-R*0.12} L${cx} ${y-R*0.52} L${cx+R*0.17} ${y-R*0.12} L${cx+R*0.36} ${y-R*0.42} L${cx+R*0.5} ${y} Z`, COLORS.gold, ink()) +
+             `<circle cx="${(cx-R*0.36).toFixed(1)}" cy="${(y-R*0.42).toFixed(1)}" r="2.4" fill="${COLORS.pink}"/><circle cx="${cx}" cy="${(y-R*0.52).toFixed(1)}" r="2.6" fill="${COLORS.bubblegum}"/><circle cx="${(cx+R*0.36).toFixed(1)}" cy="${(y-R*0.42).toFixed(1)}" r="2.4" fill="${COLORS.teal}"/>`;
+    }
+    case 'cape': {
+      const y = eyeY + R * 0.42;
+      return path(`M${cx-R*0.55} ${y} Q${cx} ${y+R*0.22} ${cx+R*0.55} ${y} L${cx+R*0.7} ${y+R*0.95} Q${cx} ${y+R*0.72} ${cx-R*0.7} ${y+R*0.95} Z`, '#8B5CF6', `${ink()} opacity="0.9"`) +
+             `<circle cx="${cx}" cy="${(y+2).toFixed(1)}" r="4" fill="${COLORS.gold}" ${ink(2)}/>` +
+             path(starPath(cx - R * 0.46, y + R * 0.55, 4, 1.6), '#fff', '') +
+             path(starPath(cx + R * 0.4, y + R * 0.42, 3.4, 1.4), '#fff', '');
+    }
+    case 'djheadphones':
+      return path(`M${cx-R} ${earY} Q${cx} ${topY-R*0.35} ${cx+R} ${earY}`, 'none', `stroke="${COLORS.gold}" stroke-width="7" fill="none" stroke-linecap="round"`) +
+             path(`M${cx-R} ${earY} Q${cx} ${topY-R*0.35} ${cx+R} ${earY}`, 'none', `stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"`) +
+             rrect(cx - R - 8, earY - 8, 16, 24, 7, COLORS.gold, ink(3)) +
+             rrect(cx + R - 8, earY - 8, 16, 24, 7, COLORS.gold, ink(3));
+    default:
+      return '';
+  }
+}
 
 // Lighten a hex colour toward cream for snouts/bellies.
 function lighten(hex) {
@@ -614,8 +704,19 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
   return `<svg viewBox="0 0 120 130" width="${size}" height="${size*130/120}" class="deco-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
 }
 
+// ---- public: render an accessory item standalone -------------------------
+// Draws the wearable centred on its own, for reveal cards and the wardrobe.
+export function renderAccessory(item, { size = 120, cls = '' } = {}) {
+  const fxCls = item.fx ? ` fx-${item.fx}` : '';
+  const art = accessoryArt(item.art, { cx: 60, topY: 58, eyeY: 66, earY: 64, R: 40 });
+  return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" class="acc-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
+    `<circle cx="60" cy="60" r="52" fill="rgba(255,255,255,0.06)"/>` + art + `</svg>`;
+}
+
 // Generic render router used by collection/town.
+// opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {
   if (item.kind === 'deco') return renderDeco(item, opts);
+  if (item.kind === 'accessory') return renderAccessory(item, opts);
   return renderBoo(item, opts);
 }

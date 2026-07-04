@@ -8,7 +8,8 @@ import { el, clear } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
-import { guideLine } from './guide.js';
+import { guideLine, speakMaybe } from './guide.js';
+import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 
 const COLS = 6, ROWS = 4, PLOTS = COLS * ROWS;
@@ -37,8 +38,8 @@ export function mount(container, params, ctx) {
   renderDrawer();
   updateHint();
 
-  // If arriving from the ceremony holding an item, guide nudges.
-  if (placeMode && params.from === 'ceremony') showGuideNudge();
+  // If arriving from the ceremony or first-pick holding an item, guide welcomes + nudges.
+  if (placeMode && (params.from === 'ceremony' || params.from === 'firstpick')) showGuideNudge();
 
   function placedByPlot() {
     const m = {};
@@ -52,6 +53,7 @@ export function mount(container, params, ctx) {
     for (const t of st.town) placedCount[t.item] = (placedCount[t.item] || 0) + 1;
     const out = {};
     for (const [id, n] of Object.entries(st.inventory)) {
+      if (!BY_ID[id] || BY_ID[id].kind === 'accessory') continue; // accessories are worn, not placed
       const free = n - (placedCount[id] || 0);
       if (free > 0) out[id] = free;
     }
@@ -85,7 +87,7 @@ export function mount(container, params, ctx) {
       if (map[p]) {
         const item = BY_ID[map[p]];
         const wrap = el('div', { class: 'placed', dataset: { plot: String(p) } });
-        wrap.innerHTML = renderItem(item, { size: 100 });
+        wrap.innerHTML = renderItem(item, { size: 100, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
         const svg = wrap.firstChild;
         if (svg) {
           if (item.kind === 'boo' && !item.fx) {
@@ -148,26 +150,37 @@ export function mount(container, params, ctx) {
 
   function onPlacedTap(p, item, wrap) {
     if (placeMode) return; // ignore while placing
-    if (item.kind === 'boo') { squeak(wrap); }
+    if (item.kind === 'boo') { squeak(wrap, item); }
     openMenu(p, item, wrap);
   }
 
-  function squeak(wrap) {
+  function squeak(wrap, item) {
     sfx.pop();
     const svg = wrap.firstChild;
     if (svg) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
     const heart = el('div', { class: 'pop-heart', text: '❤' });
     wrap.appendChild(heart);
     setTimeout(() => heart.remove(), 900);
+    if (item) {
+      const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) });
+      wrap.appendChild(tag);
+      setTimeout(() => tag.remove(), 1100);
+    }
   }
 
   let openPopover = null;
   function openMenu(p, item, wrap) {
     closeMenu();
-    const menu = el('div', { class: 'plot-menu' }, [
+    const btns = [
       el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(p, item); } }),
       el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(p); } })
-    ]);
+    ];
+    if (item.kind === 'boo') {
+      btns.unshift(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => {
+        e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderGrid() });
+      } }));
+    }
+    const menu = el('div', { class: 'plot-menu' }, btns);
     wrap.appendChild(menu);
     openPopover = menu;
     setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
@@ -192,7 +205,9 @@ export function mount(container, params, ctx) {
   }
 
   function showGuideNudge() {
-    hint.textContent = guideLine('townFirst');
+    const line = guideLine('townFirst');
+    hint.textContent = line;
+    speakMaybe(line);
   }
 
   // ---- drag support (pointer events) ----
