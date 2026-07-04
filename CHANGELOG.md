@@ -2,6 +2,18 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 5: Boo Bounce (new game)
+- A gentle canvas brick-breaker: a draggable paddle, one soft ball, a candy brick wall
+  (6 across, 4 deep). A question card sits on top; exactly three bricks wear answer labels
+  (one correct). Breaking the correct brick clears its whole row with a fanfare and brings
+  the next question; breaking a wrong-labelled brick just breaks it ("Hmm!") and the label
+  hops to another brick. Plain bricks break normally.
+- Friendly constant ball speed; the paddle position bends the bounce; angles are clamped
+  so the ball never crawls horizontally. Losing the ball dims a heart and relaunches from
+  the paddle — hearts never end the round, they only shape stars. Round = 8 questions
+  answered or the wall cleared twice. Stars: 3 = at most one wrong brick and one ball drop;
+  2 = at most three combined; 1 = finished. Fifth hub card.
+
 ## Run 2 — Phase 4: Boo Blocks (new game)
 - A 9x9 block puzzle where learning dispenses the pieces. A question card (Times tables or
   Spelling, level picker) sits beside the board; each correct answer dispenses the next

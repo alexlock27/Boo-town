@@ -11,7 +11,8 @@ const GAMES = [
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon },
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon },
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon },
-  { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon }
+  { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon },
+  { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon }
 ];
 
 export function mount(container, params, ctx) {
@@ -179,4 +180,7 @@ function spellIcon() {
 }
 function blocksIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="16" height="16" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="10" width="16" height="16" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><rect x="10" y="28" width="16" height="16" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="28" width="16" height="16" rx="3" fill="var(--lilac,#C6A9F0)" stroke="var(--ink)" stroke-width="3"/><rect x="37" y="37" width="14" height="14" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/></svg>`;
+}
+function bounceIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="12" width="12" height="8" rx="2" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/><rect x="24" y="12" width="12" height="8" rx="2" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.5"/><rect x="38" y="12" width="12" height="8" rx="2" fill="var(--star)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="34" cy="36" r="6" fill="var(--card)" stroke="var(--ink)" stroke-width="2.5"/><rect x="20" y="46" width="22" height="6" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/></svg>`;
 }

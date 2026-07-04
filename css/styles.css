@@ -397,6 +397,18 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .blk-slot { width: 66px; height: 66px; }
 }
 
+/* ---- Boo Bounce ---- */
+.bounce .game-area { display: flex; flex-direction: column; }
+.bounce-question { text-align: center; padding: 6px 0 4px; }
+.bounce-prompt {
+  display: inline-block; background: var(--card); border: 4px solid var(--ink); border-radius: 18px;
+  padding: 8px 24px; font-family: var(--font-display); font-weight: 700; font-size: 30px; color: var(--ink); box-shadow: var(--card-shadow);
+}
+.bounce-field { flex: 1; position: relative; margin: 6px 4px 4px; border-radius: 16px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(59,46,126,0.55), rgba(30,21,80,0.55)); box-shadow: inset 0 2px 12px rgba(0,0,0,0.3); }
+.bounce-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.bounce-canvas:active { cursor: grabbing; }
+
 /* ---- bubbles ---- */
 .target-card {
   position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 4;
