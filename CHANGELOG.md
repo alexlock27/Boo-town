@@ -2,6 +2,15 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 9b: Boo Dash is a real runner now
+- Boo Dash rebuilt with genuine motion: the answer gate spawns small up the path and
+  approaches the trotting runner, growing as it nears; the ground scrolls to sell the trot.
+  Tapping an arch steers the runner underneath it and dashes through with a sparkle. If she
+  doesn't answer, the gate simply waits at the line, bobbing — no countdown, no falling
+  behind. The trot quickens after a 3-streak; a bonk makes the same fact re-approach slower.
+  Reduced-motion keeps the calm static presentation. (Previously the arches were static,
+  which made the game feel like a plain multiple-choice quiz.)
+
 ## Run 2 — Phase 9: Final polish + full regression
 - Hub confirmed reading cleanly as two labelled rows (Learn / Play, eight equal-size cards) in
   both landscape and portrait.
