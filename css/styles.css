@@ -649,6 +649,31 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 .tile:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(90,77,132,0.3); }
 
+.spell-area { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+/* ---- Sound Twins (RUN3 C1) ---- */
+.twin-head { display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.twin-sentence {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--card-shadow);
+  padding: 16px 22px; font-family: var(--font-display); font-weight: 500; font-size: 26px;
+  color: var(--ink); max-width: 640px; text-align: center; line-height: 1.4;
+}
+.twin-blank {
+  display: inline-block; min-width: 54px; margin: 0 4px; padding: 0 10px;
+  border-bottom: 4px solid var(--pop); color: var(--pop); font-weight: 700; text-align: center;
+}
+.twin-options { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.twin-opt {
+  font-size: 30px; padding: 18px 34px; min-width: 130px; background: var(--zing);
+  color: var(--ink); font-family: var(--font-display); font-weight: 700;
+}
+.twin-opt.right { background: var(--star); box-shadow: 0 0 0 4px rgba(255,201,60,0.5); }
+.twin-opt:disabled { opacity: 0.5; }
+.twin-explain {
+  background: #FFF3C9; border: 2px solid var(--star); border-radius: 16px; color: var(--ink);
+  padding: 12px 20px; font-size: 20px; max-width: 560px; text-align: center; margin: 4px auto;
+}
+
 /* ---- results ---- */
 .results { align-items: center; justify-content: center; padding: 20px; }
 .result-card { max-width: 460px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }

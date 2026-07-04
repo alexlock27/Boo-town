@@ -32,13 +32,13 @@ await page.click('.level-btn');
 await page.waitForSelector('.slots-wrap');
 await page.waitForTimeout(400);
 
-console.log('== peek reveals the word ==');
-await page.click('.peek-btn');
-await page.waitForTimeout(150);
+console.log('== auto-look reveals the word for free (RUN3 C1) ==');
+// The word auto-shows once at the start (the free "look"); we do NOT press Peek here,
+// because Peek now counts as a hint and would cap the round at 2 stars.
 const peekVisible = await page.evaluate(() => { const p = document.querySelector('.peek-word'); return p && p.style.visibility !== 'hidden' && p.textContent.length > 0; });
-assert(peekVisible, 'Peek shows the word');
+assert(peekVisible, 'auto-look shows the word for free');
 await page.screenshot({ path: 'screenshots/m2-spellboo-mid.png' });
-await page.waitForTimeout(1900); // let peek hide
+await page.waitForTimeout(2100); // let auto-look hide before spelling from memory
 
 console.log('== spell 8 words perfectly ==');
 let wordsSpelled = 0;

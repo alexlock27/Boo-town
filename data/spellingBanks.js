@@ -4,6 +4,15 @@
 // The Big List (statutory) lives in spelling.js; this file is the new themed banks.
 
 export const BANKS = [
+  // Tricky Sounds — the 'th' sound, a known weak spot (RUN3 C1). All tier 1.
+  { id: 'trickyTh', name: 'Tricky Sounds', words: [
+      { w: 'with', t: 1 }, { w: 'this', t: 1 }, { w: 'that', t: 1 }, { w: 'then', t: 1 },
+      { w: 'them', t: 1 }, { w: 'than', t: 1 }, { w: 'they', t: 1 }, { w: 'both', t: 1 },
+      { w: 'bath', t: 1 }, { w: 'path', t: 1 }, { w: 'teeth', t: 1 }, { w: 'three', t: 1 },
+      { w: 'think', t: 1 }, { w: 'thank', t: 1 }, { w: 'thing', t: 1 }, { w: 'month', t: 1 },
+      { w: 'mother', t: 1 }, { w: 'father', t: 1 }, { w: 'brother', t: 1 }, { w: 'other', t: 1 },
+      { w: 'another', t: 1 }, { w: 'together', t: 1 }, { w: 'birthday', t: 1 }, { w: 'Thursday', t: 1 }
+  ]},
   { id: 'prefixesUnDisMisRe', name: 'Prefixes un, dis, mis, re', words: [
       { w: 'unhappy', t: 1 }, { w: 'unfair', t: 1 }, { w: 'unlock', t: 1 }, { w: 'untie', t: 1 },
       { w: 'disagree', t: 1 }, { w: 'dislike', t: 1 }, { w: 'disobey', t: 1 }, { w: 'disappear', t: 1 },

@@ -20,7 +20,7 @@ export const LINES = {
   ],
   gameIntroBubble: ["Pop the bubble with the right answer. Easy... probably!"],
   gameIntroFeed: ["These Boos are HUNGRY. Feed each one exactly what its sign says."],
-  gameIntroSpell: ["I'll say a word, you build it. Tap Peek if you want a look first."],
+  gameIntroSpell: ["I'll show you each word, then hide it — you build it from memory. Tap my face if you're stuck!"],
   hintOffer: [
     "Stuck? Tap my face for a hint!",
     "Want a nudge? That's what I'm here for."

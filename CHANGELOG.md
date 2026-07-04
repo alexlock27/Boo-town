@@ -2,6 +2,19 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 1: Spell Boo integrity + her weak spots
+- Auto-look replaces free Peek: every normal word flashes clearly for 2s at the start
+  (the uniform, free "look" in look-cover-spell), then hides so she spells from memory.
+- Peek is now a HINT: pressing it after auto-look counts toward the 2-hint budget (shared
+  with the next-letter hint) and caps the round at 2 stars, like every other game. The
+  audio replay button stays free and unlimited. Homophone/clue words never auto-show —
+  the clue shows instead — so voice-off rounds stay fully playable.
+- New Sound Twins mode on the Spell Boo picker: a blank sentence with the twin spellings
+  as big buttons; a wrong pick shows a one-line explanation of the right twin, then she
+  spells it from memory (buttons hidden); a correct first pick goes straight to tiles.
+  All sentences reused verbatim from EXPANSION_1 §26/§27/§3.1 (no invented sentences).
+- New Tricky Sounds (th) bank added to the word sets: with, this, that, then … Thursday (24 words).
+
 ## Run 3 — Phase 0: mechanics audit + repair
 - Motion-evidence audit of all 12 run-2 mechanics (≥6 frames over ≥3s each, measurable
   inter-frame change required). New deterministic gate: `tests/audit.mjs` + `tests/lib/motion.mjs`
