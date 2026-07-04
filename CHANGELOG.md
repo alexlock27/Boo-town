@@ -2,6 +2,17 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 0: mechanics audit + repair
+- Motion-evidence audit of all 12 run-2 mechanics (≥6 frames over ≥3s each, measurable
+  inter-frame change required). New deterministic gate: `tests/audit.mjs` + `tests/lib/motion.mjs`
+  (sharp-based pixel deltas + numeric probes). Result: 13/13 PASS across repeated runs.
+- Boo Dash verified as a genuine runner with frame evidence (arches measurably closer
+  frame-to-frame, runner steers to the tapped lane), not trusted blind.
+- Fixed the one genuinely flat-shipped item: the hub guide now idles — a gentle bob
+  (`art-idle`) and a blink (new `.art-eyes` keyframe), both auto-disabled under
+  prefers-reduced-motion. The run-2 test that "covered" this had passed vacuously.
+- `__bounce` test hook now exposes ball position for deterministic motion assertions.
+
 ## Run 2 — Phase 9b: Boo Dash is a real runner now
 - Boo Dash rebuilt with genuine motion: the answer gate spawns small up the path and
   approaches the trotting runner, growing as it nears; the ground scrolls to sell the trot.

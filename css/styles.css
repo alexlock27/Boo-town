@@ -114,6 +114,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   50%      { transform: translateY(-6%) scale(0.99, 1.02); }
 }
 
+/* guide blink (idle life on the hub and everywhere the guide appears) */
+.art-eyes { animation: blink 4.2s ease-in-out infinite; }
+@keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.1); } }
+
 /* ultra: twinkle stars */
 .fx-twinkle .twk { transform-box: fill-box; transform-origin: center; }
 .fx-twinkle .twk0 { animation: twk 1.6s ease-in-out infinite; }

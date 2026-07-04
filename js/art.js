@@ -375,7 +375,11 @@ export function renderGuide(guideIn, { size = 200, view = 'full', cls = '' } = {
   const defs = (guide.pattern && guide.pattern !== 'none')
     ? `<defs><clipPath id="${cid}">${g.clipEls}</clipPath></defs>` : '';
 
-  const face = eyes(g.eye.lx, g.eye.rx, g.eye.cy, g.eye.r, guide.eyes || 'round') + g.face;
+  // Eyes wrapped so the guide can blink (idle life); transform-origin at the eye line.
+  const eyeCx = ((g.eye.lx + g.eye.rx) / 2).toFixed(1);
+  const eyeSvg = `<g class="art-eyes" style="transform-origin:${eyeCx}px ${g.eye.cy}px">` +
+    eyes(g.eye.lx, g.eye.rx, g.eye.cy, g.eye.r, guide.eyes || 'round') + `</g>`;
+  const face = eyeSvg + g.face;
   const acc = guideAccessory(guide.acc, g.anchor);
 
   const inner = defs + outline.halo + outline.color + (g.belly || '') + patternSvg + (g.details || '') + face + acc;

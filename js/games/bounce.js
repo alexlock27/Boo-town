@@ -261,7 +261,7 @@ export function mount(container, params, ctx) {
       breakCorrect: () => { const b = bricks.find(x => x.alive && x.correct); if (b) onBrickHit(b); },
       breakWrong: () => { const b = bricks.find(x => x.alive && x.label != null && !x.correct); if (b) onBrickHit(b); },
       loseBall: () => loseBall(),
-      state: () => ({ questionsAnswered, wrongBricks, ballLosses, wallClears, ended, alive: bricks.filter(b => b.alive).length, labels: labels.length, hearts: shell.heartsLeft() })
+      state: () => ({ questionsAnswered, wrongBricks, ballLosses, wallClears, ended, alive: bricks.filter(b => b.alive).length, labels: labels.length, hearts: shell.heartsLeft(), bx: +ball.x.toFixed(1), by: +ball.y.toFixed(1), stuck: ball.stuck })
     };
     // clean up the resize listener on unmount via the shell cleanup chain
     play._cleanup = () => window.removeEventListener('resize', onResize);

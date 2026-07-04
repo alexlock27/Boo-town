@@ -40,7 +40,8 @@ export function mountGuide(container, opts = {}) {
 export function createGuideBubble({ view = 'head', size = 120, side = 'left' } = {}) {
   const s = getState();
   const guide = (s && s.guide) || { body: 'sunshine', patch: 'cocoa', acc: 'none', name: 'Twiggy' };
-  const art = el('div', { class: 'guide-art', html: renderGuide(guide, { view, size }) });
+  // cls 'art-idle' gives the guide a gentle idle bob (blink comes from renderGuide).
+  const art = el('div', { class: 'guide-art', html: renderGuide(guide, { view, size, cls: 'art-idle' }) });
   const bubble = el('div', { class: 'speech-bubble', html: '' });
   const root = el('div', { class: 'guide-block ' + side }, side === 'left' ? [art, bubble] : [bubble, art]);
 
