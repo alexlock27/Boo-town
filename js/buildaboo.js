@@ -2,7 +2,7 @@
 // mouth, tail, pattern and colour; name it and SEAL it. Sealed customs (cap 5) enter the
 // mystery-box pool with a 10% slice while unwon; winning one plays the ceremony banner.
 
-import { el, clear } from './ui.js';
+import { el, clear, backControl } from './ui.js';
 import { sfx, music } from './sfx.js';
 import { renderCustomBoo, BUILD_PARTS } from './art.js';
 import { addSealedCustom, canSeal, sealedCustoms, CUSTOM_CAP } from './customs.js';
@@ -15,7 +15,7 @@ export function mount(container, params, ctx) {
   music.play('calm');
   const root = el('div', { class: 'build-screen' });
   const header = el('header', { class: 'studio-header' }, [
-    el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('studio'); } }),
+    backControl(() => ctx.go('studio')),
     el('h2', { text: '🧩 Build a Boo' })
   ]);
 
@@ -86,4 +86,3 @@ export function mount(container, params, ctx) {
 function prettyPart(part, val) { return val === 'none' ? 'None' : val.charAt(0).toUpperCase() + val.slice(1); }
 function pick(a) { return a[(Math.random() * a.length) | 0]; }
 function toRgb(hex) { const h = hex.replace('#', ''); return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`; }
-function backArrow() { return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }

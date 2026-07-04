@@ -3,7 +3,7 @@
 // style A, a worked example tapped step by step, explanation style B, then a 3-question
 // quick check). Five visual primitives are implemented once; all lessons are data.
 
-import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
+import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -42,6 +42,7 @@ export function mount(container, params, ctx) {
     }
     card.appendChild(grid);
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function playLesson(lesson) {

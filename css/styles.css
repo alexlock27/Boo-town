@@ -259,6 +259,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   cursor: pointer; transition: transform 120ms ease-out;
 }
 .icon-btn:active { transform: scale(0.92); }
+/* the shared back control pinned to the corner on header-less screens (DASH_PATCH job 3) */
+.screen-back { position: absolute; top: 10px; left: 10px; z-index: 60; }
 
 .meter-wrap { flex: 1; display: flex; align-items: center; gap: 12px; }
 .meter-track { flex: 1; display: flex; gap: 6px; height: 22px; max-width: 520px; }

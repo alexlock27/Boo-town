@@ -2,7 +2,7 @@
 // The creative suite: Paint-a-Boo, Collage, Build-a-Boo, and the Gallery of saved artworks.
 // Artworks live in IndexedDB (never in the backup code). A free Easel deco is granted here.
 
-import { el, clear, dialog } from './ui.js';
+import { el, clear, dialog, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
 import { sfx, music } from './sfx.js';
 import { idbGetAll, idbPut, idbDelete, idbCount } from './idb.js';
@@ -38,7 +38,7 @@ export function mount(container, params, ctx) {
   music.play('calm');
   const root = el('div', { class: 'studio' });
   const header = el('header', { class: 'studio-header' }, [
-    el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('hub'); } }),
+    backControl(() => ctx.go('hub')),
     el('h2', { text: '🎨 Boo Studio' })
   ]);
   const acts = [
@@ -58,4 +58,3 @@ export function mount(container, params, ctx) {
   return { unmount() {} };
 }
 
-function backArrow() { return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }

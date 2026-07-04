@@ -4,7 +4,7 @@
 // its note reaches the glowing hit line where the player's character bops.
 // Steady mode (and reduced-motion default): notes step one row per beat, no speed pressure.
 
-import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
+import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState, mutate, recordResult } from '../state.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { noteQuest } from '../quests.js';
@@ -55,6 +55,7 @@ export function mount(container, params, ctx) {
     card.append(el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('div', { class: 'steady-wrap' }, [steadyBtn]), el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [el('div', { html: starsRow(3, { size: 24 }) }), el('p', { text: 'Three stars: 8+ right with 5+ perfect taps.' })]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function play(category, level, steady) {

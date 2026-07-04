@@ -1,5 +1,7 @@
 // js/ui.js — shared UI: buttons, cards, dialogs, confetti, stars, hearts, meter.
 
+import { sfx } from './sfx.js';
+
 export const REDUCED = (() => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 })();
@@ -24,6 +26,19 @@ export function el(tag, props = {}, children = []) {
 }
 
 export function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
+
+// ---- the shared back control (DASH_PATCH job 3) ---------------------------
+// One back button for every screen below the hub: a soft round control in the same
+// top-left corner, returning exactly one level. `floating` pins it to the corner on
+// screens without their own header row. (Hardware/gesture back is deferred to run 4.)
+export function backControl(onBack, { floating = false, label = 'Back' } = {}) {
+  return el('button', {
+    class: 'icon-btn back-btn' + (floating ? ' screen-back' : ''),
+    'aria-label': label,
+    html: `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    onclick: (e) => { e.stopPropagation(); try { sfx.tap(); } catch {} onBack && onBack(); }
+  });
+}
 
 // ---- starfield -----------------------------------------------------------
 export function starField(container, count = 50) {

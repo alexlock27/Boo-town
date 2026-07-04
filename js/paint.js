@@ -1,7 +1,7 @@
 // js/paint.js — Paint-a-Boo (RUN3 C6). Colour in outline templates with a brush, flood
 // fill, sparkle pen and eraser. 12 colours + rainbow, undo (10 steps). Save to the gallery.
 
-import { el, clear } from './ui.js';
+import { el, clear, backControl } from './ui.js';
 import { sfx, music } from './sfx.js';
 import { saveArtwork } from './studio.js';
 
@@ -23,7 +23,7 @@ export function mount(container, params, ctx) {
   music.play('calm');
   const root = el('div', { class: 'paint-screen' });
   const header = el('header', { class: 'studio-header' }, [
-    el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('studio'); } }),
+    backControl(() => ctx.go('studio')),
     el('h2', { text: '🖌️ Paint a Boo' })
   ]);
 
@@ -165,4 +165,3 @@ function parseColour(s) {
 }
 function hslToRgb(h, s, l) { h /= 360; const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q; const f = (t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; }; return { r: Math.round(f(h + 1 / 3) * 255), g: Math.round(f(h) * 255), b: Math.round(f(h - 1 / 3) * 255) }; }
 function near(r, g, b, r2, g2, b2, t) { return Math.abs(r - r2) <= t && Math.abs(g - g2) <= t && Math.abs(b - b2) <= t; }
-function backArrow() { return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }

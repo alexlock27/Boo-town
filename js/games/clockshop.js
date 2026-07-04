@@ -4,7 +4,7 @@
 // hand travels (never jumps), with gentle snapping. 8 orders a round; wrong settings wiggle;
 // the hint ghosts the correct hands for a second then fades. Standard stars; feeds the meter.
 
-import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
+import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderBoo } from '../art.js';
@@ -55,6 +55,7 @@ export function mount(container, params, ctx) {
     card.append(el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [el('div', { html: starsRow(3, { size: 24 }) }), el('p', { text: 'Three stars: at most one wrong setting, and no hints.' })]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function makeOrder(level) {

@@ -5,7 +5,7 @@
 // just breaks it and the label hops elsewhere. Ball loss dims a heart (never ends the
 // round). Round = 8 questions answered or the wall fully cleared twice.
 
-import { el, clear, starsRow, confetti, REDUCED } from '../ui.js';
+import { el, clear, starsRow, confetti, REDUCED, backControl } from '../ui.js';
 import { getState, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -51,6 +51,7 @@ export function mount(container, params, ctx) {
     card.append(el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [el('div', { html: starsRow(3, { size: 24 }) }), el('p', { text: 'Three stars: at most one wrong brick and one ball drop.' })]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function play(category, level) {

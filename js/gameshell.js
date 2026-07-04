@@ -3,7 +3,7 @@
 // round never ends early), hint button with the guide's face. Guide peeks from
 // a corner and slides in a bubble for hints and reactions.
 
-import { el, clear, heartsRow, dialog } from './ui.js';
+import { el, clear, heartsRow, dialog, backControl } from './ui.js';
 import { getState } from './state.js';
 import { renderGuide } from './art.js';
 import { speakMaybe } from './guide.js';
@@ -15,9 +15,8 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
   let hearts = maxHearts;
   let progress = 0;
 
-  const backBtn = el('button', { class: 'icon-btn back-btn', 'aria-label': 'Leave round', html: backArrow() });
-  backBtn.addEventListener('click', async () => {
-    sfx.tap();
+  // the shared back control (DASH_PATCH job 3), keeping the leave-round confirm
+  const backBtn = backControl(async () => {
     const leave = await dialog({
       title: 'Leave this round?',
       body: "Your stars won't be saved.",
@@ -27,7 +26,7 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
       ]
     });
     if (leave) onBack && onBack();
-  });
+  }, { label: 'Leave round' });
 
   const dots = el('div', { class: 'progress-dots' });
   const progressLabel = el('span', { class: 'progress-label' });
@@ -90,8 +89,4 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
     enableHint(on) { hintBtn.disabled = !on; },
     cleanup() { if (peekTimer) clearTimeout(peekTimer); }
   };
-}
-
-function backArrow() {
-  return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }

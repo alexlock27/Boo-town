@@ -1,7 +1,7 @@
 // js/gallery.js — the Studio gallery (RUN3 C6). Grid of saved artworks; tap to view full
 // screen; press and hold to delete. Artworks come from IndexedDB.
 
-import { el, clear } from './ui.js';
+import { el, clear, backControl } from './ui.js';
 import { sfx, music } from './sfx.js';
 import { listArtworks, GALLERY_CAP } from './studio.js';
 import { idbDelete } from './idb.js';
@@ -10,7 +10,7 @@ export function mount(container, params, ctx) {
   music.play('calm');
   const root = el('div', { class: 'gallery-screen' });
   const header = el('header', { class: 'studio-header' }, [
-    el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('studio'); } }),
+    backControl(() => ctx.go('studio')),
     el('h2', { text: '🌟 My Gallery' }),
     el('span', { class: 'gallery-count' })
   ]);
@@ -64,4 +64,3 @@ function attachHold(node, onHold) {
   node.addEventListener('pointermove', (e) => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) clear(); });
   node.addEventListener('pointerup', clear); node.addEventListener('pointerleave', clear); node.addEventListener('pointercancel', clear);
 }
-function backArrow() { return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }

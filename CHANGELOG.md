@@ -2,6 +2,14 @@
 
 All notable changes to Boo Town. Newest first.
 
+## DASH_PATCH job 3: on-screen back buttons everywhere
+- One shared back control (a soft round button in the same top-left corner) now appears on
+  every screen below the hub: town, collection, journal, studio + all four studio tools,
+  grown-ups corner, character editor, results, the box ceremony, and every game's start
+  card. It always goes back exactly one level (sub-screen to parent, game to hub).
+- In-round backs keep the "Leave this round?" confirm. Hardware/gesture back is deliberately
+  deferred to run 4.
+
 ## DASH_PATCH job 2: Boo Dash, run-up-and-wait
 - Boo Dash rebuilt as a behind-the-character runner down a 3-lane path: parallax scenery
   (converging road with sweeping stripes and dashed lane lines, roadside trees/bushes/flowers

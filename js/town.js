@@ -2,7 +2,7 @@
 // Horizontally scrolling scene with three parallax layers, four star-gated zones,
 // drag placement along the ground band, wandering Boos, and real-clock day/night.
 
-import { el, clear, confetti, REDUCED } from './ui.js';
+import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
@@ -53,7 +53,7 @@ export function mount(container, params, ctx) {
   let raf = null, actors = [], fx = [];
 
   const root = el('div', { class: 'town2' });
-  const back = el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('hub'); } });
+  const back = backControl(() => ctx.go('hub'));
   const title = el('h2', { text: 'My Town' });
   const hint = el('span', { class: 'town-hint' });
   const header = el('header', { class: 'town-header' }, [back, title, hint]);
@@ -569,7 +569,4 @@ function svg(w, h, inner) {
 
 function signSVG() {
   return `<svg viewBox="0 0 60 70" width="52" height="60"><rect x="27" y="30" width="6" height="38" fill="#8A5A44" stroke="#2A1B4E" stroke-width="2.5"/><rect x="8" y="8" width="44" height="26" rx="5" fill="#F2D6B8" stroke="#2A1B4E" stroke-width="3"/><text x="30" y="26" font-family="Fredoka,sans-serif" font-size="16" fill="#2A1B4E" text-anchor="middle">🔒</text></svg>`;
-}
-function backArrow() {
-  return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }

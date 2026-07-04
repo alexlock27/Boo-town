@@ -6,7 +6,7 @@
 //     a weak-weighted mix of words + twin sets from ALL installed content; missed items go
 //     to the Tricky Pile (Puzzled Boo) and are offered back on the results screen.
 
-import { el, clear, starsRow, wobble, sparkleAt } from '../ui.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl } from '../ui.js';
 import { getState, mutate, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -64,6 +64,7 @@ export function mount(container, params, ctx) {
       el('p', { text: 'Three stars: at most one wrong check, no hints. (The word shows first — that peek is free!)' })
     ]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function pickWords(setKey, tier) {

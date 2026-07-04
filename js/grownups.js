@@ -1,6 +1,6 @@
 // js/grownups.js — the grown-ups corner (spec §5.7). Plain adult styling.
 
-import { el } from './ui.js';
+import { el, backControl } from './ui.js';
 import { getState, mutate, exportCode, importCode, resetAll } from './state.js';
 import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
@@ -15,7 +15,7 @@ export function mount(container, params, ctx) {
 
   const root = el('div', { class: 'grownups' });
   const header = el('header', { class: 'gu-header' }, [
-    el('button', { class: 'btn soft', text: '← Back', onclick: () => ctx.go('hub') }),
+    backControl(() => ctx.go('hub')),
     el('h2', { text: "Grown-ups corner" })
   ]);
 

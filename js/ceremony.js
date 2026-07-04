@@ -1,6 +1,6 @@
 // js/ceremony.js — the box-opening ceremony (spec §5.5). The signature moment.
 
-import { el, clear, confetti } from './ui.js';
+import { el, clear, confetti, backControl } from './ui.js';
 import { getState } from './state.js';
 import { renderItem } from './art.js';
 import { RARITY } from '../data/catalogue.js';
@@ -21,6 +21,8 @@ const TYPE_LINE = {
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'ceremony' });
+  // shared back control (job 3) — safe here: the box is already opened+applied at mount
+  const backB = backControl(() => ctx.go('hub'), { floating: true });
   container.appendChild(root);
   openSequence();
 
@@ -28,6 +30,7 @@ export function mount(container, params, ctx) {
     const result = openOneBox();
     if (!result) { ctx.go('hub'); return; }
     clear(root);
+    root.appendChild(backB);
     music.play('calm');
     // daily quest + Journal (RUN3 C4/C6) + request (RUN3 C8)
     noteQuest('boxOpen');
@@ -65,6 +68,7 @@ export function mount(container, params, ctx) {
       sfx.fanfare();
       confetti({ count: result.isCustom || result.rarity === 'secret' ? 160 : result.rarity === 'ultra' ? 120 : 80, power: result.isCustom || result.rarity === 'secret' ? 1.3 : 1 });
       clear(root);
+      root.appendChild(backB);
 
       const kind = result.item.kind;
       const glowClass = result.isCustom ? 'glow-secret' : 'glow-' + result.rarity;

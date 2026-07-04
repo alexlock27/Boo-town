@@ -1,6 +1,6 @@
 // js/collection.js — the collection shelf (spec §5.6) + wardrobe (RUN2 C2).
 
-import { el, dialog } from './ui.js';
+import { el, dialog, backControl } from './ui.js';
 import { getState } from './state.js';
 import { renderItem, renderGuide } from './art.js';
 import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY } from '../data/catalogue.js';
@@ -19,7 +19,7 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'collection' });
 
   const header = el('header', { class: 'coll-header' }, [
-    el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('hub'); } }),
+    backControl(() => ctx.go('hub')),
     el('h2', { text: 'My Collection' }),
     el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` })
   ]);
@@ -172,6 +172,3 @@ export function mount(container, params, ctx) {
   return { unmount() {} };
 }
 
-function backArrow() {
-  return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}

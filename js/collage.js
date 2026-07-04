@@ -2,7 +2,7 @@
 // Boos (with accessories), props and text; drag to move, scale + rotate; save to the gallery.
 // The scene is authored as inline SVG so it rasterises to PNG cleanly (no tainted canvas).
 
-import { el, clear } from './ui.js';
+import { el, clear, backControl } from './ui.js';
 import { getState } from './state.js';
 import { sfx, music } from './sfx.js';
 import { renderItem } from './art.js';
@@ -27,7 +27,7 @@ export function mount(container, params, ctx) {
   music.play('calm');
   const root = el('div', { class: 'collage-screen' });
   const header = el('header', { class: 'studio-header' }, [
-    el('button', { class: 'icon-btn back-btn', html: backArrow(), 'aria-label': 'Back', onclick: () => { sfx.tap(); ctx.go('studio'); } }),
+    backControl(() => ctx.go('studio')),
     el('h2', { text: '🖼️ Collage' })
   ]);
 
@@ -149,4 +149,3 @@ export function mount(container, params, ctx) {
 }
 
 function escapeXml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-function backArrow() { return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }

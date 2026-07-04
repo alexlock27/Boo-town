@@ -1,6 +1,6 @@
 // js/results.js — end-of-round results (spec §5.4).
 
-import { el, clear, confetti, giftSVG } from './ui.js';
+import { el, clear, confetti, giftSVG, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
@@ -34,6 +34,7 @@ export function mount(container, params, ctx) {
   if (game === 'golden' && stars >= 3) stampJournal('golden3');
 
   const root = el('div', { class: 'screen results' });
+  root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
   container.appendChild(root);
 
   const guide = s.guide;

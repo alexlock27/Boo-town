@@ -1,6 +1,6 @@
 // js/games/bubblepop.js — Game 1: Bubble Pop (maths fact fluency, spec §6).
 
-import { el, clear, starsRow, wobble, sparkleAt } from '../ui.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl } from '../ui.js';
 import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -50,6 +50,7 @@ export function mount(container, params, ctx) {
       el('p', { text: 'Three stars: at most one wrong pop, and no hints.' })
     ]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function play(catKey, level) {

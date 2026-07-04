@@ -3,7 +3,7 @@
 // dispense the next polyomino into a three-slot tray; drag pieces onto the board;
 // full rows/columns clear. Round ends after 12 placed pieces or no legal move.
 
-import { el, clear, starsRow, wobble, sparkleAt } from '../ui.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl } from '../ui.js';
 import { getState, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -80,6 +80,7 @@ export function mount(container, params, ctx) {
       el('p', { text: 'Three stars: 10+ right and 5 lines cleared, no hints.' })
     ]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function play(category, level) {

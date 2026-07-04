@@ -1,6 +1,6 @@
 // js/games/feedboos.js — Game 2: Feed the Boos (sorting & reasoning, spec §7).
 
-import { el, clear, starsRow, wobble } from '../ui.js';
+import { el, clear, starsRow, wobble, backControl } from '../ui.js';
 import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderBoo } from '../art.js';
@@ -95,6 +95,7 @@ export function mount(container, params, ctx) {
       el('p', { text: 'Three stars: at most one wrong feed, and no hints.' })
     ]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   // Dispatch a picker choice (Smart Mix / subject / group / template) to a concrete template.

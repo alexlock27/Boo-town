@@ -13,7 +13,7 @@
 // (gates simply appear at the line, no travel) only via prefers-reduced-motion or the
 // explicit toggle on the start card — never the default.
 
-import { el, clear, starsRow, sparkleAt, REDUCED } from '../ui.js';
+import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState, mutate, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -71,6 +71,7 @@ export function mount(container, params, ctx) {
     card.appendChild(el('div', { class: 'steady-wrap' }, [steadyBtn]));
     card.appendChild(el('div', { class: 'star-rule' }, [el('div', { html: starsRow(3, { size: 24 }) }), el('p', { text: 'Three stars: a clean run, no bonks.' })]));
     root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
   function play(catKey, level, steadyOpt) {

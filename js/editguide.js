@@ -2,7 +2,7 @@
 // Reached from the Collection card and the hub long-press. Changing species mid-game
 // changes nothing else; all speech and progress carry over.
 
-import { el } from './ui.js';
+import { el, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
 import { buildCreator } from './creator.js';
 
@@ -25,6 +25,8 @@ export function mount(container, params, ctx) {
     el('h2', { text: 'My character' }),
     ...creator.nodes
   ]);
+  // shared back control (job 3): one level up, discarding unsaved tweaks
+  root.appendChild(backControl(() => ctx.go(back), { floating: true }));
   container.appendChild(root);
 
   return { unmount() {} };
