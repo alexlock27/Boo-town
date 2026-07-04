@@ -1306,6 +1306,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .hub .golden-title { font-size: 19px; }
   .hub .game-cards { gap: 8px; }
   .hub .game-card { min-width: 132px; padding: 10px 12px; }
-  .hub .bottom-bar { gap: 5px; padding: 8px 0 10px; }
-  .hub .bar-btn { padding: 7px 10px; font-size: 14px; gap: 5px; }
+  .hub .bottom-bar { gap: 4px; padding: 8px 0 10px; }
+  .hub .bar-btn { padding: 7px 8px; font-size: 13px; gap: 4px; }
+}
+
+/* RUN4 C1: the bottom bar holds four slots and never scrolls horizontally on any
+   device. On very narrow screens the three text labels give way to their icons
+   (targets stay ≥44px); wider than 550px none of this applies. */
+@media (max-width: 374px) {
+  .hub .bar-btn > span:not(.bar-ic) { display: none; }
+  .hub .bar-btn { padding: 7px 12px; }
+  .hub .bar-ic { font-size: 24px; }
 }

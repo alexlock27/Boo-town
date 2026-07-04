@@ -4,7 +4,7 @@
 import * as State from './state.js';
 import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
-import { starField, clearConfetti } from './ui.js';
+import { starField, clearConfetti, setBackAction, getBackAction } from './ui.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -45,6 +45,7 @@ export async function go(name, params = {}) {
   }
   State.commit(); // flush any pending debounced save before leaving a screen
   clearConfetti(); // don't let celebration particles linger across a navigation
+  setBackAction(null); // each screen's back control re-registers its own handler (RUN4 C1)
   screenEl.innerHTML = '';
   screenEl.scrollTop = 0;
   let mod;
@@ -69,8 +70,33 @@ export function applyAudioSettings() {
   tts.setEnabled(s.settings.voice);
 }
 
+// Android hardware/gesture back (RUN4 C1): keep one sentinel entry behind the app
+// so back always pops to it, and the popstate handler immediately re-pushes the
+// guard and runs the current screen's back action instead. Back therefore
+// navigates in-app one level (same handler as the on-screen control), does
+// nothing at the hub (no action registered), and never leaves the page. The
+// entries live in session history, so the behaviour survives reloads and the
+// installed-app context. While a modal overlay is open, back is ignored so the
+// leave-round confirm can never stack.
+function setupHardwareBack() {
+  try {
+    if (!history.state || history.state.boo !== 1) {
+      history.replaceState({ boo: 0 }, '');
+      history.pushState({ boo: 1 }, '');
+    }
+    window.addEventListener('popstate', () => {
+      if (history.state && history.state.boo === 1) return; // forward nav back onto the guard
+      history.pushState({ boo: 1 }, '');
+      if (document.querySelector('.overlay')) return;       // a dialog is awaiting an answer
+      const act = getBackAction();
+      if (act) { try { act(); } catch (e) { console.warn(e); } }
+    });
+  } catch (e) { console.warn('[main] history guard unavailable', e); }
+}
+
 function boot() {
   starField(document.getElementById('starfield'), 60);
+  setupHardwareBack();
   const save = State.load();
   applyAudioSettings();
 

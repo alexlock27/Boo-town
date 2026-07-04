@@ -10,6 +10,12 @@ import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
 import { tierForAge, AGE_CHOICES } from './content.js';
 import { renderGuide } from './art.js';
+import { ZONES } from './town.js';
+
+// Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
+// within this many stars, at most once per session (module state resets on load).
+const NUDGE_WITHIN = 10;
+let nudgedThisSession = false;
 
 const GAMES = [
   { id: 'teachme',   name: 'Teach Me',     tag: 'Little lessons', accent: 'var(--zing)', icon: teachIcon, group: 'Learn' },
@@ -184,9 +190,18 @@ export function mount(container, params, ctx) {
 
   renderMeter();
 
-  // greeting
+  // greeting — or the one-per-session near-unlock nudge (RUN4 C1). A ready box
+  // wins: celebration first, and the nudge never stacks onto other prompts.
   const greetKey = params && params.greeting ? params.greeting : 'welcome';
-  gb.say(greetKey);
+  const nearZone = ZONES.find(z => s.stars.total < z.unlock && z.unlock - s.stars.total <= NUDGE_WITHIN);
+  if (nearZone && !nudgedThisSession && !(s.boxes > 0)) {
+    nudgedThisSession = true;
+    gb.sayText(guideLine('nearUnlock')
+      .replace(/\{zone\}/g, nearZone.name)
+      .replace(/\{n\}/g, String(nearZone.unlock - s.stars.total)), { voice: false });
+  } else {
+    gb.say(greetKey);
+  }
 
   // rotate idle / boxReady lines
   const rotate = setInterval(() => {

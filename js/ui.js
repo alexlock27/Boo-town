@@ -27,11 +27,22 @@ export function el(tag, props = {}, children = []) {
 
 export function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
 
-// ---- the shared back control (DASH_PATCH job 3) ---------------------------
+// ---- the shared back control (DASH_PATCH job 3 + RUN4 C1) -----------------
 // One back button for every screen below the hub: a soft round control in the same
 // top-left corner, returning exactly one level. `floating` pins it to the corner on
-// screens without their own header row. (Hardware/gesture back is deferred to run 4.)
+// screens without their own header row.
+//
+// Hardware/gesture back (RUN4 C1): each backControl registers its handler as THE
+// current back action; the router clears it on every navigation. The popstate
+// handler in main.js invokes it, so the Android back button/gesture does exactly
+// what the on-screen control does — one level, confirm-on-leave kept, nothing at
+// the hub (no action registered there).
+let _backAction = null;
+export function setBackAction(fn) { _backAction = fn; }
+export function getBackAction() { return _backAction; }
+
 export function backControl(onBack, { floating = false, label = 'Back' } = {}) {
+  _backAction = onBack || null;
   return el('button', {
     class: 'icon-btn back-btn' + (floating ? ' screen-back' : ''),
     'aria-label': label,

@@ -64,6 +64,11 @@ export const LINES = {
     "Another one! More stars for the meter, then."
   ],
   townNudge: ["Your new friend needs a home. To the town!"],
+  // RUN4 C1: the one-per-session near-unlock nudge ({zone}/{n} filled in by the hub).
+  nearUnlock: [
+    "Ooh {name} — only {n} more ⭐ and the {zone} opens!",
+    "So close! Just {n} more ⭐ and the {zone} is yours!"
+  ],
   townFirst: ["This is YOUR town, {name}. Put your Boos anywhere you like!"],
   idle: [
     "Giraffes have purple tongues, you know. True fact.",
