@@ -33,6 +33,7 @@ function freshSave() {
     town: [],                   // [{ zone, x, item }] (v3); old [{ plot, item }] migrated in phase 3
     nicknames: {},              // itemId -> nickname (owned Boos)
     equips: {},                 // Boo itemId -> accessory itemId
+    catBest: {},                // 'game:choice' -> best stars (per-picker badges, EXPANSION_1 §5)
     spellingMastery: {},        // word -> lifetime correct count
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true },

@@ -7,7 +7,14 @@ import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import * as tts from '../tts.js';
-import { wordsForTier, decoysFor } from '../../data/spelling.js';
+import { WORDS, decoysFor } from '../../data/spelling.js';
+import { BANKS } from '../../data/spellingBanks.js';
+import { buildPicker, recordBest } from '../picker.js';
+
+// Word sets: the Big List (statutory) + each themed bank (EXPANSION_1 §3.1).
+const SETS = [{ key: 'big', name: 'The Big List', words: WORDS }, ...BANKS.map(b => ({ key: b.id, name: b.name, words: b.words }))];
+const SET_BY_KEY = Object.fromEntries(SETS.map(s => [s.key, s]));
+function tiersInSet(key) { const s = SET_BY_KEY[key]; return [...new Set(s.words.map(w => w.t))].sort(); }
 
 const ROUND_WORDS = 8;
 const MAX_HINTS = 2;
@@ -25,48 +32,47 @@ export function mount(container, params, ctx) {
   function startCard() {
     clear(root);
     music.play('game');
-    const guide = getState().guide;
     const card = el('div', { class: 'start-card card' }, [
-      el('div', { class: 'sc-guide', html: renderGuide(guide, { view: 'head', size: 110 }) }),
+      el('div', { class: 'sc-guide', html: renderGuide(getState().guide, { view: 'head', size: 96 }) }),
       el('h2', { text: 'Spell Boo' }),
-      el('p', { class: 'sc-intro', text: guideLine('gameIntroSpell') }),
-      el('p', { class: 'sc-q', text: 'Which club today?' })
+      el('p', { class: 'sc-intro', text: guideLine('gameIntroSpell') })
     ]);
-    const levels = el('div', { class: 'level-row' });
-    for (const lv of [1, 2, 3]) {
-      levels.appendChild(el('button', { class: 'btn level-btn', style: { '--accent': 'var(--star)' }, onclick: () => { sfx.tap(); play(lv); } },
-        [ el('span', { class: 'lv-num', text: 'Level ' + lv }) ]));
-    }
-    card.appendChild(levels);
+    const picker = buildPicker({
+      game: 'spellboo',
+      choices: SETS.map(s => ({ key: s.key, name: s.name })),
+      levelsFor: (key) => tiersInSet(key),
+      levelName: (l) => 'Level ' + l,
+      onStart: (setKey, tier) => play(setKey, tier)
+    });
+    card.appendChild(picker.node);
     card.appendChild(el('div', { class: 'star-rule' }, [
-      el('div', { html: starsRow(3, { size: 26 }) }),
+      el('div', { html: starsRow(3, { size: 24 }) }),
       el('p', { text: 'Three stars: at most one wrong check, no hints. (Peek is always free!)' })
     ]));
     root.appendChild(card);
   }
 
-  function pickWords(tier) {
+  // Pick ROUND_WORDS unique word objects {w, t, clue?} from a set at a tier, weighting non-mastered.
+  function pickWords(setKey, tier) {
     const s = getState();
-    const pool = wordsForTier(tier);
-    // weight non-mastered higher; sample ROUND_WORDS unique
+    const pool = (SET_BY_KEY[setKey] || SET_BY_KEY.big).words.filter(w => w.t === tier);
     const weighted = [];
-    for (const w of pool) {
-      const m = (s.spellingMastery[w] || 0);
-      const weight = m >= MASTERED_AT ? 1 : 3;
-      for (let i = 0; i < weight; i++) weighted.push(w);
+    for (const wo of pool) {
+      const weight = (s.spellingMastery[wo.w] || 0) >= MASTERED_AT ? 1 : 3;
+      for (let i = 0; i < weight; i++) weighted.push(wo);
     }
     const chosen = [];
     let guard = 0;
     while (chosen.length < Math.min(ROUND_WORDS, pool.length) && guard++ < 500) {
-      const w = weighted[rand(weighted.length)];
-      if (!chosen.includes(w)) chosen.push(w);
+      const wo = weighted[rand(weighted.length)];
+      if (!chosen.some(x => x.w === wo.w)) chosen.push(wo);
     }
     return chosen;
   }
 
-  function play(tier) {
+  function play(setKey, tier) {
     clear(root);
-    const words = pickWords(tier);
+    const words = pickWords(setKey, tier);
     let wi = 0, wrongChecks = 0, hintsUsed = 0, locked = false;
 
     shell = createGameShell({
@@ -81,22 +87,27 @@ export function mount(container, params, ctx) {
     // header: guide + prompt + speaker + peek
     const promptCard = el('div', { class: 'spell-prompt' });
     const slotsWrap = el('div', { class: 'slots-wrap' });
+    const clueEl = el('div', { class: 'spell-clue', style: { display: 'none' } });
     const peekWord = el('div', { class: 'peek-word', style: { visibility: 'hidden' } });
     const trayWrap = el('div', { class: 'tray-wrap' });
-    shell.area.append(promptCard, peekWord, slotsWrap, trayWrap);
+    shell.area.append(promptCard, peekWord, slotsWrap, clueEl, trayWrap);
 
     let tiles = [];      // { letter, id, slot, locked, node }
     let slots = [];      // slot elements; slots[i].dataset holds tileId or empty
     let word = '';
+    let clue = null;
 
     showWord();
 
     function showWord() {
       if (wi >= words.length) return finish();
-      word = words[wi];
+      word = words[wi].w;
+      clue = words[wi].clue || null;
       locked = false;
       clear(promptCard); clear(slotsWrap); clear(trayWrap);
       peekWord.style.visibility = 'hidden';
+      // clue sentence (homophones etc.) — shown under the slots with the word as a blank
+      if (clue) { clueEl.textContent = clue; clueEl.style.display = ''; } else { clueEl.style.display = 'none'; }
 
       // prompt row
       const speaker = el('button', { class: 'icon-btn speak-btn', 'aria-label': 'Say the word again', html: speakerIcon(), onclick: () => sayWord() });
@@ -131,7 +142,9 @@ export function mount(container, params, ctx) {
     }
 
     function sayWord() {
-      speakMaybe(`Can you spell... ${word}?`);
+      // Homophones sound alike, so for clued words read the clue sentence, not the word.
+      if (clue) speakMaybe(clue.replace(/_+/g, 'blank'));
+      else speakMaybe(`Can you spell... ${word}?`);
     }
 
     function doPeek() {
@@ -228,6 +241,7 @@ export function mount(container, params, ctx) {
       tts.cancel();
       shell.cleanup();
       const stars = starsFor(wrongChecks, hintsUsed);
+      recordBest('spellboo', setKey, stars);
       ctx.go('results', { game: 'spellboo', gameName: 'Spell Boo', stars, level: tier, replay: () => ctx.go('spellboo') });
     }
   }

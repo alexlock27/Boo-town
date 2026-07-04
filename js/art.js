@@ -21,6 +21,16 @@ export const COLORS = {
   sky:       '#8FC7FF',
   cocoa:     '#8A5A44',
   pink:      '#FF7AC6',
+  // Wave-2 colours (EXPANSION_1 §4)
+  aqua:      '#5FD9D0',
+  coconut:   '#7A4A34',
+  sand:      '#F0D28C',
+  orange:    '#FF9A52',
+  ghost:     '#EDEEF9',
+  iceblue:   '#BFE6F5',
+  brown:     '#8A5A44',
+  seablue:   '#3AA0D8',
+  red:       '#E8636F',
   // Fixed tones
   ink:       '#2A1B4E',
   blush:     '#FF9EC4',
@@ -167,7 +177,8 @@ function fxSparkles(fx) {
 
 // ---- species body builders ----------------------------------------------
 // Returns { back: [silhouette shapes], body: shape, extras: string(front details) }
-function speciesGeom(species, bodyFill, bellyFill) {
+// extra = { hood, wing } are wave-2 accent fills for Snug / Zippy.
+function speciesGeom(species, bodyFill, bellyFill, extra = {}) {
   const back = [];
   let extras = '';
 
@@ -212,6 +223,31 @@ function speciesGeom(species, bodyFill, bellyFill) {
     back.push(roundedEar(32, -1));
     back.push(roundedEar(88, 1));
     extras += innerEar(32, -1) + innerEar(88, 1);
+  } else if (species === 'snug') {
+    // cosy hood framing the face; ears hidden; sleepy eyes (a onesie look)
+    bodyRx = 44; bodyRy = 42;
+    const hood = extra.hood || bellyFill || COLORS.cream;
+    // hood dome drawn over the head-top, face peeks out below
+    extras += path('M12 74 A 48 46 0 0 1 108 74 L108 82 A 40 40 0 0 0 12 82 Z', hood, `stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"`);
+    extras += ell(60, 88, 22, 15, lighten(bodyFill), `stroke="${INK}" stroke-width="1.8" opacity="0.6"`);
+  } else if (species === 'zippy') {
+    // tiny stubby wings, always mid-hop
+    const wing = extra.wing || lighten(bodyFill);
+    back.push({ fill: wing, svg: (f, s) => ell(18, 72, 11, 20, f === HALO ? HALO : wing, `transform="rotate(24 18 72)" ${s}`) });
+    back.push({ fill: wing, svg: (f, s) => ell(102, 72, 11, 20, f === HALO ? HALO : wing, `transform="rotate(-24 102 72)" ${s}`) });
+    back.push(roundedEar(32, -1));
+    back.push(roundedEar(88, 1));
+    extras += innerEar(32, -1) + innerEar(88, 1);
+  } else if (species === 'giraffe') {
+    // tiny giraffe friend (Twiglet): round body, ossicones, cocoa spots, a little leaf
+    bodyRx = 43; bodyRy = 43;
+    back.push({ fill: bodyFill, svg: (f) => `<line x1="48" y1="36" x2="45" y2="18" ${f === HALO ? `stroke="${HALO}" stroke-width="10"` : `stroke="${INK}" stroke-width="5"`} stroke-linecap="round"/>` });
+    back.push({ fill: bodyFill, svg: (f) => `<line x1="72" y1="36" x2="75" y2="18" ${f === HALO ? `stroke="${HALO}" stroke-width="10"` : `stroke="${INK}" stroke-width="5"`} stroke-linecap="round"/>` });
+    back.push(roundedEar(30, -1)); back.push(roundedEar(90, 1));
+    extras += `<circle cx="45" cy="16" r="5" fill="${COLORS.cocoa}" stroke="${INK}" stroke-width="2.4"/><circle cx="75" cy="16" r="5" fill="${COLORS.cocoa}" stroke="${INK}" stroke-width="2.4"/>`;
+    extras += innerEar(30, -1) + innerEar(90, 1);
+    extras += [[40, 64], [80, 60], [50, 98], [84, 90], [32, 88]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="6" fill="${COLORS.cocoa}" opacity="0.85"/>`).join('');
+    extras += `<g class="twiglet-leaf"><path d="M84 104 Q96 96 100 106 Q92 112 84 104 Z" fill="${COLORS.zing || '#35D0BA'}" stroke="${INK}" stroke-width="2"/></g>`;
   } else {
     // sunny, munch, default rounded ears
     back.push(roundedEar(30, -1));
@@ -234,7 +270,8 @@ function speciesGeom(species, bodyFill, bellyFill) {
   extras += rrect(40, 108, 16, 10, 5, bodyFill, `stroke="${INK}" stroke-width="3"`);
   extras += rrect(64, 108, 16, 10, 5, bodyFill, `stroke="${INK}" stroke-width="3"`);
 
-  return { back, body, extras, eyeKind: species === 'sunny' ? 'star' : 'round' };
+  const eyeKind = species === 'sunny' ? 'star' : species === 'snug' ? 'sleepy' : 'round';
+  return { back, body, extras, eyeKind };
 }
 
 // ---- public: render a Boo -----------------------------------------------
@@ -243,7 +280,8 @@ function speciesGeom(species, bodyFill, bellyFill) {
 export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) {
   const bodyFill = c(item.colors.body);
   const bellyFill = item.colors.belly ? c(item.colors.belly) : null;
-  const g = speciesGeom(item.species, bodyFill, bellyFill);
+  const extra = { hood: item.colors.hood ? c(item.colors.hood) : null, wing: item.colors.wing ? c(item.colors.wing) : null };
+  const g = speciesGeom(item.species, bodyFill, bellyFill, extra);
 
   const shapes = [...g.back, g.body];
   const { halo, color } = silhouette(shapes);
@@ -252,13 +290,19 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
                cheeks(40, 80, 90) +
                mouth(item.species);
 
-  const accSvg = equipArt
-    ? accessoryArt(equipArt, { cx: 60, topY: 30, eyeY: 80, earY: 70, R: 45 })
-    : accessory(item.acc);
+  // a couple of item-specific trinkets
+  let trinket = '';
+  if (item.id === 'boo_jingle') trinket = `<g class="jingle-bell"><circle cx="60" cy="46" r="6" fill="${COLORS.gold}" stroke="${INK}" stroke-width="2.4"/><circle cx="60" cy="47" r="1.6" fill="${INK}"/></g>`;
+  if (item.id === 'boo_pumpkin') trinket = `<path d="M60 34 Q58 22 66 18" fill="none" stroke="#4E8B3A" stroke-width="5" stroke-linecap="round"/><path d="M56 30 Q52 24 46 26" fill="none" stroke="#4E8B3A" stroke-width="3.5" stroke-linecap="round"/>`;
+
+  const booAnchor = { cx: 60, topY: 30, eyeY: 80, earY: 70, R: 45 };
+  let accSvg = '';
+  if (equipArt) accSvg = accessoryArt(equipArt, booAnchor);
+  else if (item.acc && item.acc !== 'none') accSvg = accessory(item.acc) || accessoryArt(item.acc, booAnchor);
 
   const fxCls = item.fx ? ` fx-${item.fx}` : '';
   return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130/120}" class="boo-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
-    halo + color + g.extras + face + accSvg + fxSparkles(item.fx) +
+    halo + color + g.extras + face + trinket + accSvg + fxSparkles(item.fx) +
   `</svg>`;
 }
 
@@ -697,6 +741,39 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         `<path d="M60 94 L40 60 L52 60 Z" fill="${COLORS.gold}" opacity="0.5"/>` +
         `<path d="M60 94 L80 60 L68 60 Z" fill="${COLORS.pink}" opacity="0.5"/>` +
         `<circle cx="46" cy="90" r="4" fill="${COLORS.gold}"/><circle cx="74" cy="90" r="4" fill="${COLORS.teal}"/><circle cx="60" cy="96" r="4" fill="${COLORS.pink}"/>`;
+      break;
+    case 'sandcastle':
+      inner =
+        path('M30 112 L30 78 L38 78 L38 70 L46 70 L46 78 L74 78 L74 70 L82 70 L82 78 L90 78 L90 112 Z', COLORS.sand, halo) +
+        path('M30 112 L30 78 L38 78 L38 70 L46 70 L46 78 L74 78 L74 70 L82 70 L82 78 L90 78 L90 112 Z', COLORS.sand, ink) +
+        `<rect x="54" y="86" width="12" height="26" rx="3" fill="#E0B95E" ${ink}/>` +
+        `<line x1="60" y1="70" x2="60" y2="54" stroke="${INK}" stroke-width="2.5"/><path d="M60 54 L74 60 L60 66 Z" fill="${COLORS.pop}" ${ink}/>` +
+        `<circle cx="88" cy="106" r="5" fill="${COLORS.pink}" ${ink}/>`;
+      break;
+    case 'spookytree':
+      inner =
+        rrect(54, 74, 12, 40, 4, COLORS.coconut, halo) +
+        rrect(54, 74, 12, 40, 4, COLORS.coconut, ink) +
+        `<path d="M60 78 Q40 66 34 48 M60 74 Q80 64 88 46 M60 70 Q56 54 60 40 M60 84 Q44 80 36 70" fill="none" stroke="${COLORS.coconut}" stroke-width="5" stroke-linecap="round"/>` +
+        `<path d="M60 78 Q40 66 34 48 M60 74 Q80 64 88 46 M60 70 Q56 54 60 40 M60 84 Q44 80 36 70" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>` +
+        `<circle cx="56" cy="92" r="2.6" fill="#FFF3B0"/><circle cx="66" cy="96" r="2.6" fill="#FFF3B0"/>`;
+      break;
+    case 'snowboo':
+      inner =
+        ell(60, 96, 26, 20, HALO, halo) + ell(60, 96, 26, 20, '#EDEEF9', ink) +
+        ell(60, 66, 20, 18, '#EDEEF9', halo) + ell(60, 66, 20, 18, '#EDEEF9', ink) +
+        `<circle cx="53" cy="64" r="3" fill="${INK}"/><circle cx="67" cy="64" r="3" fill="${INK}"/>` +
+        path('M60 70 L78 73 L60 76 Z', COLORS.orange, ink) +
+        `<circle cx="54" cy="94" r="2.4" fill="${INK}"/><circle cx="60" cy="100" r="2.4" fill="${INK}"/><circle cx="66" cy="94" r="2.4" fill="${INK}"/>`;
+      break;
+    case 'fountain':
+      inner =
+        ell(60, 104, 40, 14, COLORS.sky, halo) + ell(60, 104, 40, 14, COLORS.sky, ink) +
+        rrect(52, 74, 16, 30, 5, '#B8C6E8', ink) +
+        ell(60, 74, 16, 6, COLORS.sky, ink) +
+        path(starPath(60, 52, 8, 3.4), COLORS.star, `stroke="${INK}" stroke-width="1.5"`) +
+        path(starPath(46, 64, 5, 2), COLORS.pink, '') + path(starPath(74, 62, 5, 2), COLORS.zing, '') +
+        `<circle cx="60" cy="66" r="2.4" fill="#fff"/>`;
       break;
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);

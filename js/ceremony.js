@@ -84,7 +84,10 @@ export function mount(container, params, ctx) {
         flyStars(card);
         buttons.appendChild(el('button', { class: 'btn big', text: 'Yay! 🎉', onclick: next }));
       } else {
-        const key = kind === 'accessory' ? 'revealAccessory'
+        const seasonLine = { summer: 'summerReveal', spooky: 'spookyReveal', winter: 'winterReveal' };
+        const key = result.item.id === 'boo_twiglet' ? 'twigletReveal'
+          : kind === 'accessory' ? 'revealAccessory'
+          : result.item.season ? seasonLine[result.item.season]
           : result.rarity === 'secret' ? 'boxSecret' : result.rarity === 'ultra' ? 'boxUltra'
           : result.rarity === 'rare' ? 'boxRare' : 'boxCommon';
         guideBubble.textContent = guideLine(key);

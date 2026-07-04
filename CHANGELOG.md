@@ -2,6 +2,25 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 7: EXPANSION_1 content (deep Year 3/4)
+- Bubble Pop gains four new question categories alongside Times tables (now with a Starter
+  level): Number bonds, Add & subtract, Doubles & halves, and More or less (place value,
+  with comma-formatted four-digit numbers). Start card is now a two-step picker.
+- Feed the Boos gains 14 new maths templates (place value, months/days, time, money, length,
+  mass, capacity, temperature, Roman numerals, symmetry, angles, fraction families, tenths)
+  and 4 English templates (noun/verb/adjective, plurals, their/there/they're, to/too/two),
+  plus a Maths/Words top-level choice. New readable item types: big letters, angle icons,
+  sentence cards.
+- Spell Boo gains 14 themed word banks (prefixes, -ly, -ous, -tion/sion, ch=k, ch=sh, gue/que,
+  silent sc, ei/eigh/ey, ou=u, -ture, double-or-not, and homophones with clue sentences).
+  A word-set picker sits alongside the statutory Big List; homophone clues make them playable
+  with or without voice.
+- Catalogue wave 2: 20 new collectibles (52 total) incl. two new species (Snug, Zippy) and
+  the secret tiny giraffe Twiglet, with Summer / Spooky / Winter seasonal drops gated by the
+  device date (out-of-season items show as silhouettes with a season icon and a teasing hint).
+- Shared two-step pickers show per-choice best-star badges and remember the last played.
+  All content implemented exactly as written in EXPANSION_1.md; §6 acceptance passes.
+
 ## Run 2 — Phase 6: Boo Beat (new game)
 - A three-lane rhythm game on the game's music at 100 BPM. Each phrase poses a question
   (a fact, or a spelling gap like "be_ieve"); three on-beat notes carry candidate answers

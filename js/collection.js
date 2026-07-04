@@ -34,18 +34,21 @@ export function mount(container, params, ctx) {
     ])
   ]);
 
+  const SEASON = { summer: { icon: '☀️', hint: 'arrives in summer…' }, spooky: { icon: '🎃', hint: 'arrives at Halloween…' }, winter: { icon: '❄️', hint: 'arrives in winter…' } };
   const grid = el('div', { class: 'coll-grid' });
   for (const item of COLLECTIBLES) {
     const count = owned[item.id] || 0;
     const has = count > 0;
     const equip = has && item.kind === 'boo' ? equippedArt(item.id) : null;
+    const seas = !has && item.season ? SEASON[item.season] : null;
     const tile = el('button', {
       class: 'coll-tile' + (has ? ' owned' : ' locked') + ' rar-' + item.rarity,
       onclick: () => { sfx.tap(); if (has) showItem(item, count); }
     }, [
       el('div', { class: 'coll-art' + (has ? '' : ' mystery'), html: renderItem(item, { size: 84, equipArt: equip }) }),
-      el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) : '???' }),
-      count > 1 ? el('div', { class: 'coll-badge', text: 'x' + count }) : null
+      el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) : (seas ? seas.hint : '???') }),
+      count > 1 ? el('div', { class: 'coll-badge', text: 'x' + count }) : null,
+      seas ? el('div', { class: 'coll-season', text: seas.icon }) : null
     ]);
     grid.appendChild(tile);
   }

@@ -7,6 +7,8 @@ import { renderGuide } from '../art.js';
 import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { LEVELS, LEVEL_LABELS } from '../../data/tablesConfig.js';
+import { BUBBLE_CATEGORIES, BUBBLE_BY_KEY, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
+import { buildPicker, recordBest } from '../picker.js';
 
 const ROUNDS = 10;
 const BUBBLE_COUNT = 6;
@@ -26,38 +28,36 @@ export function mount(container, params, ctx) {
     clear(root);
     music.play('game');
     const s = getState();
-    const guide = s.guide;
     const card = el('div', { class: 'start-card card' }, [
-      el('div', { class: 'sc-guide', html: renderGuide(guide, { view: 'head', size: 110 }) }),
+      el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 100 }) }),
       el('h2', { text: 'Bubble Pop' }),
-      el('p', { class: 'sc-intro', text: guideLine('gameIntroBubble') }),
-      el('p', { class: 'sc-q', text: 'Which club today?' })
+      el('p', { class: 'sc-intro', text: guideLine('gameIntroBubble') })
     ]);
-    const levels = el('div', { class: 'level-row' });
-    for (const lv of [1, 2, 3]) {
-      levels.appendChild(el('button', {
-        class: 'btn level-btn', style: { '--accent': 'var(--pop)' },
-        onclick: () => { sfx.tap(); play(lv); }
-      }, [ el('span', { class: 'lv-num', text: 'Level ' + lv }), el('span', { class: 'lv-tag', text: LEVEL_LABELS[lv] }) ]));
-    }
-    card.appendChild(levels);
-    // 3-star rule
+    const picker = buildPicker({
+      game: 'bubblepop',
+      choices: BUBBLE_CATEGORIES.map(c => ({ key: c.key, name: c.name })),
+      levelsFor: (key) => BUBBLE_BY_KEY[key].levels,
+      levelName: LEVEL_NAME,
+      onStart: (catKey, level) => play(catKey, level)
+    });
+    card.appendChild(picker.node);
     card.appendChild(el('div', { class: 'star-rule' }, [
-      el('div', { html: starsRow(3, { size: 26 }) }),
+      el('div', { html: starsRow(3, { size: 24 }) }),
       el('p', { text: 'Three stars: at most one wrong pop, and no hints.' })
     ]));
     root.appendChild(card);
   }
 
-  function play(level) {
+  function play(catKey, level) {
     clear(root);
     let prevKey = null;
-    let target = genTarget(level, prevKey);
+    let target = genQuestion(catKey, level, prevKey);
     prevKey = target.key;
     let solved = 0;
     let wrongPops = 0;
     let hintsUsed = 0;
     let locked = false;
+    const fmt = () => (target.fmt || String);
 
     shell = createGameShell({
       title: 'Bubble Pop', rounds: ROUNDS, accent: 'var(--pop)',
@@ -92,8 +92,7 @@ export function mount(container, params, ctx) {
 
     function layoutValues() {
       // exactly one correct value (answer), rest distinct distractors (never == answer)
-      const ds = distractors(target);
-      shuffle(ds);
+      const ds = shuffle(target.distractors.slice());
       const values = [target.answer, ...ds.slice(0, BUBBLE_COUNT - 1)];
       // bulletproof: never leave a bubble blank
       let pad = 1;
@@ -111,7 +110,7 @@ export function mount(container, params, ctx) {
     }
 
     function paint(b) {
-      b.node.textContent = b.value;
+      b.node.textContent = fmt()(b.value);
       b.node.classList.remove('burst');
       b.node.style.visibility = b.hidden ? 'hidden' : 'visible';
       b.node.style.pointerEvents = b.hidden ? 'none' : 'auto';
@@ -165,7 +164,8 @@ export function mount(container, params, ctx) {
       if (!b.correct) {
         // fresh distractor value, keeping exactly one correct on the board
         const onBoard = new Set(bubbles.map(x => x.value));
-        b.value = freshDistractor(target, onBoard);
+        const pool = target.distractors.filter(v => v !== target.answer && !onBoard.has(v));
+        b.value = pool.length ? pool[rand(pool.length)] : Math.max(1, target.answer + (rand(11) - 5));
       }
       b.hidden = false;
       paint(b);
@@ -183,7 +183,7 @@ export function mount(container, params, ctx) {
         shell.setProgress(solved);
         setTimeout(() => {
           if (solved >= ROUNDS) return finish();
-          target = genTarget(level, prevKey);
+          target = genQuestion(catKey, level, prevKey);
           prevKey = target.key;
           targetCard.innerHTML = targetHTML(target);
           layoutValues();
@@ -215,6 +215,7 @@ export function mount(container, params, ctx) {
       stopLoop();
       shell.cleanup();
       const stars = starsFor(wrongPops, hintsUsed);
+      recordBest('bubblepop', catKey, stars);
       ctx.go('results', { game: 'bubblepop', gameName: 'Bubble Pop', stars, level, replay: () => ctx.go('bubblepop') });
     }
   }

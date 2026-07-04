@@ -136,13 +136,16 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* decoration glow (Fairy Lamp) */
 .fx-glow { filter: drop-shadow(0 0 10px rgba(255,201,60,0.8)); animation: glowpulse 2.5s ease-in-out infinite; }
 @keyframes glowpulse { 0%,100% { filter: drop-shadow(0 0 6px rgba(255,201,60,0.6)); } 50% { filter: drop-shadow(0 0 16px rgba(255,201,60,0.95)); } }
+.fx-ghost { opacity: 0.72; }
+.fx-leaf .twiglet-leaf { transform-box: fill-box; transform-origin: center; animation: nibble 1.4s ease-in-out infinite; }
+@keyframes nibble { 0%,100% { transform: rotate(0) translateY(0); } 50% { transform: rotate(-10deg) translateY(2px); } }
 
 /* town dance (Boos near Dance Stage) */
 .art-dance { animation: dance 0.6s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes dance { 0% { transform: rotate(-6deg) translateY(0); } 25% { transform: rotate(0) translateY(-10%);} 50% { transform: rotate(6deg) translateY(0);} 75% { transform: rotate(0) translateY(-10%);} 100% { transform: rotate(-6deg) translateY(0);} }
 
 @media (prefers-reduced-motion: reduce) {
-  *, .art-idle, .fx-twinkle .twk, .fx-shimmer .fx-shine, .fx-hue, .fx-bop, .fx-glow, .art-dance, .star-field i {
+  *, .art-idle, .fx-twinkle .twk, .fx-shimmer .fx-shine, .fx-hue, .fx-bop, .fx-glow, .fx-leaf .twiglet-leaf, .art-dance, .star-field i {
     animation: none !important;
   }
 }
@@ -353,6 +356,33 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .lv-tag { font-size: 14px; font-weight: 400; opacity: 0.9; }
 .star-rule { display: flex; align-items: center; gap: 12px; background: #F3ECFF; border-radius: 16px; padding: 10px 14px; }
 .star-rule p { margin: 0; font-size: 15px; color: #5a4d84; text-align: left; }
+
+/* ---- shared two-step picker (EXPANSION_1 §5) ---- */
+.picker { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.picker-choices { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.picker-choice {
+  border: 3px solid rgba(42,27,78,0.18); background: #F4EEFF; color: var(--ink); border-radius: 16px;
+  padding: 8px 14px; font-family: var(--font-display); font-weight: 600; font-size: 16px; cursor: pointer;
+  min-height: 46px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.picker-choice.sel { background: var(--pop); border-color: var(--ink); color: #fff; }
+.pc-badge { display: flex; }
+.pc-badge .star-ic { width: 14px; height: 14px; }
+.picker-levels { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.picker-levels .level-btn { flex: 0 1 auto; min-width: 96px; padding: 10px 16px; }
+.level-btn.recent { box-shadow: 0 0 0 3px var(--star); }
+
+/* ---- new Feed the Boos food kinds ---- */
+.food-letter { font-family: var(--font-display); font-weight: 700; font-size: 40px; color: var(--ink); }
+.food-angle { display: flex; align-items: center; justify-content: center; }
+.food-text { font-family: var(--font-display); font-weight: 600; font-size: 22px; color: var(--ink); text-align: center; padding: 2px 6px; }
+.food-text.long { font-size: 16px; font-weight: 600; max-width: 220px; line-height: 1.15; }
+
+/* ---- Spell Boo clue sentence (homophones etc.) ---- */
+.spell-clue {
+  font-family: var(--font-body); font-weight: 600; font-size: 20px; color: var(--card);
+  background: rgba(255,255,255,0.12); border-radius: 14px; padding: 8px 16px; margin: 2px auto; text-align: center; max-width: 460px;
+}
 
 /* ---- Boo Blocks ---- */
 .blocks .level-row { flex-direction: row; justify-content: center; }
@@ -615,6 +645,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .coll-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); text-align: center; }
 .coll-tile.locked .coll-name { color: rgba(255,255,255,0.45); }
 .coll-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: #fff; font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
+.coll-season { position: absolute; top: 6px; left: 8px; font-size: 18px; filter: grayscale(0) brightness(1.1); }
+.coll-tile.locked .coll-name { font-size: 12px; }
 .coll-footer { display: flex; justify-content: center; padding: 8px 0 10px; }
 .item-detail { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .item-detail-rarity { font-family: var(--font-display); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #6B5E93; }

@@ -49,6 +49,31 @@ export const CATALOGUE = [
   // --- Secret (1): DJ Boo ---
   { id: 'boo_dj', kind: 'boo', name: 'DJ Boo', rarity: 'secret', species: 'munch', colors: { body: 'indigo' }, acc: 'headphones', fx: 'bop', blurb: 'The one, the only, the beat that never stops.' },
 
+  // ================= Wave 2 (EXPANSION_1 §4): two new species + seasonal drops =================
+  // Core (all year)
+  { id: 'boo_cosmo',   kind: 'boo', name: 'Cosmo',   rarity: 'common', species: 'snug',  colors: { body: 'lilac', hood: 'indigo' }, blurb: 'Dreams in its cosy indigo hood, all year round.' },
+  { id: 'boo_flit',    kind: 'boo', name: 'Flit',    rarity: 'common', species: 'zippy', colors: { body: 'lilac', wing: 'sky' },     blurb: 'Never quite lands. Why walk when you can hop?' },
+  { id: 'boo_breeze',  kind: 'boo', name: 'Breeze',  rarity: 'rare',   species: 'zippy', colors: { body: 'teal', wing: 'cream' }, acc: 'scarf', blurb: 'Zips about on a warm wind, scarf streaming behind.' },
+  { id: 'boo_twiglet', kind: 'boo', name: 'Twiglet', rarity: 'secret', species: 'giraffe', colors: { body: 'sunshine' }, fx: 'leaf', blurb: 'A tiny giraffe friend, forever nibbling a little leaf.' },
+
+  // Summer drop (June–August)
+  { id: 'boo_splash',  kind: 'boo', name: 'Splash',  rarity: 'common', season: 'summer', species: 'pip',   colors: { body: 'aqua', belly: 'cream' },   blurb: 'Made entirely of the best bit of the paddling pool.' },
+  { id: 'boo_coco',    kind: 'boo', name: 'Coco',    rarity: 'common', season: 'summer', species: 'munch', colors: { body: 'coconut' },                blurb: 'Smells of coconut and sun cream. Perpetually on holiday.' },
+  { id: 'boo_sandy',   kind: 'boo', name: 'Sandy',   rarity: 'rare',   season: 'summer', species: 'bloop', colors: { body: 'sand' }, acc: 'shades',    blurb: 'Cool shades, warm sand, not a single care.' },
+  { id: 'boo_surfnova',kind: 'boo', name: 'Surf Nova',rarity: 'ultra', season: 'summer', species: 'nova',  colors: { body: 'seablue', belly: 'cream' }, fx: 'shimmer', blurb: 'Rides an endless wave that only it can see.' },
+
+  // Spooky drop (October)
+  { id: 'boo_pumpkin', kind: 'boo', name: 'Pumpkin', rarity: 'common', season: 'spooky', species: 'munch', colors: { body: 'orange' },                blurb: 'Grins even wider than a jack-o-lantern. Little stem and all.' },
+  { id: 'boo_batty',   kind: 'boo', name: 'Batty',   rarity: 'rare',   season: 'spooky', species: 'zippy', colors: { body: 'indigo', wing: 'midnight' }, blurb: 'Flaps about at dusk, squeaking cheerfully at nothing.' },
+  { id: 'boo_boooo',   kind: 'boo', name: 'Boo-oo',  rarity: 'rare',   season: 'spooky', species: 'bloop', colors: { body: 'ghost' }, fx: 'ghost',     blurb: 'A friendly little ghost who has never scared anyone, ever.' },
+  { id: 'boo_wanda',   kind: 'boo', name: 'Wanda',   rarity: 'ultra',  season: 'spooky', species: 'twirl', colors: { body: 'lilac' }, acc: 'wizardhat', fx: 'twinkle', blurb: 'Leaves a trail of sparkles wherever her broom goes.' },
+
+  // Winter drop (December–January)
+  { id: 'boo_frosty',  kind: 'boo', name: 'Frosty',  rarity: 'common', season: 'winter', species: 'pip',   colors: { body: 'iceblue', belly: 'cream' }, blurb: 'Cool to the touch and delighted about it. Cold nose, warm heart.' },
+  { id: 'boo_cocoa',   kind: 'boo', name: 'Cocoa',   rarity: 'common', season: 'winter', species: 'snug',  colors: { body: 'brown', hood: 'cream' },    blurb: 'Basically a mug of hot chocolate that learned to hop.' },
+  { id: 'boo_jingle',  kind: 'boo', name: 'Jingle',  rarity: 'rare',   season: 'winter', species: 'snug',  colors: { body: 'cream', hood: 'red' },      blurb: 'Wears a little bell that jingles when you say hello.' },
+  { id: 'boo_aurora',  kind: 'boo', name: 'Aurora',  rarity: 'ultra',  season: 'winter', species: 'nova',  colors: { body: 'teal', belly: 'lilac' }, fx: 'hue', blurb: 'Shimmers green and violet like the northern lights themselves.' },
+
   // --- Decorations (8): 1 plot each ---
   { id: 'deco_boohouse', kind: 'deco', name: 'Boo House',   rarity: 'common', deco: 'boohouse', blurb: 'A cosy little home with a round door, just Boo-sized.' },
   { id: 'deco_tree',     kind: 'deco', name: 'Bubble Tree', rarity: 'common', deco: 'tree',     blurb: 'Grows bubbles instead of leaves. Nobody knows why.' },
@@ -58,6 +83,12 @@ export const CATALOGUE = [
   { id: 'deco_flowers',  kind: 'deco', name: 'Flower Patch', rarity: 'rare',   deco: 'flowers',  blurb: 'A splash of petals that the Boos are strictly not allowed to eat.' },
   { id: 'deco_bench',    kind: 'deco', name: 'Cosy Bench',   rarity: 'rare',   deco: 'bench',    blurb: 'Seats two Boos, or one very spread-out Boo.' },
   { id: 'deco_stage',    kind: 'deco', name: 'Dance Stage',  rarity: 'ultra',  deco: 'stage',  fx: 'stage', blurb: 'Any Boo nearby simply must bop. Those are the rules.' },
+
+  // --- Wave 2 decorations (EXPANSION_1 §4) ---
+  { id: 'deco_sandcastle', kind: 'deco', name: 'Sandcastle',     rarity: 'common', season: 'summer', deco: 'sandcastle', blurb: 'Three turrets and a shell. Built to last until teatime.' },
+  { id: 'deco_spookytree', kind: 'deco', name: 'Spooky Tree',    rarity: 'rare',   season: 'spooky', deco: 'spookytree', blurb: 'Bare, twisty and secretly very friendly.' },
+  { id: 'deco_snowboo',    kind: 'deco', name: 'Snow Boo statue',rarity: 'rare',   season: 'winter', deco: 'snowboo',    blurb: 'A Boo built of snow, with a carrot nose, naturally.' },
+  { id: 'deco_fountain',   kind: 'deco', name: 'Star Fountain',  rarity: 'ultra',  deco: 'fountain', fx: 'glow', blurb: 'Bubbles up gentle sparkles instead of water.' },
 
   // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
   // Wearable on any Boo (one slot each) and on the player's own character.

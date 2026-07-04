@@ -62,15 +62,29 @@ function rollRarity(s) {
   return rarity;
 }
 
+// ---- seasonal gating (EXPANSION_1 §4) ----
+// Seasonal items only drop during their window (device date). Core items drop all year.
+export function currentMonth() {
+  if (typeof window !== 'undefined' && window.__bootownMonth != null) return window.__bootownMonth | 0;
+  try { return new Date().getMonth() + 1; } catch { return 1; }
+}
+export function seasonOf(month) {
+  if (month >= 6 && month <= 8) return 'summer';
+  if (month === 10) return 'spooky';
+  if (month === 12 || month === 1) return 'winter';
+  return null;
+}
+export function inSeason(item) { return !item.season || item.season === seasonOf(currentMonth()); }
+
 // Pick an item of a given type + rolled rarity; fall back within the type if a rarity
-// has no items of that type (e.g. decorations/accessories have no Secret).
+// has no (in-season) items of that type (e.g. decorations/accessories have no Secret).
 function pickItem(type, rarity) {
   const byRar = BY_TYPE_RARITY[type] || {};
-  let pool = byRar[rarity];
-  if (!pool || !pool.length) {
-    // step down to the nearest available rarity of this type
+  let pool = (byRar[rarity] || []).filter(inSeason);
+  if (!pool.length) {
+    // step down to the nearest available in-season rarity of this type
     const order = ['secret', 'ultra', 'rare', 'common'];
-    for (const r of order) { if (byRar[r] && byRar[r].length) { pool = byRar[r]; rarity = r; break; } }
+    for (const r of order) { const p = (byRar[r] || []).filter(inSeason); if (p.length) { pool = p; rarity = r; break; } }
   }
   return { item: pool[(Math.random() * pool.length) | 0], rarity };
 }

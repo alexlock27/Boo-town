@@ -6,11 +6,26 @@ import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderBoo } from '../art.js';
 import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { pickTemplate } from '../../data/sorting.js';
+import { TEMPLATES } from '../../data/sorting.js';
+import { TEMPLATES_EXTRA } from '../../data/sortingExtra.js';
+import { buildPicker, recordBest } from '../picker.js';
 
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
 const starsFor = (wrong, hints) => (hints === 0 && wrong <= 1) ? 3 : (wrong <= 3 ? 2 : 1);
+
+// English templates (EXPANSION_1 §3.2) are "Words"; everything else is "Maths".
+const WORD_TEMPLATE_IDS = new Set(['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo']);
+const ALL_TEMPLATES = [...TEMPLATES, ...TEMPLATES_EXTRA];
+function subjectOf(t) { return WORD_TEMPLATE_IDS.has(t.id) ? 'words' : 'maths'; }
+function levelsForSubject(subject) {
+  const set = new Set(ALL_TEMPLATES.filter(t => subjectOf(t) === subject).map(t => t.level));
+  return [...set].sort();
+}
+function pickTemplateFor(subject, level) {
+  const pool = ALL_TEMPLATES.filter(t => t.level === level && subjectOf(t) === subject);
+  return pool[rand(pool.length)];
+}
 
 // distinct feeder Boo looks (cute, varied) assigned by index
 const FEEDERS = [
@@ -29,29 +44,29 @@ export function mount(container, params, ctx) {
   function startCard() {
     clear(root);
     music.play('game');
-    const guide = getState().guide;
     const card = el('div', { class: 'start-card card' }, [
-      el('div', { class: 'sc-guide', html: renderGuide(guide, { view: 'head', size: 110 }) }),
+      el('div', { class: 'sc-guide', html: renderGuide(getState().guide, { view: 'head', size: 100 }) }),
       el('h2', { text: 'Feed the Boos' }),
-      el('p', { class: 'sc-intro', text: guideLine('gameIntroFeed') }),
-      el('p', { class: 'sc-q', text: 'Which club today?' })
+      el('p', { class: 'sc-intro', text: guideLine('gameIntroFeed') })
     ]);
-    const levels = el('div', { class: 'level-row' });
-    for (const lv of [1, 2, 3]) {
-      levels.appendChild(el('button', { class: 'btn level-btn secondary', onclick: () => { sfx.tap(); play(lv); } },
-        [ el('span', { class: 'lv-num', text: 'Level ' + lv }) ]));
-    }
-    card.appendChild(levels);
+    const picker = buildPicker({
+      game: 'feedboos',
+      choices: [{ key: 'maths', name: '🔢 Maths' }, { key: 'words', name: '🔤 Words' }],
+      levelsFor: levelsForSubject,
+      levelName: (l) => 'Level ' + l,
+      onStart: (subject, level) => play(subject, level)
+    });
+    card.appendChild(picker.node);
     card.appendChild(el('div', { class: 'star-rule' }, [
-      el('div', { html: starsRow(3, { size: 26 }) }),
+      el('div', { html: starsRow(3, { size: 24 }) }),
       el('p', { text: 'Three stars: at most one wrong feed, and no hints.' })
     ]));
     root.appendChild(card);
   }
 
-  function play(level) {
+  function play(subject, level) {
     clear(root);
-    const template = pickTemplate(level);
+    const template = pickTemplateFor(subject, level);
     const roundData = template.make();
     const items = roundData.items;
     const buckets = roundData.buckets;
@@ -184,6 +199,7 @@ export function mount(container, params, ctx) {
     function finish() {
       shell.cleanup();
       const stars = starsFor(wrongDrops, hintsUsed);
+      recordBest('feedboos', subject, stars);
       ctx.go('results', { game: 'feedboos', gameName: 'Feed the Boos', stars, level, replay: () => ctx.go('feedboos') });
     }
   }
@@ -197,7 +213,27 @@ function foodHTML(item) {
   if (item.kind === 'frac') return `<span class="food-frac"><span class="fr-num">${item.num}</span><span class="fr-bar"></span><span class="fr-den">${item.den}</span></span>`;
   if (item.kind === 'unit') return `<span class="food-unit"><span class="fu-emoji">${item.emoji}</span><span class="fu-cap">${item.caption}</span></span>`;
   if (item.kind === 'shape') return `<span class="food-shape">${polygonSVG(item.sides)}<span class="fs-name">${item.name}</span></span>`;
+  if (item.kind === 'letter') return `<span class="food-letter">${item.ch}</span>`;
+  if (item.kind === 'angle') return `<span class="food-angle">${angleSVG(item.deg)}</span>`;
+  if (item.kind === 'text') return `<span class="food-text${item.text.length > 14 ? ' long' : ''}">${escapeText(item.text)}</span>`;
   return '';
+}
+
+function escapeText(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// A little angle icon: two arms from a vertex, with a corner marker.
+function angleSVG(deg) {
+  const cx = 12, cy = 52, len = 46;
+  const a2 = -deg * Math.PI / 180;   // second arm rotated up by `deg` from the horizontal arm
+  const x1 = cx + len, y1 = cy;
+  const x2 = cx + len * Math.cos(a2), y2 = cy + len * Math.sin(a2);
+  const right = Math.abs(deg - 90) < 0.5
+    ? `<rect x="${cx + 2}" y="${cy - 12}" width="10" height="10" fill="none" stroke="var(--ink)" stroke-width="2"/>`
+    : `<path d="M${cx + 14} ${cy} A 14 14 0 0 0 ${cx + 14 * Math.cos(a2)} ${cy + 14 * Math.sin(a2)}" fill="none" stroke="var(--ink)" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 66 66" width="60" height="60">` +
+    `<line x1="${cx}" y1="${cy}" x2="${x1}" y2="${y1}" stroke="var(--pop)" stroke-width="5" stroke-linecap="round"/>` +
+    `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="var(--pop)" stroke-width="5" stroke-linecap="round"/>` +
+    right + `<circle cx="${cx}" cy="${cy}" r="3" fill="var(--ink)"/></svg>`;
 }
 
 function polygonSVG(sides) {

@@ -68,8 +68,16 @@ export const LINES = {
     "Giraffes have purple tongues, you know. True fact.",
     "I heard the Dance Stage makes Boos do a little bop...",
     "Three stars fills the meter faster. Just saying!",
-    "Which Boo is your favourite? I won't tell the others."
+    "Which Boo is your favourite? I won't tell the others.",
+    "Some Boos only visit in certain seasons. Keep an eye out!",
+    "I heard somewhere out there is a tiny giraffe Boo. Probably just a legend..."
   ],
+
+  // ---- EXPANSION_1 §4 seasonal + Twiglet lines ----
+  summerReveal: ["A summer Boo! It smells like sun cream!"],
+  spookyReveal: ["Ooooh, a spooky one! I'm not scared. You're scared."],
+  winterReveal: ["A winter Boo! Its little nose is cold!"],
+  twigletReveal: ["WAIT. Is that... a tiny giraffe?! {name}, we have to keep them!"],
 
   // ---- Run 2 additions (RUN2.md part D) ----
   firstPick: ["Three little Boos want to be your very first friend. Who's it going to be?"],
