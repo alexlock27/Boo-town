@@ -3,28 +3,62 @@
 // generators and the statutory spelling list.
 
 import { genTarget, distractors } from './games/bubblepop.js';
+import { genQuestion, BUBBLE_BY_KEY } from '../data/bubbleCategories.js';
 import { WORDS } from '../data/spelling.js';
+import { ledgerClass } from './state.js';
 
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-// Categories available in this run's arcade games. EXPANSION_1 (phase 7) adds more.
+// Categories available in the arcade games. Content tier (C9) filters which are shown.
 export const BLOCK_CATEGORIES = [
   { key: 'tables', name: 'Times tables', levels: [1, 2, 3] },
-  { key: 'words',  name: 'Spelling',     levels: [1, 2, 3] }
+  { key: 'bonds',  name: 'Number bonds', levels: [1, 2] },
+  { key: 'words',  name: 'Spelling',     levels: [1, 2, 3] },
+  { key: 'addsub', name: 'Add & subtract', levels: [1, 2, 3] },
+  { key: 'doubles', name: 'Doubles & halves', levels: [1, 2] }
 ];
+const BUBBLE_MATH = new Set(['bonds', 'addsub', 'doubles']);   // routed through the Bubble Pop generators
+const AUTO_CATS = ['tables', 'bonds', 'words', 'addsub', 'doubles'];
 
 // makeQuestion(category, level, prev, optionCount=3)
 // -> { prompt, options:[string], correct:int, speak?:string, key:string }
 export function makeQuestion(category, level, prev, optionCount = 3) {
   if (category === 'words') return wordQuestion(level, prev, optionCount);
+  if (BUBBLE_MATH.has(category)) return bubbleMathQuestion(category, level, prev, optionCount);
   return mathQuestion(level, prev, optionCount);
 }
 
 // Boo Beat variant: a fact, or a spelling gap ("be_ieve" -> tap the missing letter).
 export function makeBeatQuestion(category, level, prev) {
   if (category === 'words') return gapQuestion(level, prev);
+  if (BUBBLE_MATH.has(category)) return bubbleMathQuestion(category, level, prev, 3);
   return mathQuestion(level, prev, 3);
+}
+
+// Smart-Mix-driven auto question (C9 Light tier arcade: no picker). Weak-biased across
+// all arcade categories, drawing from all installed content.
+export function autoQuestion(prev, optionCount = 3, beat = false) {
+  let best = null;
+  for (let t = 0; t < 10; t++) {
+    const cat = AUTO_CATS[rand(AUTO_CATS.length)];
+    const lv = cat === 'words' ? 1 + rand(3) : pickLevel(cat);
+    const q = beat ? makeBeatQuestion(cat, lv, prev) : makeQuestion(cat, lv, prev, optionCount);
+    if (!best) best = q;
+    if (ledgerClass(q.key) === 'weak') return q;
+  }
+  return best;
+}
+function pickLevel(cat) { const lv = (BUBBLE_BY_KEY[cat] && BUBBLE_BY_KEY[cat].levels) || [1, 2, 3]; const n = lv.filter(x => typeof x === 'number'); return n[rand(n.length)] || 1; }
+
+// A Bubble-Pop-generated maths fact in the arcade multiple-choice shape. Key matches the
+// Bubble Pop / Boo Dash key so weakness transfers across games ("full brain").
+function bubbleMathQuestion(category, level, prev, optionCount) {
+  const q = genQuestion(category, level, prev);
+  const fmt = q.fmt || String;
+  const ds = shuffle(q.distractors.filter(v => v !== q.answer)).slice(0, optionCount - 1);
+  const opts = shuffle([q.answer, ...ds]).map(fmt);
+  return { prompt: q.display, options: opts, correct: opts.indexOf(fmt(q.answer)), speak: null, key: q.key };
 }
 
 const GAP_LETTERS = 'aeioulcsmnrtpbdgh'.split('');

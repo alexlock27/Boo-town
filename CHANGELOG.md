@@ -2,6 +2,20 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 9: Content setting (Light / Medium / Full)
+- One global setting in the grown-ups corner controls how many choices she sees. It is a
+  presentation filter only — all content stays installed, saves + mastery are untouched, and
+  Smart Mix keeps drawing from everything (light UI, full brain). Default after this update: Light.
+- Tags exactly per spec: Bubble Pop / Boo Dash categories (Light = Times tables; Medium adds
+  Number bonds + Add & subtract; Full adds Doubles & halves + More or less); levels everywhere
+  (Light = Starter–Level 2; Medium/Full = all); Feed the Boos (Light = Subject; Medium = grouped
+  topics; Full = every template); Spell Boo sets (Light = Big List + Tricky Sounds + Sound Twins;
+  Medium adds the listed families; Full = every bank); Arcade (Light = no picker, Smart-Mix-driven;
+  Medium = Times tables + Number bonds + Words; Full = everything). Smart Mix + Golden always visible.
+- New js/content.js; arcade engine gains Number bonds / Add & subtract / Doubles categories and an
+  autoQuestion() (arcade maths keys now match Bubble Pop / Dash, so weakness transfers). Switching
+  tiers is immediate, hides/reveals only, and round-trips with zero data loss.
+
 ## Run 3 — Phase 8: Boo requests + the Dance Choreographer
 - Occasional Boo requests: at most one active at a time, a new one only at app open and at
   least 20 hours after the last resolved. A thought bubble over one placed Boo asks something

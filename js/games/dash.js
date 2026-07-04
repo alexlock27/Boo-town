@@ -16,6 +16,7 @@ import { BUBBLE_BY_KEY, BUBBLE_CATEGORIES, genQuestion, LEVEL_NAME } from '../..
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { filterCategories, filterLevels } from '../content.js';
 
 const GATES = 12;
 const HOLD_AT = 0.86;         // gates wait at 86% of the path until she answers
@@ -45,8 +46,8 @@ export function mount(container, params, ctx) {
     ]);
     const picker = buildPicker({
       game: 'dash',
-      choices: DASH_CATS.map(k => ({ key: k, name: BUBBLE_BY_KEY[k].name })),
-      levelsFor: (key) => BUBBLE_BY_KEY[key].levels,
+      choices: filterCategories(DASH_CATS.map(k => ({ key: k, name: BUBBLE_BY_KEY[k].name }))),
+      levelsFor: (key) => filterLevels(BUBBLE_BY_KEY[key].levels),
       levelName: LEVEL_NAME,
       onStart: (catKey, level) => play(catKey, level)
     });

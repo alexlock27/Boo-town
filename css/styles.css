@@ -987,6 +987,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-msg { font-size: 15px; color: var(--zing); font-family: var(--font-body); }
 .gu-msg.err { color: #C0392B; }
 .gu-card hr { border: none; border-top: 1px solid #E4DCF3; margin: 14px 0; }
+.gu-seg { display: flex; gap: 6px; background: #EDE7FA; border-radius: 12px; padding: 4px; }
+.gu-seg-btn { flex: 1; padding: 10px; border-radius: 9px; background: transparent; font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 16px; }
+.gu-seg-btn.sel { background: var(--pop); color: var(--card); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
 .gu-danger { border: 2px solid #F1C0C0; }
 .btn.danger { background: #E06A6A; }
 .btn[disabled] { opacity: 0.4; cursor: not-allowed; }

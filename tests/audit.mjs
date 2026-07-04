@@ -25,7 +25,7 @@ const SAVE = {
     { zone: 'meadow', x: 0.85, item: 'deco_pond' }
   ],
   stars: { total: 300, byGame: {} },
-  settings: { sound: true, music: true, voice: true }, seen: {}
+  settings: { sound: true, music: true, voice: true, content: 'full' }, seen: {}
 };
 
 const verdicts = [];

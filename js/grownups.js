@@ -6,6 +6,7 @@ import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
 import { deleteAllVoices, voiceCount } from './voices.js';
 import { setRequestsEnabled } from './requests.js';
+import { contentTier, setContentTier, TIERS } from './content.js';
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -87,7 +88,23 @@ export function mount(container, params, ctx) {
     el('div', { class: 'gu-row' }, [resetInput, resetBtn])
   ]);
 
-  root.append(header, goldenEditor(s), toggles, micCard, requestsCard, backup, reset);
+  // ---- content amount: Light / Medium / Full (RUN3 C9) ----
+  const TIER_LABEL = { light: 'Light', medium: 'Medium', full: 'Full' };
+  const TIER_DESC = { light: 'Fewest choices — the simplest menus.', medium: 'More topics grouped tidily.', full: 'Every single list and topic.' };
+  const tierDesc = el('p', { class: 'gu-note', text: TIER_DESC[contentTier()] });
+  const tierSeg = el('div', { class: 'gu-seg' });
+  function renderSeg() {
+    tierSeg.innerHTML = '';
+    for (const t of TIERS) tierSeg.appendChild(el('button', { class: 'gu-seg-btn' + (contentTier() === t ? ' sel' : ''), text: TIER_LABEL[t], onclick: () => { setContentTier(t); tierDesc.textContent = TIER_DESC[t]; renderSeg(); } }));
+  }
+  renderSeg();
+  const contentCard = el('div', { class: 'gu-card' }, [
+    el('h3', { text: 'How many choices?' }),
+    el('p', { class: 'gu-note', text: 'This only changes the menus she sees — all the learning stays installed, and her progress and Boos are never touched. Smart Mix quietly uses everything.' }),
+    tierSeg, tierDesc
+  ]);
+
+  root.append(header, goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, reset);
   container.appendChild(root);
 
   // ---- Golden Round editor (RUN3 C3): parent-typed weekly challenge ----

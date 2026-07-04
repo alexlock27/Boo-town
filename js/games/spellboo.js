@@ -20,6 +20,7 @@ import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { buildSmartMix } from '../smartmix.js';
 import { createTrickyCollector, wordMiss } from '../trickypile.js';
 import { makeSpeller, typeInto } from '../speller.js';
+import { filterSpellSets, filterLevels } from '../content.js';
 
 const SETS = [{ key: 'big', name: 'The Big List', words: WORDS }, ...BANKS.map(b => ({ key: b.id, name: b.name, words: b.words }))];
 const SET_BY_KEY = Object.fromEntries(SETS.map(s => [s.key, s]));
@@ -48,11 +49,12 @@ export function mount(container, params, ctx) {
       el('h2', { text: 'Spell Boo' }),
       el('p', { class: 'sc-intro', text: guideLine('gameIntroSpell') })
     ]);
-    const choices = [...SETS.map(s => ({ key: s.key, name: s.name })), { key: TWINS_KEY, name: '🔤 Sound Twins' }];
+    // Content tier filters the sets; Smart Mix + Sound Twins stay visible at every tier.
+    const choices = filterSpellSets([...SETS.map(s => ({ key: s.key, name: s.name })), { key: TWINS_KEY, name: '🔤 Sound Twins' }]);
     const picker = buildPicker({
       game: 'spellboo',
       choices,
-      levelsFor: (key) => (key === TWINS_KEY ? TWIN_LEVELS : tiersInSet(key)),
+      levelsFor: (key) => (key === TWINS_KEY ? TWIN_LEVELS : filterLevels(tiersInSet(key))),
       levelName: (l) => 'Level ' + l,
       onStart: (key, level) => (key === MIX_KEY ? playMix() : key === TWINS_KEY ? playTwins(level) : play(key, level))
     });

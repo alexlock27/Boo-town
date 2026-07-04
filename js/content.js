@@ -1,0 +1,56 @@
+// js/content.js — the Light / Medium / Full content setting (RUN3 C9).
+// A PRESENTATION FILTER ONLY: all content stays installed, saves + mastery are untouched,
+// and Smart Mix keeps drawing from everything. Smart Mix and the Golden Round are visible at
+// every tier. Default after this update: Light. Tags are exactly as specced in C9.
+
+import { getState, mutate } from './state.js';
+import { MIX_KEY } from './picker.js';
+
+export const TIERS = ['light', 'medium', 'full'];
+const ORDER = { light: 0, medium: 1, full: 2 };
+
+export function contentTier() { const s = getState(); return (s && s.settings && s.settings.content) || 'light'; }
+export function setContentTier(t) { if (TIERS.includes(t)) mutate(s => { s.settings.content = t; }); }
+export function tierAllows(tag) { return ORDER[contentTier()] >= ORDER[tag || 'light']; }
+
+// ---- Bubble Pop / Boo Dash categories ----
+export const BUBBLE_CAT_TIER = { tables: 'light', bonds: 'medium', addsub: 'medium', doubles: 'full', moreless: 'full' };
+export function filterCategories(cats) { return cats.filter(c => tierAllows(BUBBLE_CAT_TIER[c.key] || 'full')); }
+
+// ---- Levels everywhere: Light shows Starter to Level 2; Medium/Full show all ----
+export function filterLevels(levels) {
+  if (contentTier() !== 'light') return levels;
+  return levels.filter(l => l === 'S' || l === 'starter' || (typeof l === 'number' && l <= 2));
+}
+
+// ---- Spell Boo sets ----
+// Light: Big List, Tricky Sounds, Sound Twins. Medium adds the listed families. Full: all.
+export const SPELL_SET_TIER = {
+  big: 'light', trickyTh: 'light', twins: 'light',
+  prefixesUnDisMisRe: 'medium', lyFamily: 'medium', ousFamily: 'medium', homophones: 'medium', tureFamily: 'medium', ouSoundsLikeU: 'medium'
+  // everything else => 'full'
+};
+export function spellSetTier(id) { return SPELL_SET_TIER[id] || 'full'; }
+export function filterSpellSets(sets) { return sets.filter(s => s.key === MIX_KEY || s.key === 'twins' || tierAllows(spellSetTier(s.key))); }
+
+// ---- Arcade (Blocks / Bounce / Beat) ----
+// Light: no picker (Smart-Mix auto). Medium: Times tables, Number bonds, Words. Full: everything.
+export const ARCADE_CAT_TIER = { tables: 'medium', bonds: 'medium', words: 'medium', addsub: 'full', doubles: 'full' };
+export function arcadeHasPicker() { return contentTier() !== 'light'; }
+export function filterArcadeCategories(cats) { return cats.filter(c => tierAllows(ARCADE_CAT_TIER[c.key] || 'full')); }
+
+// ---- Feed the Boos ----
+// Light: Subject (Maths / Words) + level, auto-rotating a template. Medium: grouped topics.
+// Full: every template. Groups map each template id to a friendly topic.
+export const FEED_GROUPS = [
+  { key: 'numbers', name: 'Numbers', ids: ['oddEven', 'tableMember1', 'tableMember2', 'tableMember3', 'tableMemberY4', 'romanNumerals'] },
+  { key: 'rounding', name: 'Rounding & comparing', ids: ['compare50', 'compare500', 'compare5000', 'round10', 'round100'] },
+  { key: 'fractions', name: 'Fractions', ids: ['halfEquivalent', 'fractionSize', 'fractionFamilies', 'tenths'] },
+  { key: 'timemoney', name: 'Time & money', ids: ['timeUnits', 'timeHour', 'monthsDays', 'moneyPound'] },
+  { key: 'measures', name: 'Measures', ids: ['units1', 'units2', 'lengthMetre', 'massKilogram', 'capacityLitre', 'temperature'] },
+  { key: 'shapes', name: 'Shapes', ids: ['shapeSides', 'symmetry', 'angles'] },
+  { key: 'wordsorts', name: 'Word sorts', ids: ['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo'] }
+];
+const FEED_GROUP_BY_ID = {};
+for (const g of FEED_GROUPS) for (const id of g.ids) FEED_GROUP_BY_ID[id] = g.key;
+export function feedGroupOf(id) { return FEED_GROUP_BY_ID[id] || 'numbers'; }

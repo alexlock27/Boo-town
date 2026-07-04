@@ -50,7 +50,7 @@ function freshSave() {
     request: { active: null, lastResolvedAt: 0 }, // occasional Boo requests (RUN3 C8), ≤1 active
     routines: {},               // Dance Stage choreography per stage: 'zone:x' -> [moveId] (RUN3 C8)
     seen: {},                   // one-time flags (game intros, town first, etc.)
-    settings: { sound: true, music: true, voice: true, mic: true, requests: true }, // mic: voices (C7); requests: Boo requests (C8)
+    settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light' }, // content: Light/Medium/Full picker filter (C9), default Light
     created: 0,
     lastPlayed: 0
   };

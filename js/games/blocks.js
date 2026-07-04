@@ -9,9 +9,12 @@ import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { makeQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { makeQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { noteQuest } from '../quests.js';
+import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
+
+const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven questions (C9)
 
 const N = 9;                 // 9x9 board
 const END_PIECES = 12;       // round ends after 12 placed pieces
@@ -45,7 +48,7 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen blocks' });
   container.appendChild(root);
   let shell = null;
-  startCard();
+  if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
 
   function startCard() {
     clear(root);
@@ -60,7 +63,7 @@ export function mount(container, params, ctx) {
     // two-step picker: category, then level
     const catRow = el('div', { class: 'chip-row center' });
     const catBtns = {};
-    BLOCK_CATEGORIES.forEach(c => {
+    filterArcadeCategories(BLOCK_CATEGORIES).forEach(c => {
       const b = el('button', { class: 'acc-chip' + (category === c.key ? ' sel' : ''), text: c.name, onclick: () => { category = c.key; sfx.tap(); Object.values(catBtns).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } });
       catBtns[c.key] = b; catRow.appendChild(b);
     });
@@ -133,7 +136,7 @@ export function mount(container, params, ctx) {
 
     // ---- questions ----
     function nextQuestion() {
-      question = makeQuestion(category, level, question && question.key, 3);
+      question = category === AUTO ? autoQuestion(question && question.key, 3) : makeQuestion(category, level, question && question.key, 3);
       reAsked = false; locked = false;
       renderQuestion();
     }

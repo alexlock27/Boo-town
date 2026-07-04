@@ -11,8 +11,11 @@ import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { makeQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { makeQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
+
+const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
 const COLS = 6, ROWS = 4;
 const QUESTIONS = 8;           // round ends after 8 questions answered
@@ -26,7 +29,7 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null, raf = null;
 
-  startCard();
+  if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
 
   function startCard() {
     clear(root);
@@ -39,7 +42,7 @@ export function mount(container, params, ctx) {
       el('p', { class: 'sc-intro', text: 'Bounce the ball into the brick with the right answer!' })
     ]);
     const catRow = el('div', { class: 'chip-row center' });
-    BLOCK_CATEGORIES.forEach(c => {
+    filterArcadeCategories(BLOCK_CATEGORIES).forEach(c => {
       const b = el('button', { class: 'acc-chip' + (category === c.key ? ' sel' : ''), text: c.name, onclick: () => { category = c.key; sfx.tap(); catRow.querySelectorAll('.acc-chip').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } });
       catRow.appendChild(b);
     });
@@ -54,7 +57,8 @@ export function mount(container, params, ctx) {
     clear(root);
     getState().seen.bounceCat = category;
 
-    let question = makeQuestion(category, level, null, 3);
+    const autoMix = category === AUTO;
+    let question = autoMix ? autoQuestion(null, 3) : makeQuestion(category, level, null, 3);
     let bricks = [], labels = [];
     let questionsAnswered = 0, wrongBricks = 0, ballLosses = 0, wallClears = 0;
     let ended = false;
@@ -164,7 +168,7 @@ export function mount(container, params, ctx) {
       if (bricks.every(x => !x.alive)) { onWallCleared(); }
       if (ended) return;
       if (questionsAnswered >= QUESTIONS) return finish();
-      question = makeQuestion(category, level, question.key, 3);
+      question = autoMix ? autoQuestion(question.key, 3) : makeQuestion(category, level, question.key, 3);
       renderQuestion();
       placeLabels();
     }

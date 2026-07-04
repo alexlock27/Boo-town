@@ -11,6 +11,7 @@ import { BUBBLE_CATEGORIES, BUBBLE_BY_KEY, genQuestion, LEVEL_NAME } from '../..
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { filterCategories, filterLevels } from '../content.js';
 
 const ROUNDS = 10;
 const BUBBLE_COUNT = 6;
@@ -37,8 +38,8 @@ export function mount(container, params, ctx) {
     ]);
     const picker = buildPicker({
       game: 'bubblepop',
-      choices: BUBBLE_CATEGORIES.map(c => ({ key: c.key, name: c.name })),
-      levelsFor: (key) => BUBBLE_BY_KEY[key].levels,
+      choices: filterCategories(BUBBLE_CATEGORIES).map(c => ({ key: c.key, name: c.name })),
+      levelsFor: (key) => filterLevels(BUBBLE_BY_KEY[key].levels),
       levelName: LEVEL_NAME,
       onStart: (catKey, level) => play(catKey, level)
     });

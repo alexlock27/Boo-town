@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run3-phase8';            // <-- bump on each deploy
+const BUILD_STAMP = 'run3-phase9';            // <-- bump on each deploy
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -46,6 +46,7 @@ const ASSETS = [
   'js/voices.js',
   'js/requests.js',
   'js/choreographer.js',
+  'js/content.js',
   'js/games/bubblepop.js',
   'js/games/feedboos.js',
   'js/games/spellboo.js',

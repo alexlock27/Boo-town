@@ -12,7 +12,10 @@ import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { makeBeatQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
+
+const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
 const LANES = 3;
 const BPM = 100, BEAT = 60000 / BPM;   // 600ms/beat
@@ -27,7 +30,7 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null, raf = null;
 
-  startCard();
+  if (arcadeHasPicker()) startCard(); else play(AUTO, 2, REDUCED || !!getState().seen.beatSteady);   // Light auto-starts (C9)
 
   function startCard() {
     clear(root);
@@ -41,7 +44,7 @@ export function mount(container, params, ctx) {
       el('p', { class: 'sc-intro', text: 'Tap the lane with the right answer, right on the beat!' })
     ]);
     const catRow = el('div', { class: 'chip-row center' });
-    BLOCK_CATEGORIES.forEach(c => {
+    filterArcadeCategories(BLOCK_CATEGORIES).forEach(c => {
       const b = el('button', { class: 'acc-chip' + (category === c.key ? ' sel' : ''), text: c.name, onclick: () => { category = c.key; sfx.tap(); catRow.querySelectorAll('.acc-chip').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } });
       catRow.appendChild(b);
     });
@@ -56,9 +59,10 @@ export function mount(container, params, ctx) {
 
   function play(category, level, steady) {
     clear(root);
-    mutate(s => { s.seen.beatCat = category; s.seen.beatSteady = steady; });
+    const auto = category === AUTO;
+    mutate(s => { if (!auto) s.seen.beatCat = category; s.seen.beatSteady = steady; });
 
-    let question = makeBeatQuestion(category, level, null);
+    let question = auto ? autoQuestion(null, 3, true) : makeBeatQuestion(category, level, null);
     let notes = [];              // active notes {lane, text, correct, spawnBeat, node, judged}
     let phraseIdx = 0, correct = 0, perfects = 0, misses = 0, combo = 0;
     let reAsked = false, resolving = false, ended = false;
@@ -193,7 +197,7 @@ export function mount(container, params, ctx) {
       phraseIdx++;
       shell.setProgress(phraseIdx);
       if (phraseIdx >= PHRASES) return setTimeout(finish, 500);
-      question = makeBeatQuestion(category, level, question.key);
+      question = auto ? autoQuestion(question.key, 3, true) : makeBeatQuestion(category, level, question.key);
       setTimeout(() => { if (ended) return; renderQuestion(); scheduleNotes(2); }, 450);
     }
 

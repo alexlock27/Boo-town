@@ -10,6 +10,7 @@ import { TEMPLATES } from '../../data/sorting.js';
 import { TEMPLATES_EXTRA } from '../../data/sortingExtra.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { contentTier, filterLevels, FEED_GROUPS, feedGroupOf } from '../content.js';
 
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
@@ -19,6 +20,9 @@ const starsFor = (wrong, hints) => (hints === 0 && wrong <= 1) ? 3 : (wrong <= 3
 const WORD_TEMPLATE_IDS = new Set(['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo']);
 const ALL_TEMPLATES = [...TEMPLATES, ...TEMPLATES_EXTRA];
 function subjectOf(t) { return WORD_TEMPLATE_IDS.has(t.id) ? 'words' : 'maths'; }
+// A friendly display name for a template id (Full tier lists every template).
+const FEED_NAME_OVERRIDES = { oddEven: 'Odd & even', compare50: 'More or less than 50', compare500: 'More or less than 500', compare5000: 'More or less than 5000', round10: 'Round to 10', round100: 'Round to 100', halfEquivalent: 'Equal to a half?', fractionSize: 'Fraction sizes', shapeSides: 'Shape sides', units1: 'Measure units', units2: 'Measure units 2', nounVerbAdjective: 'Nouns, verbs, adjectives', pluralRules: 'Plural rules', theirThereTheyre: 'their / there / they\'re', toTooTwo: 'to / too / two', tableMemberY4: 'Times tables (Y4)' };
+function prettyTemplateName(id) { if (FEED_NAME_OVERRIDES[id]) return FEED_NAME_OVERRIDES[id]; return id.replace(/([a-z])([A-Z0-9])/g, '$1 $2').replace(/^./, c => c.toUpperCase()); }
 function levelsForSubject(subject) {
   const set = new Set(ALL_TEMPLATES.filter(t => subjectOf(t) === subject).map(t => t.level));
   return [...set].sort();
@@ -68,12 +72,22 @@ export function mount(container, params, ctx) {
       el('h2', { text: 'Feed the Boos' }),
       el('p', { class: 'sc-intro', text: guideLine('gameIntroFeed') })
     ]);
+    // Content tier shapes the choices: Light = Subject; Medium = grouped topics; Full = every template.
+    const tier = contentTier();
+    let choices, levelsFor;
+    if (tier === 'light') {
+      choices = [{ key: 'maths', name: '🔢 Maths' }, { key: 'words', name: '🔤 Words' }];
+      levelsFor = (subject) => filterLevels(levelsForSubject(subject));
+    } else if (tier === 'medium') {
+      choices = FEED_GROUPS.filter(g => ALL_TEMPLATES.some(t => feedGroupOf(t.id) === g.key)).map(g => ({ key: 'g:' + g.key, name: g.name }));
+      levelsFor = (gk) => [...new Set(ALL_TEMPLATES.filter(t => feedGroupOf(t.id) === gk.slice(2)).map(t => t.level))].sort();
+    } else {
+      choices = ALL_TEMPLATES.map(t => ({ key: 't:' + t.id, name: prettyTemplateName(t.id) }));
+      levelsFor = (tk) => { const t = ALL_TEMPLATES.find(x => x.id === tk.slice(2)); return t ? [t.level] : [1]; };
+    }
     const picker = buildPicker({
-      game: 'feedboos',
-      choices: [{ key: 'maths', name: '🔢 Maths' }, { key: 'words', name: '🔤 Words' }],
-      levelsFor: levelsForSubject,
-      levelName: (l) => 'Level ' + l,
-      onStart: (subject, level) => play(subject, level)
+      game: 'feedboos', choices, levelsFor, levelName: (l) => 'Level ' + l,
+      onStart: (key, level) => startFromChoice(key, level)
     });
     card.appendChild(picker.node);
     card.appendChild(el('div', { class: 'star-rule' }, [
@@ -83,10 +97,17 @@ export function mount(container, params, ctx) {
     root.appendChild(card);
   }
 
-  function play(subject, level) {
+  // Dispatch a picker choice (Smart Mix / subject / group / template) to a concrete template.
+  function startFromChoice(key, level) {
+    if (key === MIX_KEY) return play(pickMixTemplate(), { mix: true, badgeKey: MIX_KEY });
+    if (key === 'maths' || key === 'words') return play(pickTemplateFor(key, level), { badgeKey: key });
+    if (key.startsWith('g:')) { const gk = key.slice(2); const pool = ALL_TEMPLATES.filter(t => feedGroupOf(t.id) === gk && t.level === level); return play((pool.length ? pool : ALL_TEMPLATES.filter(t => feedGroupOf(t.id) === gk))[rand(Math.max(1, pool.length))] || ALL_TEMPLATES[0], { badgeKey: key }); }
+    if (key.startsWith('t:')) { const t = ALL_TEMPLATES.find(x => x.id === key.slice(2)); return play(t || ALL_TEMPLATES[0], { badgeKey: key }); }
+    return play(pickTemplateFor('maths', level || 1), { badgeKey: 'maths' });
+  }
+
+  function play(template, { mix = false, badgeKey } = {}) {
     clear(root);
-    const mix = subject === MIX_KEY;
-    const template = mix ? pickMixTemplate() : pickTemplateFor(subject, level);
     const roundData = template.make();
     const items = roundData.items;
     const buckets = roundData.buckets;
@@ -224,8 +245,8 @@ export function mount(container, params, ctx) {
     function finish() {
       shell.cleanup();
       const stars = starsFor(wrongDrops, hintsUsed);
-      recordBest('feedboos', mix ? MIX_KEY : subject, stars);
-      ctx.go('results', { game: 'feedboos', gameName: mix ? 'Smart Mix' : 'Feed the Boos', stars, level, tricky: collector.items(), replay: () => ctx.go('feedboos') });
+      recordBest('feedboos', badgeKey || 'maths', stars);
+      ctx.go('results', { game: 'feedboos', gameName: mix ? 'Smart Mix' : 'Feed the Boos', stars, tricky: collector.items(), replay: () => ctx.go('feedboos') });
     }
   }
 
