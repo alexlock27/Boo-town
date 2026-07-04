@@ -274,9 +274,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   font-family: var(--font-display); font-size: 14px; padding: 1px 7px; border-radius: 12px; border: 2px solid var(--ink);
 }
 
-.hub-guide { flex: 1.1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.hub-guide { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
 .guide-block { display: flex; align-items: flex-start; gap: 4px; max-width: 640px; }
-.guide-art svg { max-height: 30vh; }
+.guide-art svg { max-height: 22vh; }
 .speech-bubble {
   background: var(--card); color: var(--ink); border-radius: 20px; border: 3px solid var(--ink);
   padding: 14px 18px; font-size: 20px; font-family: var(--font-body); font-weight: 600;
@@ -289,7 +289,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .speech-bubble.pop { animation: bubblepop 240ms ease-out; }
 @keyframes bubblepop { from { transform: scale(0.85); opacity: 0.3; } to { transform: scale(1); opacity: 1; } }
 
-.game-cards { display: flex; gap: 14px; justify-content: center; align-items: stretch; padding: 6px 0; flex-wrap: wrap; }
+.game-cards { display: flex; gap: 12px; justify-content: center; align-items: stretch; padding: 6px 0; flex-wrap: wrap; max-width: 760px; margin: 0 auto; }
 .game-card {
   background: var(--card); border: none; border-top: 8px solid var(--accent); border-radius: var(--radius);
   box-shadow: var(--card-shadow); padding: 14px 16px; cursor: pointer; min-width: 150px; flex: 1; max-width: 220px;
@@ -408,6 +408,39 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   background: linear-gradient(180deg, rgba(59,46,126,0.55), rgba(30,21,80,0.55)); box-shadow: inset 0 2px 12px rgba(0,0,0,0.3); }
 .bounce-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .bounce-canvas:active { cursor: grabbing; }
+
+/* ---- Boo Beat ---- */
+.beat .game-area { display: flex; flex-direction: column; }
+.steady-wrap { display: flex; justify-content: center; }
+.beat-question { text-align: center; padding: 6px 0 4px; }
+.beat-prompt {
+  display: inline-block; background: var(--card); border: 4px solid var(--ink); border-radius: 18px;
+  padding: 8px 26px; font-family: var(--font-display); font-weight: 700; font-size: 32px; letter-spacing: 2px; color: var(--ink); box-shadow: var(--card-shadow);
+}
+.beat-field {
+  flex: 1; position: relative; margin: 6px 4px 4px; border-radius: 16px; overflow: hidden; display: flex; gap: 4px; padding: 4px;
+  background: linear-gradient(180deg, rgba(59,46,126,0.5), rgba(30,21,80,0.6)); box-shadow: inset 0 2px 12px rgba(0,0,0,0.3);
+}
+.beat-field.combo { box-shadow: inset 0 0 40px rgba(255,201,60,0.35), inset 0 2px 12px rgba(0,0,0,0.3); }
+.beat-lane { flex: 1; position: relative; border-radius: 12px; background: rgba(255,255,255,0.04); overflow: hidden; touch-action: none; cursor: pointer; }
+.beat-lane:nth-child(1) { --lane: var(--pop); } .beat-lane:nth-child(2) { --lane: var(--zing); } .beat-lane:nth-child(3) { --lane: var(--star); }
+.beat-lane:active { background: rgba(255,255,255,0.10); }
+.beat-note {
+  position: absolute; top: 0; left: 50%; margin-left: -34px; width: 68px; height: 52px; border-radius: 14px;
+  background: var(--lane); border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 24px; color: var(--ink); will-change: transform;
+}
+.beat-field:not(.steady) .beat-note { transition: transform 0.05s linear; }
+.beat-field.steady .beat-note { transition: transform 0.18s ease; }
+.beat-note.at-line { box-shadow: 0 0 0 4px #fff, 0 0 18px var(--lane); }
+.beat-note.hit.perfect { animation: notehit 0.4s ease-out forwards; box-shadow: 0 0 0 5px var(--star), 0 0 24px var(--star); }
+.beat-note.hit.good { animation: notehit 0.4s ease-out forwards; }
+@keyframes notehit { 0% { transform: translateY(var(--y,0)) scale(1); } 100% { opacity: 0; transform: scale(1.5); } }
+.beat-hitline { position: absolute; left: 4px; right: 4px; bottom: 66px; height: 5px; border-radius: 3px; background: var(--star); box-shadow: 0 0 14px var(--star); z-index: 3; pointer-events: none; }
+.beat-character { position: absolute; left: 50%; transform: translateX(-50%); bottom: 2px; z-index: 4; pointer-events: none; }
+.beat-character.bop { animation: beatbop 0.3s ease-out; }
+@keyframes beatbop { 0%,100% { transform: translateX(-50%) translateY(0); } 40% { transform: translateX(-50%) translateY(-8px) scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .beat-character.bop { animation: none; } }
 
 /* ---- bubbles ---- */
 .target-card {

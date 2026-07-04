@@ -21,6 +21,28 @@ export function makeQuestion(category, level, prev, optionCount = 3) {
   return mathQuestion(level, prev, optionCount);
 }
 
+// Boo Beat variant: a fact, or a spelling gap ("be_ieve" -> tap the missing letter).
+export function makeBeatQuestion(category, level, prev) {
+  if (category === 'words') return gapQuestion(level, prev);
+  return mathQuestion(level, prev, 3);
+}
+
+const GAP_LETTERS = 'aeioulcsmnrtpbdgh'.split('');
+function gapQuestion(level, prev) {
+  const tier = Math.max(1, Math.min(3, level));
+  const pool = WORDS.filter(w => w.t === tier);
+  let word, guard = 0;
+  do { word = pool[rand(pool.length)].w; } while (('g:' + word) === prev && ++guard < 8);
+  // Blank a letter that is worth practising (a vowel or a commonly-missed consonant).
+  const cands = [...word].map((ch, i) => ({ ch, i })).filter(x => x.i > 0 && 'aeioulcsmnrtpbdgh'.includes(x.ch));
+  const pick = (cands.length ? cands : [...word].map((ch, i) => ({ ch, i })))[rand((cands.length ? cands : word).length)];
+  const prompt = word.slice(0, pick.i) + '_' + word.slice(pick.i + 1);
+  const correct = pick.ch;
+  const wrongs = shuffle(GAP_LETTERS.filter(l => l !== correct)).slice(0, 2);
+  const opts = shuffle([correct, ...wrongs]);
+  return { prompt, options: opts, correct: opts.indexOf(correct), speak: word, key: 'g:' + word };
+}
+
 function mathQuestion(level, prev, optionCount) {
   const t = genTarget(level, prev && prev.startsWith('m:') ? prev.slice(2) : null);
   const ds = shuffle(distractors(t)).slice(0, optionCount - 1);

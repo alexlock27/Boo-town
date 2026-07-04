@@ -2,6 +2,17 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 6: Boo Beat (new game)
+- A three-lane rhythm game on the game's music at 100 BPM. Each phrase poses a question
+  (a fact, or a spelling gap like "be_ieve"); three on-beat notes carry candidate answers
+  down the lanes; tap the correct lane as its note reaches the glowing hit line where the
+  player's character bops. Timing grades: Perfect (±80ms, big sparkle), Good (±160ms),
+  otherwise a soft miss, a dimmed heart and one re-ask. Combos add a background sparkle glow.
+- Steady mode (and the reduced-motion default): notes step one row per beat instead of
+  scrolling — same taps, no speed pressure. TTS reads the spelling clue word when voice is
+  on. Ten phrases per round. Stars: 3 = 8+ right with 5+ perfects; 2 = 6+ right; 1 = finished.
+- Sixth hub card. Hub game cards re-flowed (max-width) so six cards lay out cleanly.
+
 ## Run 2 — Phase 5: Boo Bounce (new game)
 - A gentle canvas brick-breaker: a draggable paddle, one soft ball, a candy brick wall
   (6 across, 4 deep). A question card sits on top; exactly three bricks wear answer labels

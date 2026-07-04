@@ -12,7 +12,8 @@ const GAMES = [
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon },
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon },
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon },
-  { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon }
+  { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon },
+  { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon }
 ];
 
 export function mount(container, params, ctx) {
@@ -183,4 +184,7 @@ function blocksIcon() {
 }
 function bounceIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="12" width="12" height="8" rx="2" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/><rect x="24" y="12" width="12" height="8" rx="2" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.5"/><rect x="38" y="12" width="12" height="8" rx="2" fill="var(--star)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="34" cy="36" r="6" fill="var(--card)" stroke="var(--ink)" stroke-width="2.5"/><rect x="20" y="46" width="22" height="6" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/></svg>`;
+}
+function beatIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="10" height="40" rx="4" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/><rect x="25" y="10" width="10" height="40" rx="4" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.5"/><rect x="40" y="10" width="10" height="40" rx="4" fill="var(--star)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="30" cy="40" r="7" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><path d="M15 40h30" stroke="#fff" stroke-width="2.5" opacity="0.7"/></svg>`;
 }

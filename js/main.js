@@ -19,6 +19,7 @@ const registry = {
   spellboo:   () => import('./games/spellboo.js'),
   blocks:     () => import('./games/blocks.js'),
   bounce:     () => import('./games/bounce.js'),
+  beat:       () => import('./games/beat.js'),
   results:    () => import('./results.js'),
   ceremony:   () => import('./ceremony.js'),
   collection: () => import('./collection.js'),
