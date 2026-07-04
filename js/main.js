@@ -4,7 +4,7 @@
 import * as State from './state.js';
 import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
-import { starField } from './ui.js';
+import { starField, clearConfetti } from './ui.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -37,6 +37,7 @@ export async function go(name, params = {}) {
     try { current.api.unmount(); } catch (e) { console.warn(e); }
   }
   State.commit(); // flush any pending debounced save before leaving a screen
+  clearConfetti(); // don't let celebration particles linger across a navigation
   screenEl.innerHTML = '';
   screenEl.scrollTop = 0;
   let mod;

@@ -111,8 +111,10 @@ export function confetti({ count = 90, power = 1, duration = 1600, origin } = {}
       life: 1
     });
   }
+  confetti._active = true;
   const t0 = performance.now();
   function frame(t) {
+    if (!confetti._active) { cx.clearRect(0, 0, W, H); return; }
     const dt = Math.min(32, t - (frame._last || t)); frame._last = t;
     cx.clearRect(0, 0, W, H);
     let alive = false;
@@ -134,6 +136,12 @@ export function confetti({ count = 90, power = 1, duration = 1600, origin } = {}
     else cx.clearRect(0, 0, W, H);
   }
   requestAnimationFrame(frame);
+}
+
+// Stop and clear any in-flight confetti (called on screen navigation).
+export function clearConfetti() {
+  confetti._active = false;
+  if (confettiCanvas) { const cx = confettiCanvas.getContext('2d'); cx && cx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height); }
 }
 
 // ---- modal dialog --------------------------------------------------------

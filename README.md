@@ -9,6 +9,19 @@ maths and spelling games, earn stars, open mystery boxes, collect fluffy critter
 - **Vanilla HTML / CSS / JavaScript.** No frameworks, no build step.
 - **Touch-first**, tablet-first, works in landscape and portrait.
 
+## What's inside
+
+- **Eight games**, grouped into Learn and Play: Teach Me (guided mini-lessons), Bubble Pop
+  (mental maths), Feed the Boos (sorting & reasoning), Spell Boo (Year 3/4 spelling), plus the
+  arcade set — Boo Blocks, Boo Bounce, Boo Beat and Boo Dash. Every game has friendly
+  three-star scoring, gentle wrong-answer handling and no punishing timers.
+- **A character you make and re-make** — five animals with colours, patterns, eyes, accessories
+  and a name, changeable any time.
+- **A living town** that scrolls across four star-gated zones, with wandering Boos and day/night.
+- **52 collectible Boos and decorations** (plus wearable accessories) from mystery boxes, including
+  seasonal drops that only appear in summer, at Halloween and in winter.
+- All content maps to the England Year 3/4 curriculum and ships with the app.
+
 ## Live link
 
 ### 👉 https://alexlock27.github.io/Boo-town/

@@ -2,6 +2,14 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 2 — Phase 9: Final polish + full regression
+- Hub confirmed reading cleanly as two labelled rows (Learn / Play, eight equal-size cards) in
+  both landscape and portrait.
+- Celebration confetti now clears on screen navigation so it never lingers into the next screen.
+- Full acceptance re-run green: BUILD_SPEC section 14 (machine-runnable parts), EXPANSION_1
+  section 6, and RUN2 part E. README and the human checklist refreshed. The public repo history
+  is clean end to end — no private planning files or personal strings in any commit.
+
 ## Run 2 — Phase 8: Teach Me + Boo Dash (EXPANSION_2 frames 1 & 4)
 - Teach Me: short guide-led mini-lessons, each concept explained two ways. Six lessons at
   launch (hundreds/tens/ones, jumping over ten, counting up, fractions, times tables, telling
