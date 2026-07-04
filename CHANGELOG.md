@@ -2,6 +2,17 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 10: polish + full regression
+- Hub balance verified at every tier, both orientations: nine game cards (Learn/Play rows),
+  the daily-quests card, the gold Golden-Round card, and Studio in the bottom bar all read
+  cleanly with best-star badges.
+- Full regression green: the deterministic motion audit (15/15 mechanics incl. Clock Shop
+  hands and the dance routine loop) plus 28 acceptance suites — BUILD_SPEC §14, EXPANSION_1 §6,
+  RUN2 part E, and RUN3 part D (D5–D19). A final motion-evidence pass ran against the deployed
+  build.
+- NEEDS_ALEX.md rewritten as a short human checklist (tablet refresh, mic-allow, Golden Round,
+  the Light/Medium/Full choice).
+
 ## Run 3 — Phase 9: Content setting (Light / Medium / Full)
 - One global setting in the grown-ups corner controls how many choices she sees. It is a
   presentation filter only — all content stays installed, saves + mastery are untouched, and
