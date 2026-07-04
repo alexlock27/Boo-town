@@ -22,6 +22,7 @@ const registry = {
   beat:       () => import('./games/beat.js'),
   teachme:    () => import('./games/teachme.js'),
   dash:       () => import('./games/dash.js'),
+  golden:     () => import('./golden.js'),
   results:    () => import('./results.js'),
   ceremony:   () => import('./ceremony.js'),
   collection: () => import('./collection.js'),

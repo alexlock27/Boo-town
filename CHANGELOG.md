@@ -2,6 +2,17 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 3: Golden Round
+- Grown-ups corner gains a Golden Round editor: up to 10 spelling words (each with an
+  optional sound-twin flag + rival spelling + clue) and up to 5 choice questions, all
+  parent-typed. Saving publishes a gold-trimmed challenge card at the top of the hub.
+- Playing: spelling words run the tile flow (twin-flagged words run as a Sound Twins item —
+  pick the right spelling, then spell it from memory); choice questions are big-button picks.
+- Worth double stars + a +2 meter bonus on a 3-star clear, ONCE per local day; same-day
+  replays earn normal stars. A new saved list replaces the old. No AI — typed content only.
+- Extracted the tile speller to js/speller.js (shared by Spell Boo + Golden). New js/golden.js;
+  results.js banks a meterOverride for Golden; state gains a todayKey() day helper.
+
 ## Run 3 — Phase 2: Smart Mix + the Tricky Pile
 - Mistake ledger in the save: every question identity (a fact key, a word, a twin set)
   keeps { rights, misses, lastSeen }. Mastered = rights ≥ 3 and rights − misses ≥ 2.

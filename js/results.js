@@ -5,11 +5,11 @@ import { getState, mutate } from './state.js';
 import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
-import { bankStars, METER_CAP, meterState } from './rewards.js';
+import { bankStars, addMeterPoints, METER_CAP, meterState } from './rewards.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
 
 export function mount(container, params, ctx) {
-  const { game, gameName = 'that round', stars = 1, replay, tricky = [] } = params || {};
+  const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null } = params || {};
   const s = getState();
   // The Tricky Pile is already "collected"; persist immediately so an early exit keeps them.
   if (tricky.length) persistUnrescued(tricky.map(t => t.id));
@@ -21,7 +21,8 @@ export function mount(container, params, ctx) {
     if (g) { g.plays += 1; g.best = Math.max(g.best, stars); }
     st.stars.total += stars;
   });
-  const banked = bankStars(stars);
+  // Golden Round banks a caller-computed meter total (double stars etc.); others use bankStars.
+  const banked = meterOverride != null ? addMeterPoints(meterOverride) : bankStars(stars);
   const lineKey = stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
 
   const root = el('div', { class: 'screen results' });

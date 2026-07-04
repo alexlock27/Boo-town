@@ -74,7 +74,22 @@ export function mount(container, params, ctx) {
   const cog = makeCog(() => ctx.go('grownups'));
   const bar = el('nav', { class: 'bottom-bar' }, [townBtn, collBtn, cog]);
 
-  root.append(top, guideSection, cards, bar);
+  // ---- Golden Round card (RUN3 C3), shown when a grown-up has published one ----
+  const specials = el('section', { class: 'hub-specials' });
+  const g = s.golden;
+  if (g && ((g.words || []).length || (g.choices || []).length)) {
+    const wc = (g.words || []).length, cc = (g.choices || []).length;
+    specials.appendChild(el('button', { class: 'golden-card', onclick: () => { sfx.tap(); ctx.go('golden'); } }, [
+      el('span', { class: 'golden-star', text: '⭐' }),
+      el('span', { class: 'golden-body' }, [
+        el('span', { class: 'golden-title', text: 'Golden Round' }),
+        el('span', { class: 'golden-sub', text: `${wc} word${wc === 1 ? '' : 's'}${cc ? ` · ${cc} question${cc === 1 ? '' : 's'}` : ''} · double stars!` })
+      ]),
+      el('span', { class: 'golden-star', text: '⭐' })
+    ]));
+  }
+
+  root.append(top, guideSection, specials, cards, bar);
 
   renderMeter();
 

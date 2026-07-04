@@ -39,6 +39,8 @@ function freshSave() {
     spellingMastery: {},        // word -> lifetime correct count
     ledger: {},                 // question identity -> { rights, misses, lastSeen } (RUN3 C2 Smart Mix brain)
     trickyPile: [],             // unrescued missed items carried between rounds (RUN3 C2)
+    golden: null,               // parent-typed Golden Round { words:[...], choices:[...], savedAt } (RUN3 C3)
+    goldenLastDouble: '',       // local-day key (YYYY-MM-DD) the daily double stars were last awarded
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true },
     created: 0,
@@ -160,6 +162,15 @@ export function recordResult(id, correct) {
   state.ledger[id] = e;
   scheduleSave();
 }
+// Local-day key (YYYY-MM-DD) for once-per-day features (Golden double, daily quests).
+// window.__bootownDay overrides for tests (matches the __bootownHour/Month pattern).
+export function todayKey() {
+  if (typeof window !== 'undefined' && window.__bootownDay) return String(window.__bootownDay);
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 export function ledgerEntry(id) { return (state && state.ledger && state.ledger[id]) || { rights: 0, misses: 0, lastSeen: 0 }; }
 export function isMastered(id) { const e = ledgerEntry(id); return e.rights >= MASTER_RIGHTS && (e.rights - e.misses) >= MASTER_MARGIN; }
 // weak = has been missed more than got right (recent trouble); mastered as above; else middle.

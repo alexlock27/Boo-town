@@ -5,6 +5,8 @@ import { getState, mutate, exportCode, importCode, resetAll } from './state.js';
 import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
 
+const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
+
 export function mount(container, params, ctx) {
   const s = getState();
 
@@ -66,8 +68,74 @@ export function mount(container, params, ctx) {
     el('div', { class: 'gu-row' }, [resetInput, resetBtn])
   ]);
 
-  root.append(header, toggles, backup, reset);
+  root.append(header, goldenEditor(s), toggles, backup, reset);
   container.appendChild(root);
+
+  // ---- Golden Round editor (RUN3 C3): parent-typed weekly challenge ----
+  function goldenEditor(s) {
+    const existing = s.golden || { words: [], choices: [] };
+    const wordRows = [], choiceRows = [];
+
+    const wordsWrap = el('div', { class: 'gr-rows' });
+    for (let i = 0; i < GOLDEN_MAX_WORDS; i++) {
+      const pre = existing.words[i] || {};
+      const word = el('input', { class: 'text-input small gr-word', type: 'text', placeholder: `Word ${i + 1}`, value: pre.w || '' });
+      const twin = el('input', { type: 'checkbox', class: 'gr-twin', checked: pre.twin ? 'checked' : undefined });
+      const rival = el('input', { class: 'text-input small gr-rival', type: 'text', placeholder: 'rival spelling', value: pre.rival || '', style: { display: pre.twin ? '' : 'none' } });
+      const clue = el('input', { class: 'text-input small gr-clue', type: 'text', placeholder: 'clue (use ___ for the gap)', value: pre.clue || '' });
+      twin.addEventListener('change', () => { rival.style.display = twin.checked ? '' : 'none'; });
+      wordRows.push({ word, twin, rival, clue });
+      wordsWrap.appendChild(el('div', { class: 'gr-word-row' }, [word, el('label', { class: 'gr-twin-label' }, [twin, el('span', { text: 'twin' })]), rival, clue]));
+    }
+
+    const choicesWrap = el('div', { class: 'gr-rows' });
+    for (let i = 0; i < GOLDEN_MAX_CHOICES; i++) {
+      const pre = existing.choices[i] || {};
+      const q = el('input', { class: 'text-input small gr-q', type: 'text', placeholder: `Question ${i + 1}`, value: pre.q || '' });
+      const right = el('input', { class: 'text-input small gr-right', type: 'text', placeholder: 'right answer', value: pre.right || '' });
+      const w = [0, 1, 2].map(k => el('input', { class: 'text-input small gr-wrong', type: 'text', placeholder: `wrong ${k + 1}`, value: (pre.wrong || [])[k] || '' }));
+      choiceRows.push({ q, right, w });
+      choicesWrap.appendChild(el('div', { class: 'gr-choice-row' }, [q, el('div', { class: 'gr-choice-ans' }, [right, ...w])]));
+    }
+
+    const msg = el('span', { class: 'gu-msg' });
+    function save() {
+      const words = wordRows.map(r => {
+        const wv = r.word.value.trim(); if (!wv) return null;
+        const o = { w: wv };
+        if (r.twin.checked && r.rival.value.trim()) { o.twin = true; o.rival = r.rival.value.trim(); }
+        if (r.clue.value.trim()) o.clue = r.clue.value.trim();
+        return o;
+      }).filter(Boolean);
+      const choices = choiceRows.map(r => {
+        const q = r.q.value.trim(), right = r.right.value.trim();
+        const wrong = r.w.map(x => x.value.trim()).filter(Boolean);
+        if (!q || !right || !wrong.length) return null;
+        return { q, right, wrong };
+      }).filter(Boolean);
+      if (!words.length && !choices.length) { msg.textContent = 'Add at least one word or question first.'; msg.classList.add('err'); return; }
+      mutate(st => { st.golden = { words, choices, savedAt: Date.now() }; });
+      msg.classList.remove('err'); msg.textContent = `Saved! ${words.length} word(s), ${choices.length} question(s) — it's on the hub now.`;
+    }
+    function clearGolden() {
+      mutate(st => { st.golden = null; });
+      wordRows.forEach(r => { r.word.value = ''; r.rival.value = ''; r.clue.value = ''; r.twin.checked = false; r.rival.style.display = 'none'; });
+      choiceRows.forEach(r => { r.q.value = ''; r.right.value = ''; r.w.forEach(x => x.value = ''); });
+      msg.classList.remove('err'); msg.textContent = 'Golden Round cleared.';
+    }
+
+    return el('div', { class: 'gu-card' }, [
+      el('h3', { text: '⭐ Golden Round' }),
+      el('p', { class: 'gu-note', text: 'Type this week\'s spelling words and a few questions. Saving puts a gold card on her hub, worth double stars once a day. Tick "twin" for sound-alikes (their/there) and add the rival spelling.' }),
+      el('h4', { class: 'gr-sub', text: 'Spelling words (up to 10)' }), wordsWrap,
+      el('h4', { class: 'gr-sub', text: 'Questions (up to 5)' }), choicesWrap,
+      el('div', { class: 'gu-row' }, [
+        el('button', { class: 'btn gr-save', text: 'Save Golden Round', onclick: save }),
+        el('button', { class: 'btn soft gr-clear', text: 'Clear', onclick: clearGolden }),
+        msg
+      ])
+    ]);
+  }
 
   function toggle(label, initial, onChange) {
     let on = initial;
