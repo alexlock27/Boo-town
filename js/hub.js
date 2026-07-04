@@ -7,6 +7,7 @@ import { music, sfx } from './sfx.js';
 import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 import { questState } from './quests.js';
+import { checkRequestOpen } from './requests.js';
 
 const GAMES = [
   { id: 'teachme',   name: 'Teach Me',     tag: 'Little lessons', accent: 'var(--zing)', icon: teachIcon, group: 'Learn' },
@@ -23,6 +24,8 @@ const GAMES = [
 export function mount(container, params, ctx) {
   const s = getState();
   music.play('calm');
+  // Occasional Boo requests appear only at app open (RUN3 C8).
+  checkRequestOpen((s.town || []).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
 
   const root = el('div', { class: 'hub' });
   container.appendChild(root);

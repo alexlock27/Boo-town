@@ -47,8 +47,10 @@ function freshSave() {
     customs: [],                // Build-a-Boo sealed customs (RUN3 C6): [{ id, name, parts, sealed, won, wonAt? }]
     studioSeen: false,          // whether the free Easel deco has been granted with the Studio
     easelArt: '',               // artwork id displayed on the town Easel (RUN3 C6)
+    request: { active: null, lastResolvedAt: 0 }, // occasional Boo requests (RUN3 C8), ≤1 active
+    routines: {},               // Dance Stage choreography per stage: 'zone:x' -> [moveId] (RUN3 C8)
     seen: {},                   // one-time flags (game intros, town first, etc.)
-    settings: { sound: true, music: true, voice: true, mic: true }, // mic: Boo voice recording (RUN3 C7)
+    settings: { sound: true, music: true, voice: true, mic: true, requests: true }, // mic: voices (C7); requests: Boo requests (C8)
     created: 0,
     lastPlayed: 0
   };

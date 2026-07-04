@@ -5,6 +5,7 @@ import { getState, mutate, exportCode, importCode, resetAll } from './state.js';
 import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
 import { deleteAllVoices, voiceCount } from './voices.js';
+import { setRequestsEnabled } from './requests.js';
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -34,6 +35,13 @@ export function mount(container, params, ctx) {
     toggle('Recording (Boo voices)', s.settings.mic !== false, v => { mutate(st => st.settings.mic = v); }),
     el('p', { class: 'gu-note', text: 'When on, tapping a Boo\'s card offers "Give them a voice". Recordings are saved on THIS device only and never uploaded. Turn off to hide all recording buttons.' }),
     el('div', { class: 'gu-row' }, [delBtn, delMsg])
+  ]);
+
+  // ---- Boo requests (RUN3 C8) ----
+  const requestsCard = el('div', { class: 'gu-card' }, [
+    el('h3', { text: 'Boo requests' }),
+    toggle('Occasional Boo requests', s.settings.requests !== false, v => { setRequestsEnabled(v); }),
+    el('p', { class: 'gu-note', text: 'Now and then a Boo asks for a little something (like "play a maths game!"). At most one at a time, never a nag. Turn off to stop them entirely.' })
   ]);
 
   // ---- backup ----
@@ -79,7 +87,7 @@ export function mount(container, params, ctx) {
     el('div', { class: 'gu-row' }, [resetInput, resetBtn])
   ]);
 
-  root.append(header, goldenEditor(s), toggles, micCard, backup, reset);
+  root.append(header, goldenEditor(s), toggles, micCard, requestsCard, backup, reset);
   container.appendChild(root);
 
   // ---- Golden Round editor (RUN3 C3): parent-typed weekly challenge ----

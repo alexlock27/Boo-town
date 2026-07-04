@@ -2,6 +2,19 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 3 — Phase 8: Boo requests + the Dance Choreographer
+- Occasional Boo requests: at most one active at a time, a new one only at app open and at
+  least 20 hours after the last resolved. A thought bubble over one placed Boo asks something
+  small ("Will you play a maths game for me?"). Fulfilling it gives +2 meter and a "thank you"
+  treat; unfulfilled requests expire silently after 48 hours — no message, no sad face. Off
+  switch in the grown-ups corner.
+- Dance Choreographer: tap a placed Dance Stage → Choreograph. A library of 8 moves
+  (bounce, spin, wiggle, jump, clap, slide, star pose, freeze); build a sequence of up to 8,
+  preview it, and save. Boos on that stage then perform the routine on loop (each stage keeps
+  its own). Journal stamp for the first routine.
+- New js/requests.js + js/choreographer.js; events wired from results/ceremony/accessories/
+  studio; motion audit gains item 14 (routine loop frames).
+
 ## Run 3 — Phase 7: Boo voices
 - From any owned Boo's card: "Give them a voice" — record up to 4s via the microphone, watch
   a live level meter, play it back, redo, and choose a voice: normal, squeaky or deep

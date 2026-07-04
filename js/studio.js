@@ -6,7 +6,7 @@ import { el, clear, dialog } from './ui.js';
 import { getState, mutate } from './state.js';
 import { sfx, music } from './sfx.js';
 import { idbGetAll, idbPut, idbDelete, idbCount } from './idb.js';
-import { stampJournal } from './quests.js';
+import { noteRequest } from './requests.js';
 
 export const GALLERY_CAP = 20;
 export const ART_MAX_PX = 640;
@@ -25,6 +25,7 @@ export async function saveArtwork(png, kind) {
   if (count >= GALLERY_CAP) return { full: true };
   const id = 'art_' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
   await idbPut('artworks', { id, png, kind, created: Date.now() });
+  noteRequest('artwork');   // a Boo may have asked for a picture (RUN3 C8)
   return { ok: true, id };
 }
 export async function listArtworks() {

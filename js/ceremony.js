@@ -9,6 +9,7 @@ import { sfx, music } from './sfx.js';
 import { openOneBox } from './rewards.js';
 import { openEquipPicker } from './accessories.js';
 import { noteQuest, stampJournal } from './quests.js';
+import { noteRequest } from './requests.js';
 
 // Reveal cards announce what the item is (spec RUN2 C2).
 const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
@@ -28,8 +29,9 @@ export function mount(container, params, ctx) {
     if (!result) { ctx.go('hub'); return; }
     clear(root);
     music.play('calm');
-    // daily quest + Journal (RUN3 C4/C6)
+    // daily quest + Journal (RUN3 C4/C6) + request (RUN3 C8)
     noteQuest('boxOpen');
+    noteRequest('boxOpen');
     if (result.isCustom) stampJournal('firstCustomWin');
     else if (result.rarity === 'rare') stampJournal('firstRare');
     else if (result.rarity === 'ultra') stampJournal('firstUltra');

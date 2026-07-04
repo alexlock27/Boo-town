@@ -397,6 +397,22 @@ if (run(13)) try {
   await page.context().close();
 } catch (e) { record(13, 'Clock Shop', false, 'ERROR ' + e.message); }
 
+// ---- Item 14: Dance Choreographer — Boos on a stage loop the saved routine (frame evidence) ----
+if (run(14)) try {
+  const page = await freshPage();
+  await page.evaluate(async () => {
+    const st = await import('./js/state.js');
+    st.mutate(s => { s.town = [{ zone: 'meadow', x: 0.5, item: 'deco_stage' }, { zone: 'meadow', x: 0.52, item: 'boo_inky' }, { zone: 'meadow', x: 0.55, item: 'boo_plum' }]; s.routines = { 'meadow:0.5': ['bounce', 'spin', 'jump', 'wiggle'] }; });
+  });
+  await page.evaluate(() => window.BooTown.go('town'));
+  await page.waitForSelector('.town2'); await page.waitForTimeout(400);
+  const frames = [];
+  for (let i = 0; i < 6; i++) { frames.push(await page.$$eval('.t-item.boo svg', ns => ns.map(n => [...n.classList].find(c => c.startsWith('move-')) || 'none').join(','))); await page.waitForTimeout(760); }
+  const distinct = new Set(frames);
+  record(14, 'Dance Choreographer', distinct.size >= 3 && frames.some(f => /move-/.test(f)), `stage Boos cycle the routine over time: ${JSON.stringify(frames)} (${distinct.size} distinct)`);
+  await page.context().close();
+} catch (e) { record(14, 'Dance Choreographer', false, 'ERROR ' + e.message); }
+
 await browser.close();
 
 // ---- summary ----

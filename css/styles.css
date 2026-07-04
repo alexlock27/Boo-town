@@ -791,6 +791,49 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .rar-custom { border-color: var(--pop) !important; }
 .customs-grid, .my-boos { width: 100%; }
 
+/* ---- Boo requests + Dance Choreographer (RUN3 C8) ---- */
+.request-bubble {
+  position: absolute; left: 50%; top: -34px; transform: translateX(-50%);
+  background: var(--card); border: 2px solid var(--ink); border-radius: 14px; padding: 5px 10px;
+  font-size: 13px; color: var(--ink); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: var(--card-shadow); z-index: 6; animation: reqpop 300ms ease-out;
+}
+.request-bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--card); }
+@keyframes reqpop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+.request-treat { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; color: var(--pop); font-size: 16px; animation: flyup 2.2s ease-out forwards; z-index: 7; }
+
+/* the 8 dance moves (applied one per beat to a Boo svg) */
+.move-bounce { animation: mv-bounce 0.6s ease-in-out; transform-origin: 50% 100%; }
+@keyframes mv-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-16%); } }
+.move-spin { animation: mv-spin 0.6s ease-in-out; transform-origin: 50% 60%; }
+@keyframes mv-spin { from { transform: rotateY(0); } to { transform: rotateY(360deg); } }
+.move-wiggle { animation: mv-wiggle 0.6s ease-in-out; transform-origin: 50% 100%; }
+@keyframes mv-wiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+.move-jump { animation: mv-jump 0.6s ease-out; transform-origin: 50% 100%; }
+@keyframes mv-jump { 0% { transform: translateY(0); } 40% { transform: translateY(-30%) scale(1.05,0.95); } 100% { transform: translateY(0); } }
+.move-clap { animation: mv-clap 0.6s ease-in-out; transform-origin: 50% 60%; }
+@keyframes mv-clap { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12, 0.9); } }
+.move-slide { animation: mv-slide 0.6s ease-in-out; }
+@keyframes mv-slide { 0% { transform: translateX(0); } 30% { transform: translateX(-20%); } 70% { transform: translateX(20%); } 100% { transform: translateX(0); } }
+.move-starpose { animation: mv-star 0.6s ease-out; transform-origin: 50% 60%; }
+@keyframes mv-star { 0% { transform: scale(1) rotate(0); } 50% { transform: scale(1.18) rotate(8deg); } 100% { transform: scale(1) rotate(0); } }
+.move-freeze { animation: none; }
+@media (prefers-reduced-motion: reduce) { .move-bounce,.move-spin,.move-wiggle,.move-jump,.move-clap,.move-slide,.move-starpose { animation: none !important; } .request-bubble,.request-treat { animation: none !important; } }
+
+.choreo-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 70; }
+.choreo-card { max-width: 460px; width: 92%; padding: 20px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; }
+.choreo-preview { background: #F3ECFF; border-radius: 16px; padding: 8px 30px; }
+.choreo-label { font-family: var(--font-display); color: var(--ink); margin: 4px 0 0; }
+.choreo-strip { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 46px; align-items: center; background: #F3ECFF; border-radius: 12px; padding: 6px; width: 100%; }
+.choreo-slot { position: relative; width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--ink); background: var(--card); font-size: 22px; }
+.cs-num { position: absolute; bottom: -6px; right: -4px; font-size: 10px; background: var(--pop); color: var(--card); border-radius: 999px; padding: 0 4px; }
+.choreo-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+.choreo-move { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--card); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 4px; }
+.cm-emoji { font-size: 24px; } .cm-name { font-size: 12px; color: var(--ink); }
+.choreo-hint { font-size: 13px; color: var(--sky-mid); }
+.choreo-msg { font-size: 14px; color: var(--zing); font-weight: 700; min-height: 18px; }
+.choreo-actions { display: flex; gap: 8px; }
+
 /* ---- Boo voices (RUN3 C7) ---- */
 .voice-overlay { position: fixed; inset: 0; background: rgba(30,21,80,0.7); display: flex; align-items: center; justify-content: center; z-index: 70; }
 .voice-card { max-width: 440px; width: 92%; padding: 22px; display: flex; flex-direction: column; gap: 10px; text-align: center; }

@@ -10,6 +10,8 @@ import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
 import { idbGet } from './idb.js';
 import { voiceBooIds, playVoice } from './voices.js';
+import { checkRequestOpen, activeRequest, takeTreat } from './requests.js';
+import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
@@ -42,6 +44,8 @@ export function mount(container, params, ctx) {
   noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
   let voiceIds = new Set();  // Boo ids with a recorded voice (RUN3 C7)
   voiceBooIds().then(s => { voiceIds = s; }).catch(() => {});
+  // Occasional Boo requests (RUN3 C8): check at app open (town is an "open").
+  checkRequestOpen((getState().town || []).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
 
   let holding = (params && params.place) || null;   // item id being placed
   let placeMode = !!holding;
@@ -147,6 +151,7 @@ export function mount(container, params, ctx) {
     }
     applyDance();
     decorateEasels();
+    renderRequestBubble();
   }
 
   // Overlay the chosen artwork onto any placed Easel (RUN3 C6).
@@ -183,16 +188,43 @@ export function mount(container, params, ctx) {
     requestAnimationFrame(() => ov.classList.add('show'));
   }
 
-  // Dance Stage: Boos near a stage bop.
+  // Dance Stage: Boos near a stage bop — or perform its saved routine on loop (RUN3 C8).
+  let routineTimer = null;
   function applyDance() {
     const st = getState();
     const stages = st.town.filter(t => t.item === 'deco_stage');
     for (const a of actors) {
-      const near = stages.some(sg => (ZONE_INDEX[sg.zone] === ZONE_INDEX[a.place.zone]) && Math.abs(sg.x - a.place.x) < 0.14);
-      a.dancing = near;
-      a.wrap.querySelector('svg')?.classList.toggle('art-dance', near && !REDUCED);
+      const stage = stages.find(sg => (ZONE_INDEX[sg.zone] === ZONE_INDEX[a.place.zone]) && Math.abs(sg.x - a.place.x) < 0.14);
+      a.dancing = !!stage;
+      a.routine = stage ? routineFor(stage) : null;
+      a.routineIdx = 0;
+      const svg = a.wrap.querySelector('svg');
+      if (svg) {
+        if (a.dancing && a.routine && a.routine.length && !REDUCED) svg.classList.remove('art-dance');   // routine loop drives it
+        else svg.classList.toggle('art-dance', a.dancing && !REDUCED);
+      }
     }
+    startRoutineLoop();
   }
+  function startRoutineLoop() {
+    if (routineTimer) { clearInterval(routineTimer); routineTimer = null; }
+    if (REDUCED || !actors.some(a => a.dancing && a.routine && a.routine.length)) return;
+    routineTimer = setInterval(() => {
+      for (const a of actors) {
+        if (a.dancing && a.routine && a.routine.length) { applyMove(a.wrap.querySelector('svg'), a.routine[a.routineIdx % a.routine.length]); a.routineIdx++; }
+      }
+    }, STEP_MS);
+  }
+
+  // Show the active request's thought bubble over its Boo, and a treat if one was just fulfilled.
+  function renderRequestBubble() {
+    ground.querySelectorAll('.request-bubble, .request-treat').forEach(n => n.remove());
+    const a = activeRequest();
+    if (a) { const w = [...ground.querySelectorAll('.t-item.boo')].find(x => x.dataset.item === a.booId); if (w) w.appendChild(el('div', { class: 'request-bubble', text: a.text })); }
+    const treatBoo = takeTreat();
+    if (treatBoo) { const w = [...ground.querySelectorAll('.t-item')].find(x => x.dataset.item === treatBoo); if (w) { const t = el('div', { class: 'request-treat', text: '💖 Thank you!' }); w.appendChild(t); if (!REDUCED) confetti({ count: 24, power: 0.6, origin: pointFor(w) }); setTimeout(() => t.remove(), 2200); } }
+  }
+  function pointFor(node) { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top }; }
 
   // ---- scrolling (momentum) ----------------------------------------------
   function applyScroll() {
@@ -363,6 +395,7 @@ export function mount(container, params, ctx) {
     const btns = [];
     if (item.kind === 'boo') btns.push(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => { e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderPlaced() }); } }));
     if (item.deco === 'easel') btns.push(el('button', { class: 'btn soft', text: 'Choose art 🖼️', onclick: (e) => { e.stopPropagation(); closeMenu(); chooseEaselArt(); } }));
+    if (item.deco === 'stage') btns.push(el('button', { class: 'btn soft', text: 'Choreograph 💃', onclick: (e) => { e.stopPropagation(); closeMenu(); openChoreographer(place, { onDone: () => renderPlaced() }); } }));
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
     btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
@@ -478,6 +511,7 @@ export function mount(container, params, ctx) {
     unmount() {
       if (raf) cancelAnimationFrame(raf);
       if (momRaf) cancelAnimationFrame(momRaf);
+      if (routineTimer) clearInterval(routineTimer);
       window.removeEventListener('resize', onResize);
       closeMenu();
     }

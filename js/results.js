@@ -8,6 +8,7 @@ import { sfx } from './sfx.js';
 import { bankStars, addMeterPoints, METER_CAP, meterState } from './rewards.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
+import { noteRequest } from './requests.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null } = params || {};
@@ -26,8 +27,9 @@ export function mount(container, params, ctx) {
   const banked = meterOverride != null ? addMeterPoints(meterOverride) : bankStars(stars);
   const lineKey = stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
 
-  // daily quests + Journal (RUN3 C4)
+  // daily quests + Journal (RUN3 C4) + occasional requests (RUN3 C8)
   noteQuest('roundEnd', { game, stars });
+  noteRequest('roundEnd', { game, stars });
   if (stars >= 3) stampJournal('star3_' + game);
   if (game === 'golden' && stars >= 3) stampJournal('golden3');
 
