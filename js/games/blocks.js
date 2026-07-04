@@ -13,6 +13,7 @@ import { makeQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { noteQuest } from '../quests.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
+import { pickForMeButton } from '../picker.js';
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven questions (C9)
 
@@ -74,7 +75,9 @@ export function mount(container, params, ctx) {
         el('span', { class: 'lv-num', text: 'Level ' + lv })
       ]));
     }
-    card.append(el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
+    // one-tap Smart-Mix front door (RUN4 C2), same control as the shared pickers
+    const pfmRow = el('div', { class: 'picker-choices' }, [pickForMeButton(() => play(AUTO, 2))]);
+    card.append(pfmRow, el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [
       el('div', { html: starsRow(3, { size: 24 }) }),
       el('p', { text: 'Three stars: 10+ right and 5 lines cleared, no hints.' })

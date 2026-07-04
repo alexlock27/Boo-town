@@ -58,7 +58,7 @@ export function mount(container, params, ctx) {
     ]);
     const picker = buildPicker({
       game: 'dash',
-      choices: filterCategories(DASH_CATS.map(k => ({ key: k, name: BUBBLE_BY_KEY[k].name }))),
+      choices: filterCategories(DASH_CATS.map(k => ({ key: k, name: BUBBLE_BY_KEY[k].name, sub: BUBBLE_BY_KEY[k].sample }))),
       levelsFor: (key) => filterLevels(BUBBLE_BY_KEY[key].levels),
       levelName: LEVEL_NAME,
       onStart: (catKey, level) => play(catKey, level, steady)

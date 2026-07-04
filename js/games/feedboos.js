@@ -76,10 +76,13 @@ export function mount(container, params, ctx) {
     const tier = contentTier();
     let choices, levelsFor;
     if (tier === 'light') {
-      choices = [{ key: 'maths', name: '🔢 Maths' }, { key: 'words', name: '🔤 Words' }];
+      choices = [
+        { key: 'maths', name: '🔢 Maths', sub: '47 — odd or even?' },
+        { key: 'words', name: '🔤 Words', sub: 'their / there' }
+      ];
       levelsFor = (subject) => filterLevels(levelsForSubject(subject));
     } else if (tier === 'medium') {
-      choices = FEED_GROUPS.filter(g => ALL_TEMPLATES.some(t => feedGroupOf(t.id) === g.key)).map(g => ({ key: 'g:' + g.key, name: g.name }));
+      choices = FEED_GROUPS.filter(g => ALL_TEMPLATES.some(t => feedGroupOf(t.id) === g.key)).map(g => ({ key: 'g:' + g.key, name: g.name, sub: g.sample }));
       levelsFor = (gk) => [...new Set(ALL_TEMPLATES.filter(t => feedGroupOf(t.id) === gk.slice(2)).map(t => t.level))].sort();
     } else {
       choices = ALL_TEMPLATES.map(t => ({ key: 't:' + t.id, name: prettyTemplateName(t.id) }));

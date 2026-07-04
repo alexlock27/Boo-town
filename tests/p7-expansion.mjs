@@ -47,6 +47,8 @@ assert(sortOk.bad === 0, `all ${sortOk.count} sorting templates produce valid ro
 console.log('== 6.4 homophones: clue shown, completable voice-off ==');
 await page.evaluate(() => window.BooTown.go('spellboo'));
 await page.waitForSelector('.picker');
+// RUN4 C2: Full-tier set cards sit under collapsible headers — open them first
+await page.$$eval('.pg-head', hs => hs.forEach(h => h.dataset.open === 'true' || h.click()));
 await page.click('.picker-choice:has-text("Homophones")');
 await page.click('.picker-levels .level-btn');
 await page.waitForSelector('.slots-wrap'); await page.waitForTimeout(200);

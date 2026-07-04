@@ -38,7 +38,7 @@ export function mount(container, params, ctx) {
     ]);
     const picker = buildPicker({
       game: 'bubblepop',
-      choices: filterCategories(BUBBLE_CATEGORIES).map(c => ({ key: c.key, name: c.name })),
+      choices: filterCategories(BUBBLE_CATEGORIES).map(c => ({ key: c.key, name: c.name, sub: c.sample })),
       levelsFor: (key) => filterLevels(BUBBLE_BY_KEY[key].levels),
       levelName: LEVEL_NAME,
       onStart: (catKey, level) => play(catKey, level)

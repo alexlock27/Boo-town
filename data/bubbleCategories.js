@@ -123,12 +123,13 @@ function morelessGen(lvl) {
   return { display: `1000 ${dir} than ${comma(base)}`, answer, key: `ml4${base}:${dir}`, distractors: fill(ds, answer, 100), fmt: comma };
 }
 
+// `sample` is display-only picker copy (RUN4 C2): one example question per card.
 export const BUBBLE_CATEGORIES = [
-  { key: 'tables',   name: 'Times tables',    levels: ['S', 1, 2, 3], gen: tablesGen },
-  { key: 'bonds',    name: 'Number bonds',    levels: ['S', 1, 2],    gen: bondsGen },
-  { key: 'addsub',   name: 'Add & subtract',  levels: [1, 2, 3],      gen: addsubGen },
-  { key: 'doubles',  name: 'Doubles & halves',levels: [1, 2],         gen: dhGen },
-  { key: 'moreless', name: 'More or less',    levels: [1, 2],         gen: morelessGen }
+  { key: 'tables',   name: 'Times tables',    levels: ['S', 1, 2, 3], gen: tablesGen,   sample: '7 × 8' },
+  { key: 'bonds',    name: 'Number bonds',    levels: ['S', 1, 2],    gen: bondsGen,    sample: '35 + ? = 100' },
+  { key: 'addsub',   name: 'Add & subtract',  levels: [1, 2, 3],      gen: addsubGen,   sample: '46 + 37' },
+  { key: 'doubles',  name: 'Doubles & halves',levels: [1, 2],         gen: dhGen,       sample: 'Double 14' },
+  { key: 'moreless', name: 'More or less',    levels: [1, 2],         gen: morelessGen, sample: '10 more than 62' }
 ];
 export const BUBBLE_BY_KEY = Object.fromEntries(BUBBLE_CATEGORIES.map(c => [c.key, c]));
 

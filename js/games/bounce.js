@@ -14,6 +14,7 @@ import { sfx, music } from '../sfx.js';
 import { makeQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
+import { pickForMeButton } from '../picker.js';
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
@@ -48,7 +49,9 @@ export function mount(container, params, ctx) {
     });
     const levels = el('div', { class: 'level-row' });
     for (const lv of [1, 2, 3]) levels.appendChild(el('button', { class: 'btn level-btn', style: { '--accent': 'var(--pop)' }, onclick: () => { sfx.tap(); play(category, lv); } }, [el('span', { class: 'lv-num', text: 'Level ' + lv })]));
-    card.append(el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
+    // one-tap Smart-Mix front door (RUN4 C2), same control as the shared pickers
+    const pfmRow = el('div', { class: 'picker-choices' }, [pickForMeButton(() => play(AUTO, 2))]);
+    card.append(pfmRow, el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [el('div', { html: starsRow(3, { size: 24 }) }), el('p', { text: 'Three stars: at most one wrong brick and one ball drop.' })]));
     root.appendChild(card);
     root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)

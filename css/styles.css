@@ -733,6 +733,44 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* ---- Smart Mix picker card + Tricky Pile (RUN3 C2) ---- */
 .picker-choice.mix { background: linear-gradient(120deg, var(--pop), var(--star)); color: var(--card); font-weight: 700; }
 .picker-choice.mix .pc-name { color: var(--card); }
+
+/* ---- "Pick for me!" + kid-readable set cards (RUN4 C2) ---- */
+.picker-choice.pickforme {
+  flex-basis: 100%; max-width: 430px; margin: 0 auto 4px; min-height: 58px;
+  flex-direction: row; justify-content: center; gap: 10px;
+  font-size: 22px; border-color: var(--ink);
+  box-shadow: 0 4px 0 rgba(42,27,78,0.35), 0 0 0 3px rgba(255,201,60,0.35);
+}
+.picker-choice.pickforme:active { transform: scale(0.96); }
+.pfm-dice { display: inline-flex; animation: pfm-wiggle 3.2s ease-in-out infinite; }
+@keyframes pfm-wiggle { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-14deg); } 94% { transform: rotate(12deg); } 98% { transform: rotate(-6deg); } }
+@media (prefers-reduced-motion: reduce) { .pfm-dice { animation: none; } }
+.pc-sub { font-family: var(--font-body); font-weight: 600; font-size: 12.5px; color: #6B5E93; }
+.picker-choice.sel .pc-sub { color: rgba(255,255,255,0.85); }
+.picker-group { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; }
+.pg-head {
+  border: 3px solid rgba(42,27,78,0.14); border-radius: 14px;
+  background: rgba(42,27,78,0.06); color: var(--ink);
+  min-height: 44px; padding: 8px 16px; cursor: pointer;
+  font-family: var(--font-display); font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; gap: 10px; text-align: left;
+}
+.pg-head:active { transform: scale(0.98); }
+.pg-head > span:first-child { flex: 1; }
+.pg-count {
+  background: var(--sky-mid); color: var(--card); border-radius: 10px; padding: 1px 9px;
+  font-size: 13px; font-weight: 600;
+}
+.pg-arrow { color: var(--ink); }
+/* acc-chips were styled for dark screens (creator); on cream cards (arcade start
+   cards, the beat/dash steady toggle, the age card) they were white-on-cream and
+   unreadable — picker clarity fix, same phase. */
+.card .acc-chip { color: var(--ink); background: rgba(42,27,78,0.06); border-color: rgba(42,27,78,0.18); }
+.card .acc-chip.sel { background: var(--pop); border-color: var(--ink); color: #fff; }
+.pg-arrow { transition: transform 0.18s ease-out; }
+.pg-head[data-open="true"] .pg-arrow { transform: rotate(90deg); }
+.pg-body { display: none; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.pg-head[data-open="true"] + .pg-body { display: flex; }
 .level-btn.mix-start { background: linear-gradient(120deg, var(--pop), var(--star)); }
 
 .puzzled-boo {

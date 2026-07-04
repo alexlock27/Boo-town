@@ -32,7 +32,7 @@ async function pickerNames(game) {
 // ---- D19: Bubble Pop categories per tier ----
 console.log('== D19: Bubble Pop categories ==');
 await setTier('light'); let n = await pickerNames('bubblepop');
-assert(n.includes('✨ Smart Mix') && n.includes('Times tables') && !n.includes('Number bonds') && !n.includes('Doubles & halves'), 'Light: Smart Mix + Times tables only (' + n.join(',') + ')');
+assert(n.includes('Pick for me!') && n.includes('Times tables') && !n.includes('Number bonds') && !n.includes('Doubles & halves'), 'Light: Pick for me + Times tables only (' + n.join(',') + ')');
 await setTier('medium'); n = await pickerNames('bubblepop');
 assert(n.includes('Number bonds') && n.includes('Add & subtract') && !n.includes('Doubles & halves') && !n.includes('More or less'), 'Medium: adds Number bonds + Add & subtract');
 await setTier('full'); n = await pickerNames('bubblepop');
@@ -46,11 +46,12 @@ assert(!lightLevels.some(l => /Level 3/.test(l)), 'Light: levels only go up to L
 // ---- D19: Spell Boo sets per tier ----
 console.log('== D19: Spell Boo sets ==');
 await setTier('light'); n = await pickerNames('spellboo');
-assert(n.includes('✨ Smart Mix') && n.includes('The Big List') && n.includes('Tricky Sounds') && n.includes('🔤 Sound Twins') && !n.includes('The ly family') && !n.includes('gue and que'), 'Light: Big List + Tricky Sounds + Sound Twins only');
+// RUN4 C2: cards show friendly display names (internal ids unchanged)
+assert(n.includes('Pick for me!') && n.includes('The Big List') && n.includes('Th Words') && n.includes('Sound Twins') && !n.includes('The ly Endings') && !n.includes('Silent Enders'), 'Light: Big List + Th Words + Sound Twins only');
 await setTier('medium'); n = await pickerNames('spellboo');
-assert(n.includes('The ly family') && n.includes('Homophones') && n.includes('The ture family') && !n.includes('gue and que') && !n.includes('Silent-ish sc'), 'Medium: adds the listed families, not the Full-only banks');
+assert(n.includes('The ly Endings') && n.includes('Homophones') && n.includes('The ture Words') && !n.includes('Silent Enders') && !n.includes('Silent c Words'), 'Medium: adds the listed families, not the Full-only banks');
 await setTier('full'); n = await pickerNames('spellboo');
-assert(n.includes('gue and que') && n.includes('Silent-ish sc') && n.includes('tion, sion, ssion, cian'), 'Full: shows every bank');
+assert(n.includes('Silent Enders') && n.includes('Silent c Words') && n.includes('The shun Endings'), 'Full: shows every bank');
 
 // ---- D19: Feed the Boos structure per tier ----
 console.log('== D19: Feed the Boos ==');

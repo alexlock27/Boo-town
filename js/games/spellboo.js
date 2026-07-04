@@ -20,11 +20,43 @@ import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { buildSmartMix } from '../smartmix.js';
 import { createTrickyCollector, wordMiss } from '../trickypile.js';
 import { makeSpeller, typeInto } from '../speller.js';
-import { filterSpellSets, filterLevels } from '../content.js';
+import { filterSpellSets, filterLevels, contentTier } from '../content.js';
 
 const SETS = [{ key: 'big', name: 'The Big List', words: WORDS }, ...BANKS.map(b => ({ key: b.id, name: b.name, words: b.words }))];
 const SET_BY_KEY = Object.fromEntries(SETS.map(s => [s.key, s]));
 const TWINS_KEY = 'twins';
+
+// Kid-readable set cards (RUN4 C2): friendly display names + two samples, exactly
+// per the C2 rename mapping. DISPLAY ONLY — internal set ids never change. Groups
+// collapse under three headers at the Full tier, where every set is visible.
+const GROUP_LABEL = { starters: 'Starters', endings: 'Endings', sneaky: 'Sneaky sounds and silent letters' };
+export const SPELL_GROUP_ORDER = [GROUP_LABEL.starters, GROUP_LABEL.endings, GROUP_LABEL.sneaky];
+const FRIENDLY = {
+  big:      { name: 'The Big List',      sub: 'believe · February' },
+  twins:    { name: 'Sound Twins',       sub: 'there / their' },
+  trickyTh: { name: 'Th Words',          sub: 'with · three',            group: 'sneaky' },
+  prefixesUnDisMisRe:            { name: 'Word Starters 1', sub: 'unhappy · redo',          group: 'starters' },
+  prefixesInIlImIr:              { name: 'Word Starters 2', sub: 'impossible · incorrect',  group: 'starters' },
+  prefixesSuperAntiAutoInterSub: { name: 'Super Starters',  sub: 'superstar · submarine',   group: 'starters' },
+  lyFamily:           { name: 'The ly Endings',    sub: 'happily · gently',      group: 'endings' },
+  ousFamily:          { name: 'The ous Endings',   sub: 'famous · enormous',     group: 'endings' },
+  tionSionSsionCian:  { name: 'The shun Endings',  sub: 'station · musician',    group: 'endings' },
+  tureFamily:         { name: 'The ture Words',    sub: 'picture · adventure',   group: 'endings' },
+  doubleOrNotEndings: { name: 'Double Trouble',    sub: 'beginning · gardener',  group: 'endings' },
+  gueAndQue:          { name: 'Silent Enders',     sub: 'tongue · unique',       group: 'endings' },
+  chSoundsLikeK:      { name: 'Sneaky ch says k',  sub: 'school · echo',         group: 'sneaky' },
+  chSoundsLikeSh:     { name: 'Sneaky ch says sh', sub: 'chef · machine',        group: 'sneaky' },
+  silentIshSc:        { name: 'Silent c Words',    sub: 'science · scissors',    group: 'sneaky' },
+  eiEighEy:           { name: 'The eigh Gang',     sub: 'eight · they',          group: 'sneaky' },
+  ouSoundsLikeU:      { name: 'Short ou Words',    sub: 'young · touch',         group: 'sneaky' },
+  homophones:         { name: 'Homophones',        sub: 'piece / peace',         group: 'sneaky' }
+};
+function friendlyChoice(c) {
+  const f = FRIENDLY[c.key];
+  if (!f) return c;
+  const grouped = contentTier() === 'full' && f.group;   // headers only where all sets show
+  return { key: c.key, name: f.name, sub: f.sub, group: grouped ? GROUP_LABEL[f.group] : undefined };
+}
 const TH_WORDS = new Set((BANKS.find(b => b.id === 'trickyTh') || { words: [] }).words.map(w => w.w));
 function tiersInSet(key) { const s = SET_BY_KEY[key]; return [...new Set(s.words.map(w => w.t))].sort(); }
 
@@ -49,11 +81,13 @@ export function mount(container, params, ctx) {
       el('h2', { text: 'Spell Boo' }),
       el('p', { class: 'sc-intro', text: guideLine('gameIntroSpell') })
     ]);
-    // Content tier filters the sets; Smart Mix + Sound Twins stay visible at every tier.
-    const choices = filterSpellSets([...SETS.map(s => ({ key: s.key, name: s.name })), { key: TWINS_KEY, name: '🔤 Sound Twins' }]);
+    // Content tier filters the sets; Pick for me + Sound Twins stay visible at every
+    // tier. Cards show friendly names + samples (RUN4 C2); ids are unchanged.
+    const choices = filterSpellSets([...SETS.map(s => ({ key: s.key, name: s.name })), { key: TWINS_KEY, name: 'Sound Twins' }]).map(friendlyChoice);
     const picker = buildPicker({
       game: 'spellboo',
       choices,
+      groupOrder: SPELL_GROUP_ORDER,
       levelsFor: (key) => (key === TWINS_KEY ? TWIN_LEVELS : filterLevels(tiersInSet(key))),
       levelName: (l) => 'Level ' + l,
       onStart: (key, level) => (key === MIX_KEY ? playMix() : key === TWINS_KEY ? playTwins(level) : play(key, level))

@@ -52,14 +52,15 @@ export function filterArcadeCategories(cats) { return cats.filter(c => tierAllow
 // ---- Feed the Boos ----
 // Light: Subject (Maths / Words) + level, auto-rotating a template. Medium: grouped topics.
 // Full: every template. Groups map each template id to a friendly topic.
+// `sample` is display-only picker copy (RUN4 C2): one example per topic card.
 export const FEED_GROUPS = [
-  { key: 'numbers', name: 'Numbers', ids: ['oddEven', 'tableMember1', 'tableMember2', 'tableMember3', 'tableMemberY4', 'romanNumerals'] },
-  { key: 'rounding', name: 'Rounding & comparing', ids: ['compare50', 'compare500', 'compare5000', 'round10', 'round100'] },
-  { key: 'fractions', name: 'Fractions', ids: ['halfEquivalent', 'fractionSize', 'fractionFamilies', 'tenths'] },
-  { key: 'timemoney', name: 'Time & money', ids: ['timeUnits', 'timeHour', 'monthsDays', 'moneyPound'] },
-  { key: 'measures', name: 'Measures', ids: ['units1', 'units2', 'lengthMetre', 'massKilogram', 'capacityLitre', 'temperature'] },
-  { key: 'shapes', name: 'Shapes', ids: ['shapeSides', 'symmetry', 'angles'] },
-  { key: 'wordsorts', name: 'Word sorts', ids: ['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo'] }
+  { key: 'numbers', name: 'Numbers', sample: '47 — odd or even?', ids: ['oddEven', 'tableMember1', 'tableMember2', 'tableMember3', 'tableMemberY4', 'romanNumerals'] },
+  { key: 'rounding', name: 'Rounding & comparing', sample: '86 rounds to…?', ids: ['compare50', 'compare500', 'compare5000', 'round10', 'round100'] },
+  { key: 'fractions', name: 'Fractions', sample: 'Is 2/4 a half?', ids: ['halfEquivalent', 'fractionSize', 'fractionFamilies', 'tenths'] },
+  { key: 'timemoney', name: 'Time & money', sample: '60 minutes = ?', ids: ['timeUnits', 'timeHour', 'monthsDays', 'moneyPound'] },
+  { key: 'measures', name: 'Measures', sample: 'cm, kg or ml?', ids: ['units1', 'units2', 'lengthMetre', 'massKilogram', 'capacityLitre', 'temperature'] },
+  { key: 'shapes', name: 'Shapes', sample: 'How many sides?', ids: ['shapeSides', 'symmetry', 'angles'] },
+  { key: 'wordsorts', name: 'Word sorts', sample: 'their / there', ids: ['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo'] }
 ];
 const FEED_GROUP_BY_ID = {};
 for (const g of FEED_GROUPS) for (const id of g.ids) FEED_GROUP_BY_ID[id] = g.key;

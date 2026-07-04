@@ -52,8 +52,7 @@ await page.evaluate(async () => {
 // play Smart Mix in Spell Boo and collect the identities presented across the round
 await page.evaluate(() => window.BooTown.go('spellboo'));
 await page.waitForSelector('.picker');
-await page.click('.picker-choice.mix');
-await page.click('.picker-levels .mix-start');
+await page.click('.picker-choice.mix');   // "Pick for me!" starts in ONE tap (RUN4 C2)
 await page.waitForSelector('.spell-stage');
 // Atomic step: inspect cur() + record its identity + act, all in ONE evaluate (no race
 // with the ~250ms advance gap between items). Identities accumulate in window.__seen.
@@ -82,7 +81,7 @@ await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('bootown.s
 await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
 await page.evaluate(() => window.BooTown.go('spellboo'));
 await page.waitForSelector('.picker');
-await page.click('.picker-choice:has-text("Tricky Sounds")');
+await page.click('.picker-choice:has-text("Th Words")');
 await page.click('.picker-levels .level-btn >> nth=0');
 await page.waitForSelector('.spell-stage');
 await sleep(120);

@@ -60,7 +60,7 @@ async function enterNormal(setName, level = 1) {
   await page.waitForSelector('.spell-area');
   await page.waitForTimeout(60);
 }
-await enterNormal('Tricky Sounds', 1);
+await enterNormal('Th Words', 1);   // RUN4 C2 friendly name (id trickyTh unchanged)
 // auto-look: the word is visible immediately (once), then hidden after ~2s
 const lookNow = await page.evaluate(() => window.__spell.peekVisible());
 await page.waitForTimeout(2200);
