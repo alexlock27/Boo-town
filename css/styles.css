@@ -917,6 +917,19 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .lv-sub { display: block; font-size: 13px; opacity: 0.85; font-weight: 500; }
 @media (prefers-reduced-motion: reduce) { .hour-hand, .minute-hand { transition: none; } .clock-wrap.wiggle, .ghost-hands.show, .clock-wrap.served .clock-face { animation: none !important; } }
 
+/* ---- age step + one-time age card (follow-on job 4) ---- */
+.ob-age-grid { display: grid; grid-template-columns: repeat(4, minmax(64px, 96px)); gap: 10px; justify-content: center; }
+.ob-age-btn { font-size: 24px; padding: 14px 8px; min-width: 0; background: var(--zing); color: var(--ink); font-family: var(--font-display); font-weight: 700; }
+.ob-age-btn.wide { grid-column: span 2; font-size: 19px; }
+.age-card { width: 100%; max-width: 760px; margin: 0 auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+.age-head { display: flex; align-items: center; gap: 10px; }
+.age-guide svg { display: block; }
+.age-title { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--ink); }
+.age-sub { font-size: 13px; color: var(--sky-mid); }
+.age-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.age-chip { background: #F3ECFF; color: var(--ink); border-color: rgba(42,27,78,0.25); font-size: 15px; padding: 7px 12px; }
+.age-skip { position: absolute; top: 8px; right: 12px; background: none; border: none; color: var(--sky-mid); font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px; }
+
 /* daily quests card + overlay (RUN3 C4) */
 .quest-card {
   display: flex; align-items: center; gap: 12px; width: 100%; max-width: 760px; margin: 0 auto;

@@ -8,6 +8,8 @@ import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
+import { tierForAge, AGE_CHOICES } from './content.js';
+import { renderGuide } from './art.js';
 
 const GAMES = [
   { id: 'teachme',   name: 'Teach Me',     tag: 'Little lessons', accent: 'var(--zing)', icon: teachIcon, group: 'Learn' },
@@ -84,6 +86,32 @@ export function mount(container, params, ctx) {
 
   // ---- Golden Round + daily quests cards (RUN3 C3/C4) ----
   const specials = el('section', { class: 'hub-specials' });
+
+  // One-time age question for saves from before the age step existed (job 4).
+  // A friendly inline card — it never blocks anything; answer or skip sets the flag
+  // and it never appears again. The grown-ups tier setting always overrides later.
+  if (!s.ageAsked) {
+    const chipRow = el('div', { class: 'age-chips' });
+    const ageCard = el('div', { class: 'age-card card' }, [
+      el('div', { class: 'age-head' }, [
+        el('div', { class: 'age-guide', html: renderGuide(s.guide, { view: 'head', size: 64 }) }),
+        el('div', { class: 'age-q' }, [
+          el('div', { class: 'age-title', text: 'Quick question! How old are you?' }),
+          el('div', { class: 'age-sub', text: 'So the games fit you just right.' })
+        ])
+      ]),
+      chipRow,
+      el('button', { class: 'age-skip', text: 'skip', onclick: () => { sfx.tap(); mutate(st => { st.ageAsked = true; }); ageCard.remove(); } })
+    ]);
+    for (const c of AGE_CHOICES) {
+      chipRow.appendChild(el('button', { class: 'acc-chip age-chip', text: c.label, onclick: () => {
+        sfx.star ? sfx.star() : sfx.tap();
+        mutate(st => { st.age = c.age; st.ageAsked = true; st.settings.content = tierForAge(c.age); });
+        ageCard.remove();
+      } }));
+    }
+    specials.appendChild(ageCard);
+  }
 
   // Daily quests card with a 0–3 badge (no streaks, no missed-day guilt — rule 1).
   const qs = questState();

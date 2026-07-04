@@ -2,6 +2,18 @@
 
 All notable changes to Boo Town. Newest first.
 
+## DASH_PATCH job 4: the age question
+- Onboarding gains one friendly step after the name: "How old are you?" with big number
+  buttons (5 or younger … 12 and up). The answer quietly sets the content amount: 7 and
+  under → Light, 8–9 → Medium, 10 and up → Full. Age is stored in the local save only and
+  used for nothing else.
+- Existing saves get the same question once, as a friendly card from the guide at the top
+  of the hub ("Quick question! How old are you?"), with a small skip that keeps the current
+  setting. Answered or skipped, it never asks again.
+- The grown-ups "How many choices?" setting always overrides, and now shows the age mapping
+  as a one-line hint. Safety: if the age step ever fails to render, onboarding continues on
+  Light — the question can never block a new player from reaching the hub.
+
 ## DASH_PATCH job 3: on-screen back buttons everywhere
 - One shared back control (a soft round button in the same top-left corner) now appears on
   every screen below the hub: town, collection, journal, studio + all four studio tools,

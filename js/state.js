@@ -49,6 +49,8 @@ function freshSave() {
     easelArt: '',               // artwork id displayed on the town Easel (RUN3 C6)
     request: { active: null, lastResolvedAt: 0 }, // occasional Boo requests (RUN3 C8), ≤1 active
     routines: {},               // Dance Stage choreography per stage: 'zone:x' -> [moveId] (RUN3 C8)
+    age: 0,                     // her age (job 4): local save only, used only for the tier mapping
+    ageAsked: false,            // the age question is asked exactly once (onboarding or one-time card)
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light' }, // content: Light/Medium/Full picker filter (C9), default Light
     created: 0,

@@ -97,6 +97,8 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.click('.ob-splash .btn');
 await page.fill('.text-input', 'Ivy');        // the ONLY keyboard use
 await page.click('.ob-name .btn');
+await page.waitForSelector('.ob-age-grid');
+await page.click('.ob-age-btn:has-text("8")');   // age step (job 4)
 await page.waitForSelector('.creator');
 await page.click('.creator-btns .btn.big');    // Done with defaults (no keyboard)
 await page.waitForSelector('.intro-block');

@@ -30,6 +30,8 @@ console.log('== first pick is always a chosen Boo ==');
   await page.click('button:has-text("Start")'); await page.waitForTimeout(150);
   await page.fill('input.text-input', 'Ada');
   await page.click('button:has-text("Next")'); await page.waitForTimeout(200);
+  await page.waitForSelector('.ob-age-grid');
+  await page.click('.ob-age-btn:has-text("8")');   // age step (job 4)
   await page.click('.creator-btns .btn.big');
   await page.waitForSelector('.intro-block');
   for (let i = 0; i < 3; i++) { await page.click('.intro-block'); await page.waitForTimeout(120); }

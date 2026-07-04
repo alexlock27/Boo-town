@@ -1,5 +1,5 @@
-// js/onboarding.js — first-launch flow (spec §2, §4.1, §5.1).
-// splash -> name -> guide creator (live preview + shuffle) -> 3 intro bubbles -> free box -> hub.
+// js/onboarding.js — first-launch flow (spec §2, §4.1, §5.1 + job 4 age step).
+// splash -> name -> age (maps to the content tier) -> guide creator -> 3 intro bubbles -> first pick.
 
 import { el, clear } from './ui.js';
 import * as State from './state.js';
@@ -9,12 +9,14 @@ import { initAudio, sfx, music } from './sfx.js';
 import { guideLineAt, guideLine, speakMaybe } from './guide.js';
 import { grantItem } from './rewards.js';
 import { BY_ID } from '../data/catalogue.js';
+import { tierForAge, AGE_CHOICES } from './content.js';
 
 const FIRST_PICKS = ['boo_inky', 'boo_lolly', 'boo_chomp']; // three friendly commons (RUN2 C2)
 
 export function mount(container, params, ctx) {
   let step = 0;
   let name = '';
+  let age = null;   // set by the age step (job 4); null = step failed -> Light default
   const guide = { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'bow', name: 'Twiggy' };
 
   const root = el('div', { class: 'onboard' });
@@ -25,9 +27,28 @@ export function mount(container, params, ctx) {
     clear(root);
     if (step === 0) splash();
     else if (step === 1) nameStep();
-    else if (step === 2) creatorStep();
-    else if (step === 3) introStep();
+    else if (step === 2) ageStepSafe();
+    else if (step === 3) creatorStep();
+    else if (step === 4) introStep();
     else firstPickStep();
+  }
+
+  // Safety (job 4): the age question must NEVER block a new player from reaching the hub.
+  // If it fails to render for any reason, default to Light and continue onboarding.
+  function ageStepSafe() {
+    try { ageStep(); } catch (e) { console.warn('[onboarding] age step failed, defaulting to Light', e); age = null; step = 3; render(); }
+  }
+  function ageStep() {
+    const grid = el('div', { class: 'ob-age-grid' });
+    for (const c of AGE_CHOICES) {
+      grid.appendChild(el('button', { class: 'btn ob-age-btn' + (c.age <= 5 || c.age >= 12 ? ' wide' : ''), text: c.label, onclick: () => { sfx.tap(); age = c.age; step = 3; render(); } }));
+    }
+    root.appendChild(el('div', { class: 'ob-name ob-age' }, [
+      el('div', { class: 'ob-guide small', html: renderGuide(guide, { view: 'head', size: 130 }) }),
+      el('h2', { text: 'How old are you?' }),
+      el('p', { class: 'ob-hint', text: 'So the games fit you just right.' }),
+      grid
+    ]));
   }
 
   function splash() {
@@ -69,8 +90,14 @@ export function mount(container, params, ctx) {
       onDone(g) {
         Object.assign(guide, g);
         State.initNew(name, { ...guide });
+        // apply the age answer (job 4): tier by mapping; Light default if the step failed.
+        State.mutate(s => {
+          s.ageAsked = true;
+          if (age != null) { s.age = age; s.settings.content = tierForAge(age); }
+          else s.settings.content = 'light';
+        });
         ctx.refreshAudio && ctx.refreshAudio();
-        step = 3; render();
+        step = 4; render();
       }
     });
     root.appendChild(el('div', { class: 'creator' }, [
@@ -98,7 +125,7 @@ export function mount(container, params, ctx) {
       sfx.tap();
       i++;
       if (i < 3) showLine();
-      else { step = 4; render(); }
+      else { step = 5; render(); }
     }
   }
 

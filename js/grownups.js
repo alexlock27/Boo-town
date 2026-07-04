@@ -101,7 +101,8 @@ export function mount(container, params, ctx) {
   const contentCard = el('div', { class: 'gu-card' }, [
     el('h3', { text: 'How many choices?' }),
     el('p', { class: 'gu-note', text: 'This only changes the menus she sees — all the learning stays installed, and her progress and Boos are never touched. Smart Mix quietly uses everything.' }),
-    tierSeg, tierDesc
+    tierSeg, tierDesc,
+    el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (7 and under → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
   ]);
 
   root.append(header, goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, reset);

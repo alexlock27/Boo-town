@@ -11,6 +11,16 @@ const ORDER = { light: 0, medium: 1, full: 2 };
 
 export function contentTier() { const s = getState(); return (s && s.settings && s.settings.content) || 'light'; }
 export function setContentTier(t) { if (TIERS.includes(t)) mutate(s => { s.settings.content = t; }); }
+
+// Age → tier mapping (follow-on job 4): 7 and under = Light, 8–9 = Medium, 10 and up = Full.
+// Age lives in the local save only and is used for nothing else. The grown-ups setting
+// always overrides (it writes the same settings.content, any time after).
+export function tierForAge(age) { return age <= 7 ? 'light' : age <= 9 ? 'medium' : 'full'; }
+export const AGE_CHOICES = [
+  { label: '5 or younger', age: 5 }, { label: '6', age: 6 }, { label: '7', age: 7 },
+  { label: '8', age: 8 }, { label: '9', age: 9 }, { label: '10', age: 10 },
+  { label: '11', age: 11 }, { label: '12 and up', age: 12 }
+];
 export function tierAllows(tag) { return ORDER[contentTier()] >= ORDER[tag || 'light']; }
 
 // ---- Bubble Pop / Boo Dash categories ----

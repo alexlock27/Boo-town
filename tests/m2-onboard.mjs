@@ -22,6 +22,10 @@ await page.click('.ob-splash .btn');
 await page.fill('.text-input', 'Maya');
 await page.click('.ob-name .btn');
 
+console.log('== age step (job 4) ==');
+await page.waitForSelector('.ob-age-grid');
+await page.click('.ob-age-btn:has-text("8")');
+
 console.log('== character creator (5-species rig) ==');
 await page.waitForSelector('.creator');
 // group order: 1 Animal, 2 Colour, 3 Pattern, 4 Pattern colour, 5 Eyes, 6 Accessory, 7 Name
