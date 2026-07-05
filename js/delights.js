@@ -70,5 +70,5 @@ export function booOfTheDay() {
   const accs = Object.keys(s.inventory || {}).filter(a => (s.inventory[a] || 0) > 0 && a.startsWith('acc_'));
   const acc = accs.length ? accs[dayHash(day + id) % accs.length] : null;
   const item = resolveItem(id);
-  return item ? { id, item, acc } : null;
+  return item ? { id, item, acc, accArt: acc && BY_ID[acc] ? BY_ID[acc].art : null } : null;
 }

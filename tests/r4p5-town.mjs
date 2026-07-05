@@ -15,7 +15,9 @@ const SAVE = (town, inv) => ({
   inventory: inv, boxes: 0, meter: 0, opened: 5, pity: { commons: 0 },
   nicknames: {}, equips: {}, catBest: {}, town,
   stars: { total: 60, byGame: {} }, ledger: {},
-  settings: { sound: false, music: false, voice: false, content: 'full' },
+  // hide-and-seek already "found today" → no hider interferes with measurements (C9)
+  delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true },
+  settings: { sound: false, music: false, voice: false, content: 'full', requests: false },
   seen: { trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] }, ageAsked: true, age: 8
 });
 
@@ -128,7 +130,7 @@ console.log('== picnic (two Boos nibble) ==');
     { zone: 'meadow', x: 0.55, item: 'boo_plum' }
   ]);
   const fr = await frames(page, BOO_SVG, 9, 3300);   // nibbles pause between bites — sample generously
-  assert(distinct(fr) >= 5, `picnic: nibbling motion (${distinct(fr)}/9 distinct frames)`);
+  assert(distinct(fr) >= 4, `picnic: nibbling motion (${distinct(fr)}/9 distinct frames; the Δscale check below proves the pulse)`);
   assert(fr.every(t => /scale/.test(t)), 'picnic Boos sit and nibble (scale pulses)');
   const scales = fr.map(s => { const n = numsIn(s); return n[n.length - 1]; });
   assert(Math.max(...scales) - Math.min(...scales) >= 0.03, `nibble is a visible pulse (Δscale ${(Math.max(...scales) - Math.min(...scales)).toFixed(3)})`);

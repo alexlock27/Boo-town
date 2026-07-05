@@ -14,6 +14,9 @@ import { ZONES } from './town.js';
 import { retroAwardOnce } from './trophies.js';
 import { tickGrowth } from './growth.js';
 import { chestState, CHEST_EVERY } from './shiny.js';
+import { booOfTheDay } from './delights.js';
+import { renderItem } from './art.js';
+import { getDisplayName } from './accessories.js';
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -99,6 +102,17 @@ export function mount(container, params, ctx) {
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
   const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
+
+  // Boo of the Day (RUN4 C9): a little podium beside the guide. Pure decoration,
+  // rotates at local midnight, wears a random owned accessory (or none, gracefully).
+  const botd = booOfTheDay();
+  if (botd) {
+    guideSection.appendChild(el('div', { class: 'booday' }, [
+      el('div', { class: 'booday-art', html: renderItem(botd.item, { size: 74, equipArt: botd.accArt, cls: 'art-idle' }) }),
+      el('div', { class: 'booday-podium' }, [el('span', { class: 'booday-star', text: '★' })]),
+      el('div', { class: 'booday-line', text: `Today's star: ${getDisplayName(botd.id) || botd.item.name}!` })
+    ]));
+  }
   // Long-press the guide to open the character creator (spec RUN2 C1).
   attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });
   gb.art.setAttribute('aria-label', 'Your character — press and hold to change');

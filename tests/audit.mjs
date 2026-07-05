@@ -30,7 +30,9 @@ const SAVE = {
   // milestones this fixture qualifies for are already earned — otherwise the
   // (correct, spec'd) unmissable award overlay would sit over every measurement.
   seen: { trophyRetro: true },
-  trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' }
+  trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' },
+  // hide-and-seek already "found today" (RUN4 C9) — no hider vanishes mid-measurement
+  delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true }
 };
 
 const verdicts = [];

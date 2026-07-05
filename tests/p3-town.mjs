@@ -13,6 +13,7 @@ const BASESAVE = (o) => ({ version: 3, name: 'Ada',
   boxes: 0, meter: 0, opened: 5, pity: { commons: 0 }, nicknames: {}, equips: {}, town: [],
   stars: { total: 55, byGame: {} }, settings: { sound: false, music: false, voice: false },
   seen: { trophyRetro: true },   // RUN4 C4: retro trophy ceremony already seen
+  delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true },   // RUN4 C9
   ...o });
 
 async function open(seed, { hour = 13, reduced = false } = {}) {

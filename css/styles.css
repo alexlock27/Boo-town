@@ -1631,3 +1631,36 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .shiny-wrap::after, .shiny-glint, .star-chest.ready .chest-ready-anim { animation: none; }
   .shiny-wrap::after { background-position: 50% 0; opacity: 0.5; }
 }
+
+/* ============================================================
+   Daily delights (RUN4 C9): hide-and-seek ears, Boo of the Day.
+   ============================================================ */
+.t-hide-ears {
+  position: absolute; z-index: 0; background: none; border: none; cursor: pointer;
+  padding: 6px; min-width: 44px; min-height: 34px;
+  animation: ears-wiggle 3.4s ease-in-out infinite; transform-origin: 50% 100%;
+}
+@keyframes ears-wiggle {
+  0%, 78%, 100% { transform: rotate(0); }
+  84% { transform: rotate(-5deg) translateY(-2px); }
+  92% { transform: rotate(4deg); }
+}
+.booday {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  margin-left: 8px; align-self: flex-end;
+}
+.booday-art { margin-bottom: -6px; }
+.booday-podium {
+  width: 84px; height: 22px; border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, #8F7FF0, #6A5AD8); border: 3px solid rgba(42,27,78,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.booday-star { color: var(--star); font-size: 14px; text-shadow: 0 1px 0 rgba(42,27,78,0.6); }
+.booday-line {
+  margin-top: 4px; font-family: var(--font-display); font-weight: 700; font-size: 13px;
+  color: var(--star); text-align: center; max-width: 130px; line-height: 1.15;
+}
+@media (max-width: 550px) {
+  .hub .booday { display: none; }   /* phones: the hero row is already snug (C10 revisits) */
+}
+@media (prefers-reduced-motion: reduce) { .t-hide-ears { animation: none; } }

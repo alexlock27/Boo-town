@@ -17,6 +17,8 @@ import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
+import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
+import { addMeterPoints } from './rewards.js';
 
 // Zone unlock thresholds (named constants).
 export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
@@ -58,6 +60,7 @@ export function mount(container, params, ctx) {
   const s = getState();
   music.play('calm');
   noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
+  ensureHide();             // hide-and-seek Boo, once per local day (RUN4 C9)
   let voiceIds = new Set();  // Boo ids with a recorded voice (RUN3 C7)
   voiceBooIds().then(s => { voiceIds = s; }).catch(() => {});
   // Occasional Boo requests (RUN3 C8): check at app open (town is an "open").
@@ -183,8 +186,88 @@ export function mount(container, params, ctx) {
     applyDance();
     assignRoles();
     renderGrowth();
+    renderHide();
     decorateEasels();
     renderRequestBubble();
+  }
+
+  // ---- hide-and-seek Boo (RUN4 C9): once per local day, carries if unfound ----
+  function renderHide() {
+    ground.querySelectorAll('.t-hide-ears').forEach(n => n.remove());
+    const h = currentHide();
+    if (!h) return;
+    // tuck the hider away and peek its ears from behind the scenery
+    const hiderWrap = [...ground.querySelectorAll('.t-item.boo')].find(w => w.dataset.item === h.boo);
+    if (!hiderWrap) return;
+    hiderWrap.style.display = 'none';
+    const item = resolveItem(h.boo);
+    const ears = el('button', { class: 't-hide-ears', 'aria-label': 'Someone is hiding here!' });
+    ears.innerHTML = `<svg viewBox="0 0 60 26" width="52" height="23" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="16" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+      <ellipse cx="44" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+      <ellipse cx="16" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
+      <ellipse cx="44" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
+    </svg>`;
+    // peek just above the scenery so the ears stay visible AND tappable
+    const px = pxAt(h.spot.zone, h.spot.x);
+    const decoH = (ACT_SIZE[h.spot.item] || 92) * 130 / 120;
+    ears.style.left = (px - 26) + 'px';
+    ears.style.top = (groundY - decoH - 12) + 'px';
+    // pointer pattern mirrors attachItemPointer: stop the pan from swallowing taps
+    ears.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+    ears.addEventListener('pointerup', (e) => {
+      e.stopPropagation();
+      if (!foundHide()) return;
+      addMeterPoints(HIDE_REWARD);   // +2 meter for spotting (C9)
+      sfx.correct(); sfx.star();
+      hiderWrap.style.display = '';
+      const svg = hiderWrap.querySelector('svg');
+      if (svg && !REDUCED) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
+      if (!REDUCED) confetti({ count: 30, power: 0.7, origin: pointFor(hiderWrap) });
+      ears.remove();
+      const line = 'Found you! Hee hee! 💜';
+      const treat = el('div', { class: 'request-treat', text: line });
+      hiderWrap.appendChild(treat);
+      setTimeout(() => treat.remove(), 2200);
+    });
+    ground.appendChild(ears);
+  }
+
+  // ---- the Parade (RUN4 C9): every placed Boo marches across the town -------
+  let paradeUntil = 0, paradeStart = 0, paradeConfetti = null;
+  function startParade() {
+    const ms = (typeof window !== 'undefined' && window.__bootownParadeMs) || 20000;
+    paradeStart = performance.now();
+    paradeUntil = paradeStart + ms;
+    // EVERY placed Boo marches — even a hide-and-seek hider joins in (it tucks
+    // itself back behind the scenery afterwards, still unfound).
+    ground.querySelectorAll('.t-item.boo').forEach(w => { w.style.display = ''; });
+    ground.querySelectorAll('.t-hide-ears').forEach(n => n.remove());
+    actors.forEach((a, i) => { clearRole(a); a.parading = { slot: i }; });
+    music.play('game');
+    if (!REDUCED) {
+      confetti({ count: 60, power: 0.9 });
+      let bursts = 0;
+      paradeConfetti = setInterval(() => { if (++bursts > 3 || performance.now() > paradeUntil) { clearInterval(paradeConfetti); return; } confetti({ count: 40, power: 0.8 }); }, Math.max(1200, ms / 5));
+    }
+  }
+  function stepParade(a, now) {
+    const ms = paradeUntil - paradeStart;
+    const p = (now - paradeStart) / ms;
+    if (p >= 1) {   // the parade is over: everyone returns to their spots
+      actors.forEach(x => { x.parading = null; const s2 = x.wrap.querySelector('svg'); if (s2) s2.style.transform = ''; });
+      paradeUntil = 0;
+      music.play('calm');
+      renderPlaced();   // fresh render: roles reassign, an unfound hider re-hides
+      return;
+    }
+    const svg = a.wrap.querySelector('svg');
+    if (!svg) return;
+    const ownPx = parseFloat(a.wrap.style.left) + 46;
+    const lineX = scrollX - 80 + (zoneW + 240) * p - a.parading.slot * 64;   // a marching line
+    const t = now - paradeStart;
+    const bob = -Math.abs(Math.sin((t + a.parading.slot * 130) / 220)) * 9;
+    svg.style.transform = `translate(${(lineX - ownPx).toFixed(1)}px, ${bob.toFixed(1)}px)`;
   }
 
   // ---- town growth (RUN4 C6): milestone upgrades + the Boo Builders --------
@@ -651,6 +734,12 @@ export function mount(container, params, ctx) {
     let down = false, moved = false, dsx = 0, dsy = 0, ghost = null;
     wrap.addEventListener('pointerdown', e => {
       if (placeMode) return;
+      // Taps on the popover menu belong to its buttons. Capturing them here
+      // retargeted the click to the wrap, so Move / Put away / Dress up /
+      // Choreograph taps NEVER fired (shipped bug since RUN2, found in RUN4 p9).
+      // Stop propagation too: the document-level close-menu listener would
+      // otherwise remove the menu before the button's click can fire.
+      if (e.target.closest && e.target.closest('.plot-menu')) { e.stopPropagation(); return; }
       e.stopPropagation();
       down = true; moved = false; dsx = e.clientX; dsy = e.clientY;
       wrap.setPointerCapture(e.pointerId);
@@ -717,7 +806,11 @@ export function mount(container, params, ctx) {
     const btns = [];
     if (item.kind === 'boo') btns.push(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => { e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderPlaced() }); } }));
     if (item.deco === 'easel') btns.push(el('button', { class: 'btn soft', text: 'Choose art 🖼️', onclick: (e) => { e.stopPropagation(); closeMenu(); chooseEaselArt(); } }));
-    if (item.deco === 'stage') btns.push(el('button', { class: 'btn soft', text: 'Choreograph 💃', onclick: (e) => { e.stopPropagation(); closeMenu(); openChoreographer(place, { onDone: () => renderPlaced() }); } }));
+    if (item.deco === 'stage') {
+      btns.push(el('button', { class: 'btn soft', text: 'Choreograph 💃', onclick: (e) => { e.stopPropagation(); closeMenu(); openChoreographer(place, { onDone: () => renderPlaced() }); } }));
+      // the Parade (RUN4 C9): hidden while no Boos are placed; no reward — it exists to be shown off
+      if (actors.length) btns.push(el('button', { class: 'btn soft', text: 'Parade 🎺', onclick: (e) => { e.stopPropagation(); closeMenu(); sfx.fanfare(); startParade(); } }));
+    }
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
     btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
@@ -811,6 +904,7 @@ export function mount(container, params, ctx) {
       // skip offscreen actors (cheap)
       const px = parseFloat(a.wrap.style.left) - scrollX;
       if (px < -140 || px > zoneW + 140) continue;
+      if (paradeUntil && a.parading) { stepParade(a, now); continue; }   // the Parade (RUN4 C9)
       if (a.dancing) continue; // dancing handled by CSS
       if (a.role) { stepRole(a, dt, now); continue; }   // activity items (RUN4 C5)
       a.t += dt;
@@ -834,6 +928,7 @@ export function mount(container, params, ctx) {
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
   // eventually curl back up, and day/night transitions take hold (RUN4 C5).
   const roleTimer = setInterval(() => { if (!document.hidden) assignRoles(); }, 4000);
+  if (typeof window !== 'undefined') window.__townDebug = () => ({ paradeUntil, now: performance.now(), parading: actors.filter(a => a.parading).length, actors: actors.length, rafAlive: !!raf });
 
   return {
     unmount() {

@@ -23,7 +23,7 @@ const SAVE = (over = {}) => Object.assign({
     { zone: 'meadow', x: 0.6, item: 'boo_plum' }
   ],
   stars: { total: 60, byGame: {} }, ledger: {},
-  settings: { sound: false, music: false, voice: false, content: 'full' },
+  settings: { sound: false, music: false, voice: false, content: 'full', requests: false },
   seen: { trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] },
   ageAsked: true, age: 8
 }, over);
@@ -121,10 +121,10 @@ console.log('== the Parade ==');
   await page.waitForSelector('.town2 .t-item');
   await sleep(500);
   await page.click('.t-item[data-item="deco_stage"]', { force: true });
-  await page.waitForSelector('.town-menu, .t-menu', { timeout: 4000 });
+  await page.waitForSelector('.plot-menu', { timeout: 4000 });
   const paradeBtn = await page.$('button:has-text("Parade")');
   assert(!!paradeBtn, 'the Dance Stage menu offers Parade beside Choreograph');
-  await paradeBtn.click();
+  await page.click('.plot-menu button:has-text("Parade")', { force: true });   // a real tap (menu-tap bug fixed this phase)
   await sleep(400);
   // frame evidence: every placed Boo marches with measurable movement
   const frames = [];
