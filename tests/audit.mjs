@@ -429,6 +429,37 @@ if (run(14)) try {
   await page.context().close();
 } catch (e) { record(14, 'Dance Choreographer', false, 'ERROR ' + e.message); }
 
+// ---- Item 15: Activity items (RUN4 C5) — a Boo genuinely plays; sleep at night ----
+if (run(15)) try {
+  const page = await freshPage();
+  await page.evaluate(async () => {
+    const st = await import('./js/state.js');
+    st.mutate(s => {
+      s.inventory.deco_trampoline = 1; s.inventory.deco_boohouse = 1;
+      s.town = [
+        { zone: 'meadow', x: 0.35, item: 'deco_trampoline' }, { zone: 'meadow', x: 0.32, item: 'boo_inky' },
+        { zone: 'meadow', x: 0.65, item: 'deco_boohouse' }, { zone: 'meadow', x: 0.62, item: 'boo_plum' }
+      ];
+      s.seen.zonesUnlocked = ['meadow', 'riverside', 'hilltop', 'beach'];
+    });
+    window.__bootownHour = 13;
+  });
+  await page.evaluate(() => window.BooTown.go('town'));
+  await page.waitForSelector('.town2 .t-item'); await page.waitForTimeout(700);
+  const frames = [];
+  for (let i = 0; i < 6; i++) { frames.push(await page.$eval('.t-item.boo svg', n => n.style.transform || '')); await page.waitForTimeout(620); }
+  const ys = frames.map(f => +((f.match(/-?\d+\.?\d*/g) || [0, 0])[1] || 0));
+  const bounceOK = new Set(frames).size >= 5 && Math.min(...ys) < -30;
+  // night: the Boo near the house sleeps with zzz
+  await page.evaluate(() => { window.__bootownHour = 22; });
+  await page.waitForTimeout(4600);   // one assignRoles tick
+  const zzz = await page.$('.t-item.boo .t-zzz');
+  const sleepPose = await page.$$eval('.t-item.boo svg', ns => ns.some(n => /scale\(1\.06/.test(n.style.transform)));
+  record(15, 'Activity items', bounceOK && !!zzz && sleepPose,
+    `trampoline frames ${new Set(frames).size}/6 distinct, peak y ${Math.min(...ys).toFixed(1)}px (needs < -30); night zzz=${!!zzz}, curled pose=${sleepPose}; RUN4 C5 (full behaviour set covered by tests/r4p5-town.mjs)`);
+  await page.context().close();
+} catch (e) { record(15, 'Activity items', false, 'ERROR ' + e.message); }
+
 await browser.close();
 
 // ---- summary ----

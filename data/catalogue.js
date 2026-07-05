@@ -90,6 +90,16 @@ export const CATALOGUE = [
   { id: 'deco_snowboo',    kind: 'deco', name: 'Snow Boo statue',rarity: 'rare',   season: 'winter', deco: 'snowboo',    blurb: 'A Boo built of snow, with a carrot nose, naturally.' },
   { id: 'deco_fountain',   kind: 'deco', name: 'Star Fountain',  rarity: 'ultra',  deco: 'fountain', fx: 'glow', blurb: 'Bubbles up gentle sparkles instead of water.' },
 
+  // --- Activity items (RUN4 C5): decorations with a Boo behaviour each ---
+  { id: 'deco_slide',      kind: 'deco', name: 'Slide',          rarity: 'common', deco: 'slide',      act: 'slide',      blurb: 'Climb up, whoosh down, run round, repeat forever.' },
+  { id: 'deco_swings',     kind: 'deco', name: 'Swings',         rarity: 'common', deco: 'swings',     act: 'swing',      blurb: 'Gentle swinging for Boos who like the wind in their ears.' },
+  { id: 'deco_seesaw',     kind: 'deco', name: 'Seesaw',         rarity: 'rare',   deco: 'seesaw',     act: 'seesaw',     blurb: 'Needs two Boos and a total disregard for sitting still.' },
+  { id: 'deco_paddlepool', kind: 'deco', name: 'Paddling Pool',  rarity: 'rare',   deco: 'paddlepool', act: 'paddle',     blurb: 'Shallow, splashy, and somehow always the perfect temperature.' },
+  { id: 'deco_picnic',     kind: 'deco', name: 'Picnic Blanket', rarity: 'rare',   deco: 'picnic',     act: 'picnic',     blurb: 'Sandwiches, berries, and two very nibbly Boos.' },
+  { id: 'deco_trampoline', kind: 'deco', name: 'Trampoline',     rarity: 'rare',   deco: 'trampoline', act: 'bounce',     blurb: 'Boing. Boing. BOING. The favourite word of every Boo.' },
+  { id: 'deco_bumper',     kind: 'deco', name: 'Bumper Car',     rarity: 'rare',   deco: 'bumper',     act: 'drive',      blurb: 'One little car, one very serious Boo driver.' },
+  { id: 'deco_campfire',   kind: 'deco', name: 'Campfire',       rarity: 'ultra',  deco: 'campfire',   act: 'campfire', fx: 'glow', blurb: 'At night the Boos gather round to warm their paws.' },
+
   // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
   // Wearable on any Boo (one slot each) and on the player's own character.
   { id: 'acc_bow',          kind: 'accessory', name: 'Purple Bow',     rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },

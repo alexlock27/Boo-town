@@ -789,6 +789,82 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         `<rect x="34" y="34" width="52" height="40" rx="2" fill="#E9DEFF"/>` +
         `<rect x="34" y="72" width="52" height="8" rx="2" fill="${COLORS.cocoa}" ${ink}/>`;
       break;
+
+    // ---- Activity items (RUN4 C5). Animated sub-parts carry classes the town
+    // drives with transforms: .ss-plank, .bc-car, .cf-flame, .sw-seat. ----
+    case 'slide':
+      inner =
+        `<path d="M34 44 L34 112" ${ink}/><path d="M46 44 L46 112" ${ink}/>` +   // ladder rails
+        `<path d="M34 56 L46 56 M34 70 L46 70 M34 84 L46 84 M34 98 L46 98" ${ink}/>` +
+        `<path d="M46 44 Q78 46 92 108 L78 112 Q68 62 42 56 Z" fill="${COLORS.pop}" ${halo}/>` +
+        `<path d="M46 44 Q78 46 92 108 L78 112 Q68 62 42 56 Z" fill="${COLORS.pop}" ${ink}/>` +
+        `<path d="M50 50 Q76 54 86 106" fill="none" stroke="#fff" stroke-width="3" opacity="0.55"/>` +
+        rrect(28, 38, 24, 10, 5, COLORS.teal, ink);
+      break;
+    case 'swings':
+      inner =
+        `<path d="M22 116 L36 40 M98 116 L84 40" ${ink}/>` +                      // A-frame
+        rrect(30, 34, 60, 10, 5, COLORS.teal, halo) + rrect(30, 34, 60, 10, 5, COLORS.teal, ink) +
+        `<g class="sw-seat"><path d="M52 44 L52 88 M68 44 L68 88" stroke="${INK}" stroke-width="2.6"/>` +
+        rrect(46, 88, 28, 8, 4, COLORS.star, ink) + `</g>`;
+      break;
+    case 'seesaw':
+      inner =
+        path('M52 106 L60 88 L68 106 Z', COLORS.cocoa, halo) +
+        path('M52 106 L60 88 L68 106 Z', COLORS.cocoa, ink) +
+        `<g class="ss-plank" style="transform-origin:60px 90px">` +
+        rrect(12, 84, 96, 10, 5, COLORS.zing, halo) + rrect(12, 84, 96, 10, 5, COLORS.zing, ink) +
+        rrect(14, 76, 10, 8, 3, COLORS.pop, ink) + rrect(96, 76, 10, 8, 3, COLORS.pop, ink) + `</g>` +
+        ell(60, 112, 34, 6, 'rgba(0,0,0,0.12)', '');
+      break;
+    case 'paddlepool':
+      inner =
+        ell(60, 96, 44, 20, '#7FC7E8', halo) + ell(60, 96, 44, 20, '#4FA3D8', ink) +
+        `<g class="pp-water">` + ell(60, 94, 36, 14, '#8ED2F2', '') +
+        `<path d="M34 92 Q44 88 54 92 T74 92 T92 90" fill="none" stroke="#fff" stroke-width="3" opacity="0.7" stroke-linecap="round"/>` + `</g>` +
+        `<circle class="pp-drop d1" cx="40" cy="76" r="3" fill="#8ED2F2"/>` +
+        `<circle class="pp-drop d2" cx="80" cy="72" r="2.6" fill="#8ED2F2"/>` +
+        `<circle class="pp-drop d3" cx="62" cy="70" r="2.2" fill="#fff"/>`;
+      break;
+    case 'picnic':
+      inner =
+        `<path d="M14 96 L60 76 L106 96 L60 118 Z" fill="#F6C6D8" ${halo}/>` +
+        `<path d="M14 96 L60 76 L106 96 L60 118 Z" fill="#F6C6D8" ${ink}/>` +
+        `<path d="M32 89 L78 109 M46 83 L92 103 M88 88 L42 112 M74 82 L28 104" stroke="#fff" stroke-width="3" opacity="0.75"/>` +
+        ell(60, 95, 12, 6, COLORS.cream, ink) +
+        `<circle cx="54" cy="93" r="3" fill="${COLORS.pop}"/><circle cx="63" cy="95" r="3" fill="${COLORS.teal}"/><circle cx="58" cy="98" r="2.4" fill="${COLORS.star}"/>`;
+      break;
+    case 'trampoline':
+      inner =
+        `<path d="M28 96 L24 116 M92 96 L96 116 M46 100 L44 118 M74 100 L76 118" ${ink}/>` +
+        ell(60, 94, 42, 13, HALO, halo) +
+        ell(60, 94, 42, 13, '#6A5AD8', ink) +
+        ell(60, 92, 34, 9, COLORS.midnight, ink) +
+        `<path d="M30 92 Q60 84 90 92" fill="none" stroke="#8F7FF0" stroke-width="3" opacity="0.8"/>`;
+      break;
+    case 'bumper':
+      inner =
+        ell(60, 114, 40, 7, 'rgba(0,0,0,0.14)', '') +
+        `<g class="bc-car">` +
+        `<path d="M28 100 Q28 82 46 82 L74 82 Q92 82 92 100 L92 106 Q92 110 88 110 L32 110 Q28 110 28 106 Z" fill="${COLORS.pop}" ${halo}/>` +
+        `<path d="M28 100 Q28 82 46 82 L74 82 Q92 82 92 100 L92 106 Q92 110 88 110 L32 110 Q28 110 28 106 Z" fill="${COLORS.pop}" ${ink}/>` +
+        `<path d="M40 82 Q44 70 56 70 L64 70 Q76 70 80 82 Z" fill="#8ED2F2" ${ink}/>` +
+        `<circle cx="42" cy="110" r="8" fill="${COLORS.midnight}" ${ink}/><circle cx="78" cy="110" r="8" fill="${COLORS.midnight}" ${ink}/>` +
+        `<circle cx="42" cy="110" r="3" fill="#fff"/><circle cx="78" cy="110" r="3" fill="#fff"/>` +
+        `<line x1="60" y1="64" x2="60" y2="52" stroke="${INK}" stroke-width="2.5"/><circle cx="60" cy="50" r="4" fill="${COLORS.star}" ${ink}/>` +
+        `</g>`;
+      break;
+    case 'campfire':
+      inner =
+        `<path d="M36 106 L84 96 M36 96 L84 106" stroke="${COLORS.cocoa}" stroke-width="9" stroke-linecap="round"/>` +
+        `<path d="M36 106 L84 96 M36 96 L84 106" stroke="${INK}" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.4"/>` +
+        `<g class="cf-flame" style="transform-origin:60px 96px">` +
+        path('M60 52 Q74 70 70 84 Q68 94 60 96 Q52 94 50 84 Q46 70 60 52 Z', COLORS.orange, ink) +
+        path('M60 66 Q68 76 65 86 Q63 92 60 93 Q57 92 55 86 Q52 76 60 66 Z', COLORS.star, '') +
+        `</g>` +
+        `<circle class="cf-spark s1" cx="52" cy="46" r="2.2" fill="${COLORS.star}"/>` +
+        `<circle class="cf-spark s2" cx="70" cy="40" r="1.8" fill="${COLORS.orange}"/>`;
+      break;
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);
   }

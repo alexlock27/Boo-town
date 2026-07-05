@@ -29,6 +29,21 @@ const ZONE_INDEX = Object.fromEntries(ZONES.map((z, i) => [z.key, i]));
 const MAX_WANDERERS = 30;
 const GROUND_FRAC = 0.80;   // ground line as a fraction of viewport height
 
+// ---- activity items (RUN4 C5): named constants -----------------------------
+const ACT_RADIUS = 0.12;        // zone-x fraction: how near a Boo joins an activity
+const MAX_ACTIVE_ROLES = 12;    // performance cap on busy actors (town rules)
+const SLEEP_START = 21, SLEEP_END = 7;   // Boos near a Boo House sleep 21:00–07:00
+const WAKE_MS = 45000;          // a woken Boo stays up this long (no grumpiness)
+const BENCH_SIT_MS = 7000;      // bench sits are "now and then", not forever
+const BENCH_COOLDOWN_MS = 9000;
+const isSleepTime = (h) => h >= SLEEP_START || h < SLEEP_END;
+const lerp = (a, b, k) => a + (b - a) * k;
+// Activity kit renders bigger than a Boo so climbing/sitting reads properly.
+const ACT_SIZE = {
+  deco_slide: 150, deco_swings: 150, deco_seesaw: 160, deco_trampoline: 140,
+  deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120
+};
+
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
 export function unlockedZones(stars) { return ZONES.filter(z => stars >= z.unlock); }
 
@@ -143,7 +158,7 @@ export function mount(container, params, ctx) {
       const zi = ZONE_INDEX[t.zone] ?? 0;
       const x = clamp01(t.x);
       const px = zi * zoneW + x * zoneW;
-      const size = 92;
+      const size = ACT_SIZE[t.item] || 92;   // activity kit is bigger than a Boo (RUN4 C5)
       const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item } });
       wrap.style.left = (px - size / 2) + 'px';
       wrap.style.top = (groundY - size + 8) + 'px';
@@ -153,8 +168,181 @@ export function mount(container, params, ctx) {
       if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) { actors.push(makeActor(wrap, item, t)); count++; }
     }
     applyDance();
+    assignRoles();
     decorateEasels();
     renderRequestBubble();
+  }
+
+  // ---- activity roles (RUN4 C5) -------------------------------------------
+  // Every activity deco claims nearby free Boos: slide/swings/trampoline/pool/
+  // bumper take one, seesaw and picnic need two, the campfire gathers a small
+  // circle at night, and Boos near a Boo House curl up asleep between 21:00 and
+  // 07:00. The old bench-seat and pond-paddle promises (RUN2 C3) live here too.
+  // Idempotent: safe to re-run every few seconds and on every re-render.
+  const benchCooldown = new Map();   // 'zone:x' -> timestamp
+  function assignRoles() {
+    const st = getState();
+    const now = performance.now();
+    const night = isSleepTime(currentHour());
+    let roleCount = actors.filter(a => a.role).length;
+    const wrapFor = (t) => [...ground.querySelectorAll('.t-item')].find(w => w.dataset.zone === t.zone && Math.abs(+w.dataset.x - t.x) < 0.001 && w.dataset.item === t.item);
+    const freeNear = (t, radius) => actors
+      .filter(a => !a.role && !a.dancing && ZONE_INDEX[a.place.zone] === ZONE_INDEX[t.zone] && Math.abs(a.place.x - t.x) <= radius)
+      .sort((p, q) => Math.abs(p.place.x - t.x) - Math.abs(q.place.x - t.x));
+    const give = (a, role) => {
+      if (roleCount >= MAX_ACTIVE_ROLES) return false;
+      a.role = Object.assign({ t: Math.random() * 500 }, role);
+      a.role.offX = (role.deco.x - a.place.x) * zoneW;
+      roleCount++;
+      if (role.kind === 'sleep' && !a.wrap.querySelector('.t-zzz')) {
+        a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
+      }
+      return true;
+    };
+    // stale roles: daytime ends sleep + campfire circles
+    for (const a of actors) {
+      if (!a.role) continue;
+      if ((a.role.kind === 'sleep' || a.role.kind === 'campfire') && !night) clearRole(a);
+      if (a.role && a.role.kind === 'sleep' && a.wakeUntil && now < a.wakeUntil) clearRole(a);
+    }
+    const decosOf = (id) => st.town.filter(t => t.item === id);
+    // 1) night: sleep near Boo Houses (skip recently woken — rule 1, no forced naps)
+    if (night) for (const t of decosOf('deco_boohouse')) {
+      for (const a of freeNear(t, ACT_RADIUS)) {
+        if (a.wakeUntil && now < a.wakeUntil) continue;
+        give(a, { kind: 'sleep', deco: t });
+      }
+    }
+    // 2) night: the campfire circle (up to 3 Boos warm their paws)
+    if (night) for (const t of decosOf('deco_campfire')) {
+      freeNear(t, ACT_RADIUS + 0.05).slice(0, 3).forEach((a, i) => give(a, { kind: 'campfire', deco: t, decoWrap: wrapFor(t), slot: i }));
+    }
+    // 3) two-Boo activities — only start when BOTH seats can fill
+    for (const t of decosOf('deco_seesaw')) {
+      const pair = freeNear(t, ACT_RADIUS).slice(0, 2);
+      if (pair.length === 2) pair.forEach((a, i) => give(a, { kind: 'seesaw', deco: t, decoWrap: wrapFor(t), slot: i }));
+    }
+    for (const t of decosOf('deco_picnic')) {
+      const pair = freeNear(t, ACT_RADIUS).slice(0, 2);
+      if (pair.length === 2) pair.forEach((a, i) => give(a, { kind: 'picnic', deco: t, decoWrap: wrapFor(t), slot: i }));
+    }
+    // 4) one-Boo activities
+    const oneBoo = [['deco_slide', 'slide'], ['deco_swings', 'swing'], ['deco_trampoline', 'bounce'], ['deco_paddlepool', 'paddle'], ['deco_bumper', 'drive'], ['deco_pond', 'pondpaddle']];
+    for (const [id, kind] of oneBoo) for (const t of decosOf(id)) {
+      const a = freeNear(t, ACT_RADIUS)[0];
+      if (a) give(a, { kind, deco: t, decoWrap: wrapFor(t) });
+    }
+    // 5) the bench seats a nearby Boo now and then (RUN2 C3 debt)
+    for (const t of decosOf('deco_bench')) {
+      const key = t.zone + ':' + t.x;
+      if ((benchCooldown.get(key) || 0) > now) continue;
+      const a = freeNear(t, ACT_RADIUS)[0];
+      if (a && give(a, { kind: 'sit', deco: t, decoWrap: wrapFor(t), until: now + BENCH_SIT_MS })) {
+        benchCooldown.set(key, now + BENCH_SIT_MS + BENCH_COOLDOWN_MS);
+      }
+    }
+  }
+  function clearRole(a) {
+    a.role = null;
+    a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
+    const svg = a.wrap.querySelector('svg');
+    if (svg) svg.style.transform = '';
+  }
+
+  // One animation step for a Boo with a role — transform-only, like everything.
+  function stepRole(a, dt, now) {
+    const r = a.role;
+    r.t += dt;
+    const svg = a.wrap.querySelector('svg');
+    if (!svg) return;
+    const t = r.t;
+    switch (r.kind) {
+      case 'sleep': {
+        const breathe = 1 + Math.sin(t / 900) * 0.025;
+        svg.style.transform = `translateY(9px) scale(1.06, ${(0.84 * breathe).toFixed(3)})`;
+        break;
+      }
+      case 'swing': {
+        const ang = Math.sin(t / 700) * 20, rad = ang * Math.PI / 180, L = 46;
+        svg.style.transform = `translate(${(r.offX + Math.sin(rad) * L).toFixed(1)}px, ${(-30 - (1 - Math.cos(rad)) * L).toFixed(1)}px) rotate(${(ang * 0.55).toFixed(1)}deg) scale(0.82)`;
+        const seat = r.decoWrap && r.decoWrap.querySelector('.sw-seat');
+        if (seat) { seat.style.transformOrigin = '60px 40px'; seat.style.transform = `rotate(${ang.toFixed(1)}deg)`; }
+        break;
+      }
+      case 'slide': {
+        const C = 3600, p = (t + (r.phase || 0)) % C;
+        const ladderX = r.offX - 36, endX = r.offX + 44, topY = -82;
+        let x = 0, y = 0, rot = 0;
+        if (p < 800) { x = lerp(0, ladderX, p / 800); }
+        else if (p < 1900) { x = ladderX; y = topY * ((p - 800) / 1100); }
+        else if (p < 2200) { x = ladderX; y = topY; }
+        else if (p < 2900) {
+          const k = (p - 2200) / 700; x = lerp(ladderX, endX, k); y = topY * (1 - k * k); rot = 16 * k;
+          if (!r.wheeed) { r.wheeed = true; const w = el('div', { class: 't-wheee', text: 'wheee!' }); a.wrap.appendChild(w); setTimeout(() => w.remove(), 800); }
+        }
+        else { x = lerp(endX, 0, (p - 2900) / 700); r.wheeed = false; }
+        svg.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scale(0.82)`;
+        break;
+      }
+      case 'seesaw': {
+        const s = Math.sin(t / 800);
+        const side = r.slot === 0 ? -1 : 1;
+        const endY = side * s * 15;                       // plank end height
+        const hop = Math.max(0, side * s) * 10;           // little pop at the top
+        svg.style.transform = `translate(${(r.offX + side * 52).toFixed(1)}px, ${(-32 + endY - hop).toFixed(1)}px) scale(0.8)`;
+        if (r.slot === 0) {
+          const plank = r.decoWrap && r.decoWrap.querySelector('.ss-plank');
+          if (plank) plank.style.transform = `rotate(${(s * 8).toFixed(1)}deg)`;
+        }
+        break;
+      }
+      case 'bounce': {
+        const y = -Math.abs(Math.sin(t / 480)) * 52;      // higher than the usual hop (12px)
+        const squash = y > -5 ? ' scale(0.9, 0.74)' : ' scale(0.82)';
+        svg.style.transform = `translate(${r.offX.toFixed(1)}px, ${(-26 + y).toFixed(1)}px)${squash}`;
+        break;
+      }
+      case 'paddle': case 'pondpaddle': {
+        const x = r.offX + Math.sin(t / 900) * 16;
+        const y = (r.kind === 'paddle' ? -10 : -2) + Math.sin(t / 500) * 4;
+        svg.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(Math.sin(t / 700) * 8).toFixed(1)}deg)`;
+        if (r.kind === 'paddle') {
+          const water = r.decoWrap && r.decoWrap.querySelector('.pp-water');
+          if (water) { water.style.transformOrigin = '60px 94px'; water.style.transform = `scale(1, ${(1 + Math.sin(t / 500) * 0.06).toFixed(3)})`; }
+        }
+        break;
+      }
+      case 'picnic': {
+        const side = r.slot === 0 ? -1 : 1;
+        const nibble = Math.max(0, Math.sin((t + r.slot * 400) / 380)) * 0.07;
+        svg.style.transform = `translate(${(r.offX + side * 30).toFixed(1)}px, 2px) rotate(${side * -4}deg) scale(0.86, ${(0.8 + nibble).toFixed(3)})`;
+        break;
+      }
+      case 'drive': {
+        const x = Math.sin(t / 1500) * 60;
+        const flip = Math.cos(t / 1500) >= 0 ? 1 : -1;
+        svg.style.transform = `translate(${(r.offX + x).toFixed(1)}px, -30px) scale(${flip * 0.72}, 0.72)`;
+        const car = r.decoWrap && r.decoWrap.querySelector('.bc-car');
+        if (car) { car.style.transformOrigin = '60px 96px'; car.style.transform = `translateX(${(x * 120 / 140).toFixed(1)}px) scaleX(${flip})`; }
+        break;
+      }
+      case 'campfire': {
+        const targets = [-46, 46, -70];   // a circle round the fire, flame visible between
+        const tx = r.offX + targets[r.slot % 3];
+        const arrive = Math.min(1, t / 1400);
+        const sway = arrive >= 1 ? Math.sin(t / 600 + r.slot) * 3 : 0;
+        const warm = arrive >= 1 ? 1 + Math.max(0, Math.sin(t / 520 + r.slot * 2)) * 0.04 : 1;
+        svg.style.transform = `translate(${(lerp(0, tx, arrive)).toFixed(1)}px, 0px) rotate(${sway.toFixed(1)}deg) scale(${warm.toFixed(3)})`;
+        break;
+      }
+      case 'sit': {
+        const settle = Math.min(1, t / 600);
+        const kick = settle >= 1 ? Math.sin(t / 1000) * 3 : 0;
+        svg.style.transform = `translate(${(r.offX * settle).toFixed(1)}px, ${(-10 * settle).toFixed(1)}px) rotate(${kick.toFixed(1)}deg)`;
+        if (r.until && now > r.until) clearRole(a);
+        break;
+      }
+    }
   }
 
   // Overlay the chosen artwork onto any placed Easel (RUN3 C6).
@@ -380,7 +568,19 @@ export function mount(container, params, ctx) {
     openMenu(wrap, place, item);
   }
 
+  function wakeIfSleeping(wrap) {
+    const a = actors.find(x => x.wrap === wrap);
+    if (!a || !a.role || a.role.kind !== 'sleep') return false;
+    // waking is gentle (rule 1): a sleepy blink, no grumpiness, up for a while
+    a.wakeUntil = performance.now() + WAKE_MS;
+    clearRole(a);
+    const svg = wrap.querySelector('svg');
+    if (svg && !REDUCED) { svg.classList.remove('sleepy-blink'); void svg.offsetWidth; svg.classList.add('sleepy-blink'); }
+    return true;
+  }
+
   function squeak(wrap, item) {
+    wakeIfSleeping(wrap);
     // her own recorded voice plays instead of the squeak, only on tap (never ambient)
     if (voiceIds.has(item.id)) playVoice(item.id); else sfx.pop();
     noteQuest('sayHello', { count: 1 });   // daily quest: say hello to Boos (RUN3 C4)
@@ -487,11 +687,13 @@ export function mount(container, params, ctx) {
     raf = requestAnimationFrame(tick);
   }
   function stepActors(dt) {
+    const now = performance.now();
     for (const a of actors) {
       // skip offscreen actors (cheap)
       const px = parseFloat(a.wrap.style.left) - scrollX;
       if (px < -140 || px > zoneW + 140) continue;
       if (a.dancing) continue; // dancing handled by CSS
+      if (a.role) { stepRole(a, dt, now); continue; }   // activity items (RUN4 C5)
       a.t += dt;
       if (a.t >= a.next) {
         a.t = 0;
@@ -510,11 +712,16 @@ export function mount(container, params, ctx) {
   // ---- day/night ambient fx ----------------------------------------------
   buildAmbient(air, night);
 
+  // Re-check roles every few seconds: benches cycle "now and then", woken Boos
+  // eventually curl back up, and day/night transitions take hold (RUN4 C5).
+  const roleTimer = setInterval(() => { if (!document.hidden) assignRoles(); }, 4000);
+
   return {
     unmount() {
       if (raf) cancelAnimationFrame(raf);
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
+      clearInterval(roleTimer);
       window.removeEventListener('resize', onResize);
       closeMenu();
     }
