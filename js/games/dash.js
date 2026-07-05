@@ -304,7 +304,7 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = bonks === 0 ? 3 : bonks <= 3 ? 2 : 1;    // star rules unchanged
       recordBest('dash', mix ? MIX_KEY : catKey, stars);
-      ctx.go('results', { game: 'dash', gameName: mix ? 'Smart Mix' : 'Boo Dash', stars, tricky: collector.items(), replay: () => ctx.go('dash') });
+      ctx.go('results', { game: 'dash', gameName: mix ? 'Smart Mix' : 'Boo Dash', stars, level, cat: mix ? null : catKey, mix, tricky: collector.items(), replay: () => ctx.go('dash') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 

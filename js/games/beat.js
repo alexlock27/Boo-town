@@ -209,7 +209,7 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = starsForBeat(correct, perfects);
       if (perfects > 0) noteQuest('perfects', { count: perfects });   // daily quest (RUN3 C4)
-      ctx.go('results', { game: 'beat', gameName: 'Boo Beat', stars, tricky: collector.items(), replay: () => ctx.go('beat') });
+      ctx.go('results', { game: 'beat', gameName: 'Boo Beat', stars, level, cat: auto ? null : category, mix: auto, tricky: collector.items(), replay: () => ctx.go('beat') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 

@@ -312,7 +312,7 @@ export function mount(container, params, ctx) {
       shell.cleanup();
       const stars = starsForBlocks(correct, lines, hintsUsed);
       if (lines > 0) noteQuest('linesCleared', { count: lines });   // daily quest (RUN3 C4)
-      ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, tricky: collector.items(), replay: () => ctx.go('blocks') });
+      ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, level, cat: category === AUTO ? null : category, mix: category === AUTO, tricky: collector.items(), replay: () => ctx.go('blocks') });
     }
 
     // ---- drag a tray piece onto the board ----

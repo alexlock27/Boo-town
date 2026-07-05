@@ -4,6 +4,10 @@
 
 import { getState, mutate, todayKey } from './state.js';
 import { addMeterPoints } from './rewards.js';
+import { braveTargetRank, rankName } from './comfort.js';
+
+// "Try Level {comfort+1} of any game" resolves against her current comfort (C3).
+function braveTargetName() { return rankName(braveTargetRank()); }
 
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -22,7 +26,11 @@ export const QUEST_TEMPLATES = [
   { id: 'beat3', label: 'Get 3 Perfects in Boo Beat', icon: '🎵', need: 3, match: (e, d) => e === 'perfects' ? (d.count || 0) : 0 },
   { id: 'lesson', label: 'Finish a Teach Me lesson', icon: '🎓', need: 1, match: (e, d) => e === 'roundEnd' && d.game === 'teachme' ? 1 : 0 },
   { id: 'hello5', label: 'Say hello to 5 Boos', icon: '💜', need: 5, match: (e, d) => e === 'sayHello' ? (d.count || 1) : 0 },
-  { id: 'openBox', label: 'Open a box', icon: '🎁', need: 1, match: (e) => e === 'boxOpen' ? 1 : 0 }
+  { id: 'openBox', label: 'Open a box', icon: '🎁', need: 1, match: (e) => e === 'boxOpen' ? 1 : 0 },
+  // Stretch quests (RUN4 C3): gentle pulls upward, completed by any Brave round
+  // (a round above that category's comfort level). Labels resolve at display time.
+  { id: 'brave2', label: 'Earn 2 stars on a Brave round', icon: '🧗', need: 1, match: (e, d) => e === 'braveRound' && (d.stars || 0) >= 2 ? 1 : 0 },
+  { id: 'braveTry', label: (s) => `Try ${braveTargetName(s)} of any game`, icon: '🚀', need: 1, match: (e) => e === 'braveRound' ? 1 : 0 }
 ];
 const TEMPLATE_BY_ID = Object.fromEntries(QUEST_TEMPLATES.map(t => [t.id, t]));
 
@@ -67,7 +75,7 @@ export function questState() {
   ensureToday();
   const s = getState();
   const q = s.quests;
-  const items = q.list.map(id => { const t = TEMPLATE_BY_ID[id]; const prog = q.progress[id] || 0; return { id, label: t.label, icon: t.icon, need: t.need, progress: Math.min(prog, t.need), done: q.done.includes(id) }; });
+  const items = q.list.map(id => { const t = TEMPLATE_BY_ID[id]; const prog = q.progress[id] || 0; return { id, label: typeof t.label === 'function' ? t.label(s) : t.label, icon: t.icon, need: t.need, progress: Math.min(prog, t.need), done: q.done.includes(id) }; });
   return { day: q.day, items, doneCount: q.done.length, allDone: q.done.length >= 3 };
 }
 

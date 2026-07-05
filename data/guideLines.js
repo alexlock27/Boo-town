@@ -69,6 +69,13 @@ export const LINES = {
     "Ooh {name} — only {n} more ⭐ and the {zone} opens!",
     "So close! Just {n} more ⭐ and the {zone} is yours!"
   ],
+  // RUN4 C3: reward tone, upward only. The brave line celebrates the bonus; the
+  // cosy line is a warm nudge toward the next level ({level} filled by results).
+  braveRound: ["BRAVE round! Bonus sparkle!", "That was BRAVE! Extra sparkle for you!"],
+  cosyRound: [
+    "Lovely warm-up! Bigger sparkles are waiting up on {level}!",
+    "Cosy and smooth! {level} has bigger sparkles with your name on them!"
+  ],
   townFirst: ["This is YOUR town, {name}. Put your Boos anywhere you like!"],
   idle: [
     "Giraffes have purple tongues, you know. True fact.",

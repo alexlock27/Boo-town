@@ -193,7 +193,7 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true; shell.cleanup();
       const stars = starsFor(wrong, hintsUsed);
       recordBest('clockshop', 'l' + level, stars);
-      ctx.go('results', { game: 'clockshop', gameName: 'Clock Shop', stars, replay: () => ctx.go('clockshop') });
+      ctx.go('results', { game: 'clockshop', gameName: 'Clock Shop', stars, level, cat: 'clock', replay: () => ctx.go('clockshop') });
     }
 
     // test hook (invisible)

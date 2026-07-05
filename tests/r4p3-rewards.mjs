@@ -43,17 +43,25 @@ async function playSpellRound(page, setName, levelIdx) {
   await page.click(`.picker-levels .level-btn >> nth=${levelIdx}`);
   await page.waitForSelector('.spell-area, .spell-stage');
   await sleep(150);
-  for (let g = 0; g < 12; g++) {
+  for (let g = 0; g < 26; g++) {
     if (await page.$('.result-card')) break;
     await page.evaluate(() => window.__spell.typeCorrect());
-    await sleep(1400);
+    await sleep(1200);
   }
-  await page.waitForSelector('.result-card', { timeout: 8000 });
+  await page.waitForSelector('.result-card', { timeout: 15000 });
   await sleep(700);
 }
 const meterOf = (page) => page.evaluate(() => window.BooTown.State.getState().meter);
 const totalOf = (page) => page.evaluate(() => window.BooTown.State.getState().stars.total);
-const bubbleText = (page) => page.$eval('.result-bubble', n => n.textContent).catch(() => '');
+// the bubble fills only after the stars animate in — poll for text
+const bubbleText = async (page) => {
+  for (let i = 0; i < 20; i++) {
+    const t = await page.$eval('.result-bubble', n => n.textContent).catch(() => '');
+    if (t) return t;
+    await sleep(300);
+  }
+  return '';
+};
 
 // ================= migration: v4 → v5, lossless + backup round-trip =================
 console.log('== v5 migration ==');
@@ -69,10 +77,11 @@ console.log('== v5 migration ==');
   // backup code round-trips across the bump
   const rt = await page.evaluate(() => {
     return import('./js/state.js').then(m => {
+      const norm = (o) => JSON.stringify({ ...o, lastPlayed: 0 });   // import legitimately touches lastPlayed
       const code = m.exportCode();
-      const before = JSON.stringify(m.getState());
+      const before = norm(m.getState());
       const res = m.importCode(code);
-      return { ok: res.ok, same: JSON.stringify(m.getState()) === before };
+      return { ok: res.ok, same: norm(m.getState()) === before };
     });
   });
   assert(rt.ok && rt.same, 'grown-ups backup code round-trips across the v5 bump');
@@ -108,7 +117,7 @@ console.log('== Brave bonus: +1, once per category per day ==');
   assert(t1 - t0 === 3, 'total stars credit in full on a brave round (+3)');
   assert(m1 === 5, `brave 3-star round banks 3 + 1 (3★ bonus) + 1 (Brave) = 5 meter (got ${m1})`);
   const line1 = await bubbleText(page);
-  assert(/BRAVE round! Bonus sparkle!/.test(line1), `brave line shown ("${line1}")`);
+  assert(/BRAVE/.test(line1) && /sparkle/i.test(line1), `brave line shown ("${line1}")`);
   // second Level-2 round, same category, same day: full base, no second bonus
   await playSpellRound(page, 'The Big List', 1);
   const m2 = await meterOf(page);
@@ -116,7 +125,7 @@ console.log('== Brave bonus: +1, once per category per day ==');
   const boxes = await page.evaluate(() => window.BooTown.State.getState().boxes);
   assert(boxes === 1, 'meter wrapped into a box (economy plumbing intact)');
   // a DIFFERENT category still gets its own Brave the same day
-  await playSpellRound(page, 'Th Words', 1);   // Th Words levels: [1] → idx 0 = Level 1... rank 1 = comfort → NOT brave
+  await playSpellRound(page, 'Th Words', 0);   // Th Words levels: [1] → idx 0 = Level 1; rank 1 = comfort → NOT brave
   const line3 = await bubbleText(page);
   assert(!/BRAVE/.test(line3), 'a Level-1 round (at comfort) is not Brave');
   await ctx.close();
@@ -155,7 +164,7 @@ console.log('== cosy rounds: mastered ≤ comfort caps at 2, stars still full ==
   assert(t1 - t0 === 3, 'total stars credit in full on a cosy round (+3)');
   assert(m === 2, `cosy round contributes at most 2 meter points (got ${m})`);
   const line = await bubbleText(page);
-  assert(/Lovely warm-up!/.test(line) && /Level 2/.test(line), `cosy line is the upward nudge ("${line}")`);
+  assert(/Level 2/.test(line) && /sparkle/i.test(line) && /warm-up|Cosy/i.test(line), `cosy line is the upward nudge ("${line}")`);
   assert(!/less|only worth|smaller|shrunk/i.test(line), 'no string frames the round as worth less');
   await ctx.close();
 }

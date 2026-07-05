@@ -4,12 +4,13 @@
 // a corner and slides in a bubble for hints and reactions.
 
 import { el, clear, heartsRow, dialog, backControl } from './ui.js';
-import { getState } from './state.js';
+import { getState, beginRoundTally } from './state.js';
 import { renderGuide } from './art.js';
 import { speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 
 export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true }) {
+  beginRoundTally();   // RUN4 C3: collect this round's ledger items for the cosy check
   const s = getState();
   const guide = (s && s.guide) || { body: 'sunshine', patch: 'cocoa', acc: 'none' };
   let hearts = maxHearts;

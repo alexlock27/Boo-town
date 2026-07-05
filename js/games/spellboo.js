@@ -134,7 +134,7 @@ export function mount(container, params, ctx) {
   }
 
   // ---- one round engine (shared by normal, twins and mix) ---------------------
-  function startRound(items, { choice, badgeKey }) {
+  function startRound(items, { choice, badgeKey, level = null }) {
     clear(root);
     let idx = 0, wrong = 0, hintsUsed = 0;
     let curHint = null;                 // the current item's hint handler
@@ -243,7 +243,8 @@ export function mount(container, params, ctx) {
       const stars = starsFor(wrong, hintsUsed);
       recordBest('spellboo', badgeKey, stars);
       const gameName = choice === TWINS_KEY ? 'Sound Twins' : choice === MIX_KEY ? 'Smart Mix' : 'Spell Boo';
-      ctx.go('results', { game: 'spellboo', gameName, stars, tricky: collector.items(), replay: () => ctx.go('spellboo') });
+      const mix = choice === MIX_KEY;
+      ctx.go('results', { game: 'spellboo', gameName, stars, level, cat: mix ? null : badgeKey, mix, tricky: collector.items(), replay: () => ctx.go('spellboo') });
     }
 
     // expose current-item hooks for tests
@@ -266,8 +267,8 @@ export function mount(container, params, ctx) {
     };
   }
 
-  function play(setKey, tier) { startRound(pickWords(setKey, tier).map(w => ({ kind: 'word', word: w.w, clue: w.clue || null })), { choice: setKey, badgeKey: setKey }); }
-  function playTwins(level) { startRound(pickTwins(level), { choice: TWINS_KEY, badgeKey: TWINS_KEY }); }
+  function play(setKey, tier) { startRound(pickWords(setKey, tier).map(w => ({ kind: 'word', word: w.w, clue: w.clue || null })), { choice: setKey, badgeKey: setKey, level: tier }); }
+  function playTwins(level) { startRound(pickTwins(level), { choice: TWINS_KEY, badgeKey: TWINS_KEY, level }); }
   function playMix() { startRound(buildMixItems(), { choice: MIX_KEY, badgeKey: MIX_KEY }); }
 
   function pickTwins(level) {

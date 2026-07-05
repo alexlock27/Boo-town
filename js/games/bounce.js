@@ -258,7 +258,7 @@ export function mount(container, params, ctx) {
     function finish() {
       if (ended) return; ended = true; stop(); shell.cleanup();
       const stars = starsForBounce(wrongBricks, ballLosses);
-      ctx.go('results', { game: 'bounce', gameName: 'Boo Bounce', stars, tricky: collector.items(), replay: () => ctx.go('bounce') });
+      ctx.go('results', { game: 'bounce', gameName: 'Boo Bounce', stars, level, cat: autoMix ? null : category, mix: autoMix, tricky: collector.items(), replay: () => ctx.go('bounce') });
     }
     function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 

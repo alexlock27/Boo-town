@@ -250,7 +250,7 @@ export function mount(container, params, ctx) {
       shell.cleanup();
       const stars = starsFor(wrongDrops, hintsUsed);
       recordBest('feedboos', badgeKey || 'maths', stars);
-      ctx.go('results', { game: 'feedboos', gameName: mix ? 'Smart Mix' : 'Feed the Boos', stars, tricky: collector.items(), replay: () => ctx.go('feedboos') });
+      ctx.go('results', { game: 'feedboos', gameName: mix ? 'Smart Mix' : 'Feed the Boos', stars, level: template.level, cat: mix ? null : (badgeKey || 'maths'), mix, tricky: collector.items(), replay: () => ctx.go('feedboos') });
     }
   }
 

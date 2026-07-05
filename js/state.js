@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 4;   // v4 (RUN3 C6): artworks/audio move to IndexedDB; +customs. localStorage core migrates via deepDefaults.
+export const VERSION = 5;   // v5 (RUN4): comfort levels + Brave claims, medal counters, trophies, town growth, shinies, the Star Chest, daily delights. Lossless via deepDefaults; chest anchor set in migrate().
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -51,6 +51,14 @@ function freshSave() {
     routines: {},               // Dance Stage choreography per stage: 'zone:x' -> [moveId] (RUN3 C8)
     age: 0,                     // her age (job 4): local save only, used only for the tier mapping
     ageAsked: false,            // the age question is asked exactly once (onboarding or one-time card)
+    threeStars: {},             // 'game:cat:rank' -> 3-star round count (comfort levels, RUN4 C3)
+    brave: { day: '', cats: {} },  // daily Brave-bonus claims per 'game:cat' (RUN4 C3)
+    gameThrees: {},             // game -> lifetime 3-star rounds since this update (RUN4 C4 medals)
+    trophies: {},               // trophy / certificate / medal key -> date earned (RUN4 C4)
+    townGrowth: { milestone: 0, pending: [], site: null },  // growth milestones + Boo Builders (RUN4 C6)
+    shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
+    chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
+    delights: {},               // daily-delight flags: hide-and-seek / Boo of the Day (RUN4 C9)
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light' }, // content: Light/Medium/Full picker filter (C9), default Light
     created: 0,
@@ -96,6 +104,11 @@ function migrate(obj) {
   }
   const base = freshSave();
   const merged = deepDefaults(o, base);
+  // v5 (RUN4 C8): existing players get one welcome chest, and chest boundaries are
+  // measured from their total at migration — no back-pay for stars earned before.
+  if ((o.version || 0) < 5) {
+    merged.chest = { anchor: (merged.stars && merged.stars.total) || 0, opened: 0, welcome: true };
+  }
   merged.version = VERSION;
   return merged;
 }
@@ -170,8 +183,16 @@ export function recordResult(id, correct) {
   if (correct) e.rights++; else e.misses++;
   e.lastSeen = Date.now();
   state.ledger[id] = e;
+  if (roundTally) roundTally.add(id);
   scheduleSave();
 }
+
+// ---- round tally (RUN4 C3) ----------------------------------------------------
+// The game shell opens a tally at round start; every recorded item lands in it;
+// the results screen takes it to judge a "mastered round" (>=80% items mastered).
+let roundTally = null;
+export function beginRoundTally() { roundTally = new Set(); }
+export function takeRoundTally() { const t = roundTally; roundTally = null; return t ? [...t] : []; }
 // Local-day key (YYYY-MM-DD) for once-per-day features (Golden double, daily quests).
 // window.__bootownDay overrides for tests (matches the __bootownHour/Month pattern).
 export function todayKey() {

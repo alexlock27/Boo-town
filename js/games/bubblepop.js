@@ -248,7 +248,7 @@ export function mount(container, params, ctx) {
       shell.cleanup();
       const stars = starsFor(wrongPops, hintsUsed);
       recordBest('bubblepop', mix ? MIX_KEY : catKey, stars);
-      ctx.go('results', { game: 'bubblepop', gameName: mix ? 'Smart Mix' : 'Bubble Pop', stars, level, tricky: collector.items(), replay: () => ctx.go('bubblepop') });
+      ctx.go('results', { game: 'bubblepop', gameName: mix ? 'Smart Mix' : 'Bubble Pop', stars, level, cat: mix ? null : catKey, mix, tricky: collector.items(), replay: () => ctx.go('bubblepop') });
     }
   }
 

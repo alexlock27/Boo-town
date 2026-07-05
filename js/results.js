@@ -1,34 +1,44 @@
 // js/results.js — end-of-round results (spec §5.4).
 
 import { el, clear, confetti, giftSVG, backControl } from './ui.js';
-import { getState, mutate } from './state.js';
+import { getState, mutate, takeRoundTally } from './state.js';
 import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
-import { bankStars, addMeterPoints, METER_CAP, meterState } from './rewards.js';
+import { addMeterPoints, METER_CAP, meterState } from './rewards.js';
+import { meterPointsFor, rankName } from './comfort.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
 
 export function mount(container, params, ctx) {
-  const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null } = params || {};
+  const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
+          cat = null, level = null, mix = false, extraCosy = false } = params || {};
   const s = getState();
   // The Tricky Pile is already "collected"; persist immediately so an early exit keeps them.
   if (tricky.length) persistUnrescued(tricky.map(t => t.id));
 
-  // record the round
+  // record the round — total stars ALWAYS credit in full (RUN4 C3, permanent rule)
   const before = s.meter;
   mutate(st => {
     const g = st.stars.byGame[game];
     if (g) { g.plays += 1; g.best = Math.max(g.best, stars); }
     st.stars.total += stars;
+    if (stars >= 3) { st.gameThrees = st.gameThrees || {}; st.gameThrees[game] = (st.gameThrees[game] || 0) + 1; }  // C4 medal tally
   });
-  // Golden Round banks a caller-computed meter total (double stars etc.); others use bankStars.
-  const banked = meterOverride != null ? addMeterPoints(meterOverride) : bankStars(stars);
+  // Box meter (RUN4 C3): base = stars (+3-star bonus), Brave +1 above comfort
+  // (first per category per day), cosy rounds cap at 2. The Golden Round banks a
+  // caller-computed total instead (double stars etc.) and skips the cap by design.
+  const roundKeys = takeRoundTally();
+  const verdict = meterOverride != null
+    ? { points: meterOverride, brave: false, cosy: false, above: false, comfort: 0 }
+    : meterPointsFor({ game, cat, level, mix, stars, roundKeys, extraCosy });
+  const banked = addMeterPoints(verdict.points);
   const lineKey = stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
 
   // daily quests + Journal (RUN3 C4) + occasional requests (RUN3 C8)
   noteQuest('roundEnd', { game, stars });
+  if (verdict.above) noteQuest('braveRound', { game, stars });   // stretch quests (RUN4 C3)
   noteRequest('roundEnd', { game, stars });
   if (stars >= 3) stampJournal('star3_' + game);
   if (game === 'golden' && stars >= 3) stampJournal('golden3');
@@ -77,7 +87,12 @@ export function mount(container, params, ctx) {
 
   function afterStars() {
     bubble.style.visibility = 'visible';
-    bubble.textContent = guideLine(lineKey);
+    // Tone (RUN4 C3): upward-only framing. Brave rounds celebrate the bonus; cosy
+    // rounds get a warm nudge toward the next level. Nothing ever reads as "less".
+    let line = guideLine(lineKey);
+    if (verdict.brave) line = line + ' ' + guideLine('braveRound');
+    else if (verdict.cosy) line = line + ' ' + guideLine('cosyRound').replace(/\{level\}/g, rankName(verdict.comfort + 1));
+    bubble.textContent = line;
     bubble.classList.add('pop');
     speakMaybe(bubble.textContent);
     if (stars >= 3) confetti({ count: 90, power: 1 });

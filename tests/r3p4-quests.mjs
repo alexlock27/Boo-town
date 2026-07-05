@@ -10,7 +10,9 @@ const EVENT_FOR = {
   spell2: ['roundEnd', { game: 'spellboo', stars: 2 }], playMaths: ['roundEnd', { game: 'bubblepop', stars: 1 }],
   visitTown: ['townVisit', {}], threeStar: ['roundEnd', { game: 'bubblepop', stars: 3 }], rescuePile: ['rescue', {}],
   dressUp: ['dressUp', {}], golden: ['roundEnd', { game: 'golden', stars: 1 }], blocks3: ['linesCleared', { count: 3 }],
-  beat3: ['perfects', { count: 3 }], lesson: ['roundEnd', { game: 'teachme', stars: 1 }], hello5: ['sayHello', { count: 5 }], openBox: ['boxOpen', {}]
+  beat3: ['perfects', { count: 3 }], lesson: ['roundEnd', { game: 'teachme', stars: 1 }], hello5: ['sayHello', { count: 5 }], openBox: ['boxOpen', {}],
+  // RUN4 C3 stretch quests: both complete on a Brave round (above comfort)
+  brave2: ['braveRound', { stars: 2 }], braveTry: ['braveRound', { stars: 1 }]
 };
 
 const browser = await chromium.launch();
