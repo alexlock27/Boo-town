@@ -7,6 +7,7 @@ import { RARITY } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx, music } from './sfx.js';
 import { openOneBox } from './rewards.js';
+import { openChest } from './shiny.js';
 import { openEquipPicker } from './accessories.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
@@ -22,14 +23,24 @@ const TYPE_LINE = {
 };
 
 export function mount(container, params, ctx) {
-  const root = el('div', { class: 'ceremony' });
+  const chestMode = !!(params && params.chest);   // the Star Chest golden variant (RUN4 C8)
+  const root = el('div', { class: 'ceremony' + (chestMode ? ' chest-reveal' : '') });
   // shared back control (job 3) — safe here: the box is already opened+applied at mount
   const backB = backControl(() => ctx.go('hub'), { floating: true });
   container.appendChild(root);
   openSequence();
 
+  // Adapt an openChest() result to the reveal card's shape (RUN4 C8).
+  function chestResult() {
+    const r = openChest();
+    if (!r) return null;
+    return { item: r.boo, rarity: r.boo.rarity, duplicate: false, isCustom: false, shiny: r.shiny, chestAcc: r.acc, bonusPoints: 0, extraBoxes: 0 };
+  }
+
   function openSequence() {
-    const result = openOneBox();
+    // The Star Chest (RUN4 C8) rides the same signature ceremony in gold: a
+    // guaranteed Rare-or-better Boo (triple shiny odds) plus an accessory.
+    const result = chestMode ? chestResult() : openOneBox();
     if (!result) { ctx.go('hub'); return; }
     clear(root);
     root.appendChild(backB);
@@ -37,6 +48,7 @@ export function mount(container, params, ctx) {
     // daily quest + Journal (RUN3 C4/C6) + request (RUN3 C8)
     noteQuest('boxOpen');
     noteRequest('boxOpen');
+    if (result.shiny) stampJournal('firstShiny');   // shinies stamp the Journal (C8)
     if (result.isCustom) stampJournal('firstCustomWin');
     else if (result.rarity === 'rare') stampJournal('firstRare');
     else if (result.rarity === 'ultra') stampJournal('firstUltra');
@@ -69,18 +81,22 @@ export function mount(container, params, ctx) {
       const rar = RARITY[result.rarity] || { label: 'Your very own Boo!' };
       sfx.fanfare();
       confetti({ count: result.isCustom || result.rarity === 'secret' ? 160 : result.rarity === 'ultra' ? 120 : 80, power: result.isCustom || result.rarity === 'secret' ? 1.3 : 1 });
+      // a shiny (or the golden chest) gets an EXTRA golden confetti layer (C8)
+      if (result.shiny || chestMode) setTimeout(() => confetti({ count: 70, power: 1.1 }), 300);
       clear(root);
       root.appendChild(backB);
 
       const kind = result.item.kind;
-      const glowClass = result.isCustom ? 'glow-secret' : 'glow-' + result.rarity;
-      const banner = result.isCustom ? "IT'S YOUR BOO! 🎨" : (TYPE_BANNER[kind] || 'A TREASURE!');
+      const glowClass = (result.isCustom ? 'glow-secret' : 'glow-' + result.rarity) + (result.shiny ? ' shiny' : '');
+      const banner = result.shiny ? '✨ A SHINY BOO! ✨' : result.isCustom ? "IT'S YOUR BOO! 🎨" : (TYPE_BANNER[kind] || 'A TREASURE!');
       const card = el('div', { class: 'reveal-card ' + glowClass }, [
-        el('div', { class: 'reveal-banner type-' + kind, text: banner }),
-        el('div', { class: 'reveal-art', html: renderItem(result.item, { size: 172, cls: result.item.fx ? '' : 'art-idle' }) }),
-        el('div', { class: 'reveal-rarity', text: rar.label }),
+        el('div', { class: 'reveal-banner type-' + kind + (result.shiny ? ' shiny-banner' : ''), text: banner }),
+        el('div', { class: 'reveal-art' + (result.shiny ? ' shiny-wrap' : ''), html: renderItem(result.item, { size: 172, cls: result.item.fx ? '' : 'art-idle' }) }),
+        result.shiny ? el('span', { class: 'shiny-glint', text: '✦' }) : null,
+        el('div', { class: 'reveal-rarity', text: (result.shiny ? 'SHINY · ' : '') + rar.label }),
         el('h2', { class: 'reveal-name', text: result.duplicate ? `Another ${result.item.name}!` : result.item.name }),
         el('p', { class: 'reveal-oneliner', text: TYPE_LINE[kind] || '' }),
+        result.chestAcc ? el('p', { class: 'chest-acc', text: `…and a ${result.chestAcc.name}! 🎀` }) : null,
         el('p', { class: 'reveal-blurb', text: result.item.blurb })
       ]);
 
@@ -92,9 +108,10 @@ export function mount(container, params, ctx) {
       requestAnimationFrame(() => card.classList.add('flip-in'));
 
       // Collector medals can land right after a reveal (RUN4 C4) — celebrate
-      // once the reveal moment has had its beat. A new Boo may also cross a
-      // growth milestone (RUN4 C6): start the Builders' clock right away.
-      setTimeout(() => { try { checkAndCelebrate(); } catch (e) { console.warn(e); } }, 1400);
+      // once the reveal moment has had its beat (shinies get a longer beat, C8).
+      // A new Boo may also cross a growth milestone (RUN4 C6): start the
+      // Builders' clock right away.
+      setTimeout(() => { try { checkAndCelebrate(); } catch (e) { console.warn(e); } }, result.shiny ? 3000 : 1400);
       try { tickGrowth(); } catch (e) { console.warn(e); }
 
       if (result.duplicate) {
@@ -107,7 +124,9 @@ export function mount(container, params, ctx) {
         buttons.appendChild(el('button', { class: 'btn big', text: 'Yay! 🎉', onclick: next }));
       } else {
         const seasonLine = { summer: 'summerReveal', spooky: 'spookyReveal', winter: 'winterReveal' };
-        const key = result.isCustom ? 'boxCustom'
+        const key = result.shiny ? 'boxShiny'
+          : chestMode ? 'chestOpen'
+          : result.isCustom ? 'boxCustom'
           : result.item.id === 'boo_twiglet' ? 'twigletReveal'
           : kind === 'accessory' ? 'revealAccessory'
           : result.item.season ? seasonLine[result.item.season]
@@ -130,7 +149,7 @@ export function mount(container, params, ctx) {
 
     function next() {
       sfx.tap();
-      if (getState().boxes > 0) openSequence();
+      if (!chestMode && getState().boxes > 0) openSequence();
       else ctx.go('hub');
     }
   }

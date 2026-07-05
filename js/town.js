@@ -171,6 +171,11 @@ export function mount(container, params, ctx) {
       wrap.style.left = (px - size / 2) + 'px';
       wrap.style.top = (groundY - size + 8) + 'px';
       wrap.innerHTML = renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
+      // her shiny copy shimmers in the town too (RUN4 C8)
+      if (item.kind === 'boo' && ((st.shinies && st.shinies[t.item]) || 0) > 0) {
+        wrap.classList.add('shiny-wrap');
+        wrap.appendChild(el('span', { class: 'shiny-glint tiny', text: '✦' }));
+      }
       attachItemPointer(wrap, t, item);
       ground.appendChild(wrap);
       if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) { actors.push(makeActor(wrap, item, t)); count++; }

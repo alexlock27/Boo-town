@@ -13,6 +13,7 @@ import { renderGuide } from './art.js';
 import { ZONES } from './town.js';
 import { retroAwardOnce } from './trophies.js';
 import { tickGrowth } from './growth.js';
+import { chestState, CHEST_EVERY } from './shiny.js';
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -77,8 +78,23 @@ export function mount(container, params, ctx) {
     mutate(st => { st.seen.lastStarsShown = target; });
   }
 
+  // The Star Chest (RUN4 C8): a golden chest beside the meter with its own mini
+  // progress track tied to the visible star total. Every CHEST_EVERY stars past
+  // the anchor earns one; migrated saves start with a single welcome chest.
+  const cs = chestState();
+  const chestBtn = el('button', {
+    class: 'star-chest' + (cs.ready ? ' ready' : ''),
+    'aria-label': cs.ready ? 'Open your Star Chest!' : `Star Chest: ${cs.progress} of ${CHEST_EVERY} stars`,
+    onclick: () => { if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); } }
+  }, [
+    el('span', { class: 'chest-ic', html: chestSVG(cs.ready) }),
+    el('span', { class: 'chest-track' }, [
+      el('span', { class: 'chest-fill', style: { width: Math.round(cs.progress / CHEST_EVERY * 100) + '%' } })
+    ])
+  ]);
+
   const meterWrap = el('div', { class: 'meter-wrap' });
-  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap]);
+  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap, chestBtn]);
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
@@ -333,6 +349,16 @@ function popIcon() {
 }
 function clockIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="30" cy="30" r="22" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><circle cx="30" cy="30" r="22" fill="none" stroke="var(--star)" stroke-width="3" opacity="0.5"/><line x1="30" y1="30" x2="30" y2="17" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="30" x2="40" y2="34" stroke="var(--pop)" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="30" r="2.5" fill="var(--ink)"/></svg>`;
+}
+
+// the Star Chest (RUN4 C8): closed gold chest; lid pops + glow when ready
+function chestSVG(ready) {
+  return `<svg viewBox="0 0 48 40" width="34" height="28" class="${ready ? 'chest-ready-anim' : ''}">
+    <rect x="4" y="16" width="40" height="20" rx="5" fill="#C98A2B" stroke="#7A4E14" stroke-width="2.5"/>
+    <path d="M4 20 Q4 8 24 8 Q44 8 44 20 L44 22 L4 22 Z" fill="#E8B04B" stroke="#7A4E14" stroke-width="2.5"/>
+    <rect x="20" y="18" width="8" height="10" rx="2" fill="${ready ? '#FFC93C' : '#8A5A44'}" stroke="#7A4E14" stroke-width="2"/>
+    ${ready ? '<circle cx="24" cy="6" r="2.4" fill="#FFC93C"/><circle cx="12" cy="10" r="1.8" fill="#FFF3B0"/><circle cx="37" cy="9" r="1.8" fill="#FFF3B0"/>' : ''}
+  </svg>`;
 }
 
 // small star for the total-stars chip (job 5)

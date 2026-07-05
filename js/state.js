@@ -58,6 +58,7 @@ function freshSave() {
     trophies: {},               // trophy / certificate / medal key -> date earned (RUN4 C4)
     townGrowth: { done: [], pending: [], site: null },  // growth milestones + Boo Builders (RUN4 C6)
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
+    shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
     delights: {},               // daily-delight flags: hide-and-seek / Boo of the Day (RUN4 C9)
     seen: {},                   // one-time flags (game intros, town first, etc.)

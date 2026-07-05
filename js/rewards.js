@@ -3,6 +3,7 @@
 
 import { mutate, getState } from './state.js';
 import { BY_TYPE_RARITY, BY_ID, RARITY_WEIGHTS } from '../data/catalogue.js';
+import { rollShiny, addShinyCopy } from './shiny.js';
 
 export const METER_CAP = 6;          // meter holds 6 points
 export const THREE_STAR_BONUS = 1;   // a perfect round banks 4 (3 + 1)
@@ -127,14 +128,20 @@ export function openOneBox() {
     st.inventory[item.id] = had + 1;
     st.opened += 1;
 
+    // Shiny roll (RUN4 C8): any Boo drop can arrive shiny (1 in 15, with the
+    // hidden 25-drop mercy). Per-copy: tracked in st.shinies alongside the stack.
+    var shiny = false;
+    if (item.kind === 'boo') shiny = rollShiny();
+
     let bonusPoints = 0, extraBoxes = 0;
     if (duplicate) {
       bonusPoints = DUPLICATE_POINTS;
       st.meter += DUPLICATE_POINTS;
       while (st.meter >= METER_CAP) { st.meter -= METER_CAP; st.boxes += 1; extraBoxes += 1; }
     }
-    result = { item, rarity, duplicate, isCustom, bonusPoints, extraBoxes, meter: st.meter, boxes: st.boxes };
+    result = { item, rarity, duplicate, isCustom, shiny, bonusPoints, extraBoxes, meter: st.meter, boxes: st.boxes };
   });
+  if (result && result.shiny) addShinyCopy(result.item.id);
   return result;
 }
 

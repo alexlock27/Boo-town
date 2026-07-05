@@ -1572,3 +1572,62 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .cs-boo, .cs-dust, .tg-fairylights.lit .fl-bulb, .ft-spray, .ft-drop { animation: none; }
   .gr-fence { transition: none; }
 }
+
+/* ============================================================
+   Shiny Boos + the Star Chest (RUN4 C8).
+   ============================================================ */
+.shiny-wrap { position: relative; overflow: visible; }
+.shiny-wrap::after {
+  content: ''; position: absolute; inset: 4%; border-radius: 24px; pointer-events: none;
+  background: linear-gradient(115deg, transparent 32%, rgba(255,220,90,0.5) 48%, rgba(255,246,200,0.75) 50%, rgba(255,220,90,0.5) 52%, transparent 68%);
+  background-size: 320% 100%; mix-blend-mode: screen;
+  animation: shiny-sweep 3.2s ease-in-out infinite;
+}
+@keyframes shiny-sweep { 0%, 55% { background-position: 120% 0; } 90%, 100% { background-position: -60% 0; } }
+.shiny-glint {
+  position: absolute; top: 4%; right: 8%; color: #FFE082; font-size: 22px; pointer-events: none;
+  text-shadow: 0 0 6px rgba(255,220,90,0.9);
+  animation: shiny-glint 2.8s ease-in-out infinite;
+}
+.shiny-glint.tiny { font-size: 15px; }
+@keyframes shiny-glint {
+  0%, 62%, 100% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.35) rotate(18deg); opacity: 1; }
+  82% { transform: scale(0.9) rotate(-8deg); opacity: 0.9; }
+}
+.reveal-card.shiny { box-shadow: 0 0 0 5px var(--star), 0 0 44px 10px rgba(255,201,60,0.55); }
+.reveal-banner.shiny-banner { background: linear-gradient(120deg, #FFC93C, #FFE082, #FFC93C); color: var(--ink); }
+.shiny-badge {
+  position: absolute; top: 4px; right: 4px; background: linear-gradient(120deg, #FFC93C, #FFE082);
+  color: var(--ink); font-family: var(--font-display); font-weight: 700; font-size: 12px;
+  border-radius: 10px; padding: 1px 7px; border: 2px solid #E0A81E;
+}
+.coll-shiny-count { color: var(--star); font-family: var(--font-display); font-weight: 700; margin-left: 10px; }
+.chest-acc { color: var(--pop); font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 2px 0; }
+
+/* the hub chest + its mini track */
+.star-chest {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; cursor: pointer; padding: 2px 4px; min-width: 44px; min-height: 44px;
+}
+.star-chest .chest-track {
+  width: 40px; height: 7px; border-radius: 4px; background: rgba(255,255,255,0.18); overflow: hidden;
+}
+.star-chest .chest-fill { display: block; height: 100%; border-radius: 4px; background: var(--star); transition: width 0.4s ease-out; }
+.star-chest.ready .chest-ready-anim { animation: chest-bounce 1.4s ease-in-out infinite; }
+.star-chest.ready .chest-track { box-shadow: 0 0 0 2px rgba(255,201,60,0.65); }
+@keyframes chest-bounce {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-4px) rotate(-4deg); }
+  60% { transform: translateY(0) rotate(3deg); }
+}
+/* the golden chest ceremony variant */
+.ceremony.chest-reveal .gift-box svg rect, .ceremony.chest-reveal .gift-box svg path { filter: hue-rotate(0deg); }
+.ceremony.chest-reveal .ceremony-stage::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, rgba(255,201,60,0.22), transparent 55%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .shiny-wrap::after, .shiny-glint, .star-chest.ready .chest-ready-anim { animation: none; }
+  .shiny-wrap::after { background-position: 50% 0; opacity: 0.5; }
+}

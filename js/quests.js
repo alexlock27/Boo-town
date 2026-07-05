@@ -89,6 +89,7 @@ export const JOURNAL_CATALOG = [
   { key: 'firstCustomWin', label: 'Won your own Boo', icon: '🏆' },
   { key: 'golden3', label: 'Golden Round, 3 stars', icon: '🌟' },
   { key: 'firstRoutine', label: 'First dance routine', icon: '💃' },
+  { key: 'firstShiny', label: 'First shiny Boo', icon: '✨' },
   { prefix: 'star3_', label: '3 stars', icon: '⭐' },
   { prefix: 'zone_', label: 'Unlocked', icon: '🗺️' },
   { prefix: 'allQuests', label: 'All quests done', icon: '🎯' },

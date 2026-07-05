@@ -16,13 +16,15 @@ export function mount(container, params, ctx) {
   music.play('calm');
   const owned = s.inventory;
   const foundCount = COLLECTIBLES.filter(it => owned[it.id] > 0).length;
+  const shinyTotal = Object.values(s.shinies || {}).reduce((a, b) => a + b, 0);   // RUN4 C8
 
   const root = el('div', { class: 'collection' });
 
   const header = el('header', { class: 'coll-header' }, [
     backControl(() => ctx.go('hub')),
     el('h2', { text: 'My Collection' }),
-    el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` })
+    el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` }),
+    shinyTotal > 0 ? el('span', { class: 'coll-shiny-count', text: `✨ ${shinyTotal} shin${shinyTotal === 1 ? 'y' : 'ies'}` }) : null
   ]);
 
   // "My character" card — opens the full creator (spec RUN2 C1).
@@ -45,13 +47,15 @@ export function mount(container, params, ctx) {
     const has = count > 0;
     const equip = has && item.kind === 'boo' ? equippedArt(item.id) : null;
     const seas = !has && item.season ? SEASON[item.season] : null;
+    const shinyCopies = (s.shinies && s.shinies[item.id]) || 0;   // per-copy shinies (RUN4 C8)
     const tile = el('button', {
-      class: 'coll-tile' + (has ? ' owned' : ' locked') + ' rar-' + item.rarity,
+      class: 'coll-tile' + (has ? ' owned' : ' locked') + ' rar-' + item.rarity + (has && shinyCopies > 0 ? ' has-shiny' : ''),
       onclick: () => { sfx.tap(); if (has) showItem(item, count); }
     }, [
-      el('div', { class: 'coll-art' + (has ? '' : ' mystery'), html: renderItem(item, { size: 84, equipArt: equip }) }),
+      el('div', { class: 'coll-art' + (has ? '' : ' mystery') + (has && shinyCopies > 0 ? ' shiny-wrap' : ''), html: renderItem(item, { size: 84, equipArt: equip }) }),
       el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) : (seas ? seas.hint : '???') }),
       count > 1 ? el('div', { class: 'coll-badge', text: 'x' + count }) : null,
+      has && shinyCopies > 0 ? el('div', { class: 'shiny-badge', text: shinyCopies > 1 ? `✨x${shinyCopies}` : '✨' }) : null,
       seas ? el('div', { class: 'coll-season', text: seas.icon }) : null
     ]);
     grid.appendChild(tile);
