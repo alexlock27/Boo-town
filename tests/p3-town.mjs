@@ -11,7 +11,9 @@ const BASESAVE = (o) => ({ version: 3, name: 'Ada',
   guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'Twiggy' },
   inventory: { boo_inky: 1, boo_lolly: 1, boo_bubbles: 1, deco_stage: 1, deco_tree: 1 },
   boxes: 0, meter: 0, opened: 5, pity: { commons: 0 }, nicknames: {}, equips: {}, town: [],
-  stars: { total: 55, byGame: {} }, settings: { sound: false, music: false, voice: false }, seen: {}, ...o });
+  stars: { total: 55, byGame: {} }, settings: { sound: false, music: false, voice: false },
+  seen: { trophyRetro: true },   // RUN4 C4: retro trophy ceremony already seen
+  ...o });
 
 async function open(seed, { hour = 13, reduced = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 625 }, deviceScaleFactor: 1, reducedMotion: reduced ? 'reduce' : 'no-preference' });
@@ -62,7 +64,7 @@ console.log('== world scrolls full width ==');
 // 3) Zone gating by stars.
 console.log('== zones gate on stars ==');
 {
-  const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { zonesUnlocked: ['riverside', 'hilltop', 'beach'] } }), {});
+  const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { zonesUnlocked: ['riverside', 'hilltop', 'beach'], trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }), {});
   assert(await hi.page.$$eval('.t-band.locked', e => e.length) === 0, 'at 190 stars all zones unlocked');
   await hi.ctx.close();
   const lo = await open(BASESAVE({ stars: { total: 5, byGame: {} }, town: [] }), {});

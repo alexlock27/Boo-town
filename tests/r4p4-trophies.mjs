@@ -39,7 +39,7 @@ console.log('== catalogue completeness ==');
   const keys = new Set(cat.map(c => c.key));
   for (const t of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) assert(keys.has(`cert_table_${t}`), `certificate: ${t} times table`);
   for (const k of ['cert_bonds10', 'cert_bonds20', 'cert_bonds100', 'cert_clock_1', 'cert_clock_2', 'cert_clock_3', 'cert_teachme']) assert(keys.has(k), 'certificate: ' + k);
-  assert(cat.filter(c => c.key.startsWith('cert_spell_')).length === 18, 'one certificate per spelling set (18)');
+  assert(cat.filter(c => c.key.startsWith('cert_spell_')).length === 17, 'one certificate per spelling set (17: Big List + 16 banks)');
   assert(cat.filter(c => c.key.startsWith('cert_twin_')).length >= 13, 'one certificate per Sound Twins set (13+)');
   for (const g of ['bubblepop', 'feedboos', 'spellboo', 'blocks', 'bounce', 'beat', 'teachme', 'dash', 'clockshop'])
     for (const tier of ['bronze', 'silver', 'gold']) assert(keys.has(`medal_${g}_${tier}`), `medal: ${g} ${tier}`);

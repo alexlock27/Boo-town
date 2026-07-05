@@ -10,6 +10,7 @@ import { openOneBox } from './rewards.js';
 import { openEquipPicker } from './accessories.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
+import { checkAndCelebrate } from './trophies.js';
 
 // Reveal cards announce what the item is (spec RUN2 C2).
 const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
@@ -88,6 +89,10 @@ export function mount(container, params, ctx) {
       const wrap = el('div', { class: 'reveal-wrap' }, [card, guideBubble, buttons]);
       root.appendChild(wrap);
       requestAnimationFrame(() => card.classList.add('flip-in'));
+
+      // Collector medals can land right after a reveal (RUN4 C4) — celebrate
+      // once the reveal moment has had its beat.
+      setTimeout(() => { try { checkAndCelebrate(); } catch (e) { console.warn(e); } }, 1400);
 
       if (result.duplicate) {
         // duplicate -> +2 meter points, with a small star animation

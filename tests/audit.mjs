@@ -25,7 +25,12 @@ const SAVE = {
     { zone: 'meadow', x: 0.85, item: 'deco_pond' }
   ],
   stars: { total: 300, byGame: {} },
-  settings: { sound: true, music: true, voice: true, content: 'full' }, seen: {}
+  settings: { sound: true, music: true, voice: true, content: 'full' },
+  // RUN4 C4: this player has already had the retro trophy ceremony, and the
+  // milestones this fixture qualifies for are already earned — otherwise the
+  // (correct, spec'd) unmissable award overlay would sit over every measurement.
+  seen: { trophyRetro: true },
+  trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' }
 };
 
 const verdicts = [];

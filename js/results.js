@@ -10,6 +10,7 @@ import { meterPointsFor, rankName } from './comfort.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
+import { checkAndCelebrate } from './trophies.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
@@ -116,6 +117,9 @@ export function mount(container, params, ctx) {
     buttons.appendChild(el('button', { class: 'btn soft', text: 'Back to Boo Town', onclick: () => { sfx.tap(); ctx.go('hub'); } }));
 
     if (banked.boxesEarned > 0) showGift();
+
+    // Newly earned certificates / medals / trophies celebrate here (RUN4 C4).
+    setTimeout(() => { try { checkAndCelebrate(); } catch (e) { console.warn(e); } }, 600);
   }
 
   // Re-light meter segments from the current state (after rescue +1s).

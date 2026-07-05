@@ -6,7 +6,7 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const errors = []; let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const SAVE = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden: null, goldenLastDouble: '', settings: { sound: false, music: false, voice: false }, seen: {} };
+const SAVE = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden: null, goldenLastDouble: '', settings: { sound: false, music: false, voice: false }, seen: { trophyRetro: true }, trophies: { trophy_golden: '2026-07-01' } };
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });

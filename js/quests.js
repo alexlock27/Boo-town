@@ -91,7 +91,8 @@ export const JOURNAL_CATALOG = [
   { key: 'firstRoutine', label: 'First dance routine', icon: '💃' },
   { prefix: 'star3_', label: '3 stars', icon: '⭐' },
   { prefix: 'zone_', label: 'Unlocked', icon: '🗺️' },
-  { prefix: 'allQuests', label: 'All quests done', icon: '🎯' }
+  { prefix: 'allQuests', label: 'All quests done', icon: '🎯' },
+  { prefix: 'trophy_', label: 'Trophy Room', icon: '🏆' }   // RUN4 C4 earnables
 ];
 
 // Record a stamp with today's date if not already present. Returns true if newly stamped.
@@ -105,6 +106,12 @@ export function hasStamp(key) { const s = getState(); return !!(s.journal && s.j
 
 // Pretty label + icon for a stamp key (resolves prefixes like star3_bubblepop, zone_riverside).
 export function stampMeta(key) {
+  // Trophy Room earnables (RUN4 C4): typed labels without importing trophies.js.
+  if (key.startsWith('trophy_')) {
+    const rest = key.slice(7);
+    const label = rest.startsWith('cert_') ? 'New certificate' : rest.startsWith('medal_') ? 'New medal' : 'New trophy';
+    return { icon: rest.startsWith('cert_') ? '📜' : rest.startsWith('medal_') ? '🏅' : '🏆', label };
+  }
   for (const c of JOURNAL_CATALOG) {
     if (c.key && key === c.key) return { icon: c.icon, label: c.label };
     if (c.prefix && key.startsWith(c.prefix)) {

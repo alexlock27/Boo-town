@@ -10,7 +10,7 @@ const ctx = await browser.newContext({ viewport: { width: 1000, height: 625 }, d
 const page = await ctx.newPage();
 page.on('pageerror', e => errors.push('PE ' + e.message));
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/i.test(m.text())) errors.push(m.text()); });
-const SAVE = (o) => JSON.stringify({ version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 200, byGame: {} }, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: {}, ...o });
+const SAVE = (o) => JSON.stringify({ version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 200, byGame: {} }, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' }, ...o });
 await page.goto(BASE + '/index.html', { waitUntil: 'load' });
 await page.evaluate((s) => localStorage.setItem('bootown.save.v1', s), SAVE({}));
 await page.reload({ waitUntil: 'load' });

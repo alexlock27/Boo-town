@@ -7,6 +7,7 @@ import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY } from '../data/catalogu
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
+import { renderTrophyRoom } from './trophies.js';
 import { ownedCustomItems } from './customs.js';
 import { micEnabled, openVoiceRecorder } from './voices.js';
 
@@ -128,8 +129,13 @@ export function mount(container, params, ctx) {
   }
   renderJournal();
 
+  // ---- Trophies tab (RUN4 C4): the warm wooden cabinet ----
+  const trophyView = el('div', { class: 'coll-scroll trophy-view', style: { display: 'none' } });
+  let trophyMounted = false;
+
   const tabs = el('div', { class: 'coll-tabs' }, [
-    el('button', { class: 'coll-tab sel', text: '🧸 Collection', onclick: (e) => switchTab('coll', e.currentTarget) }),
+    el('button', { class: 'coll-tab sel', text: '🧸 Boos', onclick: (e) => switchTab('coll', e.currentTarget) }),
+    el('button', { class: 'coll-tab', text: '🏆 Trophies', onclick: (e) => switchTab('trophies', e.currentTarget) }),
     el('button', { class: 'coll-tab', text: '📖 Journal', onclick: (e) => switchTab('journal', e.currentTarget) })
   ]);
   function switchTab(which, btn) {
@@ -138,10 +144,12 @@ export function mount(container, params, ctx) {
     btn.classList.add('sel');
     scroll.style.display = which === 'coll' ? '' : 'none';
     journalView.style.display = which === 'journal' ? '' : 'none';
+    trophyView.style.display = which === 'trophies' ? '' : 'none';
     if (which === 'journal') renderJournal();
+    if (which === 'trophies' && !trophyMounted) { trophyMounted = true; renderTrophyRoom(trophyView); }
   }
 
-  root.append(header, tabs, scroll, journalView);
+  root.append(header, tabs, scroll, trophyView, journalView);
   container.appendChild(root);
 
   function showItem(item, count) {

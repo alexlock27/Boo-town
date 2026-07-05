@@ -5,7 +5,7 @@ const errors = []; let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // a save WITHOUT settings.content, to prove migration defaults to Light
-const OLD = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 3, boo_disco: 1 }, boxes: 0, meter: 3, opened: 4, pity: { commons: 0 }, nicknames: { boo_inky: 'Inkster' }, equips: {}, catBest: {}, spellingMastery: { because: 4 }, ledger: { 'tmul7:8': { rights: 5, misses: 1, lastSeen: 1 } }, stars: { total: 200, byGame: {} }, town: [], settings: { sound: false, music: false, voice: false } };
+const OLD = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 3, boo_disco: 1 }, boxes: 0, meter: 3, opened: 4, pity: { commons: 0 }, nicknames: { boo_inky: 'Inkster' }, equips: {}, catBest: {}, spellingMastery: { because: 4 }, ledger: { 'tmul7:8': { rights: 5, misses: 1, lastSeen: 1 } }, stars: { total: 200, byGame: {} }, town: [], settings: { sound: false, music: false, voice: false }, seen: { trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } };
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
