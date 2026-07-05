@@ -1739,3 +1739,40 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .hub .quest-card { padding: 5px 12px; }
   .game-topbar { min-height: 50px; padding: 4px 8px; }
 }
+
+/* ============================================================
+   RUN4 hotfix 2: every screen scrolls and every control is
+   reachable on real phones. Root cause: .screen-root children
+   are locked to height:100% with no overflow, so any screen
+   taller than a phone viewport silently clipped (Build-a-Boo's
+   Seal button was unreachable); and flex `margin:auto` children
+   keep their preferred width, so wide cards (Teach Me's 460px
+   start card) overflowed 360-412px screens sideways with no
+   scroll. Scoped to narrow OR short viewports — tablets are
+   625px+ in BOTH dimensions and can never match either query.
+   ============================================================ */
+@media (max-width: 600px), (max-height: 500px) {
+  .screen-root > * {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    /* the last control clears the Android nav/gesture bar */
+    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  }
+  /* cards keep their tablet max-width but may never exceed the screen */
+  .start-card, .quests-panel, .tc-panel, .gr-panel {
+    width: 100%;
+    max-width: min(460px, 100%);
+  }
+  .teachme-list .lesson-grid { max-width: 100%; }
+  .build-rows, .studio-grid { max-width: 100%; }
+  .build-preview svg { max-width: 42vw; height: auto; }
+  /* the character creator's labelled swatch rows wrap instead of spilling off-screen */
+  .cc-group { flex-wrap: wrap; }
+  .cc-label { width: auto; min-width: 0; text-align: left; }
+  .swatch-row { flex-wrap: wrap; }
+  .swatch { width: 42px; height: 42px; }
+  /* overlays can be taller than a phone screen too */
+  .overlay { overflow-y: auto; }
+  .overlay .card { max-height: none; }
+}
