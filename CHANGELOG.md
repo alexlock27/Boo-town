@@ -2,6 +2,40 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 4: polish and progression
+- **Navigation**: the Android back button / gesture now navigates inside the app (one
+  level, like the on-screen back button), never closing it by accident; confirm-on-leave
+  stays for mid-round exits; a one-per-session nudge when a town zone is within 10 stars.
+- **Pickers**: "🎲 Pick for me!" starts any game in one tap; spelling sets carry friendly
+  names + two sample words (Full tier groups them under three calm headers); maths cards
+  show sample questions; unreadable cream-card chips fixed.
+- **Reward rebalance**: total stars always pay in full; a Brave bonus (+1 meter, once per
+  game category per day) rewards playing above the comfy level; mastered easy rounds fill
+  the box meter gently (never framed as worth less); two stretch quests.
+- **The Trophy Room**: certificates (tables, bonds, spelling sets, Sound Twins, Clock
+  Shop, Teach Me), per-game bronze/silver/gold medals, star + collector milestones, four
+  one-off trophies — silhouettes with hints until earned; retroactive award ceremony for
+  existing saves.
+- **Living town**: eight activity items with real Boo behaviours (slide with a wheee,
+  swings, two-Boo seesaw, trampoline, paddling pool, picnic, bumper car, night campfire);
+  Boos near a Boo House sleep 21:00–07:00 (tap wakes gently); the bench and pond finally
+  seat and paddle as promised; town growth milestones at 5/10/15/20/25 Boos with fenced
+  Boo Builders sites that finish in 24 real hours and reveal wildflowers, fairy lights, a
+  fountain, paving and bunting.
+- **Boo Pop**: a gentle 7x7 match-and-pop puzzle (Twin Pop, Make 10, Make 20, Fraction
+  Friends, Fact Pairs) — 20 moves, no timer, guaranteed valid pairs, free sparkle-shuffle
+  and idle glow.
+- **Shinies + the Star Chest**: any Boo can drop shiny (1 in 15, with a hidden mercy);
+  golden ceremony, badges and Journal stamp; every 50 stars a golden chest guarantees a
+  Rare-or-better Boo (triple shiny odds) plus an accessory; existing saves get one
+  welcome chest.
+- **Daily delights**: a hide-and-seek Boo (peeking ears, +2 meter, carries over silently),
+  Boo of the Day on a podium, and a Parade button on the Dance Stage.
+- **Phones**: comfortable at phone sizes in both orientations; tablets untouched
+  (verified pixel-for-pixel).
+- **Fixed**: town item-menu taps (Move / Put away / Dress up / Choreograph) never
+  registered — a shipped bug since run 2.
+
 ## DASH_PATCH job 5: your total stars, always visible
 - A small star chip beside the hub meter now shows the total star count, with a brief
   count-up whenever it has grown since last time.
