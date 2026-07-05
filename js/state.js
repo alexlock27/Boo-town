@@ -25,7 +25,8 @@ function freshSave() {
         beat:      { best: 0, plays: 0 },
         teachme:   { best: 0, plays: 0 },
         dash:      { best: 0, plays: 0 },
-        clockshop: { best: 0, plays: 0 }
+        clockshop: { best: 0, plays: 0 },
+        boopop:    { best: 0, plays: 0 }
       }
     },
     meter: 0,

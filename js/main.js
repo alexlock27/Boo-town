@@ -23,6 +23,7 @@ const registry = {
   teachme:    () => import('./games/teachme.js'),
   dash:       () => import('./games/dash.js'),
   clockshop:  () => import('./games/clockshop.js'),
+  boopop:     () => import('./games/boopop.js'),
   golden:     () => import('./golden.js'),
   studio:     () => import('./studio.js'),
   paint:      () => import('./paint.js'),

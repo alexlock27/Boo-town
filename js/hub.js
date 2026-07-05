@@ -28,7 +28,8 @@ const GAMES = [
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
-  { id: 'dash',      name: 'Boo Dash',     tag: 'Fluency run',   accent: 'var(--pop)',  icon: dashIcon, group: 'Play' }
+  { id: 'dash',      name: 'Boo Dash',     tag: 'Fluency run',   accent: 'var(--pop)',  icon: dashIcon, group: 'Play' },
+  { id: 'boopop',    name: 'Boo Pop',      tag: 'Match & pop',   accent: 'var(--zing)', icon: popIcon, group: 'Play' }
 ];
 
 export function mount(container, params, ctx) {
@@ -326,6 +327,9 @@ function teachIcon() {
 }
 function dashIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M8 46 Q30 40 52 46" stroke="var(--ink)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M16 44 Q16 26 30 26 Q44 26 44 44" fill="none" stroke="var(--star)" stroke-width="4"/><circle cx="30" cy="40" r="9" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><circle cx="27" cy="39" r="1.8" fill="#fff"/><circle cx="33" cy="39" r="1.8" fill="#fff"/><path d="M6 20 h10 M4 28 h8" stroke="var(--zing)" stroke-width="3" stroke-linecap="round"/></svg>`;
+}
+function popIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="20" cy="22" r="11" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><circle cx="42" cy="24" r="10" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><circle cx="30" cy="42" r="11" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><text x="20" y="27" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">3</text><text x="42" y="29" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">7</text><text x="30" y="47" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">10</text><path d="M50 8 l2 4 4 2 -4 2 -2 4 -2 -4 -4 -2 4 -2z" fill="var(--star)"/></svg>`;
 }
 function clockIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="30" cy="30" r="22" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><circle cx="30" cy="30" r="22" fill="none" stroke="var(--star)" stroke-width="3" opacity="0.5"/><line x1="30" y1="30" x2="30" y2="17" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="30" x2="40" y2="34" stroke="var(--pop)" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="30" r="2.5" fill="var(--ink)"/></svg>`;

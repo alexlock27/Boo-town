@@ -111,8 +111,9 @@ console.log('== swap, pop, fall, cascade evidence ==');
   await openLevel(page, 'Make 10');
   const mv = await page.evaluate(() => window.__boopop.findMove());
   assert(!!mv, 'a valid move exists');
-  // fire the swap and sample fast: mid-swap transforms, then popping, then drop-in
-  await page.evaluate((m) => window.__boopop.swap(m.from[0], m.from[1], m.to[0], m.to[1]), mv);
+  // fire WITHOUT awaiting (trySwap resolves only after the full cascade) and
+  // sample fast: mid-swap transforms, then popping, then drop-in
+  await page.evaluate((m) => { window.__boopop.swap(m.from[0], m.from[1], m.to[0], m.to[1]); return true; }, mv);
   const trace = { swap: false, pop: false, fall: false };
   for (let i = 0; i < 24; i++) {
     const t = await page.evaluate(() => ({

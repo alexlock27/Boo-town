@@ -24,7 +24,7 @@ const screenName = () => page.evaluate(() => document.getElementById('screen').d
 
 // ---- every screen below the hub carries exactly one shared back control ----
 console.log('== presence on every screen ==');
-const SCREENS = ['town', 'collection', 'studio', 'paint', 'collage', 'buildaboo', 'gallery', 'grownups', 'editguide', 'teachme', 'bubblepop', 'feedboos', 'spellboo', 'blocks', 'bounce', 'beat', 'dash', 'clockshop'];
+const SCREENS = ['town', 'collection', 'studio', 'paint', 'collage', 'buildaboo', 'gallery', 'grownups', 'editguide', 'teachme', 'bubblepop', 'feedboos', 'spellboo', 'blocks', 'bounce', 'beat', 'dash', 'clockshop', 'boopop'];
 let allOne = true;
 for (const s of SCREENS) {
   await page.evaluate((x) => window.BooTown.go(x), s);

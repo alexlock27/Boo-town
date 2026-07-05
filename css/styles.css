@@ -1480,7 +1480,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 .bp-hud .bp-pops { color: var(--star); }
 .bp-board {
-  display: grid; grid-template-columns: repeat(var(--n), 1fr);
+  display: grid; grid-template-columns: repeat(7, 1fr);   /* N=7, fixed board */
   gap: 6px; width: min(92vw, 62vh, 560px); margin: 0 auto; touch-action: none;
 }
 .bp-gem {

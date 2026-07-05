@@ -52,7 +52,9 @@ const LEVELS = {
     gen: () => {
       const fam = FRACTION_FAMILIES[rand(FRACTION_FAMILIES.length)];
       const f = fam[rand(fam.length)];
-      return { v: f, label: f, hue: FRACTION_CLASS[f] * 3 + 1, frac: true };
+      // each fraction gets its OWN hue so equivalence is judged by value, not colour
+      const ALL = ['1/2', '2/4', '3/6', '1/4', '2/8', '3/4', '6/8'];
+      return { v: f, label: f, hue: ALL.indexOf(f) + 1, frac: true };
     },
     match: (a, b) => FRACTION_CLASS[a.v] === FRACTION_CLASS[b.v]
   },
