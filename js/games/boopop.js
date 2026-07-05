@@ -31,24 +31,34 @@ const FRACTION_FAMILIES = [['1/2', '2/4', '3/6'], ['1/4', '2/8'], ['3/4', '6/8']
 const FRACTION_CLASS = {};
 FRACTION_FAMILIES.forEach((fam, i) => fam.forEach(f => { FRACTION_CLASS[f] = i; }));
 
+// `rule` is the always-visible chip in the round HUD; `intro` is the guide's
+// first-round line — a first-time player must never have to GUESS why pairs pop.
 const LEVELS = {
   twin: {
     key: 'twin', name: 'Twin Pop', rank: 0, tier: 'light',
+    rule: 'Twins pop: two of the SAME number',
+    intro: 'Put two of the SAME number side by side — POP! Swap gems to make it happen!',
     gen: () => { const v = 1 + rand(9); return { v, label: String(v), hue: v }; },
     match: (a, b) => a.v === b.v
   },
   make10: {
     key: 'make10', name: 'Make 10', rank: 1, tier: 'light',
+    rule: 'Pairs that ADD UP TO 10 pop',
+    intro: 'Put two numbers that ADD UP TO 10 side by side — like 7 and 3 — POP!',
     gen: () => { const v = 1 + rand(9); return { v, label: String(v), hue: v }; },
     match: (a, b) => a.v + b.v === 10
   },
   make20: {
     key: 'make20', name: 'Make 20', rank: 2, tier: 'medium',
+    rule: 'Pairs that ADD UP TO 20 pop',
+    intro: 'Put two numbers that ADD UP TO 20 side by side — like 12 and 8 — POP!',
     gen: () => { const v = 1 + rand(19); return { v, label: String(v), hue: v % 10 }; },
     match: (a, b) => a.v + b.v === 20
   },
   fractions: {
     key: 'fractions', name: 'Fraction Friends', rank: 3, tier: 'full',
+    rule: 'Fractions worth the SAME amount pop',
+    intro: 'Fractions that are secretly the SAME — like 1/2 and 2/4 — pop side by side!',
     gen: () => {
       const fam = FRACTION_FAMILIES[rand(FRACTION_FAMILIES.length)];
       const f = fam[rand(fam.length)];
@@ -60,6 +70,8 @@ const LEVELS = {
   },
   facts: {
     key: 'facts', name: 'Fact Pairs', rank: 3, tier: 'full',
+    rule: 'A times fact pops with its answer',
+    intro: 'Put a times question next to its ANSWER — like 3 × 4 beside 12 — POP!',
     gen: () => {
       // half fact gems ("3 × 4"), half answer gems (12); small friendly facts
       if (rand(2)) {
@@ -128,8 +140,11 @@ export function mount(container, params, ctx) {
     shell.setProgress(0);
 
     const grid = el('div', { class: 'bp-board', style: { '--n': N } });
+    // the round's rule stays visible ALL round (clarity fix: nothing on screen
+    // used to say WHY pairs pop — a first-time player had to guess)
     const hud = el('div', { class: 'bp-hud' }, [
       el('span', { class: 'bp-pops', text: '0 pops' }),
+      el('span', { class: 'bp-rule', text: rule.rule }),
       el('span', { class: 'bp-moves', text: `${MOVES} moves` })
     ]);
     shell.area.append(hud, grid);
@@ -396,7 +411,7 @@ export function mount(container, params, ctx) {
     renderBoard(true);
     updateHud();
     restartIdle();
-    shell.react(guideLine('gameIntroPop'), { hold: 3600 });
+    shell.react(rule.intro, { hold: 4600 });   // the LEVEL'S rule, not a generic line
 
     // invisible test hook
     if (typeof window !== 'undefined') window.__boopop = {
