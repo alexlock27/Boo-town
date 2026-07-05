@@ -1315,14 +1315,16 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 
 /* ============================================================
-   Hub on phones (DASH_PATCH job 1). CSS only, scoped to .hub and
-   narrow viewports so tablets and other screens are untouched.
-   The top strip (sound + meter + gift) sits on its own compact row;
-   the hero below keeps its full height so the guide is never
-   clipped or overlapped; the speech bubble clamps on-screen; the
-   quests/golden cards and game grid simply start lower and scroll.
+   Hub on phones (DASH_PATCH job 1, widened to 600px by RUN4 C10).
+   CSS only, scoped to .hub and narrow viewports so tablets and
+   other screens are untouched (tablet portrait is 625px, safely
+   above). The top strip (sound + meter + gift) sits on its own
+   compact row; the hero below keeps its full height so the guide
+   is never clipped or overlapped; the speech bubble clamps
+   on-screen; the quests/golden cards and game grid simply start
+   lower and scroll.
    ============================================================ */
-@media (max-width: 550px) {
+@media (max-width: 600px) {
   .hub { padding: 6px 10px 0; gap: 8px; }
   .hub .hub-top { flex: 0 0 auto; min-height: 44px; gap: 8px; }
   .hub .hub-top .icon-btn { min-width: 44px; min-height: 44px; }
@@ -1664,3 +1666,76 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .hub .booday { display: none; }   /* phones: the hero row is already snug (C10 revisits) */
 }
 @media (prefers-reduced-motion: reduce) { .t-hide-ears { animation: none; } }
+
+/* ============================================================
+   Phone comfort pass (RUN4 C10). Strictly CSS inside a 600px
+   media query plus dvh; no layout JavaScript, no markup changes.
+   Tablets (625px portrait and up) are untouched — hard gate via
+   tests/r4p10-tablet.mjs byte-compare.
+   ============================================================ */
+@media (max-width: 600px) {
+  /* dvh stops browser-bar scroll creep on phones */
+  html, body { height: 100dvh; }
+
+  /* hub cards stack single column, icon beside the words */
+  .hub .game-cards { flex-direction: column; align-items: stretch; gap: 8px; }
+  .hub .game-card {
+    min-width: 0; width: 100%; flex-direction: row; justify-content: flex-start;
+    align-items: center; gap: 12px; padding: 8px 14px; text-align: left; min-height: 64px;
+  }
+  .hub .game-card .gc-icon svg { width: 46px; height: 46px; }
+  .hub .game-card .gc-name { font-size: clamp(17px, 4.6vw, 21px); }
+  .hub .game-card .gc-tag { display: none; }
+  .hub .game-card .gc-stars { margin-left: auto; }
+
+  /* the game shell HUD compresses to one row */
+  .game-topbar { flex-wrap: nowrap; gap: 6px; padding: 6px 8px; min-height: 54px; }
+  .game-topbar .back-btn { min-width: 44px; min-height: 44px; }
+  .progress-wrap { min-width: 0; overflow: hidden; }
+  .progress-dots { gap: 3px; }
+  .progress-dots .pdot { width: 6px; height: 6px; }
+  .progress-label { font-size: 12px; }
+  .hearts-wrap svg { width: 20px; height: 20px; }
+  .hint-btn { min-width: 44px; min-height: 44px; }
+  .hint-btn .hint-face svg { width: 42px; height: 42px; }
+
+  /* type + spacing scale down; touch targets never below 44px */
+  .btn { font-size: clamp(16px, 4.4vw, 20px); min-height: 44px; padding: 10px 18px; }
+  .btn.big { font-size: clamp(18px, 5vw, 24px); }
+  .start-card { padding: 12px 10px; }
+  .start-card h2 { font-size: clamp(24px, 7vw, 32px); }
+  .sc-intro { font-size: clamp(14px, 3.8vw, 17px); }
+  .picker-choice { font-size: 15px; padding: 7px 11px; min-height: 44px; }
+  .picker-choice.pickforme { min-height: 52px; font-size: 19px; }
+  .level-btn { min-width: 84px; min-height: 44px; }
+  .star-rule p { font-size: 13px; }
+  .result-card { padding: 14px 12px; }
+  .result-bubble { font-size: clamp(15px, 4.2vw, 18px); }
+
+  /* the town drawer shrinks (kit stays tappable) */
+  .town-drawer { min-height: 76px; padding: 8px 10px 10px; gap: 8px; }
+  .drawer-art { width: 50px; height: 50px; }
+  .drawer-art svg { width: 50px; height: 50px; }
+  .town-header h2 { font-size: 22px; }
+  .town-hint { font-size: 12px; }
+
+  /* Boo Pop board breathes on a narrow screen */
+  .bp-board { width: min(96vw, 58vh, 560px); gap: 4px; }
+  .bp-hud { font-size: 15px; gap: 14px; }
+}
+
+/* Landscape phones (RUN4 C10): short screens, wide enough to miss the 600px
+   query. Height-gated so tablets (625px+ tall) never match. The guide scales
+   to the little hero band and nothing overlaps it. */
+@media (max-height: 420px) {
+  .hub { padding: 4px 12px 0; gap: 4px; }
+  .hub .hub-top { flex: 0 0 auto; min-height: 44px; }
+  .hub .hub-guide { flex: 0 0 auto; overflow: visible; min-height: 0; padding: 0; }
+  .hub .guide-block { align-items: center; }
+  .hub .hub-guide .guide-art svg { max-height: 21vh; width: auto; }
+  .hub .speech-bubble { max-width: min(52vw, 420px); font-size: 15px; padding: 8px 12px; }
+  .hub .booday { display: none; }
+  .hub .hub-specials { padding: 0 2px; }
+  .hub .quest-card { padding: 5px 12px; }
+  .game-topbar { min-height: 50px; padding: 4px 8px; }
+}
