@@ -362,7 +362,7 @@ export function mount(container, params, ctx) {
       const mv = findValidMove();
       if (!mv) return;
       hintsUsed++;
-      shell.react(guideLine('hintOffer') ? 'These two! Swap them together!' : 'These two!', { voice: false, hold: 2000 });
+      shell.react('These two! Swap them together!', { voice: false, hold: 2000 });
       board[mv.from[0]][mv.from[1]].node.classList.add('hinted');
       board[mv.to[0]][mv.to[1]].node.classList.add('hinted');
     }

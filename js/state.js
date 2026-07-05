@@ -55,7 +55,7 @@ function freshSave() {
     brave: { day: '', cats: {} },  // daily Brave-bonus claims per 'game:cat' (RUN4 C3)
     gameThrees: {},             // game -> lifetime 3-star rounds since this update (RUN4 C4 medals)
     trophies: {},               // trophy / certificate / medal key -> date earned (RUN4 C4)
-    townGrowth: { milestone: 0, pending: [], site: null },  // growth milestones + Boo Builders (RUN4 C6)
+    townGrowth: { done: [], pending: [], site: null },  // growth milestones + Boo Builders (RUN4 C6)
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
     delights: {},               // daily-delight flags: hide-and-seek / Boo of the Day (RUN4 C9)

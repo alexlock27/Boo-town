@@ -12,6 +12,7 @@ import { tierForAge, AGE_CHOICES } from './content.js';
 import { renderGuide } from './art.js';
 import { ZONES } from './town.js';
 import { retroAwardOnce } from './trophies.js';
+import { tickGrowth } from './growth.js';
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -194,6 +195,9 @@ export function mount(container, params, ctx) {
   // One-time retroactive trophy award for existing saves (RUN4 C4): everything
   // derivable lands at once in a single gentle cabinet-opening ceremony.
   setTimeout(() => { try { retroAwardOnce(); } catch (e) { console.warn(e); } }, 400);
+  // Growth milestones (RUN4 C6): the Builders' clock starts when she crosses a
+  // milestone, not when she next visits the town.
+  try { tickGrowth(); } catch (e) { console.warn(e); }
 
   // greeting — or the one-per-session near-unlock nudge (RUN4 C1). A ready box
   // wins: celebration first, and the nudge never stacks onto other prompts.

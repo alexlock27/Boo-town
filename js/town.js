@@ -16,6 +16,7 @@ import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
+import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 
 // Zone unlock thresholds (named constants).
 export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
@@ -87,7 +88,14 @@ export function mount(container, params, ctx) {
   const night = isNight(currentHour());
   root.classList.toggle('night', night);
 
-  requestAnimationFrame(() => { layout(); renderDrawer(); updateHint(); maybeCelebrateUnlock(); startLoop(); });
+  requestAnimationFrame(() => {
+    layout(); renderDrawer(); updateHint(); maybeCelebrateUnlock(); startLoop();
+    // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
+    // finished while she was away, the next town open plays the reveal.
+    const gt = tickGrowth();
+    if (gt.readyToReveal) setTimeout(() => playGrowthReveal(gt.readyToReveal), REDUCED ? 100 : 700);
+    else if (gt.spawned.length) renderPlaced();   // a fresh site fence appears
+  });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
 
@@ -169,8 +177,114 @@ export function mount(container, params, ctx) {
     }
     applyDance();
     assignRoles();
+    renderGrowth();
     decorateEasels();
     renderRequestBubble();
+  }
+
+  // ---- town growth (RUN4 C6): milestone upgrades + the Boo Builders --------
+  // Upgrades are scenery layers placed by the town itself — they sit BEHIND her
+  // items and never consume space she is using.
+  function pxAt(zone, x) { return ((ZONE_INDEX[zone] ?? 0) * zoneW + x * zoneW); }
+  function renderGrowth() {
+    ground.querySelectorAll('.t-growth').forEach(n => n.remove());
+    const view = growthView();
+    const night = isNight(currentHour());
+    for (const m of view.upgrades) {
+      const node = growthNode(m, night);
+      if (node) ground.insertBefore(node, ground.firstChild);
+    }
+    if (view.site) ground.insertBefore(siteNode(view.site), ground.firstChild);
+  }
+  function growthNode(m, night) {
+    const wrap = el('div', { class: `t-growth tg-${m.key}${night && m.key === 'fairylights' ? ' lit' : ''}` });
+    const cx = pxAt(m.zone, m.x);
+    let w = 300, h = 120, svg = '';
+    const F = (x, y, hue) => `<g transform="translate(${x},${y})"><line x1="0" y1="0" x2="0" y2="-14" stroke="#4C8C3F" stroke-width="3"/><circle cx="0" cy="-18" r="6" fill="${hue}"/><circle cx="0" cy="-18" r="2.4" fill="#FFEB99"/></g>`;
+    if (m.key === 'wildflowers') {
+      w = zoneW * 0.7; h = 44;
+      svg = ['#FF7AC6', '#C6A9F0', '#FFC93C', '#8FC7FF', '#FF8A8A', '#35D0BA', '#FF7AC6'].map((hue, i) => F(20 + i * (w - 40) / 6, 40, hue)).join('');
+    } else if (m.key === 'fairylights') {
+      w = zoneW * 0.6; h = 90;
+      const bulbs = Array.from({ length: 9 }, (_, i) => { const x = 14 + i * (w - 28) / 8; const y = 30 + Math.sin(i / 8 * Math.PI) * 26; return `<circle class="fl-bulb" cx="${x}" cy="${y}" r="5" fill="${['#FFC93C', '#FF7AC6', '#35D0BA'][i % 3]}"/>`; }).join('');
+      svg = `<path d="M8 24 Q ${w / 2} ${86} ${w - 8} 24" fill="none" stroke="#2A1B4E" stroke-width="2.5" opacity="0.7"/>` + bulbs +
+        `<line x1="8" y1="24" x2="8" y2="${h}" stroke="#6E4534" stroke-width="5"/><line x1="${w - 8}" y1="24" x2="${w - 8}" y2="${h}" stroke="#6E4534" stroke-width="5"/>`;
+    } else if (m.key === 'fountain') {
+      w = 120; h = 110;
+      svg = `<ellipse cx="60" cy="96" rx="46" ry="13" fill="#7FC7E8" stroke="#2A1B4E" stroke-width="3"/>` +
+        `<rect x="50" y="58" width="20" height="34" rx="6" fill="#B8C6E8" stroke="#2A1B4E" stroke-width="3"/>` +
+        `<ellipse cx="60" cy="58" rx="18" ry="6" fill="#7FC7E8" stroke="#2A1B4E" stroke-width="2.5"/>` +
+        `<path class="ft-spray" d="M60 52 Q54 38 60 30 Q66 38 60 52" fill="#A6DDF2" opacity="0.9"/>` +
+        `<circle class="ft-drop d1" cx="48" cy="42" r="3" fill="#A6DDF2"/><circle class="ft-drop d2" cx="72" cy="40" r="2.6" fill="#A6DDF2"/>`;
+    } else if (m.key === 'paving') {
+      w = zoneW * 0.6; h = 30;
+      svg = Array.from({ length: 8 }, (_, i) => `<ellipse cx="${24 + i * (w - 48) / 7}" cy="${16 + (i % 2) * 6}" rx="17" ry="7" fill="#D8CBEF" stroke="#2A1B4E" stroke-width="2" opacity="0.9"/>`).join('');
+    } else if (m.key === 'banner') {
+      w = zoneW * 0.55; h = 70;
+      const flags = Array.from({ length: 8 }, (_, i) => { const x = 16 + i * (w - 32) / 7; const y = 20 + Math.sin(i / 7 * Math.PI) * 14; return `<path d="M${x} ${y} L${x + 14} ${y} L${x + 7} ${y + 16} Z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`; }).join('');
+      svg = `<path d="M8 20 Q ${w / 2} ${52} ${w - 8} 20" fill="none" stroke="#2A1B4E" stroke-width="2.5"/>` + flags;
+    } else return null;
+    wrap.style.left = (cx - w / 2) + 'px';
+    wrap.style.top = (m.key === 'banner' ? groundY - 250 : m.key === 'fairylights' ? groundY - 150 : groundY - h + 6) + 'px';
+    wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+    return wrap;
+  }
+  // A construction site: fence, sign, two hard-hat builder Boos, sawdust puffs.
+  function siteNode(m) {
+    const wrap = el('div', { class: 't-growth t-consite' });
+    const cx = pxAt(m.zone, m.x);
+    const w = 240, h = 130;
+    wrap.style.left = (cx - w / 2) + 'px';
+    wrap.style.top = (groundY - h + 10) + 'px';
+    const fence = Array.from({ length: 6 }, (_, i) => `<rect x="${10 + i * 40}" y="86" width="12" height="40" rx="3" fill="#E8B04B" stroke="#2A1B4E" stroke-width="2.5"/>`).join('') +
+      `<rect x="4" y="92" width="${w - 8}" height="9" rx="4" fill="#F4C96B" stroke="#2A1B4E" stroke-width="2.5"/>` +
+      `<rect x="4" y="110" width="${w - 8}" height="9" rx="4" fill="#F4C96B" stroke="#2A1B4E" stroke-width="2.5"/>`;
+    const sign = `<g transform="translate(${w / 2 - 34},18)"><rect x="0" y="0" width="68" height="34" rx="8" fill="#FFF8F0" stroke="#2A1B4E" stroke-width="3"/><text x="34" y="23" font-family="Fredoka,sans-serif" font-size="16" font-weight="700" fill="#2A1B4E" text-anchor="middle">🚧</text><line x1="34" y1="34" x2="34" y2="60" stroke="#2A1B4E" stroke-width="3.5"/></g>`;
+    wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${fence}${sign}</svg>`;
+    // two hard-hat Boos hammering (CSS keyframes, transform-only)
+    for (const [i, x] of [[0, 34], [1, w - 76]]) {
+      const b = el('div', { class: 'cs-boo b' + i });
+      b.style.left = x + 'px';
+      b.innerHTML = `<svg viewBox="0 0 60 60" width="46" height="46" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="30" cy="38" rx="18" ry="16" fill="${i ? '#8F7FF0' : '#C6A9F0'}" stroke="#2A1B4E" stroke-width="3"/>
+        <circle cx="24" cy="35" r="3" fill="#2A1B4E"/><circle cx="36" cy="35" r="3" fill="#2A1B4E"/>
+        <path d="M22 44 Q30 49 38 44" fill="none" stroke="#2A1B4E" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M14 26 Q30 10 46 26 L46 30 L14 30 Z" fill="#FFC93C" stroke="#2A1B4E" stroke-width="3"/>
+        <rect x="24" y="8" width="12" height="8" rx="3" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.5"/>
+        <g class="cs-hammer"><rect x="44" y="30" width="4" height="18" rx="2" fill="#8A5A44"/><rect x="39" y="26" width="14" height="8" rx="3" fill="#9AA2B8" stroke="#2A1B4E" stroke-width="2"/></g>
+      </svg>`;
+      wrap.appendChild(b);
+    }
+    for (const i of [0, 1, 2]) {
+      const d = el('div', { class: 'cs-dust d' + i, text: '💨' });
+      d.style.left = (60 + i * 55) + 'px';
+      wrap.appendChild(d);
+    }
+    return wrap;
+  }
+
+  // The reveal ceremony: fence drops, confetti, guide line, Journal stamp (C6).
+  function playGrowthReveal(m) {
+    sfx.fanfare();
+    const ov = el('div', { class: 'overlay growth-reveal' });
+    const panel = el('div', { class: 'card gr-panel' }, [
+      el('h2', { class: 'gr-title', text: '🔨 Ta-daa!' }),
+      el('p', { class: 'gr-line', text: guideLine('builders') }),
+      el('div', { class: 'gr-scene' }, [
+        el('div', { class: 'gr-upgrade', html: `<div class="gr-name">${m.name}</div>` }),
+        el('div', { class: 'gr-fence' })
+      ]),
+      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => {
+        sfx.tap(); ov.remove();
+        completeReveal(m.idx);
+        renderPlaced();   // the upgrade appears (and any queued site starts)
+      } })
+    ]);
+    ov.appendChild(panel);
+    root.appendChild(ov);
+    requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
+    confetti({ count: 110, power: 1.1 });
+    speakMaybe(guideLine('builders'));
   }
 
   // ---- activity roles (RUN4 C5) -------------------------------------------

@@ -29,7 +29,7 @@ const SAVE = (nBoos, over = {}) => {
 
 const browser = await chromium.launch();
 async function fresh(save, { now = null } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1000, height: 625 }, reducedMotion: 'reduce' });
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: 625 }, reducedMotion: 'no-preference' });
   const page = await ctx.newPage();
   page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
   if (now != null) await page.addInitScript((n) => { window.__bootownNow = n; }, now);

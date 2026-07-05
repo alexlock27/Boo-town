@@ -72,6 +72,9 @@ export const LINES = {
   // RUN4 C3: reward tone, upward only. The brave line celebrates the bonus; the
   // cosy line is a warm nudge toward the next level ({level} filled by results).
   braveRound: ["BRAVE round! Bonus sparkle!", "That was BRAVE! Extra sparkle for you!"],
+  // RUN4 C6: the Boo Builders' reveal, and C7's Boo Pop intro.
+  builders: ["The Builders finished something for you!", "The Builders finished something for you! Come and see!"],
+  gameIntroPop: ["Swap two gems so a matching pair touches — POP! Watch them tumble!"],
   cosyRound: [
     "Lovely warm-up! Bigger sparkles are waiting up on {level}!",
     "Cosy and smooth! {level} has bigger sparkles with your name on them!"

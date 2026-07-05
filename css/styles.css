@@ -1522,3 +1522,53 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media (prefers-reduced-motion: reduce) {
   .bp-gem, .bp-gem.popping, .bp-gem.drop-in, .bp-gem.glow { animation: none; transition: none; }
 }
+
+/* ============================================================
+   Town growth + the Boo Builders (RUN4 C6). Scenery layers sit
+   behind placed items; hammering + dust are transform/opacity.
+   ============================================================ */
+.t-growth { position: absolute; pointer-events: none; z-index: 0; }
+.t-item { z-index: 1; }
+.tg-fairylights .fl-bulb { opacity: 0.5; }
+.tg-fairylights.lit .fl-bulb { opacity: 1; animation: fl-twinkle 2.2s ease-in-out infinite; }
+.tg-fairylights.lit .fl-bulb:nth-child(3n) { animation-delay: 0.7s; }
+.tg-fairylights.lit .fl-bulb:nth-child(3n+1) { animation-delay: 1.4s; }
+@keyframes fl-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.ft-spray { animation: ft-spray 1.4s ease-in-out infinite; transform-origin: 60px 52px; }
+@keyframes ft-spray { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.25); } }
+.ft-drop { animation: pp-splash 1.8s ease-out infinite; }
+.ft-drop.d2 { animation-delay: 0.8s; }
+.t-consite { z-index: 1; }
+.cs-boo { position: absolute; bottom: 26px; animation: cs-hammer 0.9s ease-in-out infinite; transform-origin: 50% 90%; }
+.cs-boo.b1 { animation-delay: 0.45s; }
+@keyframes cs-hammer {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  35% { transform: rotate(-7deg) translateY(-3px); }
+  55% { transform: rotate(5deg) translateY(1px); }
+}
+.cs-dust { position: absolute; bottom: 44px; font-size: 14px; animation: cs-dust 2.1s ease-out infinite; }
+.cs-dust.d1 { animation-delay: 0.7s; }
+.cs-dust.d2 { animation-delay: 1.4s; }
+@keyframes cs-dust {
+  0% { transform: translateY(6px) scale(0.6); opacity: 0; }
+  30% { opacity: 0.85; }
+  100% { transform: translateY(-18px) scale(1.15); opacity: 0; }
+}
+/* the reveal: a little fence that drops away */
+.growth-reveal .gr-panel { max-width: 460px; text-align: center; }
+.growth-reveal .gr-title { font-family: var(--font-display); color: var(--ink); margin: 2px 0 4px; }
+.growth-reveal .gr-line { color: #6B5E93; font-weight: 600; }
+.gr-scene { position: relative; height: 110px; margin: 10px 0 14px; overflow: hidden; border-radius: 14px; background: linear-gradient(180deg, #BFE3FF 55%, #7CC768 55%); }
+.gr-upgrade { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.gr-name { font-family: var(--font-display); font-weight: 700; font-size: 24px; color: var(--ink); text-shadow: 0 2px 0 rgba(255,255,255,0.6); }
+.gr-fence {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, #F4C96B 0 18px, #E8B04B 18px 26px);
+  border-bottom: 8px solid #B97F2E;
+  transition: transform 0.9s cubic-bezier(0.5, 0, 0.75, 0.4);
+}
+.gr-fence.drop { transform: translateY(112%); }
+@media (prefers-reduced-motion: reduce) {
+  .cs-boo, .cs-dust, .tg-fairylights.lit .fl-bulb, .ft-spray, .ft-drop { animation: none; }
+  .gr-fence { transition: none; }
+}

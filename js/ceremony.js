@@ -11,6 +11,7 @@ import { openEquipPicker } from './accessories.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
+import { tickGrowth } from './growth.js';
 
 // Reveal cards announce what the item is (spec RUN2 C2).
 const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
@@ -91,8 +92,10 @@ export function mount(container, params, ctx) {
       requestAnimationFrame(() => card.classList.add('flip-in'));
 
       // Collector medals can land right after a reveal (RUN4 C4) — celebrate
-      // once the reveal moment has had its beat.
+      // once the reveal moment has had its beat. A new Boo may also cross a
+      // growth milestone (RUN4 C6): start the Builders' clock right away.
       setTimeout(() => { try { checkAndCelebrate(); } catch (e) { console.warn(e); } }, 1400);
+      try { tickGrowth(); } catch (e) { console.warn(e); }
 
       if (result.duplicate) {
         // duplicate -> +2 meter points, with a small star animation
