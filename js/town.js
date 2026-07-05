@@ -816,9 +816,20 @@ export function mount(container, params, ctx) {
     const menu = el('div', { class: 'plot-menu' }, btns);
     wrap.appendChild(menu);
     openPopover = menu;
+    ground.classList.add('menu-open');   // request bubbles fade so they never cover the menu
+    // keep the popover fully on-screen (edge items / narrow screens): nudge it
+    // horizontally and flip it below the item if it would clip the top edge
+    requestAnimationFrame(() => {
+      const r = menu.getBoundingClientRect();
+      let dx = 0;
+      if (r.left < 6) dx = 6 - r.left;
+      else if (r.right > window.innerWidth - 6) dx = (window.innerWidth - 6) - r.right;
+      if (dx) menu.style.transform = `translateX(calc(-50% + ${dx.toFixed(0)}px))`;
+      if (r.top < 6) { menu.style.bottom = 'auto'; menu.style.top = '100%'; }
+    });
     setTimeout(() => document.addEventListener('pointerdown', closeMenu, { once: true }), 0);
   }
-  function closeMenu() { if (openPopover) { openPopover.remove(); openPopover = null; } }
+  function closeMenu() { if (openPopover) { openPopover.remove(); openPopover = null; } ground.classList.remove('menu-open'); }
 
   function removePlacement(place) {
     mutate(st => { const i = st.town.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) st.town.splice(i, 1); });

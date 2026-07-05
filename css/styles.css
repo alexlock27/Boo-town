@@ -889,10 +889,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   background: var(--card); border: 2px solid var(--ink); border-radius: 14px; padding: 5px 10px;
   font-size: 13px; color: var(--ink); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;
   box-shadow: var(--card-shadow); z-index: 6; animation: reqpop 300ms ease-out;
+  /* decorative: it must never steal taps from menus/items beneath it (RUN4 hotfix 2) */
+  pointer-events: none;
 }
 .request-bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--card); }
 @keyframes reqpop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
-.request-treat { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; color: var(--pop); font-size: 16px; animation: flyup 2.2s ease-out forwards; z-index: 7; }
+.request-treat { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; color: var(--pop); font-size: 16px; animation: flyup 2.2s ease-out forwards; z-index: 7; pointer-events: none; }
+/* bubbles step aside while an item menu is open (they could visually cover it) */
+.t-ground.menu-open .request-bubble { opacity: 0.15; }
 
 /* the 8 dance moves (applied one per beat to a Boo svg) */
 .move-bounce { animation: mv-bounce 0.6s ease-in-out; transform-origin: 50% 100%; }
@@ -1772,7 +1776,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .cc-label { width: auto; min-width: 0; text-align: left; }
   .swatch-row { flex-wrap: wrap; }
   .swatch { width: 42px; height: 42px; }
+  /* the town item menu wraps to fit narrow screens (openMenu clamps it on-screen) */
+  .plot-menu { flex-wrap: wrap; justify-content: center; max-width: 94vw; width: max-content; }
   /* overlays can be taller than a phone screen too */
   .overlay { overflow-y: auto; }
   .overlay .card { max-height: none; }
+}
+
+/* Short screens (landscape phones): the ceremony gift fits fully on-screen */
+@media (max-height: 500px) {
+  .gift-box svg { width: min(200px, 52vh); height: min(200px, 52vh); }
 }
