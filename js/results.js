@@ -19,14 +19,20 @@ export function mount(container, params, ctx) {
   // The Tricky Pile is already "collected"; persist immediately so an early exit keeps them.
   if (tricky.length) persistUnrescued(tricky.map(t => t.id));
 
-  // record the round — total stars ALWAYS credit in full (RUN4 C3, permanent rule)
+  // record the round — total stars ALWAYS credit in full (RUN4 C3, permanent rule).
+  // This mutate is the SINGLE crediting path (RUN5 C0 invariant): no game module
+  // increments stars.total itself — every round routes here via ctx.go('results').
   const before = s.meter;
+  const beforeTotal = s.stars.total;
   mutate(st => {
     const g = st.stars.byGame[game];
-    if (g) { g.plays += 1; g.best = Math.max(g.best, stars); }
+    if (g) { g.plays += 1; g.best = Math.max(g.best, stars); g.earned = (g.earned || 0) + stars; }  // C0 Star Ledger tally
     st.stars.total += stars;
     if (stars >= 3) { st.gameThrees = st.gameThrees || {}; st.gameThrees[game] = (st.gameThrees[game] || 0) + 1; }  // C4 medal tally
   });
+  // Dev-only runtime assertion (RUN5 C0): a finished round increments the total by
+  // exactly its stars. Silent no-op on the live build; fails loudly on localhost.
+  assertCredit(beforeTotal, getState().stars.total, stars);
   // Box meter (RUN4 C3): base = stars (+3-star bonus), Brave +1 above comfort
   // (first per category per day), cosy rounds cap at 2. The Golden Round banks a
   // caller-computed total instead (double stars etc.) and skips the cap by design.
@@ -159,6 +165,19 @@ export function mount(container, params, ctx) {
   }
 
   return { unmount() {} };
+}
+
+// Dev-only crediting invariant (RUN5 C0). On localhost (a dev build — the SW is not
+// even registered there, spec §11.6) a mis-crediting round throws so it is caught in
+// development; the live build stays silent so a child never sees an error. Exposes
+// window.__lastCredit for the guard test to inspect.
+function assertCredit(beforeTotal, afterTotal, stars) {
+  const delta = afterTotal - beforeTotal;
+  if (typeof window !== 'undefined') window.__lastCredit = { before: beforeTotal, after: afterTotal, stars, delta, ok: delta === stars };
+  const isDev = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  if (isDev && delta !== stars) {
+    throw new Error(`[credit invariant] round credited ${delta} to stars.total but earned ${stars} stars`);
+  }
 }
 
 function bigStar(filled) {

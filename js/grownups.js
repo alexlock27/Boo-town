@@ -105,8 +105,44 @@ export function mount(container, params, ctx) {
     el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (7 and under → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
   ]);
 
-  root.append(header, goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, reset);
+  root.append(header, starLedger(s), goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, reset);
   container.appendChild(root);
+
+  // ---- Star Ledger (RUN5 C0): a visible per-game record, read straight from the save ----
+  function starLedger(s) {
+    const NAMES = {
+      bubblepop: 'Bubble Pop', feedboos: 'Feed the Boos', spellboo: 'Spell Boo',
+      blocks: 'Boo Blocks', bounce: 'Boo Bounce', beat: 'Boo Beat', teachme: 'Teach Me',
+      dash: 'Boo Dash', clockshop: 'Clock Shop', boopop: 'Boo Pop'
+    };
+    const bg = (s.stars && s.stars.byGame) || {};
+    const total = (s.stars && s.stars.total) || 0;
+    const rows = Object.keys(NAMES)
+      .map(k => ({ k, name: NAMES[k], plays: (bg[k] && bg[k].plays) || 0, earned: (bg[k] && bg[k].earned) || 0 }))
+      .sort((a, b) => b.earned - a.earned || b.plays - a.plays);
+
+    const table = el('table', { class: 'gu-ledger' });
+    table.appendChild(el('tr', { class: 'gl-head' }, [
+      el('th', { text: 'Game' }), el('th', { text: 'Rounds' }), el('th', { text: 'Stars' })
+    ]));
+    for (const r of rows) {
+      table.appendChild(el('tr', { class: 'gl-row' + (r.plays ? '' : ' gl-empty') }, [
+        el('td', { class: 'gl-name', text: r.name }),
+        el('td', { class: 'gl-num', text: String(r.plays) }),
+        el('td', { class: 'gl-num', text: String(r.earned) })
+      ]));
+    }
+
+    return el('div', { class: 'gu-card' }, [
+      el('h3', { text: '⭐ Star Ledger' }),
+      el('div', { class: 'gl-total' }, [
+        el('span', { class: 'gl-total-num', text: String(total) }),
+        el('span', { class: 'gl-total-lbl', text: 'stars on this device' })
+      ]),
+      table,
+      el('p', { class: 'gu-note', text: 'Stars and progress live on this device only; another tablet or phone keeps its own.' })
+    ]);
+  }
 
   // ---- Golden Round editor (RUN3 C3): parent-typed weekly challenge ----
   function goldenEditor(s) {

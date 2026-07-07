@@ -1099,6 +1099,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-seg { display: flex; gap: 6px; background: #EDE7FA; border-radius: 12px; padding: 4px; }
 .gu-seg-btn { flex: 1; padding: 10px; border-radius: 9px; background: transparent; font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 16px; }
 .gu-seg-btn.sel { background: var(--pop); color: var(--card); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+/* Star Ledger (RUN5 C0) */
+.gl-total { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 12px; }
+.gl-total-num { font-family: var(--font-display); font-weight: 700; font-size: 40px; color: var(--star); line-height: 1; }
+.gl-total-lbl { font-family: var(--font-body); font-size: 15px; color: #5a4d84; }
+.gu-ledger { width: 100%; border-collapse: collapse; font-family: var(--font-body); }
+.gu-ledger th { text-align: left; font-size: 13px; color: #8a7db8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 8px; border-bottom: 2px solid #E4DCF3; }
+.gu-ledger th + th, .gu-ledger td.gl-num { text-align: right; }
+.gu-ledger td { padding: 7px 8px; font-size: 16px; color: var(--ink); border-bottom: 1px solid #EFEAF9; }
+.gu-ledger .gl-name { font-weight: 600; }
+.gu-ledger .gl-num { font-variant-numeric: tabular-nums; font-family: var(--font-display); font-weight: 700; }
+.gu-ledger .gl-empty td { color: #b3a9d0; }
 .gu-danger { border: 2px solid #F1C0C0; }
 .btn.danger { background: #E06A6A; }
 .btn[disabled] { opacity: 0.4; cursor: not-allowed; }

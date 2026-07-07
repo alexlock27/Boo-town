@@ -17,16 +17,17 @@ function freshSave() {
     stars: {
       total: 0,
       byGame: {
-        bubblepop: { best: 0, plays: 0 },
-        feedboos:  { best: 0, plays: 0 },
-        spellboo:  { best: 0, plays: 0 },
-        blocks:    { best: 0, plays: 0 },
-        bounce:    { best: 0, plays: 0 },
-        beat:      { best: 0, plays: 0 },
-        teachme:   { best: 0, plays: 0 },
-        dash:      { best: 0, plays: 0 },
-        clockshop: { best: 0, plays: 0 },
-        boopop:    { best: 0, plays: 0 }
+        // earned = lifetime stars this game has credited to the total (RUN5 C0 Star Ledger).
+        bubblepop: { best: 0, plays: 0, earned: 0 },
+        feedboos:  { best: 0, plays: 0, earned: 0 },
+        spellboo:  { best: 0, plays: 0, earned: 0 },
+        blocks:    { best: 0, plays: 0, earned: 0 },
+        bounce:    { best: 0, plays: 0, earned: 0 },
+        beat:      { best: 0, plays: 0, earned: 0 },
+        teachme:   { best: 0, plays: 0, earned: 0 },
+        dash:      { best: 0, plays: 0, earned: 0 },
+        clockshop: { best: 0, plays: 0, earned: 0 },
+        boopop:    { best: 0, plays: 0, earned: 0 }
       }
     },
     meter: 0,
