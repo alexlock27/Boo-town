@@ -21,7 +21,7 @@ const SAVE = {
   golden: { words: [{ w: 'because' }], choices: [] },
   delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true },
   settings: { sound: false, music: false, voice: false, content: 'full', requests: false },
-  seen: { trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] }, ageAsked: true, age: 8
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] }, ageAsked: true, age: 8
 };
 
 // screen -> { ready: selector to wait for, target: the primary/last control that MUST be reachable }

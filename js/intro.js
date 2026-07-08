@@ -10,6 +10,69 @@ import { renderGuide } from './art.js';
 import { sfx } from './sfx.js';
 import { speakMaybe } from './guide.js';
 
+// ---- the scripts (RUN5 C5): three short steps per game, guide's voice, every
+// step under 12 words. Boo Blocks' script (with its demo line) lives in blocks.js.
+export const INTRO_SCRIPTS = {
+  bubblepop: [
+    { text: 'Pop the bubble with the right answer!' },
+    { text: 'Wrong pops just wobble — try again, no worries!' },
+    { text: 'Ten answers finishes the round. Stars fill your meter!' }
+  ],
+  feedboos: [
+    { text: 'These Boos are HUNGRY!' },
+    { text: 'Drag each food to the Boo whose sign matches.' },
+    { text: 'Wrong Boo? It bounces back — just try again!' }
+  ],
+  spellboo: [
+    { text: "I'll show you a word — you build it!" },
+    { text: 'Tap letter tiles to fill the slots in order.' },
+    { text: 'Need a look? Peek is always free!' }
+  ],
+  dash: [
+    { text: 'Run up the path with me!' },
+    { text: "Answer each gate's question to swing it open!" },
+    { text: 'Three right in a row makes you ZOOM!' }
+  ],
+  bounce: [
+    { text: 'Bounce the ball into the right brick!' },
+    { text: 'Drag to aim, let go to bounce!' },
+    { text: 'The right brick bursts — wrong ones just wobble!' }
+  ],
+  beat: [
+    { text: 'Tap the lane with the right answer!' },
+    { text: 'Tap just as the note reaches the line!' },
+    { text: 'Steady mode waits for you — no rush ever!' }
+  ],
+  boopop: [
+    { text: 'Swap gems so two matching friends touch — POP!' },
+    { text: 'The big chip up top says who pops!' },
+    { text: 'Stuck? A helpful glow appears all on its own!' }
+  ],
+  clockshop: [
+    { text: 'The Boos want to know the time!' },
+    { text: 'Drag the clock hands to match each order!' },
+    { text: 'Little hand hours, big hand minutes!' }
+  ],
+  teachme: [
+    { text: "Pick a lesson and I'll teach you, step by step!" }
+  ],
+  golden: [
+    { text: 'A golden challenge, straight from home!' },
+    { text: 'Answer them all for DOUBLE stars, once a day!' }
+  ]
+};
+
+// Show a game's intro on its first-ever open (no-op once seen).
+export function maybeIntro(game, steps) {
+  if (introSeen(game)) return false;
+  runIntro(game, { steps: steps || INTRO_SCRIPTS[game] || [] });
+  return true;
+}
+// The "?" button: replay any time.
+export function replayIntro(game, steps) {
+  runIntro(game, { steps: steps || INTRO_SCRIPTS[game] || [] });
+}
+
 export function introSeen(game) {
   const s = getState();
   return !!(s && s.seen && s.seen.introSeen && s.seen.introSeen[game]);

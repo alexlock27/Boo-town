@@ -84,6 +84,8 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz) { rz.mix ? play(AUTO, 2) : play(rz.cat, rz.level); }
   else if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
+  // First-ever open shows the guided intro (C1/C5 pattern).
+  if (!introSeen('blocks')) runIntro('blocks', { steps: BLOCKS_INTRO });
 
   function startCard() {
     clear(root);
@@ -158,9 +160,6 @@ export function mount(container, params, ctx) {
     nextQuestion();
     renderTray();
     renderBoard();
-
-    // First-ever open shows the guided intro (C1); the round waits behind it.
-    if (!introSeen('blocks')) runIntro('blocks', { steps: BLOCKS_INTRO });
 
     // Test hook (invisible in play): lets headless QA drive a full round.
     if (typeof window !== 'undefined') window.__blocks = {

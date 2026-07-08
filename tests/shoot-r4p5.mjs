@@ -32,7 +32,7 @@ const TOWN = [
 const SAVE = () => {
   const inv = {};
   for (const t of TOWN) inv[t.item] = (inv[t.item] || 0) + 1;
-  return { version: 5, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: inv, boxes: 0, meter: 0, opened: 20, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: TOWN, stars: { total: 60, byGame: {} }, ledger: {}, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] }, ageAsked: true, age: 8 };
+  return { version: 5, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: inv, boxes: 0, meter: 0, opened: 20, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: TOWN, stars: { total: 60, byGame: {} }, ledger: {}, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] }, ageAsked: true, age: 8 };
 };
 
 const browser = await chromium.launch();

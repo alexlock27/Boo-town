@@ -14,7 +14,7 @@ const SAVE = (over = {}) => Object.assign({
   inventory: { boo_inky: 3, boo_plum: 2, deco_pond: 1 }, boxes: 0, meter: 0, opened: 4, pity: { commons: 0 },
   nicknames: {}, equips: {}, catBest: {}, stars: { total: 60, byGame: {} },
   ledger: {}, town: [], settings: { sound: false, music: false, voice: false },
-  seen: { trophyRetro: true, zonesUnlocked: ['riverside'] }, trophies: { medal_stars_100: '2026-07-01' }, ageAsked: true, age: 8,
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, zonesUnlocked: ['riverside'] }, trophies: { medal_stars_100: '2026-07-01' }, ageAsked: true, age: 8,
   delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true }
 }, over);
 
@@ -110,7 +110,7 @@ console.log('== migration ==');
 // ==================== 5a. frame evidence: full-width scroll ====================
 console.log('== scroll evidence ==');
 {
-  const { ctx, page } = await openTown(SAVE({ stars: { total: 190, byGame: {} }, seen: { trophyRetro: true, zonesUnlocked: ['riverside', 'hilltop', 'beach'] }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }));
+  const { ctx, page } = await openTown(SAVE({ stars: { total: 190, byGame: {} }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, zonesUnlocked: ['riverside', 'hilltop', 'beach'] }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }));
   const max = await page.evaluate(() => window.__town.scrollMax());
   const frames = [];
   for (let i = 0; i <= 6; i++) {

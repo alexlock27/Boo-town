@@ -21,7 +21,7 @@ const SAVE = (nBoos, over = {}) => {
     town: [{ zone: 'meadow', x: 0.46, item: 'boo_inky' }],   // sits exactly at the fountain spot
     stars: { total: 60, byGame: {} }, ledger: {},
     settings: { sound: false, music: false, voice: false, content: 'full' },
-    seen: { trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] },
+    seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] },
     trophies: { medal_boos_10: '2026-07-01' },
     ageAsked: true, age: 8
   }, over);

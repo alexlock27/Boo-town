@@ -17,7 +17,7 @@ const SAVE = (over = {}) => Object.assign({
   inventory: { boo_inky: 1 }, boxes: 0, meter: 0, opened: 1, pity: { commons: 0 },
   nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 137, byGame: {} },
   ledger: {}, settings: { sound: false, music: false, voice: false, content: 'full' },
-  seen: { trophyRetro: true }, trophies: { medal_stars_100: 'x' }, ageAsked: true, age: 8
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true }, trophies: { medal_stars_100: 'x' }, ageAsked: true, age: 8
 }, over);
 
 const browser = await chromium.launch();

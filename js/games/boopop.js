@@ -13,6 +13,7 @@ import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { recordBest, pickForMeButton } from '../picker.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 import { contentTier } from '../content.js';
 
 // Named constants (RUN5 C2 — all tunable). Chunkier gems on a smaller board so the
@@ -147,6 +148,7 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz && rz.cat && LEVELS[rz.cat]) play(rz.cat);
   else startCard();
+  maybeIntro('boopop');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root);
@@ -188,6 +190,7 @@ export function mount(container, params, ctx) {
 
     shell = createGameShell({
       title: rule.name, rounds: MOVES, accent: 'var(--pop)',
+      onHelp: () => replayIntro('boopop'),
       onBack: () => ctx.go('hub'),
       onHint: manualHint
     });

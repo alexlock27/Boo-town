@@ -6,6 +6,7 @@
 import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState } from '../state.js';
 import { createGameShell } from '../gameshell.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
@@ -22,6 +23,7 @@ export function mount(container, params, ctx) {
   let shell = null;
 
   lessonList();
+  maybeIntro('teachme');   // single welcome line on the first-ever open (RUN5 C5)
 
   function lessonList() {
     clear(root); music.play('calm');
@@ -53,7 +55,7 @@ export function mount(container, params, ctx) {
     const useVariant = {};   // check card index -> show its variant
     const firstTry = {};     // check card index -> still first attempt
 
-    shell = createGameShell({ title: lesson.name, rounds: checkIdxs.length, accent: 'var(--zing)', onBack: () => ctx.go('hub'), hintEnabled: false });
+    shell = createGameShell({ title: lesson.name, rounds: checkIdxs.length, accent: 'var(--zing)', onBack: () => ctx.go('hub'), hintEnabled: false, onHelp: () => replayIntro('teachme') });
     root.appendChild(shell.root);
     const stage = el('div', { class: 'tm-stage' });
     shell.area.appendChild(stage);

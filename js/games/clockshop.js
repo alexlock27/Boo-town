@@ -7,6 +7,7 @@
 import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState } from '../state.js';
 import { createGameShell } from '../gameshell.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 import { renderGuide, renderBoo } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
@@ -45,6 +46,7 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz && rz.level != null) play(rz.level);
   else startCard();
+  maybeIntro('clockshop');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root); music.play('game');
@@ -76,7 +78,7 @@ export function mount(container, params, ctx) {
     // set time state
     let sh12 = 12, sm = 0;          // hour 1..12, minutes 0..59
 
-    shell = createGameShell({ title: 'Clock Shop', rounds: ORDERS, accent: 'var(--zing)', onBack: () => { ctx.go('hub'); }, onHint: doHint });
+    shell = createGameShell({ title: 'Clock Shop', rounds: ORDERS, accent: 'var(--zing)', onBack: () => { ctx.go('hub'); }, onHint: doHint, onHelp: () => replayIntro('clockshop') });
     root.appendChild(shell.root);
 
     // ---- counter with the ordering Boo ----

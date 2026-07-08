@@ -21,6 +21,7 @@ import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { BUBBLE_BY_KEY, BUBBLE_CATEGORIES, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { filterCategories, filterLevels } from '../content.js';
@@ -49,6 +50,7 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz) { const st = !!getState().seen.dashSteady; rz.mix ? play(MIX_KEY, null, st) : play(rz.cat, rz.level, st); }
   else startCard();
+  maybeIntro('dash');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root); music.play('game');
@@ -92,7 +94,7 @@ export function mount(container, params, ctx) {
     let runFromZ = 0, runT = 0, runDur = RUN_MS, lastRunMs = 0;
     let boLane = 0;               // which lane the Boo is drifting through (-1/0/1)
 
-    shell = createGameShell({ title: mix ? 'Smart Mix' : 'Boo Dash', rounds: GATES, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false });
+    shell = createGameShell({ title: mix ? 'Smart Mix' : 'Boo Dash', rounds: GATES, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('dash') });
     root.appendChild(shell.root);
 
     // ---- scene ------------------------------------------------------------

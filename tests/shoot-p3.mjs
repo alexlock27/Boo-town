@@ -4,7 +4,7 @@ mkdirSync('screenshots', { recursive: true });
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const golden = { words: [{ w: 'because' }, { w: 'their', twin: true, rival: 'there', clue: '___ house is big' }, { w: 'through' }], choices: [{ q: 'What is 6 × 7?', right: '42', wrong: ['36', '48'] }] };
-const SAVE = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'lilac', pattern: 'spots', patternColour: 'indigo', eyes: 'round', acc: 'bow', name: 'Twiggy' }, inventory: {}, boxes: 0, meter: 2, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden, goldenLastDouble: '', settings: { sound: false, music: false, voice: false }, seen: {} };
+const SAVE = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'lilac', pattern: 'spots', patternColour: 'indigo', eyes: 'round', acc: 'bow', name: 'Twiggy' }, inventory: {}, boxes: 0, meter: 2, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden, goldenLastDouble: '', settings: { sound: false, music: false, voice: false }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } };
 const b = await chromium.launch();
 for (const [mode, vp] of [['landscape', { width: 1024, height: 768 }], ['portrait', { width: 768, height: 1024 }]]) {
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 2 });

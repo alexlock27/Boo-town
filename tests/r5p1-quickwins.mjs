@@ -18,7 +18,7 @@ const SAVE = (over = {}) => Object.assign({
   nicknames: {}, equips: {}, catBest: {}, town: [],
   stars: { total: 30, byGame: {} },
   ledger: {}, spellingMastery: {}, trickyPile: [],
-  seen: { trophyRetro: true }, trophies: {}, ageAsked: true, age: 8,
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true }, trophies: {}, ageAsked: true, age: 8,
   settings: { sound: false, music: false, voice: false, content: 'full' }
 }, over);
 
@@ -157,7 +157,7 @@ console.log('== guarded saves ==');
 console.log('== jump back in ==');
 {
   // real mode: Bubble Pop, Times tables, Level 2
-  const { ctx, page } = await fresh(SAVE({ seen: { trophyRetro: true, lastPlay: { game: 'bubblepop', gameName: 'Times tables', cat: 'tables', level: 2, mix: false } } }));
+  const { ctx, page } = await fresh(SAVE({ seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, lastPlay: { game: 'bubblepop', gameName: 'Times tables', cat: 'tables', level: 2, mix: false } } }));
   await page.waitForSelector('.jumpback-card');
   const name = await page.$eval('.jumpback-card .jb-name', n => n.textContent);
   const mode = await page.$eval('.jumpback-card .jb-mode', n => n.textContent);
@@ -171,7 +171,7 @@ console.log('== jump back in ==');
 }
 {
   // mix mode label
-  const { ctx, page } = await fresh(SAVE({ seen: { trophyRetro: true, lastPlay: { game: 'bubblepop', gameName: 'Smart Mix', cat: null, level: null, mix: true } } }));
+  const { ctx, page } = await fresh(SAVE({ seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, lastPlay: { game: 'bubblepop', gameName: 'Smart Mix', cat: null, level: null, mix: true } } }));
   await page.waitForSelector('.jumpback-card');
   const mode = await page.$eval('.jumpback-card .jb-mode', n => n.textContent);
   assert(/Smart Mix/.test(mode), 'a Smart Mix round shows the Smart Mix label');

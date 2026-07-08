@@ -13,7 +13,7 @@ page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/
 page.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
 
 await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
-await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 1, name: 'Maya', guide: { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' }, settings: { sound: true, music: true, voice: true } })));
+await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 1, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, name: 'Maya', guide: { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' }, settings: { sound: true, music: true, voice: true } })));
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('.hub');
 

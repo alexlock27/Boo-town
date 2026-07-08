@@ -15,7 +15,7 @@ const hosts = new Set();
 page.on('request', r => { try { hosts.add(new URL(r.url()).host); } catch {} });
 
 await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
-await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 1, name: 'Maya', guide: { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' }, inventory: { boo_inky: 1 } })));
+await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 1, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, name: 'Maya', guide: { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' }, inventory: { boo_inky: 1 } })));
 
 console.log('== register the service worker + precache ==');
 await page.evaluate(async () => {

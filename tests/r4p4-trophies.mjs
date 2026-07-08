@@ -16,7 +16,7 @@ const SAVE = (over = {}) => Object.assign({
   nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} },
   ledger: {}, journal: {}, customs: [],
   settings: { sound: false, music: false, voice: false, content: 'full' },
-  seen: { trophyRetro: true }, ageAsked: true, age: 8
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true }, ageAsked: true, age: 8
 }, over);
 
 const browser = await chromium.launch();
@@ -109,7 +109,7 @@ console.log('== retroactive award on first load ==');
   const ledger = {};
   for (let f = 1; f <= 12; f++) ledger['tmul2:' + f] = { rights: 5, misses: 0, lastSeen: 1 };
   const { ctx, page } = await fresh(SAVE({
-    seen: {}, inventory: inv, ledger,
+    seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, inventory: inv, ledger,
     stars: { total: 250, byGame: {} },
     catBest: { 'clockshop:l1': 3 },
     journal: { golden3: '2026-07-01' }
@@ -138,7 +138,7 @@ console.log('== retroactive award on first load ==');
 // ---- a fresh save: retro pass runs silently, nothing earned, no ceremony ----
 console.log('== fresh save: silent ==');
 {
-  const { ctx, page } = await fresh(SAVE({ seen: {}, stars: { total: 4, byGame: {} }, inventory: { boo_inky: 1 } }));
+  const { ctx, page } = await fresh(SAVE({ seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, stars: { total: 4, byGame: {} }, inventory: { boo_inky: 1 } }));
   await sleep(800);
   const ov = await page.$('.trophy-ceremony');
   assert(!ov, 'no ceremony when nothing is earned');

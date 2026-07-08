@@ -91,7 +91,7 @@ console.log('== accessories never drop until 3 Boos owned ==');
     const st = await import('./js/state.js');
     const cat = await import('./data/catalogue.js');
     function run(boos) {
-      localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 3, name: 'A',
+      localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 3, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, name: 'A',
         guide: { species: 'giraffe', body: 'sunshine', pattern: 'none', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
         inventory: { ...boos }, boxes: 500, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, town: [], stars: { total: 0, byGame: {} }, settings: {} }));
       st.load();

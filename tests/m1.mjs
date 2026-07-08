@@ -28,7 +28,7 @@ page.on('response', r => { if (r.status() === 404) notFound.push(r.url()); });
 
 log('\n== Fresh player (seed a save; full onboarding is covered by m2-onboard) ==');
 await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
-await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 1, name: 'Maya', guide: { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' } })));
+await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 1, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, name: 'Maya', guide: { body: 'sunshine', patch: 'cocoa', acc: 'bow', name: 'Twiggy' } })));
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('.hub', { timeout: 5000 });
 assert(true, 'hub reachable');

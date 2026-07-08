@@ -17,7 +17,7 @@ const SAVE = (over = {}) => Object.assign({
   nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} },
   ledger: {}, spellingMastery: {}, trickyPile: [],
   settings: { sound: false, music: false, voice: false, content: 'full' },
-  seen: {}, ageAsked: true, age: 8
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, ageAsked: true, age: 8
 }, over);
 
 const browser = await chromium.launch();

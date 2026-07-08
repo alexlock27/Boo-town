@@ -10,7 +10,7 @@ const ctx = await browser.newContext({ viewport: { width: 1000, height: 625 }, d
 const page = await ctx.newPage();
 page.on('pageerror', e => errors.push('PE ' + e.message));
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/i.test(m.text())) errors.push(m.text()); });
-const SAVE = (o) => JSON.stringify({ version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 200, byGame: {} }, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' }, ...o });
+const SAVE = (o) => JSON.stringify({ version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 200, byGame: {} }, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' }, ...o });
 await page.goto(BASE + '/index.html', { waitUntil: 'load' });
 await page.evaluate((s) => localStorage.setItem('bootown.save.v1', s), SAVE({}));
 await page.reload({ waitUntil: 'load' });
@@ -73,7 +73,7 @@ const seasonTest = await page.evaluate(async () => {
   const rw = await import('./js/rewards.js'); const st = await import('./js/state.js'); const cat = await import('./data/catalogue.js');
   function dropsFor(month) {
     window.__bootownMonth = month;
-    localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 3, name: 'A', guide: { species: 'giraffe', body: 'sunshine', pattern: 'none', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 1, boo_plum: 1, boo_pippin: 1 }, boxes: 4000, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 0, byGame: {} }, settings: {}, seen: {} }));
+    localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 3, name: 'A', guide: { species: 'giraffe', body: 'sunshine', pattern: 'none', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 1, boo_plum: 1, boo_pippin: 1 }, boxes: 4000, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 0, byGame: {} }, settings: {}, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } }));
     st.load();
     const seen = new Set();
     for (let i = 0; i < 4000; i++) { const r = rw.openOneBox(); if (r) seen.add(r.item.id); st.getState().inventory = { boo_inky: 1, boo_plum: 1, boo_pippin: 1 }; st.getState().boxes = 4000; st.getState().meter = 0; }
@@ -100,7 +100,7 @@ const secretsSeen = await page.evaluate(async () => {
   window.__bootownMonth = 3;
   // 10+ owned so Secret can drop; plenty of boxes
   const inv = {}; ['boo_inky','boo_plum','boo_pippin','boo_lolly','boo_chomp','boo_mallow','boo_curly','boo_wisp','boo_beam','boo_dot','boo_fuzz','boo_puff'].forEach(id => inv[id] = 1);
-  localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 3, name: 'A', guide: { species: 'giraffe', body: 'sunshine', pattern: 'none', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: inv, boxes: 20000, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 0, byGame: {} }, settings: {}, seen: {} }));
+  localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 3, name: 'A', guide: { species: 'giraffe', body: 'sunshine', pattern: 'none', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: inv, boxes: 20000, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 0, byGame: {} }, settings: {}, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } }));
   st.load();
   const seen = new Set(); const baseInv = { ...inv };
   for (let i = 0; i < 20000; i++) { const r = rw.openOneBox(); if (r && r.rarity === 'secret') seen.add(r.item.id); st.getState().inventory = { ...baseInv }; st.getState().boxes = 20000; st.getState().meter = 0; }

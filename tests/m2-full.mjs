@@ -109,6 +109,10 @@ await page.click('.firstpick-card');                 // no keyboard
 await page.waitForSelector('.town2');
 await page.evaluate(() => window.BooTown.go('hub'));
 await page.waitForSelector('.hub');
+// RUN5 C5: a real new player sees each game's intro once; this scripted session
+// marks them seen up-front so the round drives aren't blocked (intro flow is
+// covered by tests/r5p6-intros.mjs).
+await page.evaluate(() => window.BooTown.State.mutate(st => { st.seen.introSeen = { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }; }));
 let save = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
 assert(save.opened === 1, 'first Boo chosen during onboarding');
 assert(Object.keys(save.inventory).length === 1 && save.boxes === 0, 'owns exactly the chosen first Boo, no free box');

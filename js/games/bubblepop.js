@@ -12,6 +12,7 @@ import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { filterCategories, filterLevels } from '../content.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 
 const ROUNDS = 10;
 const BUBBLE_COUNT = 6;
@@ -29,6 +30,7 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz) { rz.mix ? play(MIX_KEY, null) : play(rz.cat, rz.level); }
   else startCard();
+  maybeIntro('bubblepop');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root);
@@ -86,6 +88,7 @@ export function mount(container, params, ctx) {
 
     shell = createGameShell({
       title: mix ? 'Smart Mix' : 'Bubble Pop', rounds: ROUNDS, accent: 'var(--pop)',
+      onHelp: () => replayIntro('bubblepop'),
       onBack: () => { stopLoop(); ctx.go('hub'); },
       onHint: doHint,
       hintEnabled: true

@@ -15,6 +15,7 @@ import { makeQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
 import { pickForMeButton } from '../picker.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
@@ -34,6 +35,7 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz) { rz.mix ? play(AUTO, 2) : play(rz.cat, rz.level); }
   else if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
+  maybeIntro('bounce');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root);
@@ -70,7 +72,7 @@ export function mount(container, params, ctx) {
     let questionsAnswered = 0, wrongBricks = 0, ballLosses = 0, wallClears = 0;
     let ended = false;
 
-    shell = createGameShell({ title: 'Boo Bounce', rounds: QUESTIONS, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false });
+    shell = createGameShell({ title: 'Boo Bounce', rounds: QUESTIONS, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('bounce') });
     root.appendChild(shell.root);
 
     const qCard = el('div', { class: 'bounce-question' });

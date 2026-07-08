@@ -12,7 +12,7 @@ const BASESAVE = (o) => ({ version: 3, name: 'Ada',
   inventory: { boo_inky: 1, boo_lolly: 1, boo_bubbles: 1, deco_stage: 1, deco_tree: 1 },
   boxes: 0, meter: 0, opened: 5, pity: { commons: 0 }, nicknames: {}, equips: {}, town: [],
   stars: { total: 55, byGame: {} }, settings: { sound: false, music: false, voice: false },
-  seen: { trophyRetro: true },   // RUN4 C4: retro trophy ceremony already seen
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true },   // RUN4 C4: retro trophy ceremony already seen
   delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true },   // RUN4 C9
   ...o });
 
@@ -67,7 +67,7 @@ console.log('== world scrolls full width ==');
 // 3) Zone gating by stars.
 console.log('== zones gate on stars ==');
 {
-  const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { zonesUnlocked: ['riverside', 'hilltop', 'beach'], trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }), {});
+  const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, zonesUnlocked: ['riverside', 'hilltop', 'beach'], trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }), {});
   assert(await hi.page.$$eval('.t-band.locked', e => e.length) === 0, 'at 190 stars all zones unlocked');
   await hi.ctx.close();
   const lo = await open(BASESAVE({ stars: { total: 5, byGame: {} }, town: [] }), {});
@@ -79,7 +79,7 @@ console.log('== zones gate on stars ==');
 // 4) Unlock ceremony fires + records seen.
 console.log('== Riverside unlock ceremony ==');
 {
-  const { ctx, page } = await open(BASESAVE({ stars: { total: 45, byGame: {} }, seen: {}, town: [] }), {});
+  const { ctx, page } = await open(BASESAVE({ stars: { total: 45, byGame: {} }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, town: [] }), {});
   const hint = await page.$eval('.town-hint', e => e.textContent);
   assert(/Riverside is open/i.test(hint), 'unlock ceremony shows the Riverside banner (' + hint + ')');
   const seen = await page.evaluate(() => window.BooTown.State.getState().seen.zonesUnlocked);
@@ -96,7 +96,7 @@ console.log('== Riverside unlock ceremony ==');
 // 5) Placements persist in the right zones.
 console.log('== placements persist in the right zones ==');
 {
-  const seed = BASESAVE({ town: [{ zone: 'meadow', x: 0.3, item: 'boo_inky' }, { zone: 'riverside', x: 0.5, item: 'boo_lolly' }], seen: { zonesUnlocked: ['riverside', 'hilltop', 'beach'] } });
+  const seed = BASESAVE({ town: [{ zone: 'meadow', x: 0.3, item: 'boo_inky' }, { zone: 'riverside', x: 0.5, item: 'boo_lolly' }], seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, zonesUnlocked: ['riverside', 'hilltop', 'beach'] } });
   const { ctx, page } = await open(seed, {});
   const zones = await page.$$eval('.t-item', els => els.map(e => e.dataset.zone).sort());
   assert(JSON.stringify(zones) === JSON.stringify(['meadow', 'riverside']), 'items render in meadow + riverside (' + zones + ')');

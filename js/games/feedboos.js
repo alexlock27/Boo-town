@@ -11,6 +11,7 @@ import { TEMPLATES_EXTRA } from '../../data/sortingExtra.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { contentTier, filterLevels, FEED_GROUPS, feedGroupOf } from '../content.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
@@ -66,6 +67,7 @@ export function mount(container, params, ctx) {
   const rz = params && params.resume;
   if (rz) { rz.mix ? startFromChoice(MIX_KEY, null) : startFromChoice(rz.cat, rz.level); }
   else startCard();
+  maybeIntro('feedboos');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root);
@@ -124,6 +126,7 @@ export function mount(container, params, ctx) {
 
     shell = createGameShell({
       title: mix ? 'Smart Mix' : 'Feed the Boos', rounds: roundData.length, accent: 'var(--zing)',
+      onHelp: () => replayIntro('feedboos'),
       onBack: () => ctx.go('hub'),
       onHint: manualHint
     });

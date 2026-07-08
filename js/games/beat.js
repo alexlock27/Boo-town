@@ -15,6 +15,7 @@ import { sfx, music } from '../sfx.js';
 import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
 import { pickForMeButton } from '../picker.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
@@ -36,6 +37,7 @@ export function mount(container, params, ctx) {
   const steadyDef = REDUCED || !!getState().seen.beatSteady;
   if (rz) { rz.mix ? play(AUTO, 2, steadyDef) : play(rz.cat, rz.level, steadyDef); }
   else if (arcadeHasPicker()) startCard(); else play(AUTO, 2, steadyDef);   // Light auto-starts (C9)
+  maybeIntro('beat');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root);
@@ -76,7 +78,7 @@ export function mount(container, params, ctx) {
     let reAsked = false, resolving = false, ended = false;
     let startTime = 0;
 
-    shell = createGameShell({ title: 'Boo Beat', rounds: PHRASES, accent: 'var(--star)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false });
+    shell = createGameShell({ title: 'Boo Beat', rounds: PHRASES, accent: 'var(--star)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('beat') });
     root.appendChild(shell.root);
 
     const qCard = el('div', { class: 'beat-question' });

@@ -17,6 +17,7 @@ import { WORDS, decoysFor } from '../../data/spelling.js';
 import { BANKS } from '../../data/spellingBanks.js';
 import { TWIN_SETS, TWIN_EXPLAIN, TWIN_LEVELS, twinItemsForLevel } from '../../data/soundTwins.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
+import { maybeIntro, replayIntro } from '../intro.js';
 import { buildSmartMix } from '../smartmix.js';
 import { createTrickyCollector, wordMiss } from '../trickypile.js';
 import { makeSpeller, typeInto } from '../speller.js';
@@ -77,6 +78,7 @@ export function mount(container, params, ctx) {
   else if (rz && rz.cat === TWINS_KEY) playTwins(rz.level);
   else if (rz && rz.cat && SET_BY_KEY[rz.cat]) play(rz.cat, rz.level);
   else startCard();
+  maybeIntro('spellboo');   // first-ever open: the guided intro (RUN5 C5)
 
   function startCard() {
     clear(root);
@@ -144,6 +146,7 @@ export function mount(container, params, ctx) {
     let idx = 0, wrong = 0, hintsUsed = 0;
     let curHint = null;                 // the current item's hint handler
     shell = createGameShell({
+      onHelp: () => replayIntro('spellboo'),
       title: choice === TWINS_KEY ? 'Sound Twins' : choice === MIX_KEY ? 'Smart Mix' : 'Spell Boo',
       rounds: items.length, accent: 'var(--star)',
       onBack: () => { tts.cancel(); ctx.go('hub'); },

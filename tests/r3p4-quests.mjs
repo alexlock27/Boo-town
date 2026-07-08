@@ -4,7 +4,7 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const errors = []; let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const SAVE = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden: { words: [{ w: 'test' }], choices: [] }, goldenLastDouble: '', quests: { day: '', list: [], done: [], progress: {}, boxDay: '' }, journal: {}, settings: { sound: false, music: false, voice: false }, seen: {} };
+const SAVE = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 60, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden: { words: [{ w: 'test' }], choices: [] }, goldenLastDouble: '', quests: { day: '', list: [], done: [], progress: {}, boxDay: '' }, journal: {}, settings: { sound: false, music: false, voice: false }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } };
 
 const EVENT_FOR = {
   spell2: ['roundEnd', { game: 'spellboo', stars: 2 }], playMaths: ['roundEnd', { game: 'bubblepop', stars: 1 }],
@@ -69,7 +69,9 @@ await page.evaluate(() => { window.__bootownDay = '2026-07-05'; window.BooTown.g
 await page.waitForSelector('.quest-card');
 await page.click('.quest-card');
 await page.waitForSelector('.quests-panel');
-const uiText = await page.evaluate(() => document.body.innerText.toLowerCase());
+// scope to the quests UI itself — the hub greeting legitimately says
+// "The Boos missed you." (a warm welcome, not quest guilt) and rotates randomly
+const uiText = await page.evaluate(() => (document.querySelector('.quests-panel') || document.body).innerText.toLowerCase() + ' ' + (document.querySelector('.quest-card') || { innerText: '' }).innerText.toLowerCase());
 assert(!/streak|missed|don'?t lose|day in a row|keep the streak/.test(uiText), 'no streak / missed-day guilt strings in the quests UI');
 await page.evaluate(() => { const o = document.querySelector('.quests-overlay'); if (o) o.remove(); });
 

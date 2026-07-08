@@ -12,6 +12,7 @@ import { guideLine, speakMaybe } from './guide.js';
 import { sfx, music } from './sfx.js';
 import * as tts from './tts.js';
 import { makeSpeller, typeInto } from './speller.js';
+import { maybeIntro, replayIntro } from './intro.js';
 
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
@@ -34,6 +35,8 @@ export function mount(container, params, ctx) {
     return { unmount() {} };
   }
 
+  maybeIntro('golden');   // first-ever Golden Round: the guided intro (RUN5 C5)
+
   // build the item list: spelling words first (word / twin), then choice questions
   const items = [];
   for (const w of (golden.words || [])) {
@@ -54,7 +57,8 @@ export function mount(container, params, ctx) {
     shell = createGameShell({
       title: 'Golden Round', rounds: items.length, accent: 'var(--star)',
       onBack: () => { tts.cancel(); ctx.go('hub'); },
-      onHint: () => { if (curHint) curHint(); }
+      onHint: () => { if (curHint) curHint(); },
+      onHelp: () => replayIntro('golden')
     });
     shell.root.classList.add('golden-shell');
     root.appendChild(shell.root);
