@@ -112,6 +112,10 @@ function migrate(obj) {
   if ((o.version || 0) < 5) {
     merged.chest = { anchor: (merged.stars && merged.stars.total) || 0, opened: 0, welcome: true };
   }
+  // RUN5 C3: town gains three depth rows. Existing placements keep their x (a zone
+  // fraction — they spread proportionally into the now-wider zones), and get a depth
+  // row spread across the three so nothing piles. Nothing is lost.
+  if (Array.isArray(merged.town)) merged.town.forEach((t, i) => { if (t && typeof t === 'object' && t.row == null) t.row = i % 3; });
   merged.version = VERSION;
   return merged;
 }

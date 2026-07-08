@@ -30,7 +30,19 @@ export const ZONES = [
 ];
 const ZONE_INDEX = Object.fromEntries(ZONES.map((z, i) => [z.key, i]));
 const MAX_WANDERERS = 30;
-const GROUND_FRAC = 0.80;   // ground line as a fraction of viewport height
+
+// ---- town spaciousness (RUN5 C3): every zone is a place, not a corridor -------
+export const ZONE_W_VIEWPORTS = 1.7;   // each zone is 1.7 viewports wide (named constant)
+const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of viewport height
+const GROUND_FRAC = BAND_TOP;          // the grass band starts at the top of the placement band
+// three depth rows: feet-line (fraction of viewH), and a size scale (smaller toward the back)
+const ROW_GROUND = [0.67, 0.79, 0.91];
+const ROW_SCALE = [0.80, 1.0, 1.16];
+const DEPTH_ROWS = ROW_GROUND.length;
+const MIN_SPACING = 0.06;              // min x-gap (zone fraction) between items in a zone+row — no piling
+const WANDER_FRAC = 0.045;             // horizontal wander range as a fraction of the (wider) zone
+const DEPTH_WANDER = 26;               // px a wanderer may drift between depth rows for a bit of life
+const rowOf = (t) => Math.max(0, Math.min(DEPTH_ROWS - 1, (t && t.row != null) ? t.row : 1));
 
 // ---- activity items (RUN4 C5): named constants -----------------------------
 const ACT_RADIUS = 0.12;        // zone-x fraction: how near a Boo joins an activity
@@ -68,7 +80,7 @@ export function mount(container, params, ctx) {
 
   let holding = (params && params.place) || null;   // item id being placed
   let placeMode = !!holding;
-  let scrollX = 0, worldW = 0, zoneW = 0, viewH = 0, groundY = 0;
+  let scrollX = 0, worldW = 0, zoneW = 0, viewW = 0, viewH = 0, groundY = 0;
   let raf = null, actors = [], fx = [];
 
   const root = el('div', { class: 'town2' });
@@ -105,7 +117,9 @@ export function mount(container, params, ctx) {
   // ---- layout / render ----------------------------------------------------
   function layout() {
     viewH = viewport.clientHeight || 400;
-    zoneW = viewport.clientWidth || 600;
+    viewW = viewport.clientWidth || 600;
+    // Each zone is 1.7 viewports wide (C3), so a zone is a place to roam, not a corridor.
+    zoneW = viewW * ZONE_W_VIEWPORTS;
     worldW = zoneW * ZONES.length;
     groundY = viewH * GROUND_FRAC;
     for (const L of [sky, hills, ground, air]) { L.style.width = worldW + 'px'; L.style.height = viewH + 'px'; }
@@ -169,10 +183,15 @@ export function mount(container, params, ctx) {
       const zi = ZONE_INDEX[t.zone] ?? 0;
       const x = clamp01(t.x);
       const px = zi * zoneW + x * zoneW;
-      const size = ACT_SIZE[t.item] || 92;   // activity kit is bigger than a Boo (RUN4 C5)
-      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item } });
+      // Three depth rows (C3): items scale smaller toward the back and, being lower on
+      // screen (larger y), the front rows draw ABOVE the back rows.
+      const row = rowOf(t);
+      const rowGroundPx = viewH * ROW_GROUND[row];
+      const size = (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
+      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
       wrap.style.left = (px - size / 2) + 'px';
-      wrap.style.top = (groundY - size + 8) + 'px';
+      wrap.style.top = (rowGroundPx - size + 8) + 'px';
+      wrap.style.zIndex = String(Math.round(rowGroundPx));
       wrap.innerHTML = renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
       // her shiny copy shimmers in the town too (RUN4 C8)
       if (item.kind === 'boo' && ((st.shinies && st.shinies[t.item]) || 0) > 0) {
@@ -395,6 +414,10 @@ export function mount(container, params, ctx) {
       if (roleCount >= MAX_ACTIVE_ROLES) return false;
       a.role = Object.assign({ t: Math.random() * 500 }, role);
       a.role.offX = (role.deco.x - a.place.x) * zoneW;
+      // Depth-align to the deco's row (C3): sit the Boo on the activity's baseline so
+      // the role transforms (which assume a shared ground line) still read correctly.
+      const dw = role.decoWrap || wrapFor(role.deco);
+      if (dw) { if (a._homeTop == null) { a._homeTop = a.wrap.style.top; a._homeZ = a.wrap.style.zIndex; } a.wrap.style.top = dw.style.top; a.wrap.style.zIndex = dw.style.zIndex; }
       roleCount++;
       if (role.kind === 'sleep' && !a.wrap.querySelector('.t-zzz')) {
         a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
@@ -447,6 +470,7 @@ export function mount(container, params, ctx) {
   function clearRole(a) {
     a.role = null;
     a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
+    if (a._homeTop != null) { a.wrap.style.top = a._homeTop; a.wrap.style.zIndex = a._homeZ || ''; a._homeTop = null; a._homeZ = null; }   // restore its depth row (C3)
     const svg = a.wrap.querySelector('svg');
     if (svg) svg.style.transform = '';
   }
@@ -626,9 +650,10 @@ export function mount(container, params, ctx) {
     sky.style.transform = `translateX(${-scrollX * 0.22}px)`;
     air.style.transform = `translateX(${-scrollX}px)`;
   }
-  function clampScroll() { scrollX = Math.max(0, Math.min(scrollX, Math.max(0, worldW - zoneW))); }
+  function clampScroll() { scrollX = Math.max(0, Math.min(scrollX, Math.max(0, worldW - viewW))); }
   function scrollToZone(zi, smooth = true) {
-    const target = Math.max(0, Math.min(zi * zoneW, worldW - zoneW));
+    // centre the (wide) zone in the viewport as best we can
+    const target = Math.max(0, Math.min(zi * zoneW + (zoneW - viewW) / 2, worldW - viewW));
     if (!smooth || REDUCED) { scrollX = target; clampScroll(); applyScroll(); return; }
     const from = scrollX, dt0 = performance.now();
     (function step(now) {
@@ -664,7 +689,7 @@ export function mount(container, params, ctx) {
     if (Math.abs(v) < 0.5 || REDUCED) return;
     (function mom() {
       scrollX -= v; v *= 0.92; clampScroll(); applyScroll();
-      if (Math.abs(v) > 0.4 && scrollX > 0 && scrollX < worldW - zoneW) momRaf = requestAnimationFrame(mom);
+      if (Math.abs(v) > 0.4 && scrollX > 0 && scrollX < worldW - viewW) momRaf = requestAnimationFrame(mom);
     })();
   };
   viewport.addEventListener('pointerup', endScroll);
@@ -683,12 +708,32 @@ export function mount(container, params, ctx) {
     return { zi, x };
   }
   function canPlaceIn(zi) { return totalStars() >= ZONES[zi].unlock; }
+  // Which depth row a drop lands in — nearest of the three ground lines (C3).
+  function rowAtClient(cy) {
+    const r = viewport.getBoundingClientRect();
+    const yf = (cy - r.top) / (r.height || 1);
+    let best = 1, bd = Infinity;
+    ROW_GROUND.forEach((g, i) => { const d = Math.abs(yf - g); if (d < bd) { bd = d; best = i; } });
+    return best;
+  }
+  // Minimum spacing (C3): no piling two items on top of each other in a zone+row.
+  function spotTaken(zi, x, row, except) {
+    return getState().town.some(t => t !== except && (ZONE_INDEX[t.zone] ?? 0) === zi && rowOf(t) === row && Math.abs(t.x - x) < MIN_SPACING);
+  }
+  function spotWobble() {
+    drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
+    setTimeout(() => drawer.classList.remove('taken'), 600);
+    hint.textContent = "That spot's taken — try a little further along!";
+    if (sfx.oops) sfx.oops();
+  }
 
   function placeAtClient(cx, cy) {
     const { zi, x } = zoneAndXAt(clientToWorld(cx));
     if (!canPlaceIn(zi)) { flashLocked(zi); return; }
+    const row = rowAtClient(cy);
+    if (spotTaken(zi, x, row)) { spotWobble(); return; }   // keep holding it, try again
     const id = holding;
-    mutate(st => { st.town.push({ zone: ZONES[zi].key, x: +x.toFixed(3), item: id }); });
+    mutate(st => { st.town.push({ zone: ZONES[zi].key, x: +x.toFixed(3), row, item: id }); });
     holding = null; placeMode = false;
     renderPlaced(); renderDrawer(); updateHint();
     sfx.pop();
@@ -751,17 +796,24 @@ export function mount(container, params, ctx) {
       }
       if (moved) {
         const { zi, x } = zoneAndXAt(clientToWorld(e.clientX));
+        const row = rowAtClient(e.clientY);
+        const rowGroundPx = viewH * ROW_GROUND[row];
         wrap.style.left = (zi * zoneW + x * zoneW - wrap.offsetWidth / 2) + 'px';
-        wrap.dataset._zi = zi; wrap.dataset._x = x;
+        wrap.style.top = (rowGroundPx - wrap.offsetHeight + 8) + 'px';   // preview the depth row
+        wrap.style.zIndex = String(Math.round(rowGroundPx));
+        wrap.dataset._zi = zi; wrap.dataset._x = x; wrap.dataset._row = String(row);
       }
     });
     wrap.addEventListener('pointerup', e => {
       if (!down) return; down = false;
       wrap.classList.remove('dragging');
       if (moved) {
-        const zi = +wrap.dataset._zi, x = +wrap.dataset._x;
-        if (canPlaceIn(zi)) {
-          mutate(st => { const t = st.town.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); } });
+        const zi = +wrap.dataset._zi, x = +wrap.dataset._x, row = +wrap.dataset._row;
+        const cur = getState().town.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+        if (canPlaceIn(zi) && !spotTaken(zi, x, row, cur)) {
+          mutate(st => { const t = st.town.find(t => t === cur) || st.town.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); t.row = row; } });
+        } else if (canPlaceIn(zi)) {
+          spotWobble();   // occupied — snap back
         }
         renderPlaced();
       } else {
@@ -896,8 +948,9 @@ export function mount(container, params, ctx) {
 
   // ---- actors: gentle wandering (transform-only) -------------------------
   function makeActor(wrap, item, place) {
-    return { wrap, item, place, dancing: false,
-      home: 0, dx: 0, vx: 0, state: 'pause', t: 0, next: 400 + Math.random() * 1200, hopT: 0 };
+    return { wrap, item, place, dancing: false, row: rowOf(place),
+      home: 0, dx: 0, vx: 0, state: 'pause', t: 0, next: 400 + Math.random() * 1200, hopT: 0,
+      depth: 0, depthTarget: 0 };   // depth: px drift between depth rows (C3)
   }
   function startLoop() {
     if (REDUCED) return;              // reduced motion: static poses, no wandering
@@ -912,9 +965,9 @@ export function mount(container, params, ctx) {
   function stepActors(dt) {
     const now = performance.now();
     for (const a of actors) {
-      // skip offscreen actors (cheap)
+      // skip offscreen actors (cheap) — relative to the real viewport, not the wide zone
       const px = parseFloat(a.wrap.style.left) - scrollX;
-      if (px < -140 || px > zoneW + 140) continue;
+      if (px < -140 || px > viewW + 140) continue;
       if (paradeUntil && a.parading) { stepParade(a, now); continue; }   // the Parade (RUN4 C9)
       if (a.dancing) continue; // dancing handled by CSS
       if (a.role) { stepRole(a, dt, now); continue; }   // activity items (RUN4 C5)
@@ -925,11 +978,17 @@ export function mount(container, params, ctx) {
         if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.next = 700 + Math.random() * 1600; }
         else if (roll < 0.85) { a.state = 'walk'; a.vx = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.01); a.next = 500 + Math.random() * 900; }
         else { a.state = 'hop'; a.hopT = 0; a.next = 500 + Math.random() * 900; }
+        // now and then drift a little between the depth rows (C3), for a living scene
+        if (!a.depthLock && Math.random() < 0.4) a.depthTarget = (Math.random() * 2 - 1) * DEPTH_WANDER;
       }
-      if (a.state === 'walk') { a.dx += a.vx * dt; a.dx = Math.max(-26, Math.min(26, a.dx)); }
+      const range = zoneW * WANDER_FRAC;   // wander range scales with the wider zone (C3)
+      if (a.state === 'walk') { a.dx += a.vx * dt; a.dx = Math.max(-range, Math.min(range, a.dx)); }
+      a.depth += (a.depthTarget - a.depth) * Math.min(1, dt / 260);   // ease toward the target depth
       let ty = 0, flip = a.vx < 0 ? -1 : 1;
       if (a.state === 'hop') { a.hopT += dt; const p = Math.min(1, a.hopT / 420); ty = -Math.sin(p * Math.PI) * 12; if (p >= 1) a.state = 'pause'; }
-      a.wrap.querySelector('svg').style.transform = `translate(${a.dx.toFixed(1)}px, ${ty.toFixed(1)}px) scaleX(${flip})`;
+      // moving toward the front (positive depth) reads slightly bigger; toward the back, smaller
+      const depthScale = 1 + a.depth * 0.003;
+      a.wrap.querySelector('svg').style.transform = `translate(${a.dx.toFixed(1)}px, ${(ty + a.depth).toFixed(1)}px) scale(${depthScale.toFixed(3)}) scaleX(${flip})`;
     }
   }
 
@@ -939,7 +998,20 @@ export function mount(container, params, ctx) {
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
   // eventually curl back up, and day/night transitions take hold (RUN4 C5).
   const roleTimer = setInterval(() => { if (!document.hidden) assignRoles(); }, 4000);
-  if (typeof window !== 'undefined') window.__townDebug = () => ({ paradeUntil, now: performance.now(), parading: actors.filter(a => a.parading).length, actors: actors.length, rafAlive: !!raf });
+  if (typeof window !== 'undefined') {
+    window.__townDebug = () => ({ paradeUntil, now: performance.now(), parading: actors.filter(a => a.parading).length, actors: actors.length, rafAlive: !!raf });
+    // RUN5 C3 QA hooks: geometry + deterministic depth-wander evidence.
+    window.__town = {
+      geometry: () => ({ viewW, zoneW, worldW, zones: ZONES.length, ratio: zoneW / viewW }),
+      scrollX: () => scrollX,
+      scrollMax: () => Math.max(0, worldW - viewW),
+      actorCount: () => actors.length,
+      drift: (target) => actors.forEach(a => { if (!a.role && !a.dancing) { a.depthTarget = target; a.depthLock = true; a.state = 'pause'; a.vx = 0; } }),
+      // vertical (depth) offsets of free wanderers, read from their live transforms
+      depthYs: () => actors.filter(a => !a.role && !a.dancing).map(a => { const m = (a.wrap.querySelector('svg').style.transform || '').match(/translate\([^,]+,\s*(-?[\d.]+)px/); return m ? +m[1] : 0; }),
+      itemsByRow: () => [...ground.querySelectorAll('.t-item')].map(w => ({ row: +w.dataset.row, item: w.dataset.item, w: w.getBoundingClientRect().width, z: +w.style.zIndex || 0, top: parseFloat(w.style.top) }))
+    };
+  }
 
   return {
     unmount() {

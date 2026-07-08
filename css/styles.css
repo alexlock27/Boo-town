@@ -1347,6 +1347,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media (prefers-reduced-motion: reduce) { .t-firefly, .t-butterfly, .t-star { animation: none !important; } }
 
 .town-drawer { display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px 14px; min-height: 92px; align-items: center; }
+/* "this spot's taken" wobble on a collision (RUN5 C3) */
+.town-drawer.taken { animation: drawerShake 0.5s ease; }
+@keyframes drawerShake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) { .town-drawer.taken { animation: none; } }
 .drawer-item { position: relative; border: 3px solid var(--ink); background: var(--card); border-radius: 16px; padding: 4px; cursor: pointer; flex-shrink: 0; touch-action: none; }
 .drawer-item.holding { border-color: var(--star); box-shadow: 0 0 12px rgba(255,201,60,0.6); }
 .drawer-art { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }

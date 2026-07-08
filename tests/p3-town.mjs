@@ -48,8 +48,10 @@ console.log('== old grid town migrates to Meadow ==');
 console.log('== world scrolls full width ==');
 {
   const { ctx, page } = await open(BASESAVE({}), {});
-  const dims = await page.evaluate(() => { const vp = document.querySelector('.t-viewport'); const g = document.querySelector('.t-ground'); return { zoneW: vp.clientWidth, worldW: parseFloat(g.style.width) }; });
-  assert(Math.round(dims.worldW / dims.zoneW) === 4, 'world is 4 zones wide (' + dims.worldW + '/' + dims.zoneW + ')');
+  const dims = await page.evaluate(() => { const vp = document.querySelector('.t-viewport'); const g = document.querySelector('.t-ground'); return { viewW: vp.clientWidth, worldW: parseFloat(g.style.width) }; });
+  // RUN5 C3: 4 zones, each 1.7 viewports wide.
+  const zoneW = dims.worldW / 4;
+  assert(Math.abs(zoneW / dims.viewW - 1.7) < 0.02, `each of the 4 zones is 1.7 viewports wide (${(zoneW / dims.viewW).toFixed(2)})`);
   // drag-scroll to the right
   const vp = await page.$('.t-viewport'); const box = await vp.boundingBox();
   await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.4);
