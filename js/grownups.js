@@ -117,8 +117,8 @@ export function mount(container, params, ctx) {
   ]);
 
   // ---- content amount: Light / Medium / Full (RUN3 C9) ----
-  const TIER_LABEL = { light: 'Light', medium: 'Medium', full: 'Full' };
-  const TIER_DESC = { light: 'Fewest choices — the simplest menus.', medium: 'More topics grouped tidily.', full: 'Every single list and topic.' };
+  const TIER_LABEL = { toddler: 'Toddler', light: 'Light', medium: 'Medium', full: 'Full' };
+  const TIER_DESC = { toddler: 'For pre-readers: four simple games, everything spoken aloud.', light: 'Fewest choices — the simplest menus.', medium: 'More topics grouped tidily.', full: 'Every single list and topic.' };
   const tierDesc = el('p', { class: 'gu-note', text: TIER_DESC[contentTier()] });
   const tierSeg = el('div', { class: 'gu-seg' });
   function renderSeg() {
@@ -130,7 +130,7 @@ export function mount(container, params, ctx) {
     el('h3', { text: 'How many choices?' }),
     el('p', { class: 'gu-note', text: 'This only changes the menus she sees — all the learning stays installed, and her progress and Boos are never touched. Smart Mix quietly uses everything.' }),
     tierSeg, tierDesc,
-    el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (7 and under → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
+    el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (4 and under → Toddler · 5–7 → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
   ]);
 
   root.append(header, starLedger(s), goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, diagnostics(), reset);
@@ -168,7 +168,8 @@ export function mount(container, params, ctx) {
     const NAMES = {
       bubblepop: 'Bubble Pop', feedboos: 'Feed the Boos', spellboo: 'Spell Boo',
       blocks: 'Boo Blocks', bounce: 'Boo Bounce', beat: 'Boo Beat', teachme: 'Teach Me',
-      dash: 'Boo Dash', clockshop: 'Clock Shop', boopop: 'Boo Pop'
+      dash: 'Boo Dash', clockshop: 'Clock Shop', boopop: 'Boo Pop',
+      tcount: 'Counting Pop', tcolour: 'Colour Feast', tshape: 'Shape Sort', tletter: 'Letter Pop'
     };
     const bg = (s.stars && s.stars.byGame) || {};
     const total = (s.stars && s.stars.total) || 0;

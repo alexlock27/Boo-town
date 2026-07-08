@@ -9,7 +9,7 @@ import { renderGuide } from './art.js';
 import { speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 
-export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true, onHelp = null }) {
+export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true, onHelp = null, hideHearts = false }) {
   beginRoundTally();   // RUN4 C3: collect this round's ledger items for the cosy check
   const s = getState();
   const guide = (s && s.guide) || { body: 'sunshine', patch: 'cocoa', acc: 'none' };
@@ -34,6 +34,7 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
   const progressWrap = el('div', { class: 'progress-wrap' }, [dots, progressLabel]);
 
   const heartsWrap = el('div', { class: 'hearts-wrap', html: heartsRow(hearts, { max: maxHearts }) });
+  if (hideHearts) heartsWrap.style.display = 'none';   // Toddler mode (RUN5 C7): no hearts anywhere
 
   const hintBtn = el('button', {
     class: 'hint-btn', 'aria-label': 'Ask the guide for a hint',

@@ -26,6 +26,7 @@ const registry = {
   clockshop:  () => import('./games/clockshop.js'),
   boopop:     () => import('./games/boopop.js'),
   golden:     () => import('./golden.js'),
+  toddlergame: () => import('./toddler.js'),   // Toddler mode's four games (RUN5 C7)
   studio:     () => import('./studio.js'),
   paint:      () => import('./paint.js'),
   collage:    () => import('./collage.js'),

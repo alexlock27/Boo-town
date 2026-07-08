@@ -41,7 +41,7 @@ export function mount(container, params, ctx) {
   function ageStep() {
     const grid = el('div', { class: 'ob-age-grid' });
     for (const c of AGE_CHOICES) {
-      grid.appendChild(el('button', { class: 'btn ob-age-btn' + (c.age <= 5 || c.age >= 12 ? ' wide' : ''), text: c.label, onclick: () => { sfx.tap(); age = c.age; step = 3; render(); } }));
+      grid.appendChild(el('button', { class: 'btn ob-age-btn' + (c.label.length > 2 ? ' wide' : ''), text: c.label, onclick: () => { sfx.tap(); age = c.age; step = 3; render(); } }));
     }
     root.appendChild(el('div', { class: 'ob-name ob-age' }, [
       el('div', { class: 'ob-guide small', html: renderGuide(guide, { view: 'head', size: 130 }) }),

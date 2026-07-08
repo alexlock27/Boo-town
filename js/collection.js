@@ -10,6 +10,7 @@ import { journalEntries } from './quests.js';
 import { renderTrophyRoom } from './trophies.js';
 import { ownedCustomItems } from './customs.js';
 import { micEnabled, openVoiceRecorder } from './voices.js';
+import { contentTier } from './content.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -137,9 +138,12 @@ export function mount(container, params, ctx) {
   const trophyView = el('div', { class: 'coll-scroll trophy-view', style: { display: 'none' } });
   let trophyMounted = false;
 
+  // Toddler mode (RUN5 C7): the Trophies tab is hidden — the shared universe stays,
+  // but the ledgered challenge furniture waits until she's older.
+  const toddler = contentTier() === 'toddler';
   const tabs = el('div', { class: 'coll-tabs' }, [
     el('button', { class: 'coll-tab sel', text: '🧸 Boos', onclick: (e) => switchTab('coll', e.currentTarget) }),
-    el('button', { class: 'coll-tab', text: '🏆 Trophies', onclick: (e) => switchTab('trophies', e.currentTarget) }),
+    toddler ? null : el('button', { class: 'coll-tab', text: '🏆 Trophies', onclick: (e) => switchTab('trophies', e.currentTarget) }),
     el('button', { class: 'coll-tab', text: '📖 Journal', onclick: (e) => switchTab('journal', e.currentTarget) })
   ]);
   function switchTab(which, btn) {

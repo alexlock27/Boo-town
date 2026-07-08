@@ -59,7 +59,12 @@ export const INTRO_SCRIPTS = {
   golden: [
     { text: 'A golden challenge, straight from home!' },
     { text: 'Answer them all for DOUBLE stars, once a day!' }
-  ]
+  ],
+  // Toddler mode (C7): a single spoken step per game
+  tcount:  [{ text: 'Pop the bubble with this many dots!' }],
+  tcolour: [{ text: 'Feed each Boo its matching colour!' }],
+  tshape:  [{ text: 'Match each shape to its hole!' }],
+  tletter: [{ text: 'Tap the letter that matches mine!' }]
 };
 
 // Show a game's intro on its first-ever open (no-op once seen).

@@ -8,7 +8,7 @@ import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
-import { tierForAge, AGE_CHOICES } from './content.js';
+import { tierForAge, AGE_CHOICES, contentTier } from './content.js';
 import { renderGuide } from './art.js';
 import { ZONES } from './town.js';
 import { retroAwardOnce } from './trophies.js';
@@ -18,6 +18,8 @@ import { booOfTheDay } from './delights.js';
 import { renderItem } from './art.js';
 import { getDisplayName } from './accessories.js';
 import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './resilience.js';
+import { TODDLER_GAMES } from './toddler.js';
+import { speakMaybe } from './guide.js';
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -38,6 +40,9 @@ const GAMES = [
 ];
 
 export function mount(container, params, ctx) {
+  // Toddler mode (RUN5 C7): a calm hub of four giant cards. Quests, Golden Round,
+  // Smart Mix, Sound Twins and Trophies are hidden; rewards stay the shared universe.
+  if (contentTier() === 'toddler') return mountToddlerHub(container, params, ctx);
   const s = getState();
   music.play('calm');
   // Occasional Boo requests appear only at app open (RUN3 C8).
@@ -321,6 +326,81 @@ export function mount(container, params, ctx) {
       if (updateToast) { updateToast.remove(); updateToast = null; }
     }
   };
+}
+
+// ---- the Toddler hub (RUN5 C7) ---------------------------------------------
+function mountToddlerHub(container, params, ctx) {
+  const s = getState();
+  music.play('calm');
+  const root = el('div', { class: 'hub toddler-hub' });
+  container.appendChild(root);
+
+  // top bar: speaker + star meter + gift + chest (the same shared rewards)
+  const speaker = el('button', { class: 'icon-btn speaker', 'aria-label': 'Sound on or off' });
+  const paintSpeaker = () => {
+    const anyOn = s.settings.sound || s.settings.music;
+    speaker.innerHTML = anyOn
+      ? '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="var(--card)"/><path d="M16 8c1.5 1.5 1.5 6.5 0 8" stroke="var(--card)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="var(--card)"/><path d="M16 9l6 6M22 9l-6 6" stroke="var(--card)" stroke-width="2" stroke-linecap="round"/></svg>';
+  };
+  paintSpeaker();
+  speaker.addEventListener('click', () => {
+    const next = !(s.settings.sound || s.settings.music);
+    mutate(st => { st.settings.sound = next; st.settings.music = next; });
+    setSoundEnabled(next); setMusicEnabled(next);
+    if (next) music.play('calm');
+    paintSpeaker();
+  });
+  const meterWrap = el('div', { class: 'meter-wrap' });
+  const cs = chestState();
+  const chestBtn = el('button', { class: 'star-chest' + (cs.ready ? ' ready' : ''), 'aria-label': cs.ready ? 'Open your Star Chest!' : 'Star Chest',
+    onclick: () => { if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); } } }, [
+    el('span', { class: 'chest-ic', html: chestSVG(cs.ready) }),
+    el('span', { class: 'chest-track' }, [el('span', { class: 'chest-fill', style: { width: Math.round(cs.progress / CHEST_EVERY * 100) + '%' } })])
+  ]);
+  const top = el('header', { class: 'hub-top' }, [speaker, meterWrap, chestBtn]);
+
+  function renderMeter() {
+    clear(meterWrap);
+    const { meter, boxes } = meterState();
+    const track = el('div', { class: 'meter-track' });
+    for (let i = 0; i < METER_CAP; i++) track.appendChild(el('span', { class: 'meter-seg' + (i < meter ? ' on' : '') }));
+    const gift = el('button', { class: 'gift-btn' + (boxes > 0 ? ' ready' : ''), 'aria-label': boxes > 0 ? 'Open your box' : 'Star meter', html: giftSVG(46),
+      onclick: () => { if (getState().boxes > 0) ctx.go('ceremony'); } });
+    if (boxes > 1) gift.appendChild(el('span', { class: 'box-badge', text: 'x' + boxes }));
+    meterWrap.append(track, gift);
+  }
+
+  // the guide greets, spoken aloud when voice is available
+  const gb = createGuideBubble({ view: 'full', size: 140, side: 'left' });
+  const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
+
+  // four giant game cards: icon + ONE word; tapping speaks the name and starts a round
+  const cards = el('section', { class: 'toddler-cards' });
+  for (const g of TODDLER_GAMES) {
+    cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': g.word, onclick: () => {
+      sfx.tap(); speakMaybe(g.word);
+      ctx.go('toddlergame', { game: g.key });
+    } }, [
+      el('span', { class: 'tc-icon', text: g.icon }),
+      el('span', { class: 'tc-word', text: g.word })
+    ]));
+  }
+
+  // bottom bar: Town, Collection, Studio + the cog behind its long-press, as ever
+  const say = (word, fn) => () => { sfx.tap(); speakMaybe(word); fn(); };
+  const bar = el('nav', { class: 'bottom-bar' }, [
+    el('button', { class: 'bar-btn', onclick: say('Town', () => ctx.go('town')) }, [el('span', { class: 'bar-ic', html: '🏡' }), el('span', { text: 'Town' })]),
+    el('button', { class: 'bar-btn', onclick: say('Collection', () => ctx.go('collection')) }, [el('span', { class: 'bar-ic', html: '📖' }), el('span', { text: 'Collection' })]),
+    el('button', { class: 'bar-btn', onclick: say('Studio', () => ctx.go('studio')) }, [el('span', { class: 'bar-ic', html: '🎨' }), el('span', { text: 'Studio' })]),
+    makeCog(() => ctx.go('grownups'))
+  ]);
+
+  root.append(top, guideSection, cards, bar);
+  renderMeter();
+  gb.say('welcome');   // spoken when voice is on
+
+  return { unmount() {} };
 }
 
 // 3-second press-and-hold cog with a filling progress ring (spec §5.7).

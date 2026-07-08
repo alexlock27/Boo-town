@@ -6,18 +6,19 @@
 import { getState, mutate } from './state.js';
 import { MIX_KEY } from './picker.js';
 
-export const TIERS = ['light', 'medium', 'full'];
-const ORDER = { light: 0, medium: 1, full: 2 };
+export const TIERS = ['toddler', 'light', 'medium', 'full'];   // toddler added RUN5 C7
+const ORDER = { toddler: -1, light: 0, medium: 1, full: 2 };
 
 export function contentTier() { const s = getState(); return (s && s.settings && s.settings.content) || 'light'; }
 export function setContentTier(t) { if (TIERS.includes(t)) mutate(s => { s.settings.content = t; }); }
 
-// Age → tier mapping (follow-on job 4): 7 and under = Light, 8–9 = Medium, 10 and up = Full.
-// Age lives in the local save only and is used for nothing else. The grown-ups setting
-// always overrides (it writes the same settings.content, any time after).
-export function tierForAge(age) { return age <= 7 ? 'light' : age <= 9 ? 'medium' : 'full'; }
+// Age → tier mapping (RUN5 C7): 4 and under = Toddler, 5–7 = Light, 8–9 = Medium,
+// 10 and up = Full. Age lives in the local save only and is used for nothing else.
+// The grown-ups setting always overrides (it writes the same settings.content).
+export function tierForAge(age) { return age <= 4 ? 'toddler' : age <= 7 ? 'light' : age <= 9 ? 'medium' : 'full'; }
 export const AGE_CHOICES = [
-  { label: '5 or younger', age: 5 }, { label: '6', age: 6 }, { label: '7', age: 7 },
+  { label: '3 or younger', age: 3 }, { label: '4', age: 4 },
+  { label: '5', age: 5 }, { label: '6', age: 6 }, { label: '7', age: 7 },
   { label: '8', age: 8 }, { label: '9', age: 9 }, { label: '10', age: 10 },
   { label: '11', age: 11 }, { label: '12 and up', age: 12 }
 ];
@@ -27,9 +28,10 @@ export function tierAllows(tag) { return ORDER[contentTier()] >= ORDER[tag || 'l
 export const BUBBLE_CAT_TIER = { tables: 'light', bonds: 'medium', addsub: 'medium', doubles: 'full', moreless: 'full' };
 export function filterCategories(cats) { return cats.filter(c => tierAllows(BUBBLE_CAT_TIER[c.key] || 'full')); }
 
-// ---- Levels everywhere: Light shows Starter to Level 2; Medium/Full show all ----
+// ---- Levels everywhere: Light (and below) shows Starter to Level 2; Medium/Full all ----
 export function filterLevels(levels) {
-  if (contentTier() !== 'light') return levels;
+  const t = contentTier();
+  if (t === 'medium' || t === 'full') return levels;
   return levels.filter(l => l === 'S' || l === 'starter' || (typeof l === 'number' && l <= 2));
 }
 
@@ -46,7 +48,7 @@ export function filterSpellSets(sets) { return sets.filter(s => s.key === MIX_KE
 // ---- Arcade (Blocks / Bounce / Beat) ----
 // Light: no picker (Smart-Mix auto). Medium: Times tables, Number bonds, Words. Full: everything.
 export const ARCADE_CAT_TIER = { tables: 'medium', bonds: 'medium', words: 'medium', addsub: 'full', doubles: 'full' };
-export function arcadeHasPicker() { return contentTier() !== 'light'; }
+export function arcadeHasPicker() { const t = contentTier(); return t !== 'light' && t !== 'toddler'; }
 export function filterArcadeCategories(cats) { return cats.filter(c => tierAllows(ARCADE_CAT_TIER[c.key] || 'full')); }
 
 // ---- Feed the Boos ----

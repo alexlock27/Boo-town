@@ -44,7 +44,7 @@ async function onboardTo(page, ageLabel, shotTag) {
 console.log('== onboarding with age step (3 sizes) ==');
 for (const [tag, vp] of [['tab-land', { width: 1000, height: 625 }], ['tab-port', { width: 625, height: 1000 }], ['phone', { width: 390, height: 844 }]]) {
   const { ctx, page } = await fresh(vp);
-  await onboardTo(page, tag === 'tab-land' ? '8' : tag === 'tab-port' ? '5 or younger' : '12 and up', tag);
+  await onboardTo(page, tag === 'tab-land' ? '8' : tag === 'tab-port' ? '5' : '12 and up', tag);
   const st = await page.evaluate(() => { const s = window.BooTown.State.getState(); return { age: s.age, asked: s.ageAsked, tier: s.settings.content }; });
   const expect = tag === 'tab-land' ? { age: 8, tier: 'medium' } : tag === 'tab-port' ? { age: 5, tier: 'light' } : { age: 12, tier: 'full' };
   assert(st.asked && st.age === expect.age && st.tier === expect.tier, `${tag}: onboarding completes; age ${st.age} -> ${st.tier} (expected ${expect.tier})`);
@@ -57,7 +57,7 @@ console.log('== age -> tier mapping ==');
   const { ctx, page } = await fresh();
   await page.goto(BASE + '/index.html', { waitUntil: 'load' });
   const map = await page.evaluate(async () => { const m = await import('./js/content.js'); return m.AGE_CHOICES.map(c => [c.label, m.tierForAge(c.age)]); });
-  const expect = { '5 or younger': 'light', 6: 'light', 7: 'light', 8: 'medium', 9: 'medium', 10: 'full', 11: 'full', '12 and up': 'full' };
+  const expect = { '3 or younger': 'toddler', 4: 'toddler', 5: 'light', 6: 'light', 7: 'light', 8: 'medium', 9: 'medium', 10: 'full', 11: 'full', '12 and up': 'full' };   // RUN5 C7 mapping
   const allOk = map.every(([label, tier]) => expect[label] === tier);
   assert(allOk, 'all eight buttons map correctly: ' + map.map(m => m.join('→')).join(', '));
   await ctx.close();
@@ -133,7 +133,7 @@ console.log('== one-time ask (skipped) ==');
   const hint = await page.evaluate(() => window.BooTown.go('grownups'));
   await page.waitForSelector('.gu-age-hint');
   const hintText = await page.$eval('.gu-age-hint', n => n.textContent);
-  assert(/7 and under/.test(hintText) && /8–9|8-9/.test(hintText) && /10 and up/.test(hintText), 'the grown-ups corner shows the age-mapping hint');
+  assert(/4 and under → Toddler/.test(hintText) && /5–7|5-7/.test(hintText) && /8–9|8-9/.test(hintText) && /10 and up/.test(hintText), 'the grown-ups corner shows the age-mapping hint (RUN5 C7 mapping)');
   await ctx.close();
 }
 

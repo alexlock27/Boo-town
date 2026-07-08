@@ -7,6 +7,7 @@ import { sfx, music } from './sfx.js';
 import { saveArtwork } from './studio.js';
 import { idbGet, idbPut, idbDelete, idbCount } from './idb.js';
 import { seasonOf, currentMonth } from './rewards.js';
+import { contentTier } from './content.js';
 import { GALLERY_CAP } from './studio.js';
 
 const SIZE = 640;                      // internal canvas resolution (spec cap 640px)
@@ -16,6 +17,10 @@ const COLOURS = [
   '#E63946', '#F77F00', '#FFE066', '#9CCC65', '#2D6A4F', '#4DD0E1', '#5C6BC0', '#9C27B0', '#F8BBD0', '#FFE0B2', '#8D99AE', '#6D6875'
 ];
 const BRUSH_SIZES = [10, 22, 40];
+// Toddler mode (RUN5 C7): the little-painter kit — 8 colours, 3 fat brushes,
+// and just brush / fill / stamps.
+const COLOURS_TODDLER = ['#E63946', '#2D7DD2', '#FFC93C', '#4CAF50', '#F77F00', '#9C27B0', '#FF7AC6', '#8A5A44'];
+const BRUSHES_TODDLER = [24, 36, 50];
 const DRAFT_ID = 'draft_paint';        // one live draft (RUN5 C6 save-and-resume)
 
 // Outline templates (RUN5 C6: every Boo species, the guide species, the activity
@@ -63,9 +68,12 @@ export function mount(container, params, ctx) {
   const canvas = el('canvas', { class: 'paint-canvas', width: SIZE, height: SIZE });
   const cx = canvas.getContext('2d', { willReadFrequently: true });
 
-  let colour = COLOURS[0];
+  const toddler = contentTier() === 'toddler';   // little-painter kit (RUN5 C7)
+  const PALETTE = toddler ? COLOURS_TODDLER : COLOURS;
+  const BRUSHES = toddler ? BRUSHES_TODDLER : BRUSH_SIZES;
+  let colour = PALETTE[0];
   let tool = 'brush';        // brush | fill | sparkle | stamp | pattern | eraser (RUN5 C6)
-  let brush = BRUSH_SIZES[1];
+  let brush = BRUSHES[1];
   let rainbow = false, hue = 0;
   let stampShape = 'star';   // star | heart | flower | paw | sparkle
   let patternKind = 'stripes'; // stripes | dots
@@ -262,15 +270,18 @@ export function mount(container, params, ctx) {
   }
 
   // ---- tool bar ----
-  const swatches = el('div', { class: 'paint-swatches' });
-  COLOURS.forEach(cc => { const b = el('button', { class: 'paint-swatch' + (cc === colour && !rainbow ? ' sel' : ''), style: { background: cc }, 'aria-label': 'colour', onclick: () => { colour = cc; rainbow = false; refreshSwatches(); } }); swatches.appendChild(b); });
+  const swatches = el('div', { class: 'paint-swatches' + (toddler ? ' toddler' : '') });
+  PALETTE.forEach(cc => { const b = el('button', { class: 'paint-swatch' + (cc === colour && !rainbow ? ' sel' : ''), style: { background: cc }, 'aria-label': 'colour', onclick: () => { colour = cc; rainbow = false; refreshSwatches(); } }); swatches.appendChild(b); });
   const rainbowBtn = el('button', { class: 'paint-swatch rainbow', 'aria-label': 'rainbow', onclick: () => { rainbow = true; refreshSwatches(); } });
-  swatches.appendChild(rainbowBtn);
-  function refreshSwatches() { [...swatches.querySelectorAll('.paint-swatch')].forEach(b => b.classList.remove('sel')); if (rainbow) rainbowBtn.classList.add('sel'); else { const i = COLOURS.indexOf(colour); if (i >= 0) swatches.children[i].classList.add('sel'); } }
+  if (!toddler) swatches.appendChild(rainbowBtn);   // rainbow waits until she's older
+  function refreshSwatches() { [...swatches.querySelectorAll('.paint-swatch')].forEach(b => b.classList.remove('sel')); if (rainbow) rainbowBtn.classList.add('sel'); else { const i = PALETTE.indexOf(colour); if (i >= 0) swatches.children[i].classList.add('sel'); } }
 
   const toolBtns = {};
   const tools = el('div', { class: 'paint-tools' });
-  [['brush', '🖌️'], ['fill', '🪣'], ['sparkle', '✨'], ['stamp', '🐾'], ['pattern', '▦'], ['eraser', '🧽']].forEach(([t, ic]) => {
+  const TOOL_LIST = toddler
+    ? [['brush', '🖌️'], ['fill', '🪣'], ['stamp', '🐾']]
+    : [['brush', '🖌️'], ['fill', '🪣'], ['sparkle', '✨'], ['stamp', '🐾'], ['pattern', '▦'], ['eraser', '🧽']];
+  TOOL_LIST.forEach(([t, ic]) => {
     const b = el('button', { class: 'paint-tool' + (t === tool ? ' sel' : ''), text: ic, 'aria-label': t, onclick: () => { tool = t; Object.values(toolBtns).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); renderSubRow(); } });
     toolBtns[t] = b; tools.appendChild(b);
   });
@@ -294,7 +305,7 @@ export function mount(container, params, ctx) {
   }
   renderSubRow();
   const sizes = el('div', { class: 'paint-sizes' });
-  BRUSH_SIZES.forEach((sz, i) => { const b = el('button', { class: 'paint-size' + (sz === brush ? ' sel' : ''), onclick: () => { brush = sz; [...sizes.children].forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } }, [el('span', { class: 'ps-dot', style: { width: (8 + i * 7) + 'px', height: (8 + i * 7) + 'px' } })]); sizes.appendChild(b); });
+  BRUSHES.forEach((sz, i) => { const b = el('button', { class: 'paint-size' + (sz === brush ? ' sel' : ''), onclick: () => { brush = sz; [...sizes.children].forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } }, [el('span', { class: 'ps-dot', style: { width: (8 + i * 7) + 'px', height: (8 + i * 7) + 'px' } })]); sizes.appendChild(b); });
 
   const undoBtn = el('button', { class: 'btn soft', text: '↩ Undo', onclick: () => { sfx.tap(); undo(); } });
   const saveBtn = el('button', { class: 'btn', text: '💾 Save to gallery', onclick: () => doSave() });

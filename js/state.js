@@ -27,7 +27,12 @@ function freshSave() {
         teachme:   { best: 0, plays: 0, earned: 0 },
         dash:      { best: 0, plays: 0, earned: 0 },
         clockshop: { best: 0, plays: 0, earned: 0 },
-        boopop:    { best: 0, plays: 0, earned: 0 }
+        boopop:    { best: 0, plays: 0, earned: 0 },
+        // Toddler mode (RUN5 C7)
+        tcount:    { best: 0, plays: 0, earned: 0 },
+        tcolour:   { best: 0, plays: 0, earned: 0 },
+        tshape:    { best: 0, plays: 0, earned: 0 },
+        tletter:   { best: 0, plays: 0, earned: 0 }
       }
     },
     meter: 0,
