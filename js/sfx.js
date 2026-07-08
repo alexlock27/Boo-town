@@ -250,6 +250,22 @@ export const band = {
   guitar(chord) { play(t => { (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), t + i * 0.06, 0.7, 'sawtooth', 0.13, sfxGain, 'guitar:' + chord)); }); }
 };
 
+// ---- Boo Beat voices (RUN6 C3): the melody her correct hits perform, plus a soft ----
+// backing (drums+bass on the music bus, so it ducks during TTS) and a miss thud.
+export const beatvoice = {
+  backingDrum(pad) { play(t => { (DRUMS[pad] || DRUMS.kick)(t); logEvent({ kind: 'note', t, freq: 0, dur: 0.2, bus: 'music', tag: 'beat-drum:' + pad }); }); },
+  bass(freq) { play(t => envTone(freq, t, 0.3, 'sawtooth', 0.12, musicGain, 'beat-bass')); },
+  melody(semi, { sparkle = false, shimmer = false } = {}) {
+    play(t => {
+      const f = 392 * Math.pow(2, semi / 12);   // a bright lead around G4
+      envTone(f, t, 0.5, 'triangle', 0.30, sfxGain, 'melody');
+      if (sparkle) envTone(f * 2, t + 0.01, 0.4, 'sine', 0.16, sfxGain, 'sparkle');    // Perfect harmonic
+      if (shimmer) envTone(f * 1.5, t + 0.05, 0.5, 'triangle', 0.09, sfxGain, 'shimmer'); // combo-fever layer
+    });
+  },
+  thud() { play(t => { pitchDrum(t, 110, 60, 0.16, 0.4); logEvent({ kind: 'note', t, freq: 0, dur: 0.16, bus: 'sfx', tag: 'thud' }); }); }
+};
+
 // Pause loops when the tab is hidden (spec §11.3).
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
