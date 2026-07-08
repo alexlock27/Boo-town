@@ -157,7 +157,7 @@ console.log('== fair jingle: scheduling + mute obedience ==');
   const on = await page.evaluate(async () => {
     const sfx = await import('./js/sfx.js');
     sfx.setAudioLog(true); sfx.initAudio(); sfx.setMusicEnabled(true);
-    window.__townLife.scrollToFunfair();
+    window.__townLife.scrollToFunfairGate();   // funfair on screen, bandstand off → the jingle plays (band replaces it elsewhere, C1c)
     await new Promise(r => setTimeout(r, 1100));
     const zone = window.__townLife.zoneMusic();
     const notes = sfx.getAudioLog().filter(e => e.kind === 'note' && e.bus === 'music').length;

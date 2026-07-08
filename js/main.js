@@ -37,6 +37,7 @@ const registry = {
   collection: () => import('./collection.js'),
   editguide:  () => import('./editguide.js'),
   town:       () => import('./town.js'),
+  band:       () => import('./band.js'),   // the Boo Band (RUN6 C1c)
   grownups:   () => import('./grownups.js')
 };
 

@@ -1501,6 +1501,59 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .rp-status { font-size: 12px; color: #6a5c94; }
 .rp-empty { color: #5a4d84; grid-column: 1 / -1; text-align: center; }
 
+/* The bandstand in the funfair (RUN6 C1c) */
+.ff-bandstand { position: absolute; cursor: pointer; touch-action: none; }
+.ff-bandstand .ff-struct { position: absolute; inset: 0; pointer-events: none; }
+.bs-boo { position: absolute; width: 48px; height: 48px; pointer-events: none; will-change: transform; }
+.bs-boo.bs-play { animation: bsPlay 0.4s ease-out; }
+@keyframes bsPlay { 0%,100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-8px) scale(1.08, 0.94); } }
+@media (prefers-reduced-motion: reduce) { .bs-boo.bs-play { animation: none; } }
+
+/* The Boo Band play screen (RUN6 C1c) */
+.band { padding: 12px 14px 20px; overflow-y: auto; gap: 12px; max-width: 720px; margin: 0 auto; width: 100%; }
+.band-header { display: flex; align-items: center; gap: 14px; }
+.band-header h2 { color: var(--card); margin: 0; font-size: 24px; }
+.band-trio { display: flex; justify-content: center; gap: 22px; }
+.bt-boo { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bt-boo.play .bt-art { animation: bsPlay 0.4s ease-out; }
+.bt-inst { font-size: 20px; }
+.band-tabs { display: flex; gap: 8px; justify-content: center; }
+.band-tab { flex: 1 1 auto; max-width: 180px; padding: 12px; border-radius: 14px; border: 3px solid transparent; background: rgba(255,255,255,0.14); color: var(--card); font-family: var(--font-display); font-weight: 700; font-size: 17px; cursor: pointer; }
+.band-tab.sel { background: var(--card); color: var(--ink); border-color: var(--star); }
+.band-area { min-height: 200px; display: flex; align-items: center; justify-content: center; }
+.drum-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: min(96%, 460px); }
+.drum-pad { aspect-ratio: 1.5; border-radius: 18px; border: 3px solid var(--ink); font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink); cursor: pointer; touch-action: none; box-shadow: 0 4px 0 rgba(0,0,0,0.25); }
+.drum-pad.hit { transform: scale(0.9); box-shadow: 0 1px 0 rgba(0,0,0,0.25); }
+.pad-kick { background: #FF7AC6; } .pad-snare { background: #35D0BA; } .pad-hihat { background: #8FC7FF; }
+.pad-cymbal { background: #FFC93C; } .pad-tom1 { background: #C6A9F0; } .pad-tom2 { background: #FF9AD5; }
+.keys-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.keys-row { display: flex; gap: 5px; width: min(98%, 520px); }
+.key { flex: 1; height: 130px; border-radius: 0 0 10px 10px; border: 3px solid var(--ink); background: #FFF8F0; cursor: pointer; touch-action: none; }
+.key:nth-child(3n) { background: #FDF2FF; } .key:nth-child(3n+1) { background: #F2FBFF; }
+.key.down { transform: translateY(4px); background: var(--zing); }
+.key.sparkle { background: #FFF2B0; box-shadow: 0 0 14px 3px rgba(255,201,60,0.85); animation: keySparkle 1s ease-in-out infinite; }
+@keyframes keySparkle { 0%,100% { box-shadow: 0 0 10px 2px rgba(255,201,60,0.7); } 50% { box-shadow: 0 0 18px 5px rgba(255,201,60,1); } }
+.playalong-toggle, .backing-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--card); font-family: var(--font-body); font-size: 16px; }
+.guitar-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.guitar-hint { color: var(--card); margin: 0; }
+.chord-row { display: flex; gap: 10px; }
+.chord-btn { width: 68px; height: 60px; border-radius: 14px; border: 3px solid var(--ink); background: var(--card); color: var(--ink); font-family: var(--font-display); font-weight: 700; font-size: 20px; cursor: pointer; }
+.chord-btn.sel { background: var(--pop); color: var(--card); box-shadow: 0 0 12px rgba(255,122,198,0.7); }
+.strum-strip { width: min(96%, 460px); height: 76px; border-radius: 16px; border: 3px dashed var(--star); background: rgba(255,201,60,0.14); display: flex; align-items: center; justify-content: center; color: var(--card); font-family: var(--font-display); font-weight: 700; touch-action: none; cursor: pointer; }
+.strum-strip.strummed { background: rgba(255,201,60,0.4); }
+.band-backing { text-align: center; }
+.band-record { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.rec-btn.recording { background: #FF5C5C; animation: recPulse 1s ease-in-out infinite; }
+@keyframes recPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.rec-status { color: var(--card); font-family: var(--font-body); font-size: 15px; }
+.band-jams h3 { color: var(--card); text-align: center; margin: 8px 0; }
+.jams-list { display: flex; flex-direction: column; gap: 8px; }
+.jam-row { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 10px 12px; touch-action: none; }
+.jam-name { flex: 1; font-weight: 700; color: var(--ink); }
+.jam-set.active { background: var(--star); color: var(--ink); }
+.jam-hint, .jams-empty { font-size: 12px; color: #6a5c94; }
+.jams-empty { text-align: center; }
+
 .town-drawer { display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px 14px; min-height: 92px; align-items: center; }
 /* "this spot's taken" wobble on a collision (RUN5 C3) */
 .town-drawer.taken { animation: drawerShake 0.5s ease; }

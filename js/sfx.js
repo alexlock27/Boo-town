@@ -211,6 +211,45 @@ function scheduleAmbient() {
   }
 }
 
+// ---- Boo Band voices (RUN6 C1c): synthesised drums / piano / guitar, no files, ----
+// no microphone. They ride the effects bus (obey the sound mute) and log for evidence.
+function noiseHit(t0, dur, type, peak, freq, q) {
+  if (!ctx) return;
+  const n = Math.floor(ctx.sampleRate * (dur + 0.02));
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(peak, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(f); f.connect(g); g.connect(sfxGain);
+  src.start(t0); src.stop(t0 + dur + 0.02);
+}
+function pitchDrum(t, f0, f1, dur, peak) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
+  g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + dur + 0.02);
+}
+const DRUMS = {
+  kick:   t => pitchDrum(t, 140, 48, 0.18, 0.7),
+  snare:  t => { noiseHit(t, 0.16, 'highpass', 0.32, 1400); pitchDrum(t, 220, 180, 0.12, 0.2); },
+  hihat:  t => noiseHit(t, 0.05, 'highpass', 0.18, 7000),
+  cymbal: t => noiseHit(t, 0.5, 'highpass', 0.16, 6000),
+  tom1:   t => pitchDrum(t, 200, 120, 0.24, 0.4),
+  tom2:   t => pitchDrum(t, 150, 90, 0.26, 0.4)
+};
+export const DRUM_PADS = ['kick', 'snare', 'hihat', 'cymbal', 'tom1', 'tom2'];
+export const KEY_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];   // ten white keys C4→E5
+const CHORD = { C: [0, 4, 7, 12], G: [7, 11, 14, 19], Am: [9, 12, 16, 21], F: [5, 9, 12, 17] };
+export const GUITAR_CHORDS = ['C', 'G', 'Am', 'F'];
+export const band = {
+  drum(pad) { play(t => { (DRUMS[pad] || DRUMS.kick)(t); logEvent({ kind: 'note', t, freq: 0, dur: 0.2, bus: 'sfx', tag: 'drum:' + pad }); }); },
+  key(semi) { play(t => { const f = 261.63 * Math.pow(2, semi / 12); envTone(f, t, 0.9, 'triangle', 0.30, sfxGain, 'key'); envTone(f * 2, t, 0.5, 'sine', 0.09, sfxGain, 'key'); }); },
+  guitar(chord) { play(t => { (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), t + i * 0.06, 0.7, 'sawtooth', 0.13, sfxGain, 'guitar:' + chord)); }); }
+};
+
 // Pause loops when the tab is hidden (spec §11.3).
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {

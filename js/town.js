@@ -20,6 +20,7 @@ import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './gro
 import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
+import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 
 // Zone unlock thresholds (named constants).
 export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
@@ -477,6 +478,51 @@ export function mount(container, params, ctx) {
       ground.appendChild(box);
     }
     if (view.site) ground.appendChild(ffSiteNode(view.site, zi * zoneW + RIDE_X[view.site] * zoneW));
+    renderBandstand(zi);
+  }
+  // The bandstand: a roofed stage with today's trio (drummer / keys / guitarist).
+  // Tapping it opens the Boo Band; watch mode animates the trio to the band song (C1c).
+  let bandBooEls = {};
+  function renderBandstand(zi) {
+    ground.querySelectorAll('.ff-bandstand').forEach(n => n.remove());
+    bandBooEls = {};
+    const trio = bandTrio();
+    const box = el('div', { class: 'ff-bandstand', dataset: { ride: 'band' } });
+    box.style.width = '210px'; box.style.height = '170px';
+    box.style.left = (zi * zoneW + BANDSTAND_X * zoneW - 105) + 'px';
+    box.style.top = (groundY - 150) + 'px';
+    box.style.zIndex = String(Math.round(groundY) + 1);
+    box.innerHTML = `<svg class="ff-struct" viewBox="0 0 210 170" width="210" height="170" xmlns="http://www.w3.org/2000/svg">
+      <rect x="18" y="118" width="174" height="14" rx="4" fill="#B98A5A" stroke="#2A1B4E" stroke-width="3"/>
+      <rect x="26" y="60" width="8" height="58" fill="#8A5A44" stroke="#2A1B4E" stroke-width="2"/>
+      <rect x="176" y="60" width="8" height="58" fill="#8A5A44" stroke="#2A1B4E" stroke-width="2"/>
+      <path d="M8 62 L105 20 L202 62 Z" fill="#FF5C8A" stroke="#2A1B4E" stroke-width="3"/>
+      ${Array.from({ length: 7 }, (_, i) => `<path d="M${20 + i * 26} 62 l13 0 l-6.5 14 z" fill="${i % 2 ? '#FFF8F0' : '#FFC93C'}"/>`).join('')}
+      <rect x="88" y="8" width="34" height="16" rx="4" fill="#FFF8F0" stroke="#2A1B4E" stroke-width="2"/>
+      <text x="105" y="20" font-family="Fredoka,sans-serif" font-size="11" font-weight="700" fill="#2A1B4E" text-anchor="middle">♪ BAND</text></svg>`;
+    const slots = [['drummer', 52], ['keys', 105], ['guitarist', 158]];
+    for (const [roleKey, x] of slots) {
+      const id = trio[roleKey]; const item = resolveItem(id);
+      const b = el('div', { class: 'bs-boo bs-' + roleKey });
+      b.style.left = (x - 24) + 'px'; b.style.top = '74px';
+      if (item) b.innerHTML = renderItem(item, { size: 48, equipArt: item.kind === 'boo' ? equippedArt(id) : null });
+      bandBooEls[roleKey] = b; box.appendChild(b);
+    }
+    attachBandstandPointer(box);
+    ground.appendChild(box);
+  }
+  function attachBandstandPointer(box) {
+    let down = false, moved = false, sx = 0, sy = 0;
+    box.addEventListener('pointerdown', e => { e.stopPropagation(); down = true; moved = false; sx = e.clientX; sy = e.clientY; box.setPointerCapture(e.pointerId); });
+    box.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) moved = true; });
+    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) { sfx.tap(); ctx.go('band'); } down = false; });
+    box.addEventListener('pointercancel', () => { down = false; });
+  }
+  function onBandNote(ev) {
+    if (REDUCED) return;
+    const roleKey = ev.i === 'drum' ? 'drummer' : ev.i === 'key' ? 'keys' : 'guitarist';
+    const b = bandBooEls[roleKey]; if (!b) return;
+    b.classList.remove('bs-play'); void b.offsetWidth; b.classList.add('bs-play');
   }
   function ffSiteNode(ride, px) {
     const wrap = el('div', { class: 't-growth ff-consite' });
@@ -829,15 +875,28 @@ export function mount(container, params, ctx) {
     air.style.transform = `translateX(${-scrollX}px)`;
     updateZoneMusic();
   }
-  // The fair jingle plays while the (unlocked) funfair is the on-screen zone, obeying
-  // the music mute; elsewhere the calm town loop returns (RUN6 C1b).
-  let _zoneMusic = null;
+  // Zone audio (RUN6 C1b/C1c): the calm town loop everywhere, the fair jingle while
+  // the (unlocked) funfair is on screen, and — when the bandstand itself is in view —
+  // the BAND performs its song, replacing the jingle. All obey the music mute.
+  let _zoneMusic = null, bandWatch = null;
   function updateZoneMusic() {
     if (!zoneW) return;
     const zi = Math.floor((scrollX + viewW / 2) / zoneW);
-    const want = (ZONES[zi] && ZONES[zi].key === 'funfair' && funfairUnlocked()) ? 'fair' : 'calm';
-    if (want !== _zoneMusic) { _zoneMusic = want; music.play(want); }
+    let want = 'calm';
+    if (ZONES[zi] && ZONES[zi].key === 'funfair' && funfairUnlocked()) {
+      const bandPx = ZONE_INDEX['funfair'] * zoneW + BANDSTAND_X * zoneW - scrollX;
+      want = (bandPx > -80 && bandPx < viewW + 80) ? 'band' : 'fair';
+    }
+    if (want === _zoneMusic) return;
+    _zoneMusic = want;
+    if (want === 'band') { music.stop(); startBand(); }
+    else { stopBand(); music.play(want); }
   }
+  function startBand() {
+    stopBand();
+    getBandSongEvents().then(jam => { if (_zoneMusic !== 'band') return; bandWatch = startBandWatch(jam, onBandNote); });
+  }
+  function stopBand() { if (bandWatch) { bandWatch.stop(); bandWatch = null; } }
   function clampScroll() { scrollX = Math.max(0, Math.min(scrollX, Math.max(0, worldW - viewW))); }
   function scrollToZone(zi, smooth = true) {
     // centre the (wide) zone in the viewport as best we can
@@ -854,7 +913,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride')) return; // items/rides handle their own
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand')) return; // items/rides/bandstand handle their own
     if (momRaf) { cancelAnimationFrame(momRaf); momRaf = null; }
     dragScroll = true; movedScroll = false; sx = e.clientX; sScroll = scrollX; vel = 0; lastX = e.clientX; lastT = performance.now();
     viewport.setPointerCapture(e.pointerId);
@@ -1464,6 +1523,9 @@ export function mount(container, params, ctx) {
       ffOpenPicker: (ride) => openRidePicker(ride),
       ffReveal: (ride) => playFunfairReveal(ride),
       scrollToFunfair: () => scrollToZone(ZONE_INDEX['funfair'], false),
+      hasBandstand: () => !!ground.querySelector('.ff-bandstand'),
+      scrollToBandstand: () => { scrollX = ZONE_INDEX['funfair'] * zoneW + BANDSTAND_X * zoneW - viewW / 2; clampScroll(); applyScroll(); },
+      scrollToFunfairGate: () => { scrollX = ZONE_INDEX['funfair'] * zoneW; clampScroll(); applyScroll(); },   // funfair centred but bandstand off-screen → jingle
       zoneMusic: () => _zoneMusic
     };
   }
@@ -1476,6 +1538,7 @@ export function mount(container, params, ctx) {
       clearInterval(roleTimer);
       if (starTimer) clearTimeout(starTimer);
       ambient.stop();
+      stopBand();
       window.removeEventListener('resize', onResize);
       closeMenu();
     }
