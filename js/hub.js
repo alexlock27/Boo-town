@@ -13,6 +13,7 @@ import { renderGuide } from './art.js';
 import { ZONES } from './town.js';
 import { retroAwardOnce } from './trophies.js';
 import { tickGrowth } from './growth.js';
+import { tickFunfair } from './funfair.js';
 import { chestState, CHEST_EVERY } from './shiny.js';
 import { booOfTheDay } from './delights.js';
 import { renderItem } from './art.js';
@@ -261,6 +262,7 @@ export function mount(container, params, ctx) {
   // Growth milestones (RUN4 C6): the Builders' clock starts when she crosses a
   // milestone, not when she next visits the town.
   try { tickGrowth(); } catch (e) { console.warn(e); }
+  try { tickFunfair(); } catch (e) { console.warn(e); }   // advance funfair builds (RUN6 C1b)
 
   // Update toast (RUN5 C0b): shown ONLY on the hub, never mid-round. Tapping
   // activates the waiting service worker (user-initiated — the SW never

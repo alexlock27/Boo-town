@@ -40,7 +40,7 @@ console.log('== 1.7-viewport zones ==');
   const { ctx, page } = await openTown(SAVE());
   const g = await page.evaluate(() => window.__town.geometry());
   assert(Math.abs(g.ratio - 1.7) < 0.02, `each zone is 1.7 viewports wide (${g.ratio.toFixed(3)})`);
-  assert(Math.abs(g.worldW - g.viewW * 1.7 * 4) < 2, `world spans 4 zones × 1.7 viewports (${Math.round(g.worldW)}px)`);
+  assert(Math.abs(g.worldW - g.viewW * 1.7 * 5) < 2, `world spans 5 zones × 1.7 viewports (${Math.round(g.worldW)}px)`);
   await ctx.close();
 }
 

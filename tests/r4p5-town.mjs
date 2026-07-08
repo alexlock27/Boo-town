@@ -117,8 +117,13 @@ console.log('== seesaw needs two ==');
     { zone: 'meadow', x: 0.45, item: 'boo_inky' }
   ]);
   await sleep(1200);
-  const t = await page.$eval(BOO_SVG, el => el.style.transform || '');
-  const seesawing = /translate\(/.test(t) && Math.abs((numsIn(t)[1] ?? 0)) > 8;
+  // Assert the seesaw ROLE directly (needs two): its old Y-motion heuristic now
+  // collides with RUN6 C1 free-wander behaviours (a lone Boo may chase/hop).
+  const seesawing = await page.evaluate(() => {
+    const L = window.__townLife; if (!L) return false;
+    for (let i = 0; i < L.actorCount(); i++) if (L.goalOf(i) === 'role:seesaw') return true;
+    return false;
+  });
   assert(!seesawing, 'one lone Boo never seesaws (needs two nearby)');
   await ctx.close();
 }

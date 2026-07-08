@@ -63,7 +63,7 @@ export function setMusicEnabled(on) {
     try { ambientGain.gain.setTargetAtTime(musicOn ? 0.10 : 0, ctx.currentTime, 0.05); } catch {}
   }
   logEvent({ kind: 'mute', target: 'music', on: musicOn });
-  if (musicOn && currentLoop) startScheduler();
+  if (musicOn && currentLoop) startScheduler(); else if (!musicOn) stopScheduler();   // muting stops scheduling (silent + no waste)
   if (musicOn && ambientLoop) startAmbient(); else if (!musicOn) stopAmbient();
 }
 export function getSoundEnabled() { return soundOn; }
@@ -118,10 +118,12 @@ export const sfx = {
 // ---- background music (two gentle loops) ----
 const SCALE = { // pentatonic-ish, dreamy
   calm: [0, 3, 5, 7, 10, 12, 15, 12, 10, 7, 5, 3],
-  game: [0, 4, 7, 12, 7, 9, 7, 4, 0, 4, 7, 9]
+  game: [0, 4, 7, 12, 7, 9, 7, 4, 0, 4, 7, 9],
+  // a jaunty distant fairground waltz (RUN6 C1b) — bright major arpeggios
+  fair: [0, 4, 7, 12, 7, 4, 9, 5, 0, 7, 12, 16]
 };
 const ROOT = 261.63; // C4
-const STEP_DUR = { calm: 0.42, game: 0.3 };
+const STEP_DUR = { calm: 0.42, game: 0.3, fair: 0.34 };
 
 function midiToFreq(semi) { return ROOT * Math.pow(2, semi / 12); }
 

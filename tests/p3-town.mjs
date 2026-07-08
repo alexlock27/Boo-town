@@ -44,14 +44,14 @@ console.log('== old grid town migrates to Meadow ==');
   await ctx.close();
 }
 
-// 2) World scrolls full width across 4 zones.
+// 2) World scrolls full width across 5 zones (RUN6 C1b added the Boo Funfair).
 console.log('== world scrolls full width ==');
 {
   const { ctx, page } = await open(BASESAVE({}), {});
   const dims = await page.evaluate(() => { const vp = document.querySelector('.t-viewport'); const g = document.querySelector('.t-ground'); return { viewW: vp.clientWidth, worldW: parseFloat(g.style.width) }; });
-  // RUN5 C3: 4 zones, each 1.7 viewports wide.
-  const zoneW = dims.worldW / 4;
-  assert(Math.abs(zoneW / dims.viewW - 1.7) < 0.02, `each of the 4 zones is 1.7 viewports wide (${(zoneW / dims.viewW).toFixed(2)})`);
+  // RUN5 C3 + RUN6 C1b: 5 zones, each 1.7 viewports wide.
+  const zoneW = dims.worldW / 5;
+  assert(Math.abs(zoneW / dims.viewW - 1.7) < 0.02, `each of the 5 zones is 1.7 viewports wide (${(zoneW / dims.viewW).toFixed(2)})`);
   // drag-scroll to the right
   const vp = await page.$('.t-viewport'); const box = await vp.boundingBox();
   await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.4);
@@ -68,11 +68,12 @@ console.log('== world scrolls full width ==');
 console.log('== zones gate on stars ==');
 {
   const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, zonesUnlocked: ['riverside', 'hilltop', 'beach'], trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }), {});
-  assert(await hi.page.$$eval('.t-band.locked', e => e.length) === 0, 'at 190 stars all zones unlocked');
+  // At 190 stars only the Boo Funfair (280, RUN6 C1b) stays locked.
+  assert(await hi.page.$$eval('.t-band.locked', e => e.length) === 1, 'at 190 stars all but the funfair are unlocked');
   await hi.ctx.close();
   const lo = await open(BASESAVE({ stars: { total: 5, byGame: {} }, town: [] }), {});
-  assert(await lo.page.$$eval('.t-band.locked', e => e.length) === 3, 'at 5 stars only Meadow open (3 locked)');
-  assert(await lo.page.$$eval('.t-signpost', e => e.length) === 3, '3 signposts for locked zones');
+  assert(await lo.page.$$eval('.t-band.locked', e => e.length) === 4, 'at 5 stars only Meadow open (4 locked)');
+  assert(await lo.page.$$eval('.t-signpost', e => e.length) === 4, '4 signposts for locked zones');
   await lo.ctx.close();
 }
 

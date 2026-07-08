@@ -1474,6 +1474,33 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-shooting-star.caught .ss-head { transform: scale(1.6); }
 @media (prefers-reduced-motion: reduce) { .t-wp, .t-sunrays, .t-shooting-star.streak, .t-chase-critter { animation: none !important; } }
 
+/* The Boo Funfair (RUN6 C1b) */
+.ff-ride { position: absolute; cursor: pointer; touch-action: none; }
+.ff-ride .ff-struct { position: absolute; inset: 0; pointer-events: none; }
+.ff-seat { position: absolute; width: 48px; height: 48px; will-change: transform; pointer-events: none; }
+.ff-seat.empty { display: none; }
+.ff-scenery-wrap { position: absolute; pointer-events: none; }
+.ff-scenery { position: absolute; inset: 0; pointer-events: none; }
+.ff-bulb { opacity: 0.72; }
+.ff-scenery.night .ff-bulb { opacity: 1; filter: drop-shadow(0 0 5px currentColor); animation: ffTwinkle 2.6s ease-in-out infinite; }
+.ff-scenery.night .ff-bulb:nth-child(3n) { animation-delay: 0.9s; }
+.ff-scenery.night .ff-bulb:nth-child(3n+1) { animation-delay: 1.7s; }
+@keyframes ffTwinkle { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+.ff-silhouette { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%); opacity: 0.5; }
+@media (prefers-reduced-motion: reduce) { .ff-scenery.night .ff-bulb { animation: none; } }
+/* "Who's riding?" picker */
+.ride-picker .rp-card { padding: 18px; max-width: 560px; width: min(92vw, 560px); max-height: 84vh; overflow-y: auto; }
+.rp-card h3 { margin: 0 0 4px; color: var(--ink); }
+.rp-count { color: #5a4d84; font-size: 15px; margin: 0 0 12px; }
+.rp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.rp-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border: 3px solid transparent; border-radius: 16px; background: #F4EEFF; cursor: pointer; }
+.rp-tile.aboard { border-color: var(--zing); background: #E7FBF6; }
+.rp-tile.busy { opacity: 0.5; }
+.rp-tile[disabled] { cursor: default; }
+.rp-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.rp-status { font-size: 12px; color: #6a5c94; }
+.rp-empty { color: #5a4d84; grid-column: 1 / -1; text-align: center; }
+
 .town-drawer { display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px 14px; min-height: 92px; align-items: center; }
 /* "this spot's taken" wobble on a collision (RUN5 C3) */
 .town-drawer.taken { animation: drawerShake 0.5s ease; }

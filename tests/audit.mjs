@@ -445,7 +445,7 @@ if (run(15)) try {
         { zone: 'meadow', x: 0.35, item: 'deco_trampoline' }, { zone: 'meadow', x: 0.32, item: 'boo_inky' },
         { zone: 'meadow', x: 0.65, item: 'deco_boohouse' }, { zone: 'meadow', x: 0.62, item: 'boo_plum' }
       ];
-      s.seen.zonesUnlocked = ['meadow', 'riverside', 'hilltop', 'beach'];
+      s.seen.zonesUnlocked = ['meadow', 'riverside', 'hilltop', 'beach', 'funfair'];  // incl. funfair (RUN6 C1b) so no unlock ceremony auto-scrolls the meadow actors offscreen
     });
     window.__bootownHour = 13;
   });

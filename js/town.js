@@ -19,6 +19,7 @@ import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
 import { addMeterPoints } from './rewards.js';
+import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 
 // Zone unlock thresholds (named constants).
 export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
@@ -26,7 +27,8 @@ export const ZONES = [
   { key: 'meadow',    name: 'Meadow',    unlock: 0 },
   { key: 'riverside', name: 'Riverside', unlock: RIVERSIDE_STARS },
   { key: 'hilltop',   name: 'Hilltop',   unlock: HILLTOP_STARS },
-  { key: 'beach',     name: 'Beach',     unlock: BEACH_STARS }
+  { key: 'beach',     name: 'Beach',     unlock: BEACH_STARS },
+  { key: 'funfair',   name: 'Boo Funfair', unlock: FUNFAIR_UNLOCK }   // fifth zone (RUN6 C1b)
 ];
 const ZONE_INDEX = Object.fromEntries(ZONES.map((z, i) => [z.key, i]));
 const MAX_WANDERERS = 30;
@@ -149,6 +151,10 @@ export function mount(container, params, ctx) {
     const gt = tickGrowth();
     if (gt.readyToReveal) setTimeout(() => playGrowthReveal(gt.readyToReveal), REDUCED ? 100 : 700);
     else if (gt.spawned.length) renderPlaced();   // a fresh site fence appears
+    // Funfair rides via the Boo Builders (RUN6 C1b): reveal a finished ride, else show a fresh site.
+    const ft = tickFunfair();
+    if (ft.readyToReveal) setTimeout(() => playFunfairReveal(ft.readyToReveal), REDUCED ? 120 : 900);
+    else if (ft.spawned.length) renderFunfair();
   });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
@@ -186,8 +192,14 @@ export function mount(container, params, ctx) {
     const stars = totalStars();
     ZONES.forEach((z, i) => {
       const locked = stars < z.unlock;
-      // midground scenery
-      const scene = el('div', { class: 't-zone-scene ' + z.key + (locked ? ' locked' : ''), html: sceneryFor(z.key, zoneW, viewH) });
+      // midground scenery — the funfair shows its ferris-wheel silhouette while locked,
+      // and its fairground (bunting, string lights, booth, popcorn) once open (C1b).
+      // The unlocked funfair's scenery is drawn in the GROUND layer (renderFunfair) so it
+      // stays aligned with the rides; the hills layer's parallax would slide it out of place.
+      const sceneHtml = z.key === 'funfair'
+        ? (locked ? `<div class="ff-silhouette">${funfairSilhouette()}</div>` : '')
+        : sceneryFor(z.key, zoneW, viewH);
+      const scene = el('div', { class: 't-zone-scene ' + z.key + (locked ? ' locked' : ''), html: sceneHtml });
       scene.style.left = (i * zoneW) + 'px'; scene.style.width = zoneW + 'px';
       hills.appendChild(scene);
       // ground band
@@ -239,11 +251,17 @@ export function mount(container, params, ctx) {
       }
       attachItemPointer(wrap, t, item);
       ground.appendChild(wrap);
-      if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) { actors.push(makeActor(wrap, item, t)); count++; }
+      if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) {
+        const act = makeActor(wrap, item, t);
+        // a Boo currently riding a funfair ride shows ONLY on the ride, not on the ground (C1b)
+        if (isSeated(t.item)) { act.riding = true; wrap.style.display = 'none'; }
+        actors.push(act); count++;
+      }
     }
     applyDance();
     assignRoles();
     renderGrowth();
+    renderFunfair();
     renderHide();
     decorateEasels();
     renderRequestBubble();
@@ -431,6 +449,122 @@ export function mount(container, params, ctx) {
     requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
     confetti({ count: 110, power: 1.1 });
     speakMaybe(guideLine('builders'));
+  }
+
+  // ---- the Boo Funfair (RUN6 C1b) -----------------------------------------
+  function ownedBooIds() {
+    const st = getState(); const ids = [];
+    for (const id of Object.keys(st.inventory || {})) { if ((st.inventory[id] || 0) > 0) { const it = resolveItem(id); if (it && it.kind === 'boo') ids.push(id); } }
+    return ids;
+  }
+  function renderFunfair() {
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap').forEach(n => n.remove());
+    if (!funfairUnlocked()) return;
+    const zi = ZONE_INDEX['funfair'];
+    const view = funfairView();
+    // fair scenery (bunting, string lights, ticket booth, popcorn cart) in the ground
+    // layer so it lines up with the rides; night makes the string lights glow (C1b)
+    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour())) });
+    sc.style.left = (zi * zoneW) + 'px'; sc.style.top = '0'; sc.style.width = zoneW + 'px'; sc.style.height = viewH + 'px'; sc.style.zIndex = '1';
+    ground.insertBefore(sc, ground.firstChild);
+    for (const ride of view.built) {
+      const box = renderRide(ride);
+      const px = zi * zoneW + RIDE_X[ride] * zoneW;
+      box.style.left = (px - 95) + 'px';           // RIDE_BOX/2
+      box.style.top = (groundY - 152) + 'px';
+      box.style.zIndex = String(Math.round(groundY));
+      attachRidePointer(box, ride);
+      ground.appendChild(box);
+    }
+    if (view.site) ground.appendChild(ffSiteNode(view.site, zi * zoneW + RIDE_X[view.site] * zoneW));
+  }
+  function ffSiteNode(ride, px) {
+    const wrap = el('div', { class: 't-growth ff-consite' });
+    const w = 200, h = 150;
+    wrap.style.left = (px - w / 2) + 'px';
+    wrap.style.top = (groundY - h + 24) + 'px';
+    wrap.style.zIndex = String(Math.round(groundY));
+    const fence = Array.from({ length: 5 }, (_, i) => `<rect x="${12 + i * 40}" y="96" width="12" height="42" rx="3" fill="#E8B04B" stroke="#2A1B4E" stroke-width="2.5"/>`).join('') +
+      `<rect x="6" y="102" width="${w - 12}" height="9" rx="4" fill="#F4C96B" stroke="#2A1B4E" stroke-width="2.5"/><rect x="6" y="120" width="${w - 12}" height="9" rx="4" fill="#F4C96B" stroke="#2A1B4E" stroke-width="2.5"/>`;
+    const sign = `<g transform="translate(${w / 2 - 52},14)"><rect x="0" y="0" width="104" height="40" rx="8" fill="#FFF8F0" stroke="#2A1B4E" stroke-width="3"/><text x="52" y="18" font-family="Fredoka,sans-serif" font-size="12" font-weight="700" fill="#2A1B4E" text-anchor="middle">🚧 building…</text><text x="52" y="33" font-family="Fredoka,sans-serif" font-size="12" font-weight="700" fill="#FF5C8A" text-anchor="middle">${RIDE_NAME[ride]}</text></g>`;
+    wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${sign}${fence}</svg>`;
+    for (const [i, x] of [[0, 26], [1, w - 66]]) {
+      const b = el('div', { class: 'cs-boo b' + i }); b.style.left = x + 'px';
+      b.innerHTML = `<svg viewBox="0 0 60 60" width="42" height="42" xmlns="http://www.w3.org/2000/svg"><ellipse cx="30" cy="38" rx="18" ry="16" fill="${i ? '#8F7FF0' : '#C6A9F0'}" stroke="#2A1B4E" stroke-width="3"/><circle cx="24" cy="35" r="3" fill="#2A1B4E"/><circle cx="36" cy="35" r="3" fill="#2A1B4E"/><path d="M14 26 Q30 10 46 26 L46 30 L14 30 Z" fill="#FFC93C" stroke="#2A1B4E" stroke-width="3"/><g class="cs-hammer"><rect x="44" y="30" width="4" height="18" rx="2" fill="#8A5A44"/><rect x="39" y="26" width="14" height="8" rx="3" fill="#9AA2B8" stroke="#2A1B4E" stroke-width="2"/></g></svg>`;
+      wrap.appendChild(b);
+    }
+    return wrap;
+  }
+  function attachRidePointer(box, ride) {
+    let down = false, moved = false, sx = 0, sy = 0;
+    box.addEventListener('pointerdown', e => { e.stopPropagation(); down = true; moved = false; sx = e.clientX; sy = e.clientY; box.setPointerCapture(e.pointerId); });
+    box.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) moved = true; });
+    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) openRidePicker(ride); down = false; });
+    box.addEventListener('pointercancel', () => { down = false; });
+  }
+  function openRidePicker(ride) {
+    sfx.tap();
+    const boos = ownedBooIds();
+    const ov = el('div', { class: 'overlay ride-picker', onclick: (e) => { if (e.target === ov) { ov.remove(); renderPlaced(); } } });
+    const count = el('p', { class: 'rp-count' });
+    const grid = el('div', { class: 'rp-grid' });
+    function refresh() {
+      const seats = seatsFor(ride); const taken = seats.filter(Boolean).length;
+      count.textContent = `${taken} / ${RIDE_SEATS[ride]} aboard — tap a Boo to hop on or off`;
+      clear(grid);
+      if (!boos.length) { grid.appendChild(el('p', { class: 'rp-empty', text: 'Win some Boos first, then bring them to the fair!' })); return; }
+      for (const id of boos) {
+        const seated = isSeated(id);
+        const onThis = seated && seated.ride === ride;
+        const elsewhere = seated && seated.ride !== ride;
+        const full = emptySeatCount(ride) === 0;
+        const item = resolveItem(id);
+        const tile = el('button', { class: 'rp-tile' + (onThis ? ' aboard' : '') + (elsewhere ? ' busy' : ''),
+          disabled: (elsewhere || (!onThis && full)) ? '' : undefined,
+          onclick: () => { sfx.tap(); if (onThis) unseatBoo(ride, id); else seatBoo(ride, id); refresh(); renderFunfair(); } }, [
+          el('div', { class: 'rp-art', html: renderItem(item, { size: 52, equipArt: item.kind === 'boo' ? equippedArt(id) : null }) }),
+          el('span', { class: 'rp-name', text: getDisplayName(id) || (item && item.name) || 'Boo' }),
+          el('span', { class: 'rp-status', text: onThis ? '🎡 aboard' : elsewhere ? 'on ' + RIDE_NAME[seated.ride] : (full ? 'ride full' : 'tap to ride') })
+        ]);
+        grid.appendChild(tile);
+      }
+    }
+    refresh();
+    ov.appendChild(el('div', { class: 'card rp-card' }, [
+      el('h3', { text: `Who's riding the ${RIDE_NAME[ride]}?` }), count, grid,
+      el('button', { class: 'btn', text: 'Done', onclick: () => { ov.remove(); renderPlaced(); } })
+    ]));
+    root.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('show'));
+  }
+  function pickBoardableRide(a) {
+    if (a.place.zone !== 'funfair' || !funfairUnlocked()) return null;
+    const view = funfairView();
+    const cands = view.built.filter(r => emptySeatCount(r) > 0 && Math.abs(RIDE_X[r] - a.place.x) < 0.5);
+    cands.sort((p, q) => Math.abs(RIDE_X[p] - a.place.x) - Math.abs(RIDE_X[q] - a.place.x));
+    return cands[0] || null;
+  }
+  function stepFunfairRides(now) {
+    const rides = ground.querySelectorAll('.ff-ride');
+    for (const box of rides) {
+      const px = parseFloat(box.style.left) + 95 - scrollX;
+      if (px < -220 || px > viewW + 220) continue;   // only the visible zone's rides animate (perf)
+      stepRide(box, box.dataset.ride, now);
+    }
+  }
+  function playFunfairReveal(ride) {
+    sfx.fanfare();
+    const ov = el('div', { class: 'overlay growth-reveal' });
+    const panel = el('div', { class: 'card gr-panel' }, [
+      el('h2', { class: 'gr-title', text: '🎡 Ta-daa!' }),
+      el('p', { class: 'gr-line', text: `The ${RIDE_NAME[ride]} is ready! Hop on!` }),
+      el('div', { class: 'gr-scene' }, [el('div', { class: 'gr-upgrade', html: `<div class="gr-name">${RIDE_NAME[ride]}</div>` }), el('div', { class: 'gr-fence' })]),
+      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => { sfx.tap(); ov.remove(); completeRideReveal(ride); renderFunfair(); scrollToZone(ZONE_INDEX['funfair']); } })
+    ]);
+    ov.appendChild(panel); root.appendChild(ov);
+    requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
+    if (!REDUCED) confetti({ count: 110, power: 1.1 });
+    speakMaybe(`The ${RIDE_NAME[ride]} is ready!`);
   }
 
   // ---- activity roles (RUN4 C5) -------------------------------------------
@@ -693,6 +827,16 @@ export function mount(container, params, ctx) {
     hills.style.transform = `translateX(${-scrollX * 0.55}px)`;
     sky.style.transform = `translateX(${-scrollX * 0.22}px)`;
     air.style.transform = `translateX(${-scrollX}px)`;
+    updateZoneMusic();
+  }
+  // The fair jingle plays while the (unlocked) funfair is the on-screen zone, obeying
+  // the music mute; elsewhere the calm town loop returns (RUN6 C1b).
+  let _zoneMusic = null;
+  function updateZoneMusic() {
+    if (!zoneW) return;
+    const zi = Math.floor((scrollX + viewW / 2) / zoneW);
+    const want = (ZONES[zi] && ZONES[zi].key === 'funfair' && funfairUnlocked()) ? 'fair' : 'calm';
+    if (want !== _zoneMusic) { _zoneMusic = want; music.play(want); }
   }
   function clampScroll() { scrollX = Math.max(0, Math.min(scrollX, Math.max(0, worldW - viewW))); }
   function scrollToZone(zi, smooth = true) {
@@ -710,7 +854,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost')) return; // items handle their own
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride')) return; // items/rides handle their own
     if (momRaf) { cancelAnimationFrame(momRaf); momRaf = null; }
     dragScroll = true; movedScroll = false; sx = e.clientX; sScroll = scrollX; vel = 0; lastX = e.clientX; lastT = performance.now();
     viewport.setPointerCapture(e.pointerId);
@@ -1004,7 +1148,7 @@ export function mount(container, params, ctx) {
     let last = performance.now();
     const tick = (now) => {
       const dt = Math.min(48, now - last); last = now;
-      if (!document.hidden) stepActors(dt);
+      if (!document.hidden) { stepActors(dt); stepFunfairRides(now); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -1012,6 +1156,7 @@ export function mount(container, params, ctx) {
   function stepActors(dt) {
     const now = performance.now();
     for (const a of actors) {
+      if (a.riding) continue;   // seated on a funfair ride: animated by the ride, not the wander loop (C1b)
       // skip offscreen actors (cheap) — relative to the real viewport, not the wide zone
       const px = parseFloat(a.wrap.style.left) - scrollX;
       if (px < -140 || px > viewW + 140) continue;
@@ -1065,6 +1210,7 @@ export function mount(container, params, ctx) {
     // a just-woken Boo stays up (no instant re-nap); mirrors the sleep-role wake rule
     const recentlyWoken = a.wakeUntil && performance.now() < a.wakeUntil;
     if (night && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6]);
+    if (!a.riding && pickBoardableRide(a)) cands.push(['board', 3.2]);   // funfair: hop on a ride (C1b)
     return cands.length ? weightedPick(cands) : null;
   }
   function pickFriend(a) {
@@ -1109,6 +1255,9 @@ export function mount(container, params, ctx) {
       a.goal = { kind, start: now, critter: spawnChaseCritter(a), dir: Math.random() < 0.5 ? -1 : 1 };
     } else if (kind === 'watch') {
       a.goal = { kind, start: now };
+    } else if (kind === 'board') {
+      const r = pickBoardableRide(a); if (!r) return;
+      a.goal = { kind, ride: r, targetDx: (RIDE_X[r] - a.place.x) * zoneW, start: now };
     }
   }
   function spawnChaseCritter(a) {
@@ -1181,6 +1330,15 @@ export function mount(container, params, ctx) {
       else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
       return;
     }
+    if (g.kind === 'board') {
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.04) {   // reached the ride → hop aboard an empty seat
+        const seat = seatBoo(g.ride, a.item);
+        endGoal(a);
+        if (seat >= 0) { a.riding = true; a.wrap.style.display = 'none'; svg.style.transform = ''; renderFunfair(); }
+      } else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      return;
+    }
     if (g.kind === 'nap') {
       if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) {
         if (!g.curled) { g.curled = true; g.curlStart = now; if (!a.wrap.querySelector('.t-zzz')) a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' })); }
@@ -1203,7 +1361,7 @@ export function mount(container, params, ctx) {
     currentSeasonName = season;
     const layer = el('div', { class: 't-weather ' + season });
     if (season === 'summer') {
-      layer.appendChild(el('div', { class: 't-sunrays' }));
+      if (!isNight(currentHour())) layer.appendChild(el('div', { class: 't-sunrays' }));   // sun rays are a daytime thing
     } else {
       const glyph = season === 'autumn' ? '🍂' : season === 'winter' ? '❄' : '🌸';
       for (let i = 0; i < WEATHER_PARTICLES; i++) {
@@ -1292,7 +1450,21 @@ export function mount(container, params, ctx) {
       renderWeather: () => renderWeather(),
       spawnStar: () => spawnShootingStar(),
       tapStar: (star) => claimShootingStar(star),
-      starDay: () => (getState().seen || {}).shootingStarDay || null
+      starDay: () => (getState().seen || {}).shootingStarDay || null,
+      // funfair (C1b)
+      ffUnlocked: () => funfairUnlocked(),
+      ffView: () => funfairView(),
+      ffRides: () => [...ground.querySelectorAll('.ff-ride')].map(b => b.dataset.ride),
+      ffRideSeats: (ride) => seatsFor(ride),
+      ffSeatBoo: (ride, id) => seatBoo(ride, id),
+      ffUnseat: (ride, id) => unseatBoo(ride, id),
+      ffRerender: () => renderFunfair(),
+      ffStep: (now) => stepFunfairRides(now || performance.now()),
+      ffSeatTransforms: (ride) => { const b = [...ground.querySelectorAll('.ff-ride')].find(x => x.dataset.ride === ride); return b ? [...b.querySelectorAll('.ff-seat')].map(s => s.style.transform) : []; },
+      ffOpenPicker: (ride) => openRidePicker(ride),
+      ffReveal: (ride) => playFunfairReveal(ride),
+      scrollToFunfair: () => scrollToZone(ZONE_INDEX['funfair'], false),
+      zoneMusic: () => _zoneMusic
     };
   }
 
