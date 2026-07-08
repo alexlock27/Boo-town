@@ -1,6 +1,6 @@
 // js/games/feedboos.js — Game 2: Feed the Boos (sorting & reasoning, spec §7).
 
-import { el, clear, starsRow, wobble, backControl } from '../ui.js';
+import { el, clear, starsRow, wobble, backControl, REDUCED } from '../ui.js';
 import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderBoo } from '../art.js';
@@ -16,6 +16,10 @@ import { maybeIntro, replayIntro } from '../intro.js';
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
 const starsFor = (wrong, hints) => (hints === 0 && wrong <= 1) ? 3 : (wrong <= 3 ? 2 : 1);
+// Juice pass (RUN6 C5)
+const NOM_STREAK = 4;          // a run of this many happy noms sets both Boos drumming the table
+const NOM_ARC_MS = 380;        // a fed item arcs into the mouth over this long
+const WRONG_REACTIONS = ['raspberry', 'headshake', 'sigh'];  // varied, all friendly
 
 // English templates (EXPANSION_1 §3.2) are "Words"; everything else is "Maths".
 const WORD_TEMPLATE_IDS = new Set(['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo']);
@@ -122,7 +126,7 @@ export function mount(container, params, ctx) {
     const buckets = roundData.buckets;
     const ledgerId = 'feed:' + template.id;
 
-    let idx = 0, wrongDrops = 0, hintsUsed = 0, missesThisItem = 0, locked = false;
+    let idx = 0, wrongDrops = 0, hintsUsed = 0, missesThisItem = 0, locked = false, nomStreak = 0;
 
     shell = createGameShell({
       title: mix ? 'Smart Mix' : 'Feed the Boos', rounds: roundData.length, accent: 'var(--zing)',
@@ -137,7 +141,7 @@ export function mount(container, params, ctx) {
     const feedersWrap = el('div', { class: 'feeders' });
     const feederEls = buckets.map((label, i) => {
       const look = FEEDERS[i % FEEDERS.length];
-      const boo = el('div', { class: 'feeder-boo', html: renderBoo({ ...look, name: label }, { size: 120, cls: 'art-idle' }) });
+      const boo = el('div', { class: 'feeder-boo feed-chew', html: renderBoo({ ...look, name: label }, { size: 120, cls: 'art-idle' }) });
       const sign = el('div', { class: 'signpost', text: label });
       const zone = el('div', { class: 'feeder', dataset: { bucket: String(i) } }, [boo, sign]);
       return zone;
@@ -218,23 +222,43 @@ export function mount(container, params, ctx) {
 
     function onCorrect(food, item, bucket) {
       locked = true;
+      nomStreak++;
       sfx.correct();
       recordResult(ledgerId, true);
       const fz = feederEls[bucket];
-      fz.classList.add('nom');
-      food.classList.add('eaten');
-      setTimeout(() => fz.classList.remove('nom'), 500);
-      setTimeout(() => { idx++; shell.advance(); locked = false; showItem(); }, 360);
+      arcToMouth(food, fz, () => {
+        fz.classList.add('nom'); setTimeout(() => fz.classList.remove('nom'), 500);
+        if (nomStreak >= NOM_STREAK) drumTable();   // a happy nom-streak → both Boos drum the table (C5)
+        setTimeout(() => { idx++; shell.advance(); locked = false; showItem(); }, 280);
+      });
+    }
+    // A fed item arcs through the air into the Boo's mouth (C5).
+    function arcToMouth(food, feeder, done) {
+      const fr = food.getBoundingClientRect(), tr = feeder.getBoundingClientRect();
+      const dx = (tr.left + tr.width / 2) - (fr.left + fr.width / 2);
+      const dy = (tr.top + tr.height * 0.42) - (fr.top + fr.height / 2);
+      food.style.transform = '';
+      if (REDUCED) { food.classList.add('eaten'); done(); return; }
+      food.style.setProperty('--tx', dx.toFixed(0) + 'px'); food.style.setProperty('--ty', dy.toFixed(0) + 'px');
+      food.classList.add('arc');
+      setTimeout(done, NOM_ARC_MS);
+    }
+    function drumTable() {
+      feederEls.forEach(f => { f.classList.remove('drum'); void f.offsetWidth; f.classList.add('drum'); setTimeout(() => f.classList.remove('drum'), 1200); });
+      shell.react('Drum roll! 🥁', { voice: false, hold: 1200 });
     }
 
     function onWrong(food, item, bucket) {
-      wrongDrops++; missesThisItem++;
+      wrongDrops++; missesThisItem++; nomStreak = 0;
       sfx.oops();
       recordResult(ledgerId, false);
       if (missesThisItem === 1) collector.add(choiceMiss({ id: ledgerId + ':' + idx, game: 'feedboos', prompt: `Where does ${itemLabel(item)} go?`, options: buckets, answer: buckets[item.bucket] }));
       const fz = feederEls[bucket];
-      fz.classList.add('raspberry');
-      setTimeout(() => fz.classList.remove('raspberry'), 500);
+      const react = WRONG_REACTIONS[rand(WRONG_REACTIONS.length)];   // varied friendly reactions (C5)
+      fz.classList.add(react);
+      if (react === 'sigh') { const s = el('div', { class: 'feed-sigh', text: '😮‍💨' }); fz.appendChild(s); setTimeout(() => s.remove(), 800); }
+      fz._lastReact = react;
+      setTimeout(() => fz.classList.remove(react), 600);
       wobble(food);
       snapBack(food);
       shell.dimHeart();
@@ -251,6 +275,17 @@ export function mount(container, params, ctx) {
       shell.react(roundData.hintFor(items[idx]), { hold: 3600 });
       if (hintsUsed >= MAX_HINTS) shell.enableHint(false);
     }
+
+    // Test hook (invisible): drive + inspect the juice.
+    if (typeof window !== 'undefined') window.__feedboos = {
+      state: () => ({ idx, wrongDrops, nomStreak, locked, hearts: shell.heartsLeft() }),
+      feedCorrect: () => { const item = items[idx]; const food = tray.querySelector('.food-item'); if (food && !locked) onCorrect(food, item, item.bucket); },
+      feedWrong: () => { const item = items[idx]; const food = tray.querySelector('.food-item'); if (food && !locked) onWrong(food, item, (item.bucket + 1) % buckets.length); },
+      arcing: () => !!tray.querySelector('.food-item.arc'),
+      drumming: () => feederEls.some(f => f.classList.contains('drum')),
+      lastReaction: () => { for (const f of feederEls) if (f._lastReact) return f._lastReact; return null; },
+      chewing: () => document.querySelectorAll('.feeder-boo.feed-chew').length
+    };
 
     function finish() {
       shell.cleanup();

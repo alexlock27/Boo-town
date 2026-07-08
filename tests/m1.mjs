@@ -46,6 +46,7 @@ log('\n== Enter Bubble Pop, pick level 2 ==');
 await page.click('.game-card:has-text("Bubble Pop")');  // Bubble Pop card (hub is grouped Learn/Play)
 await page.waitForSelector('.start-card');
 await page.screenshot({ path: 'screenshots/m1-bubblepop-start.png' });
+await page.evaluate(() => { window.__bubblepopNoGolden = true; });   // deterministic economy (golden bonus tested separately, RUN6 C5)
 const lvBtns = await page.$$('.level-btn');
 await lvBtns[1].click();                          // level 2 (mul + div)
 await page.waitForSelector('.bubble-field');

@@ -172,6 +172,16 @@ export function mount(container, params, ctx) {
       if (item.kind === 'twin') runTwinItem(item); else runWordItem(item);
     }
     function itemDone() { idx++; shell.advance(); setTimeout(runNext, 200); }
+    // The guide holds the spelled word up proudly on completion (C5).
+    function showWordCard(word) {
+      const card = el('div', { class: 'spell-wordcard' }, [
+        el('div', { class: 'swc-guide', html: renderGuide(guide, { view: 'head', size: 66 }) }),
+        el('div', { class: 'swc-word', text: word })
+      ]);
+      stage.appendChild(card);
+      requestAnimationFrame(() => card.classList.add('show'));
+      setTimeout(() => card.remove(), 1400);
+    }
 
     function onMiss(id, missItem) { wrong++; shell.dimHeart(); recordResult(id, false); if (missItem) collector.add(missItem); }
     function onHitLedger(id) { recordResult(id, true); }
@@ -195,7 +205,7 @@ export function mount(container, params, ctx) {
       stage.append(promptCard, peekWord, clueEl, area);
 
       const speller = makeSpeller(area, word, {
-        onCorrect: () => { onHitLedger(word); mutate(s => { s.spellingMastery[word] = (s.spellingMastery[word] || 0) + 1; }); shell.react('Spelled it! 🌟', { voice: false, hold: 1500 }); speakMaybe(`${word}. Brilliant!`); setTimeout(itemDone, 1300); },
+        onCorrect: () => { onHitLedger(word); mutate(s => { s.spellingMastery[word] = (s.spellingMastery[word] || 0) + 1; }); showWordCard(word); shell.react('Spelled it! 🌟', { voice: false, hold: 1500 }); speakMaybe(`${word}. Brilliant!`); setTimeout(itemDone, 1300); },
         onWrongCheck: () => onMiss(word, wordMiss(word))
       });
 

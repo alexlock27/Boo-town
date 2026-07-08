@@ -112,7 +112,11 @@ export const sfx = {
       envTone(1568, t + 0.44, 0.5, 'sine', 0.3);
     }); },
   // rising note per box tap (step 0,1,2)
-  boxTap(step = 0) { play(t => { const f = 440 * Math.pow(2, step / 4); envTone(f, t, 0.16, 'triangle', 0.4); envTone(f * 1.5, t + 0.02, 0.14, 'sine', 0.2); }); }
+  boxTap(step = 0) { play(t => { const f = 440 * Math.pow(2, step / 4); envTone(f, t, 0.16, 'triangle', 0.4); envTone(f * 1.5, t + 0.02, 0.14, 'sine', 0.2); }); },
+  // Spell Boo (RUN6 C5): a soft ascending chime as each letter lands, and a brighter
+  // per-letter ping during the bounce-spell.
+  chime(step = 0) { play(t => envTone(523.25 * Math.pow(2, (step % 8) / 12), t, 0.22, 'sine', 0.22, sfxGain, 'chime')); },
+  ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); }
 };
 
 // ---- background music (two gentle loops) ----

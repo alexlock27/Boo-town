@@ -33,7 +33,7 @@ export function makeSpeller(mountEl, word, { onCorrect, onWrongCheck } = {}) {
     if (locked || finished || t.slot !== null) return;
     const i = firstEmpty(); if (i < 0) return;
     t.slot = i; slots[i].dataset.tile = t.id; slots[i].textContent = t.letter; slots[i].classList.add('filled');
-    t.node.style.visibility = 'hidden'; sfx.tap();
+    t.node.style.visibility = 'hidden'; sfx.chime(i);   // soft ascending chime per placed letter (C5)
     if (firstEmpty() < 0) setTimeout(check, 150);
   }
   function returnTile(i) {
@@ -58,9 +58,14 @@ export function makeSpeller(mountEl, word, { onCorrect, onWrongCheck } = {}) {
   }
   function done() {
     finished = true; locked = true; sfx.correct();
-    const r = slotsWrap.getBoundingClientRect();
-    sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
     slotsWrap.classList.add('spelled');
+    // bounce-spell letter by letter with a per-letter ping (C5)
+    const step = Math.min(150, 1000 / Math.max(1, slots.length));
+    slots.forEach((sl, i) => setTimeout(() => {
+      sl.classList.remove('lb'); void sl.offsetWidth; sl.classList.add('lb');
+      sfx.ping(i);
+      const r = sl.getBoundingClientRect(); sparkleAt(r.left + r.width / 2, r.top + 6);
+    }, i * step));
     onCorrect && onCorrect();
   }
   function hintNextLetter() {

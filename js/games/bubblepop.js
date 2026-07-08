@@ -1,6 +1,6 @@
 // js/games/bubblepop.js — Game 1: Bubble Pop (maths fact fluency, spec §6).
 
-import { el, clear, starsRow, wobble, sparkleAt, backControl } from '../ui.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl, REDUCED } from '../ui.js';
 import { getState, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -13,10 +13,16 @@ import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { filterCategories, filterLevels } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
+import { addMeterPoints } from '../rewards.js';
 
 const ROUNDS = 10;
 const BUBBLE_COUNT = 6;
 const MAX_HINTS = 2;
+// Juice pass (RUN6 C5): named micro-delight constants.
+const STREAK_TRAIL = 3;        // a streak of this many correct pops adds a sparkle trail to the next
+const GOLDEN_CHANCE = 0.28;    // chance a question's correct bubble arrives golden
+const GOLDEN_CAP = 2;          // ...capped this many times per round (+1 meter each)
+const DROPLETS = 7;            // droplets a pop bursts into
 
 const rand = (n) => (Math.random() * n) | 0;
 
@@ -69,7 +75,10 @@ export function mount(container, params, ctx) {
     let wrongPops = 0;
     let hintsUsed = 0;
     let locked = false;
+    let streak = 0, goldenCount = 0, goldenThisRound = false;   // juice + golden-bubble delight (C5)
     const fmt = () => (target.fmt || String);
+    const skyFor = () => 'bp-sky-' + Math.max(1, Math.min(3, mix ? (solved < 4 ? 1 : solved < 7 ? 2 : 3) : (level || 1)));
+    const updateSky = () => { field.classList.remove('bp-sky-1', 'bp-sky-2', 'bp-sky-3'); field.classList.add(skyFor()); };
 
     // In Smart Mix, generate a weak-weighted question from ALL categories for this slot.
     function nextTarget(slot) {
@@ -97,8 +106,9 @@ export function mount(container, params, ctx) {
 
     // target card
     const targetCard = el('div', { class: 'target-card', html: targetHTML(target) });
-    const field = el('div', { class: 'bubble-field' });
+    const field = el('div', { class: 'bubble-field bp-glass' });
     shell.area.append(targetCard, field);
+    updateSky();   // backdrop evolves with level (C5)
     const collector = createTrickyCollector(shell.area);
 
     // build bubbles
@@ -130,9 +140,14 @@ export function mount(container, params, ctx) {
         if (!values.includes(v)) values.push(v);
       }
       shuffle(values);
+      // an occasional golden bubble carries the correct answer (+1 meter), capped per round (C5).
+      // A test flag disables it so the exact star→meter economy stays deterministic.
+      const noGolden = typeof window !== 'undefined' && window.__bubblepopNoGolden;
+      goldenThisRound = !noGolden && goldenCount < GOLDEN_CAP && Math.random() < GOLDEN_CHANCE;
       bubbles.forEach((b, i) => {
         b.value = values[i];
         b.correct = (b.value === target.answer);
+        b.golden = goldenThisRound && b.correct;
         b.hidden = false;
         paint(b);
       });
@@ -145,6 +160,7 @@ export function mount(container, params, ctx) {
       b.node.style.pointerEvents = b.hidden ? 'none' : 'auto';
       const palette = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#C6A9F0', '#FFC93C', '#7FD8C3'];
       b.node.style.setProperty('--bub', palette[b._pi % palette.length]);
+      b.node.classList.toggle('golden', !!b.golden);
     }
 
     function resetPositions() {
@@ -204,10 +220,15 @@ export function mount(container, params, ctx) {
       if (locked || b.hidden) return;
       if (b.correct) {
         locked = true;
+        streak++;
         sfx.pop();
         recordResult(target.key, true);
         const r = b.node.getBoundingClientRect();
-        sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
+        const px = r.left + r.width / 2, py = r.top + r.height / 2;
+        sparkleAt(px, py);
+        burstDroplets(px, py);                       // pops burst into droplets (C5)
+        if (streak >= STREAK_TRAIL) sparkleTrail(px, py);   // a hot streak trails sparkles
+        if (b.golden) { goldenCount++; sfx.star(); addMeterPoints(1); goldenPop(px, py); }   // golden delight
         b.node.classList.add('burst');
         solved++;
         shell.setProgress(solved);
@@ -217,10 +238,12 @@ export function mount(container, params, ctx) {
           prevKey = target.key;
           targetCard.innerHTML = targetHTML(target);
           layoutValues();
+          updateSky();
           locked = false;
         }, 260);
       } else {
         wrongPops++;
+        streak = 0;
         sfx.oops();
         recordResult(target.key, false);
         collector.add(missFor(target));
@@ -248,6 +271,38 @@ export function mount(container, params, ctx) {
       const ds = shuffle(t.distractors.slice()).filter(v => v !== t.answer).slice(0, 2);
       return choiceMiss({ id: t.key, game: 'bubblepop', prompt: t.display, options: [t.answer, ...ds].map(f), answer: f(t.answer) });
     }
+
+    // ---- juice fx (C5): droplet burst, streak sparkle trail, golden "+1" ----
+    function burstDroplets(x, y) {
+      if (REDUCED) return;
+      for (let i = 0; i < DROPLETS; i++) {
+        const d = el('div', { class: 'bp-droplet' });
+        const a = (i / DROPLETS) * Math.PI * 2 + Math.random();
+        d.style.left = x + 'px'; d.style.top = y + 'px';
+        d.style.setProperty('--dx', (Math.cos(a) * (28 + Math.random() * 34)).toFixed(0) + 'px');
+        d.style.setProperty('--dy', (Math.sin(a) * (28 + Math.random() * 34) - 12).toFixed(0) + 'px');
+        document.body.appendChild(d);
+        setTimeout(() => d.remove(), 720);
+      }
+    }
+    function sparkleTrail(x, y) { if (REDUCED) return; for (let i = 1; i <= 4; i++) setTimeout(() => sparkleAt(x + (Math.random() * 40 - 20), y - i * 22), i * 50); }
+    function goldenPop(x, y) {
+      const t = el('div', { class: 'bp-goldpop', text: '+1 ✨' });
+      t.style.left = x + 'px'; t.style.top = y + 'px';
+      document.body.appendChild(t); setTimeout(() => t.remove(), 1100);
+      if (!REDUCED) for (let i = 0; i < 6; i++) setTimeout(() => sparkleAt(x + (Math.random() * 50 - 25), y - Math.random() * 40), i * 40);
+    }
+
+    // Test hook (invisible): drive + inspect the juice.
+    if (typeof window !== 'undefined') window.__bubblepop = {
+      state: () => ({ solved, streak, goldenCount, wrongPops, sky: skyFor() }),
+      forceGolden: () => { const b = bubbles.find(x => x.correct && !x.hidden); if (b && goldenCount < GOLDEN_CAP) { b.golden = true; goldenThisRound = true; b.node.classList.add('golden'); } return !!(b && b.golden); },
+      popCorrect: () => { const b = bubbles.find(x => x.correct && !x.hidden); if (b) onPop(b); },
+      popWrong: () => { const b = bubbles.find(x => !x.correct && !x.hidden); if (b) onPop(b); },
+      hasGolden: () => bubbles.some(b => b.golden && !b.hidden),
+      droplets: () => document.querySelectorAll('.bp-droplet').length,
+      goldPops: () => document.querySelectorAll('.bp-goldpop').length
+    };
 
     function finish() {
       stopLoop();
