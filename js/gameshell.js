@@ -9,7 +9,7 @@ import { renderGuide } from './art.js';
 import { speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 
-export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true }) {
+export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true, onHelp = null }) {
   beginRoundTally();   // RUN4 C3: collect this round's ledger items for the cosy check
   const s = getState();
   const guide = (s && s.guide) || { body: 'sunshine', patch: 'cocoa', acc: 'none' };
@@ -42,8 +42,11 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
   hintBtn.addEventListener('click', () => { if (!hintBtn.disabled) onHint && onHint(); });
   if (!hintEnabled) hintBtn.disabled = true;
 
+  // "?" replay-the-intro button (RUN5 C1/C5): only when the screen supplies onHelp.
+  const helpBtn = onHelp ? el('button', { class: 'help-btn', 'aria-label': 'How to play', text: '?', onclick: () => onHelp() }) : null;
+
   const topbar = el('header', { class: 'game-topbar', style: { '--accent': accent } }, [
-    backBtn, progressWrap, heartsWrap, hintBtn
+    backBtn, progressWrap, heartsWrap, ...(helpBtn ? [helpBtn] : []), hintBtn
   ]);
 
   const area = el('div', { class: 'game-area' });

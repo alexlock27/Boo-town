@@ -47,6 +47,8 @@ export async function go(name, params = {}) {
   }
   State.commit(); // flush any pending debounced save before leaving a screen
   clearConfetti(); // don't let celebration particles linger across a navigation
+  // A first-play intro is tied to its game; never let it bleed onto the next screen.
+  document.querySelectorAll('.intro-overlay').forEach(o => o.remove());
   setBackAction(null); // each screen's back control re-registers its own handler (RUN4 C1)
   screenEl.innerHTML = '';
   screenEl.scrollTop = 0;

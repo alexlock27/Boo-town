@@ -5,7 +5,7 @@ import { mkdirSync } from 'fs';
 mkdirSync('screenshots/mechanics', { recursive: true });
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const SAVE = { version: 5, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 1 }, boxes: 0, meter: 0, opened: 1, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 20, byGame: {} }, ledger: {}, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { trophyRetro: true }, ageAsked: true, age: 8 };
+const SAVE = { version: 5, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 1 }, boxes: 0, meter: 0, opened: 1, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 20, byGame: {} }, ledger: {}, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { trophyRetro: true, introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1 } }, ageAsked: true, age: 8 };
 
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1000, height: 625 } })).newPage();

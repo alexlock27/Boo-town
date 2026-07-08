@@ -3,7 +3,7 @@
 // dispense the next polyomino into a three-slot tray; drag pieces onto the board;
 // full rows/columns clear. Round ends after 12 placed pieces or no legal move.
 
-import { el, clear, starsRow, wobble, sparkleAt, backControl } from '../ui.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl, REDUCED } from '../ui.js';
 import { getState, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -14,13 +14,44 @@ import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { noteQuest } from '../quests.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
 import { pickForMeButton } from '../picker.js';
+import { runIntro, introSeen } from '../intro.js';
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven questions (C9)
 
 const N = 9;                 // 9x9 board
 const END_PIECES = 12;       // round ends after 12 placed pieces
 const TRAY = 3;              // three-slot tray
+const LIFT = 70;             // px the dragged piece floats ABOVE the fingertip (C1) so the hand never hides it
 const rand = (n) => (Math.random() * n) | 0;
+
+// The Blocks-specific first-play intro (C1). Step 2 completes a demo line as it shows.
+const BLOCKS_INTRO = [
+  { text: 'Answer my question and you win a piece!' },
+  { text: 'Drag pieces anywhere they fit. Fill a whole line, any direction, and it POPS!', demo: blocksDemoLine },
+  { text: 'No spinning needed, every piece fits as it is. The board never fills to the top, just keep popping lines!' }
+];
+
+// A little self-completing demo line for intro step 2: fills cell by cell, then pops.
+function blocksDemoLine(area) {
+  const row = el('div', { class: 'blk-demo-row' });
+  const dcells = [];
+  for (let i = 0; i < 5; i++) { const c = el('div', { class: 'blk-demo-cell' }); row.appendChild(c); dcells.push(c); }
+  area.appendChild(row);
+  let timers = [], alive = true;
+  function run() {
+    if (!alive) return;
+    dcells.forEach(c => c.classList.remove('on', 'pop'));
+    let i = 0;
+    const fill = () => {
+      if (!alive) return;
+      if (i < 5) { dcells[i].classList.add('on'); i++; timers.push(setTimeout(fill, 240)); }
+      else timers.push(setTimeout(() => { if (!alive) return; dcells.forEach(c => { c.classList.remove('on'); c.classList.add('pop'); }); timers.push(setTimeout(run, 950)); }, 380));
+    };
+    fill();
+  }
+  run();
+  return () => { alive = false; timers.forEach(clearTimeout); };
+}
 
 // Fair bag of piece shapes (cells as [row, col] offsets). No rotation (block-blast style).
 const SHAPES = {
@@ -62,7 +93,7 @@ export function mount(container, params, ctx) {
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 104 }) }),
       el('h2', { text: 'Boo Blocks' }),
-      el('p', { class: 'sc-intro', text: 'Answer to earn blocks, then build! Clear rows and columns.' })
+      el('p', { class: 'sc-intro', text: 'Win pieces, fill lines, pop them!' })
     ]);
     // two-step picker: category, then level
     const catRow = el('div', { class: 'chip-row center' });
@@ -104,7 +135,8 @@ export function mount(container, params, ctx) {
 
     shell = createGameShell({
       title: 'Boo Blocks', rounds: END_PIECES, accent: 'var(--zing)',
-      onBack: () => ctx.go('hub'), onHint: doHint, hintEnabled: true
+      onBack: () => ctx.go('hub'), onHint: doHint, hintEnabled: true,
+      onHelp: () => runIntro('blocks', { steps: BLOCKS_INTRO })   // "?" replays the intro (C1)
     });
     root.appendChild(shell.root);
 
@@ -127,6 +159,9 @@ export function mount(container, params, ctx) {
     renderTray();
     renderBoard();
 
+    // First-ever open shows the guided intro (C1); the round waits behind it.
+    if (!introSeen('blocks')) runIntro('blocks', { steps: BLOCKS_INTRO });
+
     // Test hook (invisible in play): lets headless QA drive a full round.
     if (typeof window !== 'undefined') window.__blocks = {
       board: () => board.map(r => r.slice()),
@@ -138,7 +173,14 @@ export function mount(container, params, ctx) {
       waiting: () => waitingSpace,
       ended: () => ended,
       hearts: () => shell.heartsLeft(),
-      stats: () => ({ correct, wrong, lines, placed, hintsUsed })
+      stats: () => ({ correct, wrong, lines, placed, hintsUsed }),
+      // RUN5 C1 QA hooks: rig a known piece, resolve the lifted-centre anchor,
+      // and set up near-complete lines — all deterministic (no flaky mouse events).
+      rig: (slot, cellsArr) => { tray[slot] = { key: 'test', cells: normShape(cellsArr), color: '#FF7AC6' }; renderTray(); },
+      anchorFor: (slot, cx, cy) => { selected = slot; cacheGeom(); return anchorAt(cx, cy); },
+      nearRig: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
+      fillRowExceptLast: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
+      LIFT
     };
 
     // ---- questions ----
@@ -227,7 +269,17 @@ export function mount(container, params, ctx) {
         const cell = cells[r * N + c];
         cell.classList.toggle('filled', !!board[r][c]);
         cell.style.setProperty('--fill', board[r][c] ? board[r][c] : 'transparent');
-        cell.classList.remove('valid', 'invalid', 'ghost', 'hint');
+        cell.classList.remove('valid', 'invalid', 'ghost', 'hint', 'blk-near', 'blk-gap');
+      }
+      // Near-complete shimmer (C1): a row or column one cell from clearing glows, so
+      // the goal is visible in the board itself. Filled cells shimmer; the single gap pulses.
+      for (let r = 0; r < N; r++) {
+        let cnt = 0; for (let c = 0; c < N; c++) if (board[r][c]) cnt++;
+        if (cnt === N - 1) for (let c = 0; c < N; c++) cells[r * N + c].classList.add(board[r][c] ? 'blk-near' : 'blk-gap');
+      }
+      for (let c = 0; c < N; c++) {
+        let cnt = 0; for (let r = 0; r < N; r++) if (board[r][c]) cnt++;
+        if (cnt === N - 1) for (let r = 0; r < N; r++) cells[r * N + c].classList.add(board[r][c] ? 'blk-near' : 'blk-gap');
       }
     }
     function fits(cells2, r, c) {
@@ -269,19 +321,36 @@ export function mount(container, params, ctx) {
       const total = fullRows.length + fullCols.length;
       if (!total) return;
       lines += total;
-      const br = boardEl.getBoundingClientRect();
-      fullRows.forEach(r => { for (let c = 0; c < N; c++) sparkleCell(r, c); });
-      fullCols.forEach(c => { for (let r = 0; r < N; r++) sparkleCell(r, c); });
+      // Harder celebration (C1): a wipe of sparkles ALONG each cleared line (staggered
+      // so it reads as a sweep) plus a "+line!" flourish over the board.
+      let delay = 0;
+      const STEP = REDUCED ? 0 : 30;
+      fullRows.forEach(r => { for (let c = 0; c < N; c++) { sparkleCell(r, c, delay); delay += STEP; } });
+      fullCols.forEach(c => { for (let r = 0; r < N; r++) { sparkleCell(r, c, delay); delay += STEP; } });
       sfx.star();
+      lineFlourish(total);
       shell.react(total > 1 ? 'DOUBLE clear! 🌟' : 'Line clear! ✨', { voice: false, hold: 1500 });
       fullRows.forEach(r => { for (let c = 0; c < N; c++) board[r][c] = 0; });
       fullCols.forEach(c => { for (let r = 0; r < N; r++) board[r][c] = 0; });
-      setTimeout(renderBoard, 180);
+      setTimeout(renderBoard, REDUCED ? 60 : Math.max(240, delay + 120));
     }
-    function sparkleCell(r, c) {
-      const cell = cells[r * N + c]; const rr = cell.getBoundingClientRect();
-      sparkleAt(rr.left + rr.width / 2, rr.top + rr.height / 2);
-      cell.classList.add('clearing'); setTimeout(() => cell.classList.remove('clearing'), 300);
+    function sparkleCell(r, c, delay = 0) {
+      const cell = cells[r * N + c];
+      const paint = () => {
+        const rr = cell.getBoundingClientRect();
+        if (!REDUCED) sparkleAt(rr.left + rr.width / 2, rr.top + rr.height / 2);
+        cell.classList.add('clearing'); setTimeout(() => cell.classList.remove('clearing'), 320);
+      };
+      if (delay > 0) setTimeout(paint, delay); else paint();
+    }
+    // A floating "+line!" (or "+2 lines!") flourish that pops over the board and fades.
+    function lineFlourish(count) {
+      const br = boardEl.getBoundingClientRect();
+      const f = el('div', { class: 'blk-flourish', text: count > 1 ? `+${count} lines!` : '+line!' });
+      f.style.left = (br.left + br.width / 2) + 'px';
+      f.style.top = (br.top + br.height / 2) + 'px';
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 1100);
     }
 
     // ---- hint / no-move / end ----
@@ -318,30 +387,82 @@ export function mount(container, params, ctx) {
       ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, level, cat: category === AUTO ? null : category, mix: category === AUTO, tricky: collector.items(), replay: () => ctx.go('blocks') });
     }
 
-    // ---- drag a tray piece onto the board ----
+    // ---- drag a tray piece onto the board (C1 placement feel) ----
+    // The piece renders LIFTED ~70px above the fingertip so the hand never hides it;
+    // targeting is computed from the lifted piece's CENTRE, with a half-cell snap
+    // tolerance; an invalid drop GLIDES the piece back to its tray slot (never vanishes).
+    let cellGeom = null;  // cached per drag: { centres:[{x,y}], cell:size } — cells don't move mid-drag
+    function cacheGeom() {
+      const centres = cells.map(c => { const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      const cell = cells[0] ? cells[0].getBoundingClientRect().width : 24;
+      cellGeom = { centres, cell };
+    }
     function makePieceDraggable(slot, i) {
       let dragging = false, ghost = null, moved = false, sx = 0, sy = 0;
       slot.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; moved = false; dragging = true; slot.setPointerCapture(e.pointerId); });
       slot.addEventListener('pointermove', e => {
         if (!dragging) return;
-        if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) > 8) { moved = true; selected = i; renderTray(); ghost = el('div', { class: 'blk-ghost', html: pieceSVG(tray[i]) }); document.body.appendChild(ghost); }
-        if (moved && ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; const a = anchorAt(e.clientX, e.clientY); clearPreview(); if (a) hoverPreview(a.r, a.c); }
+        if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) > 8) {
+          // Lift out of the slot WITHOUT rebuilding the tray — a renderTray() here
+          // would detach this captured slot and silently break the drag.
+          moved = true; selected = i; cacheGeom();
+          slot.classList.add('sel', 'dragging');
+          const pv = slot.querySelector('.blk-piece'); if (pv) pv.style.opacity = '0.2';
+          ghost = el('div', { class: 'blk-ghost', html: pieceSVG(tray[i]) }); document.body.appendChild(ghost);
+        }
+        if (moved && ghost) {
+          ghost.style.left = e.clientX + 'px';
+          ghost.style.top = (e.clientY - LIFT) + 'px';   // float above the finger
+          const a = anchorAt(e.clientX, e.clientY);
+          clearPreview(); if (a) hoverPreview(a.r, a.c);
+        }
       });
       slot.addEventListener('pointerup', e => {
         if (!dragging) return; dragging = false;
-        if (ghost) { ghost.remove(); ghost = null; }
-        if (moved) { const a = anchorAt(e.clientX, e.clientY); if (a) tryPlace(i, a.r, a.c); else clearPreview(); }
+        slot.classList.remove('dragging');
+        if (!moved) { if (ghost) { ghost.remove(); ghost = null; } return; }
+        const a = anchorAt(e.clientX, e.clientY);
+        if (a && fits(tray[i].cells, a.r, a.c)) {
+          if (ghost) { ghost.remove(); ghost = null; }
+          tryPlace(i, a.r, a.c);
+        } else {
+          clearPreview();
+          glideBack(ghost, slot); ghost = null;   // invalid → glide back, keep the piece
+        }
       });
-      slot.addEventListener('pointercancel', () => { dragging = false; if (ghost) { ghost.remove(); ghost = null; } });
+      slot.addEventListener('pointercancel', () => { dragging = false; if (ghost) { ghost.remove(); ghost = null; } clearPreview(); renderTray(); });
     }
-    // The drop anchor is the top-left cell of the piece, offset so the piece sits under the finger.
+    // Animate the ghost back into its tray slot, then restore the tray (piece never lost).
+    function glideBack(ghost, slot) {
+      if (!ghost) { selected = -1; renderTray(); return; }
+      sfx.oops();
+      if (REDUCED) { ghost.remove(); selected = -1; renderTray(); return; }
+      const sr = slot.getBoundingClientRect();
+      ghost.style.transition = 'left 260ms ease, top 260ms ease, opacity 260ms ease';
+      requestAnimationFrame(() => {
+        ghost.style.left = (sr.left + sr.width / 2) + 'px';
+        ghost.style.top = (sr.top + sr.height / 2) + 'px';
+        ghost.style.opacity = '0.15';
+      });
+      setTimeout(() => { ghost.remove(); selected = -1; renderTray(); }, 280);
+    }
+    // Anchor from the LIFTED piece's CENTRE (cx, cy-LIFT): find the on-board placement
+    // whose bounding-box centre is nearest, accepting within ~one cell (half-cell snap).
     function anchorAt(cx, cy) {
       const p = tray[selected]; if (!p) return null;
-      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-        const rr = cells[r * N + c].getBoundingClientRect();
-        if (cx >= rr.left && cx <= rr.right && cy >= rr.top && cy <= rr.bottom) return { r, c };
+      if (!cellGeom) cacheGeom();
+      const tx = cx, ty = cy - LIFT;
+      const maxR = Math.max(...p.cells.map(x => x[0])) + 1, maxC = Math.max(...p.cells.map(x => x[1])) + 1;
+      let best = null, bestD = Infinity;
+      for (let r = 0; r <= N - maxR; r++) for (let c = 0; c <= N - maxC; c++) {
+        const tl = cellGeom.centres[r * N + c], brc = cellGeom.centres[(r + maxR - 1) * N + (c + maxC - 1)];
+        const px = (tl.x + brc.x) / 2, py = (tl.y + brc.y) / 2;
+        const d = Math.hypot(px - tx, py - ty);
+        if (d < bestD) { bestD = d; best = { r, c }; }
       }
-      return null;
+      // Off the board (beyond ~one cell past the nearest slot) → no anchor (glide back).
+      if (!best || bestD > cellGeom.cell * 1.3) return null;
+      return best;
     }
   }
 

@@ -29,7 +29,10 @@ const SAVE = {
   // RUN4 C4: this player has already had the retro trophy ceremony, and the
   // milestones this fixture qualifies for are already earned — otherwise the
   // (correct, spec'd) unmissable award overlay would sit over every measurement.
-  seen: { trophyRetro: true },
+  // RUN5 C1/C5: mark every game's first-play intro as already seen, so the guided
+  // intro overlay never sits over a scripted round. (New players see it once; this
+  // fixture is an existing player.)
+  seen: { trophyRetro: true, introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1 } },
   trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' },
   // hide-and-seek already "found today" (RUN4 C9) — no hider vanishes mid-measurement
   delights: { hideDay: (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()), hideFound: true }
