@@ -62,7 +62,10 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
-  startCard();
+  // Jump back in / level-up (RUN5 C0b).
+  const rz = params && params.resume;
+  if (rz) { rz.mix ? startFromChoice(MIX_KEY, null) : startFromChoice(rz.cat, rz.level); }
+  else startCard();
 
   function startCard() {
     clear(root);

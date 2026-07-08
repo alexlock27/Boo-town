@@ -5,6 +5,7 @@ import * as State from './state.js';
 import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
 import { starField, clearConfetti, setBackAction, getBackAction } from './ui.js';
+import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker } from './resilience.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -96,10 +97,16 @@ function setupHardwareBack() {
 }
 
 function boot() {
+  // Resilience nets first (RUN5 C0b): catch any error before it reaches a white
+  // screen, and warn once if saving is blocked.
+  installOopsNet();
+  installSaveGuard();
   starField(document.getElementById('starfield'), 60);
   setupHardwareBack();
   const save = State.load();
   applyAudioSettings();
+  // Rolling save snapshot, at most once per day of play (RUN5 C0b).
+  if (save && save.name) { maybeRollingBackup().catch(() => {}); }
 
   // Audio can only start after a user gesture (autoplay policy).
   const first = () => {
@@ -118,7 +125,18 @@ function boot() {
   const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isLocal) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        // Update toast (RUN5 C0b): surface a waiting build so the hub can offer it.
+        // The worker still waits (no auto-activation) until she taps to accept.
+        if (reg.waiting) setWaitingWorker(reg.waiting);
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) setWaitingWorker(nw);
+          });
+        });
+      }).catch(() => {});
     });
   }
 }

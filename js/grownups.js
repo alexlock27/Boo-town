@@ -7,6 +7,7 @@ import * as tts from './tts.js';
 import { deleteAllVoices, voiceCount } from './voices.js';
 import { setRequestsEnabled } from './requests.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
+import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -64,6 +65,29 @@ export function mount(container, params, ctx) {
     else { restoreMsg.textContent = res.error || 'Could not restore.'; restoreMsg.classList.add('err'); }
   }});
 
+  // Rolling snapshots (RUN5 C0b): the app auto-backs up once per day of play; here
+  // they can be restored by date. Populated asynchronously from IndexedDB.
+  const snapWrap = el('div', { class: 'gu-snaps' });
+  const snapMsg = el('span', { class: 'gu-msg' });
+  (async () => {
+    let snaps = [];
+    try { snaps = await listSnapshots(); } catch {}
+    clearNode(snapWrap);
+    if (!snaps.length) { snapWrap.appendChild(el('p', { class: 'gu-note', text: 'No automatic snapshots yet — one is taken each day she plays.' })); return; }
+    for (const sn of snaps) {
+      const when = snapshotLabel(sn);
+      snapWrap.appendChild(el('div', { class: 'gu-snap-row' }, [
+        el('span', { class: 'gu-snap-when', text: when }),
+        el('button', { class: 'btn soft gu-snap-restore', text: 'Restore', onclick: () => {
+          const res = restoreSnapshot(sn.code);
+          if (res && res.ok) { snapMsg.classList.remove('err'); snapMsg.textContent = 'Restored! Reloading…'; setTimeout(() => location.reload(), 700); }
+          else { snapMsg.classList.add('err'); snapMsg.textContent = (res && res.error) || 'Could not restore that snapshot.'; }
+        } })
+      ]));
+    }
+    snapWrap.appendChild(el('div', { class: 'gu-row' }, [snapMsg]));
+  })();
+
   const backup = el('div', { class: 'gu-card' }, [
     el('h3', { text: 'Backup & restore' }),
     el('p', { class: 'gu-note', text: 'This code is her whole save. Keep it somewhere safe. Paste it on another device (or after a reset) to bring everything back.' }),
@@ -71,7 +95,11 @@ export function mount(container, params, ctx) {
     el('div', { class: 'gu-row' }, [copyBtn, copyMsg]),
     el('hr', {}),
     restoreInput,
-    el('div', { class: 'gu-row' }, [restoreBtn, restoreMsg])
+    el('div', { class: 'gu-row' }, [restoreBtn, restoreMsg]),
+    el('hr', {}),
+    el('h4', { class: 'gr-sub', text: 'Automatic snapshots' }),
+    el('p', { class: 'gu-note', text: 'Boo Town keeps the last three days’ snapshots on this device, just in case.' }),
+    snapWrap
   ]);
 
   // ---- reset ----
@@ -105,8 +133,35 @@ export function mount(container, params, ctx) {
     el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (7 and under → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
   ]);
 
-  root.append(header, starLedger(s), goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, reset);
+  root.append(header, starLedger(s), goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, diagnostics(), reset);
   container.appendChild(root);
+
+  // ---- diagnostics: last hiccup (RUN5 C0b oops net) ----
+  function diagnostics() {
+    const h = lastHiccup();
+    const line = h && h.msg
+      ? `Last hiccup: ${h.msg}${h.at ? ' (' + friendlyDate(h.at) + ')' : ''}`
+      : 'No hiccups recorded — all smooth so far.';
+    return el('div', { class: 'gu-card' }, [
+      el('h3', { text: 'Under the hood' }),
+      el('p', { class: 'gu-note gu-hiccup', text: line }),
+      el('p', { class: 'gu-note', text: 'If something ever went wrong, this note is the most recent technical message — handy if you want to report it.' })
+    ]);
+  }
+  function clearNode(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+  function snapshotLabel(sn) {
+    const at = sn && sn.at;
+    if (at) return friendlyDate(at);
+    return (sn && sn.day) || 'a snapshot';
+  }
+  function friendlyDate(ms) {
+    try {
+      const d = new Date(ms);
+      const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getDate()} ${mon} ${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+    } catch { return ''; }
+  }
 
   // ---- Star Ledger (RUN5 C0): a visible per-game record, read straight from the save ----
   function starLedger(s) {

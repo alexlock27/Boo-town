@@ -71,7 +71,12 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
-  startCard();
+  // Jump back in / level-up (RUN5 C0b): mix, twins, or a known set; else the card.
+  const rz = params && params.resume;
+  if (rz && rz.mix) playMix();
+  else if (rz && rz.cat === TWINS_KEY) playTwins(rz.level);
+  else if (rz && rz.cat && SET_BY_KEY[rz.cat]) play(rz.cat, rz.level);
+  else startCard();
 
   function startCard() {
     clear(root);

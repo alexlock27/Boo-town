@@ -6,7 +6,7 @@ import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { addMeterPoints, METER_CAP, meterState } from './rewards.js';
-import { meterPointsFor, rankName } from './comfort.js';
+import { meterPointsFor, rankName, levelRank } from './comfort.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
@@ -33,6 +33,12 @@ export function mount(container, params, ctx) {
   // Dev-only runtime assertion (RUN5 C0): a finished round increments the total by
   // exactly its stars. Silent no-op on the live build; fails loudly on localhost.
   assertCredit(beforeTotal, getState().stars.total, stars);
+
+  // Jump back in (RUN5 C0b): remember her last game and mode so the hub can replay
+  // it in one tap. The Golden Round is a special daily card, not a repeatable mode.
+  if (game && game !== 'golden') {
+    mutate(st => { st.seen = st.seen || {}; st.seen.lastPlay = { game, gameName, cat, level, mix: !!mix }; });
+  }
   // Box meter (RUN4 C3): base = stars (+3-star bonus), Brave +1 above comfort
   // (first per category per day), cosy rounds cap at 2. The Golden Round banks a
   // caller-computed total instead (double stars etc.) and skips the cap by design.
@@ -120,6 +126,18 @@ export function mount(container, params, ctx) {
 
     // buttons
     buttons.appendChild(el('button', { class: 'btn secondary', text: 'Play again', onclick: () => { sfx.tap(); replay ? replay() : ctx.go(game); } }));
+
+    // Level-up button (RUN5 C0b): on a 3-star result at or below the category's
+    // comfort level, offer the next level in one tap — matching the guide's cosy
+    // upward nudge. Only for games with a numeric Level 1→3 ladder.
+    const LADDER = new Set(['bubblepop', 'feedboos', 'spellboo', 'blocks', 'bounce', 'beat', 'dash', 'clockshop']);
+    const rank = levelRank(level);
+    if (stars >= 3 && !mix && cat && level != null && LADDER.has(game) && rank >= 1 && rank < 3 && rank <= verdict.comfort) {
+      buttons.appendChild(el('button', { class: 'btn levelup', text: `Try Level ${rank + 1}! ✨`, onclick: () => {
+        sfx.tap(); ctx.go(game, { resume: { cat, level: rank + 1, mix: false } });
+      } }));
+    }
+
     buttons.appendChild(el('button', { class: 'btn soft', text: 'Back to Boo Town', onclick: () => { sfx.tap(); ctx.go('hub'); } }));
 
     if (banked.boxesEarned > 0) showGift();

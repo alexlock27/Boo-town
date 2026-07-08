@@ -45,7 +45,10 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null, raf = null;
 
-  startCard();
+  // Jump back in / level-up (RUN5 C0b).
+  const rz = params && params.resume;
+  if (rz) { const st = !!getState().seen.dashSteady; rz.mix ? play(MIX_KEY, null, st) : play(rz.cat, rz.level, st); }
+  else startCard();
 
   function startCard() {
     clear(root); music.play('game');

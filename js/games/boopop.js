@@ -95,7 +95,10 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null, cleanupFns = [];
 
-  startCard();
+  // Jump back in (RUN5 C0b): boopop's "mode" is its level key (make10, twin, …).
+  const rz = params && params.resume;
+  if (rz && rz.cat && LEVELS[rz.cat]) play(rz.cat);
+  else startCard();
 
   function startCard() {
     clear(root);

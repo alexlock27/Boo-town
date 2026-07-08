@@ -215,6 +215,11 @@ export function ledgerClass(id) {
   return 'middle';
 }
 
+// Guarded saves (RUN5 C0b): a listener fired when a write fails, so the app can warn
+// a grown-up once and keep playing from memory (storage full or blocked).
+let saveErrorCb = null;
+export function onSaveError(cb) { saveErrorCb = cb; }
+
 // Write immediately.
 export function commit() {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -224,6 +229,7 @@ export function commit() {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('[state] save failed', e);
+    if (saveErrorCb) { try { saveErrorCb(e); } catch {} }   // keep playing from memory
   }
   requestPersist();
 }

@@ -3,8 +3,8 @@
 // they never bloat the backup code. Everything stays on this device — nothing is uploaded.
 
 const DB_NAME = 'bootown';
-const DB_VERSION = 1;
-const STORES = ['artworks', 'audio'];   // artworks: gallery PNGs; audio: Boo voice clips
+const DB_VERSION = 2;   // v2 adds 'backups' (RUN5 C0b rolling save snapshots)
+const STORES = ['artworks', 'audio', 'backups'];   // artworks: gallery PNGs; audio: Boo voice clips; backups: rolling save snapshots
 let dbPromise = null;
 
 function open() {

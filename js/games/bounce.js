@@ -30,7 +30,10 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null, raf = null;
 
-  if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
+  // Jump back in / level-up (RUN5 C0b).
+  const rz = params && params.resume;
+  if (rz) { rz.mix ? play(AUTO, 2) : play(rz.cat, rz.level); }
+  else if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
 
   function startCard() {
     clear(root);

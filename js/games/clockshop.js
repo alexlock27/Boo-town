@@ -41,7 +41,10 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
-  startCard();
+  // Jump back in / level-up (RUN5 C0b): the only mode is a level 1–3.
+  const rz = params && params.resume;
+  if (rz && rz.level != null) play(rz.level);
+  else startCard();
 
   function startCard() {
     clear(root); music.play('game');

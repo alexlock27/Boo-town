@@ -25,7 +25,10 @@ export function mount(container, params, ctx) {
   let shell = null;
   let loopId = null;
 
-  startCard();
+  // Jump back in / level-up (RUN5 C0b): launch straight into a saved mode.
+  const rz = params && params.resume;
+  if (rz) { rz.mix ? play(MIX_KEY, null) : play(rz.cat, rz.level); }
+  else startCard();
 
   function startCard() {
     clear(root);

@@ -17,6 +17,7 @@ import { chestState, CHEST_EVERY } from './shiny.js';
 import { booOfTheDay } from './delights.js';
 import { renderItem } from './art.js';
 import { getDisplayName } from './accessories.js';
+import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './resilience.js';
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -116,6 +117,31 @@ export function mount(container, params, ctx) {
   // Long-press the guide to open the character creator (spec RUN2 C1).
   attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });
   gb.art.setAttribute('aria-label', 'Your character — press and hold to change');
+
+  // Jump back in (RUN5 C0b): once any round has ever been played, the very first
+  // card (right under the guide) replays her last game and mode in one tap.
+  let jumpBackNode = null;
+  const lp = s.seen && s.seen.lastPlay;
+  if (lp && lp.game && GAMES.some(g => g.id === lp.game)) {
+    const g = GAMES.find(x => x.id === lp.game);
+    const modeLabel = lp.mix ? 'Smart Mix'
+      : (lp.gameName && lp.gameName !== g.name ? lp.gameName : '')
+        + (lp.level != null ? (lp.gameName && lp.gameName !== g.name ? ' · ' : '') + 'Level ' + lp.level : '');
+    const resume = { cat: lp.cat, level: lp.level, mix: !!lp.mix };
+    const jumpCard = el('button', { class: 'jumpback-card',
+      onclick: () => { sfx.tap(); ctx.go(lp.game, { resume }); } }, [
+      el('span', { class: 'jb-badge', text: 'Jump back in' }),
+      el('span', { class: 'jb-icon', html: g.icon() }),
+      el('span', { class: 'jb-body' }, [
+        el('span', { class: 'jb-name', text: g.name }),
+        el('span', { class: 'jb-mode', text: modeLabel || g.tag })
+      ]),
+      el('span', { class: 'jb-play', html: '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg>' })
+    ]);
+    // el() drops custom props via Object.assign, so set --accent explicitly.
+    jumpCard.style.setProperty('--accent', g.accent);
+    jumpBackNode = el('section', { class: 'jumpback-wrap' }, [jumpCard]);
+  }
 
   // ---- game cards, grouped Learn / Play (RUN2 part D) ----
   const cards = el('section', { class: 'game-cards-groups' });
@@ -219,7 +245,7 @@ export function mount(container, params, ctx) {
     ]));
   }
 
-  root.append(top, guideSection, specials, cards, bar);
+  root.append(top, guideSection, ...(jumpBackNode ? [jumpBackNode] : []), specials, cards, bar);
 
   renderMeter();
 
@@ -229,6 +255,21 @@ export function mount(container, params, ctx) {
   // Growth milestones (RUN4 C6): the Builders' clock starts when she crosses a
   // milestone, not when she next visits the town.
   try { tickGrowth(); } catch (e) { console.warn(e); }
+
+  // Update toast (RUN5 C0b): shown ONLY on the hub, never mid-round. Tapping
+  // activates the waiting service worker (user-initiated — the SW never
+  // auto-activates). A build that finishes installing while she is on the hub
+  // triggers the same toast via onUpdateWaiting.
+  let updateToast = null;
+  function offerUpdate() {
+    if (updateToast || !hasUpdateWaiting()) return;
+    updateToast = showToast('Something new arrived! Tap to get it!', {
+      actionLabel: 'Update ✨', autoHideMs: 0, className: 'update',
+      onAction: () => { sfx.tap(); activateUpdate(); }
+    });
+  }
+  offerUpdate();
+  const dropUpdateListener = onUpdateWaiting(offerUpdate);
 
   // greeting — or the one-per-session near-unlock nudge (RUN4 C1). A ready box
   // wins: celebration first, and the nudge never stacks onto other prompts.
@@ -274,7 +315,11 @@ export function mount(container, params, ctx) {
   }
 
   return {
-    unmount() { clearInterval(rotate); }
+    unmount() {
+      clearInterval(rotate);
+      dropUpdateListener();
+      if (updateToast) { updateToast.remove(); updateToast = null; }
+    }
   };
 }
 

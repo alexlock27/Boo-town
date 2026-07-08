@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run5-phase0';            // <-- bump on each deploy
+const BUILD_STAMP = 'run5-phase1';            // <-- bump on each deploy
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -37,6 +37,7 @@ const ASSETS = [
   'js/golden.js',
   'js/quests.js',
   'js/comfort.js',
+  'js/resilience.js',
   'js/trophies.js',
   'js/growth.js',
   'js/shiny.js',
@@ -89,6 +90,14 @@ self.addEventListener('install', (event) => {
   // version now waits until every old page is closed; a session always runs
   // one consistent build. (RUN4 hotfix 1 — live crash on Boo Dash round end.)
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
+});
+
+// User-initiated activation only (RUN5 C0b update toast). The no-skipWaiting policy
+// (hotfix 1) stands: a new build waits until every old page closes UNLESS the page
+// explicitly asks it to take over — which only happens when she taps the hub toast.
+self.addEventListener('message', (event) => {
+  const d = event.data;
+  if (d === 'SKIP_WAITING' || (d && d.type === 'SKIP_WAITING')) self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
