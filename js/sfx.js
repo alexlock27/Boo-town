@@ -6,6 +6,7 @@ let ctx = null;
 let master = null;     // master gain
 let sfxGain = null;    // effects bus
 let musicGain = null;  // music bus (ducked while guide speaks)
+let ambientGain = null;// ambient bed bus (day chirps / night crickets, under the music) (RUN6 C1)
 let soundOn = true;
 let musicOn = true;
 let started = false;
@@ -14,6 +15,16 @@ let currentLoop = null;  // 'calm' | 'game' | null
 let schedTimer = null;
 let nextNoteTime = 0;
 let step = 0;
+
+let ambientLoop = null;  // 'day' | 'night' | null
+let ambientTimer = null;
+let ambientNext = 0;
+
+// ---- instrumentation (test-only): prove note scheduling, ducking, mute obedience ----
+let audioLog = null;     // null = off; array = capturing
+export function setAudioLog(on) { audioLog = on ? [] : null; return audioLog; }
+export function getAudioLog() { return audioLog || []; }
+function logEvent(ev) { if (audioLog) audioLog.push(ev); }
 
 // Create the context lazily on the first user gesture (autoplay policy).
 export function initAudio() {
@@ -25,6 +36,7 @@ export function initAudio() {
     master = ctx.createGain();  master.gain.value = 0.9;  master.connect(ctx.destination);
     sfxGain = ctx.createGain(); sfxGain.gain.value = 0.9; sfxGain.connect(master);
     musicGain = ctx.createGain(); musicGain.gain.value = musicOn ? 0.18 : 0; musicGain.connect(master);
+    ambientGain = ctx.createGain(); ambientGain.gain.value = musicOn ? 0.10 : 0; ambientGain.connect(master);
     started = true;
     resume();
     return true;
@@ -47,13 +59,18 @@ export function setMusicEnabled(on) {
   if (musicGain && ctx) {
     try { musicGain.gain.setTargetAtTime(musicOn ? 0.18 : 0, ctx.currentTime, 0.05); } catch {}
   }
+  if (ambientGain && ctx) {
+    try { ambientGain.gain.setTargetAtTime(musicOn ? 0.10 : 0, ctx.currentTime, 0.05); } catch {}
+  }
+  logEvent({ kind: 'mute', target: 'music', on: musicOn });
   if (musicOn && currentLoop) startScheduler();
+  if (musicOn && ambientLoop) startAmbient(); else if (!musicOn) stopAmbient();
 }
 export function getSoundEnabled() { return soundOn; }
 export function getMusicEnabled() { return musicOn; }
 
 // ---- one-shot effects ----
-function envTone(freq, t0, dur, type = 'sine', peak = 0.5, bus = sfxGain) {
+function envTone(freq, t0, dur, type = 'sine', peak = 0.5, bus = sfxGain, tag = null) {
   if (!ctx) return;
   const o = ctx.createOscillator();
   const g = ctx.createGain();
@@ -64,6 +81,7 @@ function envTone(freq, t0, dur, type = 'sine', peak = 0.5, bus = sfxGain) {
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g); g.connect(bus);
   o.start(t0); o.stop(t0 + dur + 0.02);
+  if (audioLog) logEvent({ kind: 'note', t: t0, freq: Math.round(freq), dur, bus: bus === musicGain ? 'music' : bus === ambientGain ? 'ambient' : 'sfx', tag });
 }
 
 function play(fn) {
@@ -147,15 +165,54 @@ export const music = {
   stop() { currentLoop = null; stopScheduler(); },
   // duck volume while the guide speaks, then restore
   duck(on) {
+    logEvent({ kind: 'duck', on: !!on });
     if (!musicGain || !ctx) return;
     try { musicGain.gain.setTargetAtTime(on ? 0.05 : (musicOn ? 0.18 : 0), ctx.currentTime, 0.08); } catch {}
+    if (ambientGain) { try { ambientGain.gain.setTargetAtTime(on ? 0.03 : (musicOn ? 0.10 : 0), ctx.currentTime, 0.08); } catch {} }
   }
 };
+
+// ---- ambient sound bed (RUN6 C1): sparse birdsong by day, crickets by night, ----
+// under the music, obeying the music mute. Instrumented for headless audio evidence.
+export const ambient = {
+  play(kind) {  // 'day' | 'night' | null
+    if (!ctx) { if (!initAudio()) return; }
+    resume();
+    if (ambientLoop === kind) return;
+    ambientLoop = kind;
+    if (kind && musicOn) startAmbient(); else stopAmbient();
+  },
+  stop() { ambientLoop = null; stopAmbient(); }
+};
+function startAmbient() {
+  if (!ctx || !ambientLoop || !musicOn) return;
+  if (ambientTimer) return;
+  ambientNext = ctx.currentTime + 0.2;
+  ambientTimer = setInterval(scheduleAmbient, 120);
+}
+function stopAmbient() { if (ambientTimer) { clearInterval(ambientTimer); ambientTimer = null; } }
+function scheduleAmbient() {
+  if (!ctx || !ambientLoop || !musicOn) return;
+  while (ambientNext < ctx.currentTime + 0.4) {
+    if (ambientLoop === 'day') {
+      // sparse, gentle birdsong: a couple of quick high triangle chirps
+      const base = 1800 + Math.random() * 900;
+      envTone(base, ambientNext, 0.06, 'triangle', 0.05, ambientGain, 'ambient-chirp');
+      if (Math.random() < 0.5) envTone(base * 1.12, ambientNext + 0.08, 0.05, 'triangle', 0.04, ambientGain, 'ambient-chirp');
+      ambientNext += 0.7 + Math.random() * 1.4;
+    } else {
+      // night crickets: soft rhythmic high pulses
+      envTone(2600, ambientNext, 0.03, 'square', 0.02, ambientGain, 'ambient-cricket');
+      envTone(2600, ambientNext + 0.06, 0.03, 'square', 0.02, ambientGain, 'ambient-cricket');
+      ambientNext += 0.5 + Math.random() * 0.6;
+    }
+  }
+}
 
 // Pause loops when the tab is hidden (spec §11.3).
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopScheduler();
-    else if (currentLoop && musicOn) startScheduler();
+    if (document.hidden) { stopScheduler(); stopAmbient(); }
+    else { if (currentLoop && musicOn) startScheduler(); if (ambientLoop && musicOn) startAmbient(); }
   });
 }

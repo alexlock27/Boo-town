@@ -1446,6 +1446,34 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .plot-menu .btn { padding: 8px 14px; font-size: 16px; min-height: 44px; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .t-firefly, .t-butterfly, .t-star { animation: none !important; } }
 
+/* Boo behaviour engine (RUN6 C1): a critter a Boo chases about the ground band. */
+.t-chase-critter { position: absolute; font-size: 20px; z-index: 4; pointer-events: none; transition: opacity 0.8s ease; will-change: transform; }
+.t-chase-critter.firefly { width: 7px; height: 7px; border-radius: 50%; background: #FFF3B0; box-shadow: 0 0 9px 3px #FFE08A; }
+.t-chase-critter.flutter-off { opacity: 0; transform: translateY(-60px); }
+
+/* Ambient life: seasonal weather (RUN6 C1). One particle layer over the viewport. */
+.t-weather { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 6; }
+.t-wp { position: absolute; top: -6%; will-change: transform; animation: wpFall var(--fall,9s) linear var(--delay,0s) infinite; }
+@keyframes wpFall {
+  0% { transform: translate(0, -10%) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.95; }
+  90% { opacity: 0.95; }
+  100% { transform: translate(var(--drift,0px), 115vh) rotate(320deg); opacity: 0; }
+}
+.t-sunrays { position: absolute; top: -40%; left: 8%; width: 60%; height: 130%;
+  background: conic-gradient(from 200deg at 20% 0%, rgba(255,236,150,0) 0deg, rgba(255,236,150,0.22) 14deg, rgba(255,236,150,0) 28deg, rgba(255,236,150,0.18) 44deg, rgba(255,236,150,0) 60deg);
+  transform-origin: 20% 0%; animation: sunrays 26s linear infinite; }
+@keyframes sunrays { 0% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } 100% { transform: rotate(-6deg); } }
+
+/* A rare shooting star at night (RUN6 C1): tappable, streaks and fades. */
+.t-shooting-star { position: absolute; z-index: 7; border: none; background: transparent; padding: 10px; cursor: pointer; transform: translate(0,0); }
+.t-shooting-star .ss-head { display: inline-block; color: #FFF8D6; font-size: 20px; text-shadow: 0 0 10px #FFE08A, 0 0 20px #FFC93C; }
+.t-shooting-star .ss-tail { position: absolute; top: 50%; right: 100%; width: 70px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, rgba(255,240,180,0) 0%, rgba(255,240,180,0.9) 100%); transform: translateY(-50%) rotate(18deg); transform-origin: right center; }
+.t-shooting-star.streak { animation: shootStar 2.4s ease-in forwards; }
+@keyframes shootStar { 0% { transform: translate(60px,-40px); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(-220px,150px); opacity: 0; } }
+.t-shooting-star.caught .ss-head { transform: scale(1.6); }
+@media (prefers-reduced-motion: reduce) { .t-wp, .t-sunrays, .t-shooting-star.streak, .t-chase-critter { animation: none !important; } }
+
 .town-drawer { display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px 14px; min-height: 92px; align-items: center; }
 /* "this spot's taken" wobble on a collision (RUN5 C3) */
 .town-drawer.taken { animation: drawerShake 0.5s ease; }

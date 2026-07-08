@@ -160,11 +160,13 @@ console.log('== campfire circle is a night thing ==');
     { zone: 'meadow', x: 0.42, item: 'boo_inky' }
   ], { hour: 13 });
   await sleep(1500);
-  const role = await page.evaluate(() => {
-    const w = document.querySelector('.t-item.boo svg');
-    return w ? w.style.transform : '';
+  // The campfire ROLE is night-gated; by day no Boo should hold it. (Checked via the
+  // role directly now that RUN6 C1 free-wander behaviours can also move a Boo about.)
+  const gathered = await page.evaluate(() => {
+    const L = window.__townLife; if (!L) return false;
+    for (let i = 0; i < L.actorCount(); i++) if (L.goalOf(i) === 'role:campfire') return true;
+    return false;
   });
-  const gathered = /translate\((2[0-9]|3[0-9]|4[0-9])/.test(role);
   assert(!gathered, 'no fire circle in the daytime');
   await ctx.close();
 }

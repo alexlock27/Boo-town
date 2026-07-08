@@ -14,7 +14,7 @@ import { checkRequestOpen, activeRequest, takeTreat } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
-import { sfx, music } from './sfx.js';
+import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
@@ -52,6 +52,44 @@ const WAKE_MS = 45000;          // a woken Boo stays up this long (no grumpiness
 const BENCH_SIT_MS = 7000;      // bench sits are "now and then", not forever
 const BENCH_COOLDOWN_MS = 9000;
 const isSleepTime = (h) => h >= SLEEP_START || h < SLEEP_END;
+
+// ---- Boo behaviour engine (RUN6 C1): a free Boo periodically picks its next act ----
+const BEHAVIOUR_CHANCE = 0.55;  // fraction of re-choices that start a richer act (else micro-wander)
+const GOAL_STRIDE = 0.10;       // zone-fraction/sec stride toward a goal (friend / activity / nap spot)
+const VISIT_REACH_PX = 48;      // gap that counts as "arrived" beside a friend
+const GREET_MS = 1700;          // how long the wave-and-heart lingers on a friend visit
+const GOAL_TIMEOUT_MS = 9000;   // abandon a goal if unreached — a Boo is never stuck
+const CHASE_MS = 3800;          // a butterfly (day) / firefly (night) chase
+const WATCH_MS = 4200;          // a sit-and-watch spell
+const NAP_MS = 22000;           // a chosen nap under a tree/house lasts a while (or until morning)
+const NAP_IDS = ['deco_boohouse', 'deco_tree'];   // a Boo naps by a house or under a Bubble Tree at night
+const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond'];
+
+// ---- ambient life (RUN6 C1) ----
+const WEATHER_PARTICLES = 14;   // per-season particle count (one particle layer; caps hold)
+const STAR_GAP_MS = [16000, 40000];  // random gap between night shooting stars
+const STAR_REWARD = 1;          // +1 meter, capped once per night
+
+function seasonOf(month) {       // month 1..12
+  if (month >= 3 && month <= 5) return 'spring';
+  if (month >= 6 && month <= 8) return 'summer';
+  if (month >= 9 && month <= 11) return 'autumn';
+  return 'winter';
+}
+function currentMonth() {
+  if (typeof window !== 'undefined' && window.__bootownMonth != null) return window.__bootownMonth | 0;
+  try { return new Date().getMonth() + 1; } catch { return 6; }
+}
+function todayKeyLocal() {
+  if (typeof window !== 'undefined' && window.__bootownDay) return window.__bootownDay;
+  try { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; } catch { return 'x'; }
+}
+function weightedPick(cands) {   // cands: [ [value, weight], ... ]
+  let total = 0; for (const [, w] of cands) total += w;
+  let r = Math.random() * total;
+  for (const [v, w] of cands) { r -= w; if (r <= 0) return v; }
+  return cands[cands.length - 1][0];
+}
 const lerp = (a, b, k) => a + (b - a) * k;
 // Activity kit renders bigger than a Boo so climbing/sitting reads properly.
 const ACT_SIZE = {
@@ -82,6 +120,7 @@ export function mount(container, params, ctx) {
   let placeMode = !!holding;
   let scrollX = 0, worldW = 0, zoneW = 0, viewW = 0, viewH = 0, groundY = 0;
   let raf = null, actors = [], fx = [];
+  let currentSeasonName = '', starTimer = null;   // ambient life (RUN6 C1)
 
   const root = el('div', { class: 'town2' });
   const back = backControl(() => ctx.go('hub'));
@@ -407,11 +446,16 @@ export function mount(container, params, ctx) {
     const night = isSleepTime(currentHour());
     let roleCount = actors.filter(a => a.role).length;
     const wrapFor = (t) => [...ground.querySelectorAll('.t-item')].find(w => w.dataset.zone === t.zone && Math.abs(+w.dataset.x - t.x) < 0.001 && w.dataset.item === t.item);
+    // Use the Boo's CURRENT position (home + wander offset) so a Boo that walked
+    // UP to an activity (C1 behaviour engine) gets claimed on arrival, not just one
+    // that happened to be placed beside it. Goal-pursuers aren't yanked mid-act.
+    const curX = (a) => a.place.x + ((a.dx || 0) / (zoneW || 1));
     const freeNear = (t, radius) => actors
-      .filter(a => !a.role && !a.dancing && ZONE_INDEX[a.place.zone] === ZONE_INDEX[t.zone] && Math.abs(a.place.x - t.x) <= radius)
-      .sort((p, q) => Math.abs(p.place.x - t.x) - Math.abs(q.place.x - t.x));
+      .filter(a => !a.role && !a.dancing && !a.goal && ZONE_INDEX[a.place.zone] === ZONE_INDEX[t.zone] && Math.abs(curX(a) - t.x) <= radius)
+      .sort((p, q) => Math.abs(curX(p) - t.x) - Math.abs(curX(q) - t.x));
     const give = (a, role) => {
       if (roleCount >= MAX_ACTIVE_ROLES) return false;
+      a.goal = null; a.dx = 0; a.depth = 0; a.depthTarget = 0;   // claimed → drop any goal + wander offset (C1)
       a.role = Object.assign({ t: Math.random() * 500 }, role);
       a.role.offX = (role.deco.x - a.place.x) * zoneW;
       // Depth-align to the deco's row (C3): sit the Boo on the activity's baseline so
@@ -841,6 +885,9 @@ export function mount(container, params, ctx) {
 
   function squeak(wrap, item) {
     wakeIfSleeping(wrap);
+    // a tap always interrupts a chosen behaviour (C1): the Boo drops what it was doing
+    const a = actors.find(x => x.wrap === wrap);
+    if (a && a.goal) endGoal(a);
     // her own recorded voice plays instead of the squeak, only on tap (never ambient)
     if (voiceIds.has(item.id)) playVoice(item.id); else sfx.pop();
     noteQuest('sayHello', { count: 1 });   // daily quest: say hello to Boos (RUN3 C4)
@@ -950,7 +997,7 @@ export function mount(container, params, ctx) {
   function makeActor(wrap, item, place) {
     return { wrap, item, place, dancing: false, row: rowOf(place),
       home: 0, dx: 0, vx: 0, state: 'pause', t: 0, next: 400 + Math.random() * 1200, hopT: 0,
-      depth: 0, depthTarget: 0 };   // depth: px drift between depth rows (C3)
+      depth: 0, depthTarget: 0, goal: null };   // depth: px drift between rows (C3); goal: chosen behaviour (C1)
   }
   function startLoop() {
     if (REDUCED) return;              // reduced motion: static poses, no wandering
@@ -972,8 +1019,10 @@ export function mount(container, params, ctx) {
       if (a.dancing) continue; // dancing handled by CSS
       if (a.role) { stepRole(a, dt, now); continue; }   // activity items (RUN4 C5)
       a.t += dt;
+      if (a.goal) { stepGoal(a, dt, now); continue; }   // a chosen behaviour (C1): visit/approach/chase/watch/nap
       if (a.t >= a.next) {
         a.t = 0;
+        if (maybePickBehaviour(a, now)) continue;        // sometimes pick a richer act than a micro-wander
         const roll = Math.random();
         if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.next = 700 + Math.random() * 1600; }
         else if (roll < 0.85) { a.state = 'walk'; a.vx = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.01); a.next = 500 + Math.random() * 900; }
@@ -992,8 +1041,220 @@ export function mount(container, params, ctx) {
     }
   }
 
+  // ---- Boo behaviour engine (RUN6 C1) ------------------------------------
+  // A free Boo periodically chooses a richer act than a micro-wander, weighted by
+  // what is placed nearby and the time of day: visit a friend (walk over, wave + a
+  // little heart), walk up to and use an activity item, chase a butterfly by day /
+  // firefly by night, sit and watch, or nap under a tree/house at night. Emergent,
+  // never scripted; a tap always interrupts (squeak/heart/nickname, handled onTap).
+  function maybePickBehaviour(a, now) {
+    if (a.depthLock) return false;                 // QA depth-drift hook keeps them still (r5p4)
+    if (Math.random() > BEHAVIOUR_CHANCE) return false;
+    const kind = chooseBehaviourKind(a);
+    if (!kind) return false;
+    startBehaviour(a, kind, now);
+    return !!a.goal;
+  }
+  function chooseBehaviourKind(a) {
+    const cands = [];
+    const night = isSleepTime(currentHour());
+    if (pickFriend(a)) cands.push(['visit', 2.2]);
+    if (pickFreeActivity(a)) cands.push(['approach', 2.6]);
+    cands.push(['chase', 1.6]);
+    cands.push(['watch', 1.3]);
+    // a just-woken Boo stays up (no instant re-nap); mirrors the sleep-role wake rule
+    const recentlyWoken = a.wakeUntil && performance.now() < a.wakeUntil;
+    if (night && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6]);
+    return cands.length ? weightedPick(cands) : null;
+  }
+  function pickFriend(a) {
+    const zi = ZONE_INDEX[a.place.zone];
+    const cands = actors.filter(b => b !== a && !b.dancing && !b.role
+      && ZONE_INDEX[b.place.zone] === zi && Math.abs((b.place.x + (b.dx || 0) / (zoneW || 1)) - a.place.x) < 0.5);
+    cands.sort((p, q) => Math.abs(p.place.x - a.place.x) - Math.abs(q.place.x - a.place.x));
+    return cands[0] || null;
+  }
+  function occupiedDecoKeys() {
+    const set = new Set();
+    for (const b of actors) if (b.role && b.role.deco) set.add(b.role.deco.zone + ':' + b.role.deco.x + ':' + b.role.deco.item);
+    return set;
+  }
+  function pickFreeActivity(a) {
+    const st = getState(); const zi = ZONE_INDEX[a.place.zone]; const occ = occupiedDecoKeys();
+    const cands = st.town.filter(t => ACT_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi
+      && Math.abs(t.x - a.place.x) < 0.55 && !occ.has(t.zone + ':' + t.x + ':' + t.item));
+    cands.sort((p, q) => Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x));
+    return cands[0] || null;
+  }
+  function pickNapSpot(a) {
+    const st = getState(); const zi = ZONE_INDEX[a.place.zone];
+    const cands = st.town.filter(t => NAP_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) < 0.6);
+    cands.sort((p, q) => Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x));
+    return cands[0] || null;
+  }
+  function startBehaviour(a, kind, now) {
+    now = now || performance.now();
+    if (kind === 'visit') {
+      const f = pickFriend(a); if (!f) return;
+      const fFrac = f.place.x + (f.dx || 0) / (zoneW || 1);
+      const side = fFrac >= a.place.x ? -0.02 : 0.02;   // stand just beside, not on top of, the friend
+      a.goal = { kind, friend: f, targetDx: (fFrac + side - a.place.x) * zoneW, start: now, greeted: false };
+    } else if (kind === 'approach') {
+      const d = pickFreeActivity(a); if (!d) return;
+      a.goal = { kind, deco: d, targetDx: (d.x - a.place.x) * zoneW, start: now };
+    } else if (kind === 'nap') {
+      const d = pickNapSpot(a); if (!d) return;
+      a.goal = { kind, spot: d, targetDx: (d.x - a.place.x) * zoneW, start: now, curled: false };
+    } else if (kind === 'chase') {
+      a.goal = { kind, start: now, critter: spawnChaseCritter(a), dir: Math.random() < 0.5 ? -1 : 1 };
+    } else if (kind === 'watch') {
+      a.goal = { kind, start: now };
+    }
+  }
+  function spawnChaseCritter(a) {
+    const isN = isNight(currentHour());
+    const c = el('div', { class: 't-chase-critter' + (isN ? ' firefly' : ''), text: isN ? '' : '🦋' });
+    c._x = parseFloat(a.wrap.style.left) + a.wrap.offsetWidth / 2 + (a.dx || 0);
+    c._y = parseFloat(a.wrap.style.top) - 6; c._phase = Math.random() * 6.28;
+    c.style.left = c._x.toFixed(1) + 'px'; c.style.top = c._y.toFixed(1) + 'px';
+    ground.appendChild(c);   // in the scrolling world, so its coords match the Boo
+    return c;
+  }
+  function greet(a, friend) {
+    spawnHeart(a.wrap); if (friend && friend.wrap) spawnHeart(friend.wrap);
+    if (friend) { friend.t = 0; friend.next = Math.max(friend.next || 0, GREET_MS + 400); }   // friend pauses to wave back
+  }
+  function spawnHeart(wrap) { const h = el('div', { class: 'pop-heart', text: '❤' }); wrap.appendChild(h); setTimeout(() => h.remove(), 900); }
+  function endGoal(a) {
+    const g = a.goal;
+    if (g && g.critter) { try { g.critter.remove(); } catch {} }
+    a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
+    a.goal = null; a.state = 'pause'; a.vx = 0; a.t = 0; a.next = 600 + Math.random() * 1400;
+    a.home = Math.max(-zoneW * 0.45, Math.min(zoneW * 0.45, a.dx || 0));   // roam onward from here (no snap-back)
+  }
+  function stepGoal(a, dt, now) {
+    const g = a.goal; if (!g) return;
+    const svg = a.wrap.querySelector('svg'); if (!svg) return;
+    const stride = GOAL_STRIDE * zoneW * dt / 1000;
+    if (g.kind === 'watch') {
+      const settle = Math.min(1, (now - g.start) / 500);
+      svg.style.transform = `translateY(${(3 * settle).toFixed(1)}px) scale(1, ${(1 - 0.06 * settle).toFixed(3)})`;
+      if (now - g.start > WATCH_MS) endGoal(a);
+      return;
+    }
+    if (g.kind === 'chase') {
+      const c = g.critter, T = now - g.start;
+      if (c) {
+        c._x += g.dir * 0.045 * dt + Math.sin((T + c._phase * 300) / 520) * 0.5;
+        c._y += Math.sin(T / 340 + c._phase) * 0.5;
+        c.style.left = c._x.toFixed(1) + 'px'; c.style.top = c._y.toFixed(1) + 'px';
+      }
+      const homeX = parseFloat(a.wrap.style.left) + a.wrap.offsetWidth / 2;
+      const targetDx = c ? (c._x - homeX) : 0;
+      const gap = targetDx - a.dx;
+      a.dx += Math.sign(gap) * Math.min(Math.abs(gap), stride * 1.3);
+      const hop = -Math.abs(Math.sin(T / 240)) * 10;
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${hop.toFixed(1)}px) scaleX(${gap < 0 ? -1 : 1})`;
+      if (T > CHASE_MS) { if (c) { c.classList.add('flutter-off'); setTimeout(() => { try { c.remove(); } catch {} }, 900); } a.goal.critter = null; endGoal(a); }
+      return;
+    }
+    // visit / approach / nap all stride toward a target offset first
+    const gap = g.targetDx - a.dx;
+    const flip = gap < 0 ? -1 : 1;
+    if (Math.abs(gap) > 2) a.dx += Math.sign(gap) * Math.min(Math.abs(gap), stride);
+    const walkHop = -Math.abs(Math.sin((now - g.start) / 200)) * 6;
+    if (g.kind === 'visit') {
+      if (Math.abs(a.dx - g.targetDx) < VISIT_REACH_PX && !g.greeted) { g.greeted = true; g.greetStart = now; greet(a, g.friend); }
+      if (g.greeted) {
+        const wave = Math.sin((now - g.greetStart) / 120) * 8;
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, 0px) rotate(${wave.toFixed(1)}deg) scaleX(${flip})`;
+        if (now - g.greetStart > GREET_MS) endGoal(a);
+      } else {
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+        if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      }
+      return;
+    }
+    if (g.kind === 'approach') {
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) endGoal(a);   // arrived → assignRoles claims next tick
+      else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      return;
+    }
+    if (g.kind === 'nap') {
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) {
+        if (!g.curled) { g.curled = true; g.curlStart = now; if (!a.wrap.querySelector('.t-zzz')) a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' })); }
+        const breathe = 1 + Math.sin((now - g.curlStart) / 900) * 0.03;
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, 9px) scale(1.06, ${(0.84 * breathe).toFixed(3)})`;
+        if (now - g.curlStart > NAP_MS || !isSleepTime(currentHour())) endGoal(a);
+      } else {
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+        if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      }
+      return;
+    }
+  }
+
+  // ---- ambient life: seasonal weather + shooting star (RUN6 C1) ----------
+  function renderWeather() {
+    const old = viewport.querySelector('.t-weather'); if (old) old.remove();
+    if (REDUCED) return;
+    const season = seasonOf(currentMonth());
+    currentSeasonName = season;
+    const layer = el('div', { class: 't-weather ' + season });
+    if (season === 'summer') {
+      layer.appendChild(el('div', { class: 't-sunrays' }));
+    } else {
+      const glyph = season === 'autumn' ? '🍂' : season === 'winter' ? '❄' : '🌸';
+      for (let i = 0; i < WEATHER_PARTICLES; i++) {
+        const p = el('div', { class: 't-wp', text: glyph });
+        p.style.left = (Math.random() * 100).toFixed(1) + '%';
+        p.style.setProperty('--fall', (7 + Math.random() * 6).toFixed(1) + 's');
+        p.style.setProperty('--delay', (-Math.random() * 10).toFixed(1) + 's');
+        p.style.setProperty('--drift', (Math.random() * 40 - 20).toFixed(0) + 'px');
+        p.style.fontSize = (14 + Math.random() * 10).toFixed(0) + 'px';
+        layer.appendChild(p);
+      }
+    }
+    viewport.appendChild(layer);
+  }
+  function scheduleShootingStar() {
+    if (starTimer) { clearTimeout(starTimer); starTimer = null; }
+    if (REDUCED || !isNight(currentHour())) return;   // a rare treat, only at night
+    const gap = STAR_GAP_MS[0] + Math.random() * (STAR_GAP_MS[1] - STAR_GAP_MS[0]);
+    starTimer = setTimeout(() => { spawnShootingStar(); scheduleShootingStar(); }, gap);
+  }
+  function spawnShootingStar() {
+    if (document.hidden) return null;
+    const star = el('button', { class: 't-shooting-star', 'aria-label': 'A shooting star! Tap it!', html: '<span class="ss-head">✦</span><span class="ss-tail"></span>' });
+    star.style.top = (5 + Math.random() * 24) + '%';
+    star.style.left = (52 + Math.random() * 26) + '%';
+    star.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+    star.addEventListener('pointerup', (e) => { e.stopPropagation(); claimShootingStar(star); });
+    viewport.appendChild(star);
+    requestAnimationFrame(() => star.classList.add('streak'));
+    setTimeout(() => { try { star.remove(); } catch {} }, REDUCED ? 400 : 2600);
+    return star;
+  }
+  function claimShootingStar(star) {
+    const dk = todayKeyLocal();
+    const already = getState().seen && getState().seen.shootingStarDay === dk;
+    if (!REDUCED) { sfx.star(); const r = star.getBoundingClientRect(); confetti({ count: 26, power: 0.7, origin: { x: r.left + r.width / 2, y: r.top + r.height / 2 } }); }
+    star.classList.add('caught');
+    if (!already) {
+      mutate(st => { st.seen.shootingStarDay = dk; });
+      addMeterPoints(STAR_REWARD);   // +1 meter, capped once per night
+      hint.textContent = '✨ You caught a shooting star! +1 ✨';
+    } else { hint.textContent = '✨ Pretty!'; }
+    setTimeout(() => { try { star.remove(); } catch {} }, 500);
+    return !already;
+  }
+
   // ---- day/night ambient fx ----------------------------------------------
   buildAmbient(air, night);
+  renderWeather();
+  ambient.play(night ? 'night' : 'day');   // gentle bed under the music, obeys the mute (C1)
+  scheduleShootingStar();
 
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
   // eventually curl back up, and day/night transitions take hold (RUN4 C5).
@@ -1011,6 +1272,28 @@ export function mount(container, params, ctx) {
       depthYs: () => actors.filter(a => !a.role && !a.dancing).map(a => { const m = (a.wrap.querySelector('svg').style.transform || '').match(/translate\([^,]+,\s*(-?[\d.]+)px/); return m ? +m[1] : 0; }),
       itemsByRow: () => [...ground.querySelectorAll('.t-item')].map(w => ({ row: +w.dataset.row, item: w.dataset.item, w: w.getBoundingClientRect().width, z: +w.style.zIndex || 0, top: parseFloat(w.style.top) }))
     };
+    // RUN6 C1 QA hooks: drive the behaviour engine + ambient life deterministically.
+    window.__townLife = {
+      actorCount: () => actors.length,
+      free: () => actors.filter(a => !a.role && !a.dancing && !a.goal).length,
+      // force actor i into a behaviour; returns the goal kind (or a claimed role kind), else null
+      force: (i, kind) => { const a = actors[i]; if (!a) return null; clearRole(a); a.goal = null; a.depthLock = false; startBehaviour(a, kind, performance.now()); return a.goal ? a.goal.kind : null; },
+      goalOf: (i) => { const a = actors[i]; return a ? (a.goal ? 'goal:' + a.goal.kind : (a.role ? 'role:' + a.role.kind : 'wander')) : null; },
+      transform: (i) => { const a = actors[i], s = a && a.wrap.querySelector('svg'); return s ? s.style.transform : ''; },
+      heartsShown: () => ground.querySelectorAll('.pop-heart').length,
+      zzzShown: () => ground.querySelectorAll('.t-zzz').length,
+      chaseCritters: () => ground.querySelectorAll('.t-chase-critter').length,
+      roleCount: () => actors.filter(a => a.role).length,
+      tick: (ms) => { const now = performance.now(); for (const a of actors) { if (a.goal) stepGoal(a, ms, now); } },
+      assignRoles: () => assignRoles(),
+      // ambient life
+      season: () => currentSeasonName,
+      weather: () => { const l = viewport.querySelector('.t-weather'); return l ? { season: [...l.classList].find(c => ['spring', 'summer', 'autumn', 'winter'].includes(c)), particles: l.querySelectorAll('.t-wp').length, sunrays: l.querySelectorAll('.t-sunrays').length } : null; },
+      renderWeather: () => renderWeather(),
+      spawnStar: () => spawnShootingStar(),
+      tapStar: (star) => claimShootingStar(star),
+      starDay: () => (getState().seen || {}).shootingStarDay || null
+    };
   }
 
   return {
@@ -1019,6 +1302,8 @@ export function mount(container, params, ctx) {
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);
+      if (starTimer) clearTimeout(starTimer);
+      ambient.stop();
       window.removeEventListener('resize', onResize);
       closeMenu();
     }
