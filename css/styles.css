@@ -1885,6 +1885,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .swatch { width: 42px; height: 42px; }
   /* the town item menu wraps to fit narrow screens (openMenu clamps it on-screen) */
   .plot-menu { flex-wrap: wrap; justify-content: center; max-width: 94vw; width: max-content; }
+  /* RUN5 C4: flex-CENTERED screens clip their top above the scrollport when content
+     overflows (justify-content:center overflow spills BOTH ways; the top half can
+     never be scrolled to). Safe-centre instead: auto margins give the same centring
+     when content fits, and collapse to 0 when it doesn't — top stays reachable.
+     Bit the creator/edit-guide at 390x844 once accessories made it tall enough. */
+  .onboard, .stub-screen { justify-content: flex-start; }
+  .onboard > :first-child, .stub-screen > :first-child { margin-top: auto; }
+  .onboard > :last-child, .stub-screen > :last-child { margin-bottom: auto; }
   /* overlays can be taller than a phone screen too */
   .overlay { overflow-y: auto; }
   .overlay .card { max-height: none; }
