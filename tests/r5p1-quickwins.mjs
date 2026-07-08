@@ -53,8 +53,9 @@ console.log('== oops net ==');
   await page.waitForSelector('.hub', { timeout: 6000 });
   const stillOops = await page.$('.oops-net');
   assert(!stillOops, 'Restart recovers to the hub, no oops card lingering');
-  // grown-ups corner surfaces the hiccup line
+  // grown-ups corner surfaces the hiccup line (Backup & data tab, RUN6 C0.2)
   await page.evaluate(() => window.BooTown.go('grownups'));
+  await page.click('.gu-tab[data-tab="data"]');
   await page.waitForSelector('.gu-hiccup');
   const hline = await page.$eval('.gu-hiccup', n => n.textContent);
   assert(/boom-test-xyz/.test(hline || ''), 'grown-ups shows the last hiccup');
@@ -114,6 +115,7 @@ console.log('== rolling backups ==');
   await snapshotDay('2026-07-03', 30);
   await snapshotDay('2026-07-04', 40);
   await page.evaluate(() => window.BooTown.go('grownups'));
+  await page.click('.gu-tab[data-tab="data"]');   // snapshots live on the Backup & data tab (RUN6 C0.2)
   await page.waitForSelector('.gu-snaps');
   await page.waitForSelector('.gu-snap-row', { timeout: 4000 });
   const rows = await page.$$('.gu-snap-row');

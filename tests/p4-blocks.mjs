@@ -22,9 +22,9 @@ await page.waitForSelector('.hub');
 console.log('== star thresholds ==');
 const starLogic = await page.evaluate(async () => {
   const m = await import('./js/games/blocks.js');
-  return [m.starsForBlocks(12, 5, 0), m.starsForBlocks(10, 5, 0), m.starsForBlocks(10, 5, 1), m.starsForBlocks(8, 3, 0), m.starsForBlocks(6, 2, 0)];
+  return [m.starsForBlocks(12, 6, 0), m.starsForBlocks(10, 6, 0), m.starsForBlocks(10, 6, 1), m.starsForBlocks(8, 3, 0), m.starsForBlocks(6, 2, 0)];
 });
-assert(starLogic[0] === 3 && starLogic[1] === 3, '3 stars for 10+ correct & 5 lines, no hints');
+assert(starLogic[0] === 3 && starLogic[1] === 3, '3 stars for 10+ correct & 6 lines, no hints (RUN6 C0.3 retune)');
 assert(starLogic[2] === 2, 'a hint caps below 3 stars');
 assert(starLogic[3] === 2, '2 stars for 7+ correct & 3 lines');
 assert(starLogic[4] === 1, '1 star for finishing');
@@ -54,14 +54,18 @@ const PACKER = `
   const placeB=(b,cells,r,c)=>{const nb=b.map(x=>x.slice());for(const[dr,dc]of cells)nb[r+dr][c+dc]=1;return nb;};
   const clearB=b=>{const rf=[],cf=[];for(let rr=0;rr<9;rr++)if(b[rr].every(v=>v))rf.push(rr);for(let cc=0;cc<9;cc++){let f=true;for(let rr=0;rr<9;rr++)if(!b[rr][cc]){f=false;break;}if(f)cf.push(cc);}for(const rr of rf)for(let cc=0;cc<9;cc++)b[rr][cc]=0;for(const cc of cf)for(let rr=0;rr<9;rr++)b[rr][cc]=0;return rf.length+cf.length;};
   const scoreOf=(l,e)=>l*6000-e.agg*1.0-e.holes*45-e.bump*0.3+e.near*0.45;
-  const best1=(board,tray)=>{let best=null;for(let s=0;s<tray.length;s++){const cells=tray[s];if(!cells)continue;for(let r=0;r<9;r++)for(let c=0;c<9;c++){if(!fitsB(board,cells,r,c))continue;const nb=placeB(board,cells,r,c);const l=clearB(nb);const sc=scoreOf(l,evalBoard(nb));if(!best||sc>best.score)best={s,r,c,score:sc};}}return best;};
-  const bestPlacement=()=>{const board=B.board();const tray=B.tray();let best=null;for(let s=0;s<tray.length;s++){const cells=tray[s];if(!cells)continue;for(let r=0;r<9;r++)for(let c=0;c<9;c++){if(!fitsB(board,cells,r,c))continue;const nb=placeB(board,cells,r,c);const l=clearB(nb);const base=scoreOf(l,evalBoard(nb));const rest=tray.map((t,i)=>i===s?null:t);const nx=best1(nb,rest);const total=base+(nx?nx.score*0.85:0);if(!best||total>best.score)best={s,r,c,score:total};}}return best;};
+  // RUN6 C0.3: pieces can spin, so the solver considers all 4 orientations and drives the rotate hook.
+  const normC=cells=>{const mr=Math.min(...cells.map(c=>c[0])),mc=Math.min(...cells.map(c=>c[1]));return cells.map(([r,c])=>[r-mr,c-mc]);};
+  const rot90=cells=>{const maxR=Math.max(...cells.map(c=>c[0]))+1;return normC(cells.map(([r,c])=>[c,maxR-1-r]));};
+  const orients=cells=>{const out=[],seen=new Set();let cur=normC(cells);for(let k=0;k<4;k++){const key=cur.map(x=>x.join(',')).sort().join(';');if(!seen.has(key)){seen.add(key);out.push({cells:cur,rot:k});}cur=rot90(cur);}return out;};
+  const best1=(board,tray)=>{let best=null;for(let s=0;s<tray.length;s++){if(!tray[s])continue;for(const o of orients(tray[s])){for(let r=0;r<9;r++)for(let c=0;c<9;c++){if(!fitsB(board,o.cells,r,c))continue;const nb=placeB(board,o.cells,r,c);const l=clearB(nb);const sc=scoreOf(l,evalBoard(nb));if(!best||sc>best.score)best={s,rot:o.rot,r,c,score:sc};}}}return best;};
+  const bestPlacement=()=>{const board=B.board();const tray=B.tray();let best=null;for(let s=0;s<tray.length;s++){if(!tray[s])continue;for(const o of orients(tray[s])){for(let r=0;r<9;r++)for(let c=0;c<9;c++){if(!fitsB(board,o.cells,r,c))continue;const nb=placeB(board,o.cells,r,c);const l=clearB(nb);const base=scoreOf(l,evalBoard(nb));const rest=tray.map((t,i)=>i===s?null:t);const nx=best1(nb,rest);const total=base+(nx?nx.score*0.85:0);if(!best||total>best.score)best={s,rot:o.rot,r,c,score:total};}}}return best;};
   let guard=0;
-  while(!B.ended()&&guard++<400){ if(!B.waiting()){const q=window.__booQuestion;if(q)B.answer(q.correct);await sleep(15);} const bp=bestPlacement(); if(bp){B.place(bp.s,bp.r,bp.c);await sleep(10);} await sleep(6); if(B.ended())break; }
+  while(!B.ended()&&guard++<400){ if(!B.waiting()){const q=window.__booQuestion;if(q)B.answer(q.correct);await sleep(15);} const bp=bestPlacement(); if(bp){ for(let k=0;k<(bp.rot||0);k++){B.rotateSlot(bp.s);await sleep(4);} B.place(bp.s,bp.r,bp.c);await sleep(10);} await sleep(6); if(B.ended())break; }
   return B.stats();
 `;
 
-const computeStars = (st) => (st.hintsUsed === 0 && st.correct >= 10 && st.lines >= 5) ? 3 : (st.correct >= 7 && st.lines >= 3) ? 2 : 1;
+const computeStars = (st) => (st.hintsUsed === 0 && st.correct >= 10 && st.lines >= 6) ? 3 : (st.correct >= 7 && st.lines >= 3) ? 2 : 1;
 async function playRound() {
   await page.evaluate(() => window.BooTown.go('blocks'));
   await page.waitForSelector('.start-card');

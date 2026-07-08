@@ -133,7 +133,34 @@ export function mount(container, params, ctx) {
     el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (4 and under → Toddler · 5–7 → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
   ]);
 
-  root.append(header, starLedger(s), goldenEditor(s), contentCard, toggles, micCard, requestsCard, backup, diagnostics(), reset);
+  // ---- tabs (RUN6 C0.2): Settings first, so no setting hides behind the editors ----
+  const TABS = [
+    { id: 'settings', label: 'Settings',      cards: [toggles, contentCard, micCard, requestsCard] },
+    { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
+    { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
+    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), reset] }
+  ];
+  const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });
+  const panels = el('div', { class: 'gu-panels' });
+  const tabBtns = {}, panelEls = {};
+  function showTab(id) {
+    for (const t of TABS) {
+      const on = t.id === id;
+      panelEls[t.id].classList.toggle('active', on);
+      tabBtns[t.id].classList.toggle('active', on);
+      tabBtns[t.id].setAttribute('aria-selected', String(on));
+    }
+    panels.scrollTop = 0;
+  }
+  for (const t of TABS) {
+    const btn = el('button', { class: 'gu-tab', role: 'tab', dataset: { tab: t.id }, text: t.label,
+      onclick: () => showTab(t.id) });
+    tabBtns[t.id] = btn; tabbar.appendChild(btn);
+    const panel = el('div', { class: 'gu-panel', role: 'tabpanel', dataset: { tab: t.id } }, t.cards);
+    panelEls[t.id] = panel; panels.appendChild(panel);
+  }
+  showTab('settings');
+  root.append(header, tabbar, panels);
   container.appendChild(root);
 
   // ---- diagnostics: last hiccup (RUN5 C0b oops net) ----

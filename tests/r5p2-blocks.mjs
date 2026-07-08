@@ -58,7 +58,7 @@ console.log('== intro (first-play + demo + replay) ==');
   assert(sawPop, 'demo line completes and pops itself');
   await page.click('.intro-next'); // step 3
   const step3 = await page.$eval('.intro-bubble', n => n.textContent);
-  assert(/No spinning needed/.test(step3), 'step 3 reassures: no spinning, never fills to the top');
+  assert(/SPIN it/.test(step3), 'step 3 teaches tap-to-spin, never fills to the top (RUN6 C0.3)');
   await page.click('.intro-next'); // Let's go
   await page.waitForSelector('.intro-overlay', { state: 'detached', timeout: 3000 });
   const seen = await page.evaluate(() => window.BooTown.State.getState().seen.introSeen);

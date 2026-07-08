@@ -44,6 +44,7 @@ let music = await page.evaluate(() => window.BooTown.State.getState().settings.m
 assert(music === false, 'music toggled off in save');
 
 console.log('== restore from a backup code ==');
+await page.click('.gu-tab[data-tab="data"]');  // backup/restore live on the Backup & data tab (RUN6 C0.2)
 await page.fill('.gu-code:not([readonly])', backupCode); // original code had music ON
 await page.click('button:has-text("Restore from code")');
 await page.waitForTimeout(1200); // it reloads
@@ -56,6 +57,7 @@ const cog2 = await page.$('.cog-btn'); const cb2 = await cog2.boundingBox();
 await page.mouse.move(cb2.x + cb2.width / 2, cb2.y + cb2.height / 2);
 await page.mouse.down(); await page.waitForTimeout(3300); await page.mouse.up();
 await page.waitForSelector('.grownups');
+await page.click('.gu-tab[data-tab="data"]');  // reset lives on the Backup & data tab (RUN6 C0.2)
 const resetBtnDisabledBefore = await page.getAttribute('.gu-danger .btn.danger', 'disabled');
 assert(resetBtnDisabledBefore !== null, 'reset button disabled until RESET typed');
 await page.fill('.gu-danger .text-input', 'RESET');

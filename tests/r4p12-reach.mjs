@@ -32,7 +32,7 @@ const SCREENS = [
   ['collage',    '.collage-svg',  '.collage-actions .btn:last-of-type'],
   ['gallery',    '.studio-header', null],
   ['teachme',    '.lesson-grid',  '.lesson-card:last-of-type'],
-  ['grownups',   '.grownups',     'button:last-of-type'],
+  ['grownups',   '.grownups',     '.gu-switch:last-of-type'],
   ['editguide',  '.creator',      '.creator-btns .btn:last-of-type'],
   ['collection', '.coll-grid',    '.coll-grid:not(.wardrobe-grid) .coll-tile:last-of-type'],
   ['town',       '.town2',        '.town-drawer'],
@@ -226,8 +226,15 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await reach('.choreo-card .btn', 'choreographer: save/close buttons');
   await page.evaluate(() => document.querySelector('.choreo-overlay').remove());
 
-  // grown-ups: backup code box + copy, restore box, typed reset confirm
+  // grown-ups: every tab reachable, then backup code box + copy, restore box, typed reset (Backup & data tab)
   await page.evaluate(() => window.BooTown.go('grownups'));
+  await page.waitForSelector('.gu-tabs');
+  for (const t of ['settings', 'golden', 'ledger', 'data']) {
+    await page.click(`.gu-tab[data-tab="${t}"]`);
+    const tabReach = await page.evaluate(eval(REACH_FN), `.gu-tab[data-tab="${t}"]`);
+    assert(tabReach.found && tabReach.ok, `grown-ups: "${t}" tab reachable`);
+  }
+  await page.click('.gu-tab[data-tab="data"]');
   await page.waitForSelector('.gu-code');
   await reach('.gu-code', 'grown-ups: backup code box');
   await reach('button:has-text("Copy code")', 'grown-ups: Copy code');

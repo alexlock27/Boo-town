@@ -41,7 +41,7 @@ const SCREENS = [
   ['collage',    (p) => p.evaluate(() => window.BooTown.go('collage')),    '.collage-svg',  '.collage-actions .btn:last-of-type'],
   ['gallery',    (p) => p.evaluate(() => window.BooTown.go('gallery')),    '.studio-header', null],
   ['teachme',    (p) => p.evaluate(() => window.BooTown.go('teachme')),    '.lesson-grid',  '.lesson-card:last-of-type'],
-  ['grownups',   (p) => p.evaluate(() => window.BooTown.go('grownups')),   '.grownups',     '.gu-danger .btn.danger'],
+  ['grownups',   (p) => p.evaluate(() => window.BooTown.go('grownups')),   '.grownups',     '.gu-switch:last-of-type'],
   ['editguide',  (p) => p.evaluate(() => window.BooTown.go('editguide')),  '.creator',      '.creator-btns .btn:last-of-type'],
   ['collection', (p) => p.evaluate(() => window.BooTown.go('collection')), '.coll-grid',    '.coll-grid:not(.wardrobe-grid) .coll-tile:last-of-type'],
   ['town',       (p) => p.evaluate(() => window.BooTown.go('town')),       '.town2',        '.town-drawer .drawer-item, .town-drawer'],

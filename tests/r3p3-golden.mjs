@@ -23,6 +23,7 @@ await page.evaluate(() => { window.__bootownDay = '2026-07-04'; });
 // ---- editor: type content, save, round-trip ----
 console.log('== D10: editor round-trip ==');
 await page.evaluate(() => window.BooTown.go('grownups'));
+await page.click('.gu-tab[data-tab="golden"]');   // Golden Round tab (RUN6 C0.2)
 await page.waitForSelector('.gr-save');
 await page.fill('.gr-word >> nth=0', 'octopus');
 await page.fill('.gr-word >> nth=1', 'their');

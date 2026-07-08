@@ -18,6 +18,7 @@ for (const [mode, vp] of [['landscape', { width: 1024, height: 768 }], ['portrai
   await page.screenshot({ path: `screenshots/p3-play-${mode}.png` });
   // editor
   await page.evaluate(() => window.BooTown.go('grownups'));
+  await page.click('.gu-tab[data-tab="golden"]');   // Golden Round tab (RUN6 C0.2)
   await page.waitForSelector('.gr-save'); await sleep(200);
   await page.screenshot({ path: `screenshots/p3-editor-${mode}.png`, fullPage: true });
   console.log('WROTE', mode);

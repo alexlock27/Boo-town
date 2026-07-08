@@ -3,7 +3,7 @@
 // dispense the next polyomino into a three-slot tray; drag pieces onto the board;
 // full rows/columns clear. Round ends after 12 placed pieces or no legal move.
 
-import { el, clear, starsRow, wobble, sparkleAt, backControl, REDUCED } from '../ui.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl, REDUCED, suppressContextMenu } from '../ui.js';
 import { getState, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -24,11 +24,22 @@ const TRAY = 3;              // three-slot tray
 const LIFT = 70;             // px the dragged piece floats ABOVE the fingertip (C1) so the hand never hides it
 const rand = (n) => (Math.random() * n) | 0;
 
+// Rotation (RUN6 C0.3): tapping a tray piece (or its ↻ badge) spins it a quarter turn.
+const SPIN_MS = 220;         // snappy quarter-turn animation length
+// Now that pieces can rotate, the bag leans a little harder on the spicier shapes
+// so intent matters — named so the balance is tunable (C0.3).
+const SPICY_KEYS = ['tetS', 'tetL', 'tetT', 'block23'];
+const SPICY_EXTRA = 1;       // extra bag copies of each spicy shape (more often, not always)
+// Star line-thresholds, retuned modestly upward at the top now rotation aids clearing
+// (C0.3). The gentle 1★/2★ floor is unchanged so a normal round rewards the same.
+const THREE_STAR_CORRECT = 10, THREE_STAR_LINES = 6;
+const TWO_STAR_CORRECT = 7, TWO_STAR_LINES = 3;
+
 // The Blocks-specific first-play intro (C1). Step 2 completes a demo line as it shows.
 const BLOCKS_INTRO = [
   { text: 'Answer my question and you win a piece!' },
   { text: 'Drag pieces anywhere they fit. Fill a whole line, any direction, and it POPS!', demo: blocksDemoLine },
-  { text: 'No spinning needed, every piece fits as it is. The board never fills to the top, just keep popping lines!' }
+  { text: 'Tap a piece to SPIN it! The board never fills to the top, just keep popping lines!' }
 ];
 
 // A little self-completing demo line for intro step 2: fills cell by cell, then pops.
@@ -53,7 +64,8 @@ function blocksDemoLine(area) {
   return () => { alive = false; timers.forEach(clearTimeout); };
 }
 
-// Fair bag of piece shapes (cells as [row, col] offsets). No rotation (block-blast style).
+// Fair bag of piece shapes (cells as [row, col] offsets). Pieces can be spun a
+// quarter-turn at a time in the tray (C0.3).
 const SHAPES = {
   single:   [[0,0]],
   domino:   [[0,0],[0,1]],
@@ -75,6 +87,11 @@ function normShape(cells) {
   const minR = Math.min(...cells.map(c => c[0])), minC = Math.min(...cells.map(c => c[1]));
   return cells.map(([r, c]) => [r - minR, c - minC]);
 }
+// Rotate a cell-set 90° clockwise, then re-normalise to the top-left (C0.3).
+function rotateCells(cells) {
+  const maxR = Math.max(...cells.map(c => c[0])) + 1;
+  return normShape(cells.map(([r, c]) => [c, maxR - 1 - r]));
+}
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen blocks' });
@@ -95,7 +112,7 @@ export function mount(container, params, ctx) {
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 104 }) }),
       el('h2', { text: 'Boo Blocks' }),
-      el('p', { class: 'sc-intro', text: 'Win pieces, fill lines, pop them!' })
+      el('p', { class: 'sc-intro', text: 'Win pieces, spin them, fill lines, pop!' })
     ]);
     // two-step picker: category, then level
     const catRow = el('div', { class: 'chip-row center' });
@@ -116,7 +133,7 @@ export function mount(container, params, ctx) {
     card.append(pfmRow, el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [
       el('div', { html: starsRow(3, { size: 24 }) }),
-      el('p', { text: 'Three stars: 10+ right and 5 lines cleared, no hints.' })
+      el('p', { text: 'Three stars: 10+ right and 6 lines cleared, no hints.' })
     ]));
     root.appendChild(card);
     root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
@@ -133,6 +150,7 @@ export function mount(container, params, ctx) {
     const bag = [];
     let correct = 0, wrong = 0, lines = 0, placed = 0, hintsUsed = 0, streak = 0;
     let question = null, reAsked = false, locked = false, selected = -1, waitingSpace = false;
+    let spinNext = -1;   // slot index to play the quarter-turn animation on next render (C0.3)
     let ended = false;
 
     shell = createGameShell({
@@ -179,6 +197,11 @@ export function mount(container, params, ctx) {
       anchorFor: (slot, cx, cy) => { selected = slot; cacheGeom(); return anchorAt(cx, cy); },
       nearRig: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
       fillRowExceptLast: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
+      // RUN6 C0.3 rotation hooks: select/spin a tray piece, read its live cells.
+      select: (i) => selectPiece(i),
+      rotate: () => rotateSelected(),
+      rotateSlot: (i) => { selected = i; rotateSelected(); },
+      selectedSlot: () => selected,
       LIFT
     };
 
@@ -229,7 +252,11 @@ export function mount(container, params, ctx) {
     }
 
     function drawKey() {
-      if (!bag.length) { bag.push(...BAG_KEYS); shuffle(bag); }
+      if (!bag.length) {
+        bag.push(...BAG_KEYS);
+        for (const k of SPICY_KEYS) for (let i = 0; i < SPICY_EXTRA; i++) bag.push(k);  // spicier shapes more often (C0.3)
+        shuffle(bag);
+      }
       return bag.pop();
     }
     function dispensePiece(forceCells, bonus) {
@@ -247,18 +274,39 @@ export function mount(container, params, ctx) {
       tray.forEach((p, i) => {
         const slot = el('div', { class: 'blk-slot' + (selected === i ? ' sel' : '') + (p ? '' : ' empty') });
         if (p) {
-          slot.appendChild(el('div', { class: 'blk-piece', html: pieceSVG(p) }));
+          const piece = el('div', { class: 'blk-piece' + (spinNext === i && !REDUCED ? ' blk-spin' : ''), html: pieceSVG(p) });
+          if (spinNext === i && !REDUCED) piece.style.setProperty('--spin-ms', SPIN_MS + 'ms');
+          slot.appendChild(piece);
           slot.addEventListener('click', () => selectPiece(i));
           makePieceDraggable(slot, i);
+          // Rotate badge on the selected piece — an explicit affordance beside tap-to-spin (C0.3).
+          if (selected === i) {
+            const badge = el('button', { class: 'blk-rotate no-callout', 'aria-label': 'Spin this piece',
+              html: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12a7 7 0 1 1 2 4.9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M4 8v4h4" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' });
+            badge.addEventListener('pointerdown', e => e.stopPropagation());   // don't start a slot drag
+            badge.addEventListener('click', e => { e.stopPropagation(); rotateSelected(); });
+            suppressContextMenu(badge);
+            slot.appendChild(badge);
+          }
         }
         trayEl.appendChild(slot);
       });
+      spinNext = -1;
       updateHintAvailability();
     }
     function selectPiece(i) {
       if (!tray[i]) return;
+      if (selected === i) { rotateSelected(); return; }   // re-tapping the selected piece SPINS it (C0.3)
       sfx.tap();
-      selected = (selected === i) ? -1 : i;
+      selected = i;
+      renderTray(); clearPreview();
+    }
+    // Spin the selected piece a quarter-turn; works between drags, mid-round (C0.3).
+    function rotateSelected() {
+      const p = tray[selected]; if (!p) return;
+      sfx.tap();
+      p.cells = rotateCells(p.cells);
+      spinNext = selected;
       renderTray(); clearPreview();
     }
 
@@ -469,8 +517,8 @@ export function mount(container, params, ctx) {
 }
 
 export function starsForBlocks(correct, lines, hintsUsed) {
-  if (hintsUsed === 0 && correct >= 10 && lines >= 5) return 3;
-  if (correct >= 7 && lines >= 3) return 2;
+  if (hintsUsed === 0 && correct >= THREE_STAR_CORRECT && lines >= THREE_STAR_LINES) return 3;
+  if (correct >= TWO_STAR_CORRECT && lines >= TWO_STAR_LINES) return 2;
   return 1;
 }
 

@@ -27,6 +27,19 @@ export function el(tag, props = {}, children = []) {
 
 export function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
 
+// ---- long-press hardening (RUN6 C0.1) ------------------------------------
+// On Amazon Silk / iOS Safari a steady press fires the native context menu
+// (download / print / share) and a text-callout. Every press-and-hold target
+// must suppress both so the hold reads as a hold. `.no-callout` carries the
+// touch-callout / user-select CSS; this kills the contextmenu event, and the
+// hold itself is driven by pointer events (never the native gesture).
+export function suppressContextMenu(node) {
+  if (!node) return node;
+  node.classList.add('no-callout');
+  node.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); });
+  return node;
+}
+
 // ---- the shared back control (DASH_PATCH job 3 + RUN4 C1) -----------------
 // One back button for every screen below the hub: a soft round control in the same
 // top-left corner, returning exactly one level. `floating` pins it to the corner on

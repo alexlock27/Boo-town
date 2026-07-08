@@ -1,6 +1,6 @@
 // js/hub.js — the home screen (spec §2, §5.2).
 
-import { el, clear, giftSVG, starsRow, REDUCED } from './ui.js';
+import { el, clear, giftSVG, starsRow, REDUCED, suppressContextMenu } from './ui.js';
 import { getState, mutate } from './state.js';
 import { createGuideBubble, guideLine } from './guide.js';
 import { music, sfx } from './sfx.js';
@@ -122,6 +122,7 @@ export function mount(container, params, ctx) {
   // Long-press the guide to open the character creator (spec RUN2 C1).
   attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });
   gb.art.setAttribute('aria-label', 'Your character — press and hold to change');
+  suppressContextMenu(gb.art);   // hold target: no native callout/context menu (C0.1)
 
   // Jump back in (RUN5 C0b): once any round has ever been played, the very first
   // card (right under the guide) replays her last game and mode in one tap.
@@ -413,6 +414,7 @@ function makeCog(onOpen) {
       <g transform="translate(22,22)"><path d="M-2-9h4l1 3 3 1 3-2 3 3-2 3 1 3 3 1v4l-3 1-1 3 2 3-3 3-3-2-3 1-1 3h-4l-1-3-3-1-3 2-3-3 2-3-1-3-3-1v-4l3-1 1-3-2-3 3-3 3 2 3-1z" fill="var(--card)" opacity="0.85"/><circle r="3.2" fill="var(--sky-mid)"/></g>
     </svg>`;
   const btn = el('button', { class: 'bar-btn cog-btn', 'aria-label': 'Grown-ups corner (press and hold)', html: ring });
+  suppressContextMenu(btn);   // hold target: suppress Silk/Safari native context menu on the 3s hold (C0.1)
   const prog = () => btn.querySelector('.cog-prog');
   let raf = null, start = 0, done = false;
   function begin(e) {

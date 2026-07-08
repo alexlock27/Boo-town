@@ -108,6 +108,7 @@ console.log('== Star Ledger panel ==');
   const totalBefore = (await getState(page)).stars.total;
   // long-press the cog to open the grown-ups corner, or route directly.
   await page.evaluate(() => window.BooTown.go('grownups'));
+  await page.click('.gu-tab[data-tab="ledger"]');   // Star Ledger tab (RUN6 C0.2)
   await page.waitForSelector('.gu-ledger');
   // header total
   const shownTotal = await page.$eval('.gl-total-num', n => n.textContent.trim());
