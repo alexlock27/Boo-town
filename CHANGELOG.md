@@ -2,6 +2,58 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 6: the elevation run
+- **Run-5 reconciliation (phase 0)**: hardened the 3-second long-press (a shared
+  `suppressContextMenu` kills the touch-callout / download-share pop on the cog and guide);
+  the grown-ups corner became a real tab bar (Settings / Golden Round / Star Ledger / Backup
+  & data, Settings first) so no setting hides behind an editor; Boo Blocks pieces now rotate
+  90° on tap (snappy quarter-turn, works mid-drag); the named phone screens re-verified
+  restacked at 390x844 both orientations with tablets left byte-identical.
+- **The living town**: a weighted behaviour engine on the free-wandering Boos — visiting a
+  friend (hearts pop), walking up to and using an activity, chasing a butterfly (day) /
+  firefly (night), watching, and napping under a house or tree at night. A seasonal weather
+  layer (blossom / sun-rays / leaves / snow), a rare tappable night shooting star (+1 meter,
+  once per night), and an ambient sound bed (day birdsong / night crickets) under the music.
+  All transform-only; concurrent animated actors and particles capped as named constants.
+- **The Boo Funfair**: a fifth town zone unlocking at 280 stars (a silhouette teases it
+  beforehand). Five rides — carousel, Ferris wheel, teacups, bouncy castle, helter-skelter —
+  arrive one at a time, each built over ~24h by the Boo Builders at a star milestone. A
+  "who's riding?" picker seats/removes Boos; autonomous Boos board empty seats; string lights
+  glow at night. Each ride is one composed transform-only loop.
+- **Boo Band**: a bandstand at the fair opens a playable stage — drums (multi-touch), keys
+  (with a sparkly play-along that waits between presses) and guitar, each instrument
+  instrumented. Records up to 3 short jams to on-device storage, replays them by event log,
+  and sets one as the "band song" the fair band performs in the town. No microphone APIs are
+  ever touched.
+- **One shared rarity VFX system**: rare items glint, ultra shimmer with capped floating
+  motes, secret get an aura, shinies a golden sparkle — identical across the box ceremony,
+  the collection and the town, where distant/numerous items degrade to a static sheen so the
+  emitter cap (`RARITY_TOWN_CAP`) holds.
+- **Boo Beat, the musical rework**: three tracks (chill / pop / bounce), each with a melody
+  and bass line; a correct on-time hit sounds the next melody note over a backing loop, misses
+  thud, Perfects add a sparkle harmonic, and a combo "fever" lifts the crowd. Steady mode
+  intact under reduced motion.
+- **Boo Bounce, aim-and-launch**: a drag sets an aim cone with a dotted trajectory preview
+  (including the first bounce) before the ball launches along it; buried target labels
+  re-place so every round is reachable. Flight physics unchanged.
+- **Juice & identity pass** on the three original games: glassy Bubble Pop bubbles with sky-
+  by-level backdrops, droplet bursts, streak trails and an occasional +1-meter golden bubble
+  (capped twice per round); Feed the Boos feeders that idle-chew, arc food to the mouth, react
+  variedly to wrong deliveries and drum on a nom-streak; Spell Boo letters that chime on place
+  and bounce-spell the finished word with a proud guide word-card.
+- **Boo Quest, chapter 1**: "The Sparkle Meadow" — a six-node guided adventure map skinning
+  the existing question engines (Smart Mix difficulty): a Bridge Builder (lay planks), a Rune
+  Door (spell to open), a Grump Cheer-Off (a cloud whose mood lifts over a cheer meter), a
+  Treasure Chest (bonus box) and a Boss Grump finale. Completing the land grants a unique
+  explorer Boo (Scout), a Quest Flag deco, a journal stamp and a trophy exactly once; both
+  quest-only items are excluded from box rolls, and the Toddler tier hides the card.
+- **Performance gate + deployed motion pass (phase 9)**: an automated gate proves the three
+  busiest scenes (a 20-item crowded town, the full funfair with every ride running and fully
+  seated, the Boss Grump fight) hold transform-only animation at ~60fps with every named cap
+  enforced under deliberate over-pressure — plus a CSSOM audit that no keyframe animates a
+  layout-triggering property. Full regression of every prior acceptance suite (64 suites) and
+  a fresh motion-evidence pass re-run against the live deployed build.
+
 ## Run 5: the quality run
 - **Resilience quick wins**: a friendly full-screen "oops" card with Restart replaces any
   white screen (last technical message shown in the cog corner); a hub-only update toast

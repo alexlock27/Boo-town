@@ -8,7 +8,9 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 768, height: 1024 }, deviceScaleFactor: 2 });
 const page = await ctx.newPage();
 const seed = { version: 1, name: 'Maya', guide: { body: 'lilac', patch: 'pink', acc: 'bow', name: 'Twiggy' },
-  inventory: { boo_inky: 2, boo_beam: 1, boo_bubbles: 1, boo_disco: 1, deco_tree: 1 }, boxes: 1 };
+  inventory: { boo_inky: 2, boo_beam: 1, boo_bubbles: 1, boo_disco: 1, deco_tree: 1 }, boxes: 1,
+  // first-play guided intros (RUN5) would otherwise cover the level buttons in these smoke shots
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } };
 await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
 await page.evaluate((s) => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), seed);
 await page.reload({ waitUntil: 'networkidle' });
