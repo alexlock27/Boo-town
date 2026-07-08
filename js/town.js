@@ -1227,6 +1227,8 @@ export function mount(container, params, ctx) {
       if (a.dancing) continue; // dancing handled by CSS
       if (a.role) { stepRole(a, dt, now); continue; }   // activity items (RUN4 C5)
       a.t += dt;
+      // at bedtime, near a house, drop a non-nap act so the sleep role can take over (C1)
+      if (a.goal && a.goal.kind !== 'nap' && isSleepTime(currentHour()) && nearBoohouse(a) && !(a.wakeUntil && now < a.wakeUntil)) endGoal(a);
       if (a.goal) { stepGoal(a, dt, now); continue; }   // a chosen behaviour (C1): visit/approach/chase/watch/nap
       if (a.t >= a.next) {
         a.t = 0;
@@ -1257,6 +1259,8 @@ export function mount(container, params, ctx) {
   // never scripted; a tap always interrupts (squeak/heart/nickname, handled onTap).
   function maybePickBehaviour(a, now) {
     if (a.depthLock) return false;                 // QA depth-drift hook keeps them still (r5p4)
+    // near a house at bedtime → leave it for the sleep role, don't pick a competing act
+    if (isSleepTime(currentHour()) && nearBoohouse(a) && !(a.wakeUntil && now < a.wakeUntil)) return false;
     if (Math.random() > BEHAVIOUR_CHANCE) return false;
     const kind = chooseBehaviourKind(a);
     if (!kind) return false;
@@ -1300,6 +1304,12 @@ export function mount(container, params, ctx) {
     const cands = st.town.filter(t => NAP_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) < 0.6);
     cands.sort((p, q) => Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x));
     return cands[0] || null;
+  }
+  // Near a Boo House at bedtime the sleep ROLE (assignRoles) has priority — a Boo there
+  // settles to sleep rather than wandering off chasing fireflies (keeps nights cosy).
+  function nearBoohouse(a) {
+    const st = getState(); const zi = ZONE_INDEX[a.place.zone];
+    return st.town.some(t => t.item === 'deco_boohouse' && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) <= ACT_RADIUS);
   }
   function startBehaviour(a, kind, now) {
     now = now || performance.now();

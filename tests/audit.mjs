@@ -165,8 +165,12 @@ if (run(5)) try {
   await page.waitForSelector('.bounce-canvas', { timeout: 4000 });
   await page.waitForTimeout(450); // let resize() set ball.speed before launching
   const cbox = await areaClip(page, '.bounce-canvas');
-  // launch like a child: a real tap near the paddle (pointerdown -> launch)
-  await page.mouse.click(cbox.x + cbox.width / 2, cbox.y + cbox.height - 30);
+  // launch like a child (RUN6 C4 aim-and-launch): grab the resting ball and drag UP to
+  // aim, then release to fire.
+  await page.mouse.move(cbox.x + cbox.width / 2, cbox.y + cbox.height - 44);
+  await page.mouse.down();
+  await page.mouse.move(cbox.x + cbox.width * 0.74, cbox.y + cbox.height * 0.38, { steps: 4 });  // aim up + to the side → the ball travels in x and y
+  await page.mouse.up();
   await page.waitForTimeout(150);
   const clip = await areaClip(page, '.bounce-field') || cbox;
   // deterministic proof: sample ball position each frame; a moving ball visits many distinct points
