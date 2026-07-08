@@ -19,6 +19,7 @@ import { booOfTheDay } from './delights.js';
 import { renderItem } from './art.js';
 import { getDisplayName } from './accessories.js';
 import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './resilience.js';
+import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
 
@@ -114,11 +115,14 @@ export function mount(container, params, ctx) {
   // rotates at local midnight, wears a random owned accessory (or none, gracefully).
   const botd = booOfTheDay();
   if (botd) {
+    const boodayArt = el('div', { class: 'booday-art', html: renderItem(botd.item, { size: 74, equipArt: botd.accArt, cls: 'art-idle' }) });
     guideSection.appendChild(el('div', { class: 'booday' }, [
-      el('div', { class: 'booday-art', html: renderItem(botd.item, { size: 74, equipArt: botd.accArt, cls: 'art-idle' }) }),
+      boodayArt,
       el('div', { class: 'booday-podium' }, [el('span', { class: 'booday-star', text: '★' })]),
       el('div', { class: 'booday-line', text: `Today's star: ${getDisplayName(botd.id) || botd.item.name}!` })
     ]));
+    // shared rarity VFX (C2): Boo of the Day shows its rarity too
+    applyRarityFx(boodayArt, botd.item, { context: 'full', shiny: ((s.shinies && s.shinies[botd.id]) || 0) > 0 });
   }
   // Long-press the guide to open the character creator (spec RUN2 C1).
   attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });

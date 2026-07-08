@@ -5,6 +5,7 @@
 import { el } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderItem, renderGuide } from './art.js';
+import { applyRarityFx } from './rarityfx.js';
 import { BY_ID, ACCESSORIES } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
@@ -118,25 +119,24 @@ export function openDressUp(booItem, { onDone } = {}) {
   const { grid, note, dismiss } = overlay({ title: `Dress up ${getDisplayName(booItem.id)}`, subtitle: owned.length ? 'Pick something to wear' : 'Win accessories from boxes to dress up your Boos!' });
 
   const current = equippedId(booItem.id);
+  const shiny = ((s.shinies && s.shinies[booItem.id]) || 0) > 0;
   // take-off option
+  const offArt = el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78 }) });
   const off = el('button', { class: 'acc-target' + (current ? '' : ' sel'), onclick: () => {
     sfx.tap(); unequip(booItem.id); dismiss(); onDone && onDone();
-  } }, [
-    el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78 }) }),
-    el('div', { class: 'acc-target-name', text: 'No accessory' })
-  ]);
+  } }, [offArt, el('div', { class: 'acc-target-name', text: 'No accessory' })]);
   grid.appendChild(off);
+  applyRarityFx(offArt, booItem, { context: 'calm', shiny });
 
   for (const acc of owned) {
     const sel = current === acc.id;
+    const art = el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78, equipArt: acc.art }) });
     const tile = el('button', { class: 'acc-target' + (sel ? ' sel' : ''), onclick: () => {
       if (refuses(booItem.id, acc.id)) { note.textContent = guideLine('djRefuse'); speakMaybe(note.textContent); return; }
       sfx.tap(); equip(booItem.id, acc.id); afterEquip(acc, getDisplayName(booItem.id)); dismiss(); onDone && onDone();
-    } }, [
-      el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78, equipArt: acc.art }) }),
-      el('div', { class: 'acc-target-name', text: acc.name })
-    ]);
+    } }, [art, el('div', { class: 'acc-target-name', text: acc.name })]);
     grid.appendChild(tile);
+    applyRarityFx(art, booItem, { context: 'calm', shiny });
   }
 }
 

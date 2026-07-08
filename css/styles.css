@@ -1954,6 +1954,49 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 
 /* ============================================================
+   Shared rarity VFX (RUN6 C2): one system, everywhere an item appears.
+   All layers are transform/opacity-only; reduced-motion stills them.
+   ============================================================ */
+.rfx-host { position: relative; }
+.rfx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: visible; }
+/* Rare — a periodic diagonal glint that sweeps across the sticker */
+.rfx-glint { overflow: hidden; border-radius: 22px; }
+.rfx-glint::before {
+  content: ''; position: absolute; top: -40%; left: -60%; width: 45%; height: 180%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,0.85), transparent);
+  transform: translateX(0) rotate(8deg); mix-blend-mode: screen;
+  animation: rfxGlint 3.4s ease-in-out infinite;
+}
+@keyframes rfxGlint { 0%, 60% { transform: translateX(-40%) rotate(8deg); } 78%, 100% { transform: translateX(360%) rotate(8deg); } }
+/* Ultra — a soft continuous shimmer + two or three floating light motes */
+.rfx-shimmer { border-radius: 22px; background: linear-gradient(120deg, transparent 40%, rgba(180,230,255,0.28) 50%, transparent 60%); background-size: 260% 100%; mix-blend-mode: screen; animation: rfxShimmer 3.6s linear infinite; }
+@keyframes rfxShimmer { 0% { background-position: 130% 0; } 100% { background-position: -60% 0; } }
+.rfx-mote { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle, #FFF8D6, rgba(255,240,160,0.2)); box-shadow: 0 0 8px 2px rgba(255,240,170,0.8); will-change: transform, opacity; }
+.rfx-mote.m0 { left: 18%; top: 62%; animation: rfxMote 4s ease-in-out infinite; }
+.rfx-mote.m1 { left: 70%; top: 58%; animation: rfxMote 4.8s ease-in-out 0.8s infinite; }
+.rfx-mote.m2 { left: 46%; top: 70%; animation: rfxMote 5.4s ease-in-out 1.6s infinite; }
+@keyframes rfxMote { 0% { transform: translate(0, 0) scale(0.7); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(6px, -46px) scale(1); opacity: 0; } }
+/* Secret — a gentle aura halo that breathes */
+.rfx-aura { border-radius: 50%; box-shadow: 0 0 22px 8px rgba(198,169,240,0.55), 0 0 40px 16px rgba(255,122,198,0.35); animation: rfxAura 3.2s ease-in-out infinite; }
+@keyframes rfxAura { 0%, 100% { transform: scale(0.9); opacity: 0.55; } 50% { transform: scale(1.06); opacity: 0.95; } }
+/* Shiny — layered golden sparkle sweep + a star glint + richer saturation */
+.rfx-shiny-sweep { border-radius: 22px; background: linear-gradient(115deg, transparent 34%, rgba(255,220,90,0.5) 49%, rgba(255,246,200,0.8) 50%, rgba(255,220,90,0.5) 51%, transparent 66%); background-size: 320% 100%; mix-blend-mode: screen; animation: shiny-sweep 3.2s ease-in-out infinite; }
+.rfx-shiny-glint { position: absolute; inset: auto auto 62% 8%; color: #FFE082; font-size: 20px; text-shadow: 0 0 6px rgba(255,220,90,0.9); animation: shiny-glint 2.8s ease-in-out infinite; }
+.rfx-saturate > svg, .rfx-saturate .art-idle { filter: saturate(1.25) brightness(1.04); }
+/* Town graceful degrade — a single static sheen, no animation, no motes (emitter cap) */
+.rfx-sheen { border-radius: 22px; background: linear-gradient(120deg, transparent 45%, rgba(255,255,255,0.18) 50%, transparent 55%); }
+.rfx-sheen.shiny { background: linear-gradient(120deg, transparent 42%, rgba(255,220,90,0.3) 50%, transparent 58%); }
+.rfx-sheen.rar-secret { box-shadow: 0 0 14px 5px rgba(198,169,240,0.4); }
+/* Calm (collection grid) — subtler + slower, no motes */
+.rfx-calm .rfx-glint::before, .rfx-calm .rfx-shimmer { animation-duration: 6s; opacity: 0.7; }
+.rfx-calm .rfx-aura { animation-duration: 5s; box-shadow: 0 0 12px 4px rgba(198,169,240,0.4); }
+.rfx-calm .rfx-shiny-sweep { animation-duration: 5s; }
+@media (prefers-reduced-motion: reduce) {
+  .rfx-glint::before, .rfx-shimmer, .rfx-mote, .rfx-aura, .rfx-shiny-sweep, .rfx-shiny-glint { animation: none !important; }
+  .rfx-mote { opacity: 0.7; } .rfx-aura { opacity: 0.6; transform: scale(1); }
+}
+
+/* ============================================================
    Daily delights (RUN4 C9): hide-and-seek ears, Boo of the Day.
    ============================================================ */
 .t-hide-ears {

@@ -10,6 +10,7 @@ import { openOneBox } from './rewards.js';
 import { openChest } from './shiny.js';
 import { openEquipPicker } from './accessories.js';
 import { noteQuest, stampJournal } from './quests.js';
+import { applyRarityFx } from './rarityfx.js';
 import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
 import { tickGrowth } from './growth.js';
@@ -89,10 +90,10 @@ export function mount(container, params, ctx) {
       const kind = result.item.kind;
       const glowClass = (result.isCustom ? 'glow-secret' : 'glow-' + result.rarity) + (result.shiny ? ' shiny' : '');
       const banner = result.shiny ? '✨ A SHINY BOO! ✨' : result.isCustom ? "IT'S YOUR BOO! 🎨" : (TYPE_BANNER[kind] || 'A TREASURE!');
+      const revealArt = el('div', { class: 'reveal-art', html: renderItem(result.item, { size: 172, cls: result.item.fx ? '' : 'art-idle' }) });
       const card = el('div', { class: 'reveal-card ' + glowClass }, [
         el('div', { class: 'reveal-banner type-' + kind + (result.shiny ? ' shiny-banner' : ''), text: banner }),
-        el('div', { class: 'reveal-art' + (result.shiny ? ' shiny-wrap' : ''), html: renderItem(result.item, { size: 172, cls: result.item.fx ? '' : 'art-idle' }) }),
-        result.shiny ? el('span', { class: 'shiny-glint', text: '✦' }) : null,
+        revealArt,
         el('div', { class: 'reveal-rarity', text: (result.shiny ? 'SHINY · ' : '') + rar.label }),
         el('h2', { class: 'reveal-name', text: result.duplicate ? `Another ${result.item.name}!` : result.item.name }),
         el('p', { class: 'reveal-oneliner', text: TYPE_LINE[kind] || '' }),
@@ -105,6 +106,9 @@ export function mount(container, params, ctx) {
 
       const wrap = el('div', { class: 'reveal-wrap' }, [card, guideBubble, buttons]);
       root.appendChild(wrap);
+      // shared rarity VFX (C2): the full effect on the reveal art (rare glint / ultra
+      // shimmer+motes / secret aura / shiny sparkle), consistent with everywhere else
+      applyRarityFx(revealArt, result.item, { context: 'full', shiny: result.shiny });
       requestAnimationFrame(() => card.classList.add('flip-in'));
 
       // Collector medals can land right after a reveal (RUN4 C4) — celebrate

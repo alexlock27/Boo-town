@@ -21,6 +21,7 @@ import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
+import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 
 // Zone unlock thresholds (named constants).
 export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
@@ -228,7 +229,7 @@ export function mount(container, params, ctx) {
     ground.querySelectorAll('.t-item').forEach(n => n.remove());
     actors = [];
     const st = getState();
-    let count = 0;
+    let count = 0, fancyCount = 0;
     for (const t of st.town) {
       const item = resolveItem(t.item);
       if (!item) continue;
@@ -245,13 +246,16 @@ export function mount(container, params, ctx) {
       wrap.style.top = (rowGroundPx - size + 8) + 'px';
       wrap.style.zIndex = String(Math.round(rowGroundPx));
       wrap.innerHTML = renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
-      // her shiny copy shimmers in the town too (RUN4 C8)
-      if (item.kind === 'boo' && ((st.shinies && st.shinies[t.item]) || 0) > 0) {
-        wrap.classList.add('shiny-wrap');
-        wrap.appendChild(el('span', { class: 'shiny-glint tiny', text: '✦' }));
-      }
       attachItemPointer(wrap, t, item);
       ground.appendChild(wrap);
+      // Shared rarity VFX (C2): full effect for the first RARITY_TOWN_CAP fancy items,
+      // then a static sheen so the emitter cap holds (distant/numerous items degrade).
+      const shiny = ((st.shinies && st.shinies[t.item]) || 0) > 0;
+      if (rarityRank(item) > 0 || shiny) {
+        const degrade = fancyCount >= RARITY_TOWN_CAP;
+        applyRarityFx(wrap, item, { context: 'town', shiny, degrade });
+        if (!degrade) fancyCount++;
+      }
       if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) {
         const act = makeActor(wrap, item, t);
         // a Boo currently riding a funfair ride shows ONLY on the ride, not on the ground (C1b)

@@ -116,8 +116,11 @@ export function openOneBox() {
       rarity = 'custom'; isCustom = true;
       st.pity.commons = 0;   // a custom is not a common
     } else {
-      const type = rollType(st);
-      const rolled = rollRarity(st);
+      // test-only: pin the next roll's type + rarity (window.__forceRoll = {type,rarity})
+      const fr = typeof window !== 'undefined' && window.__forceRoll;
+      const type = fr && fr.type ? fr.type : rollType(st);
+      const rolled = fr && fr.rarity ? fr.rarity : rollRarity(st);
+      if (fr && typeof window !== 'undefined') window.__forceRoll = null;
       const picked = pickItem(type, rolled);
       item = picked.item; rarity = picked.rarity;
       if (rarity === 'common') st.pity.commons += 1; else st.pity.commons = 0;

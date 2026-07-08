@@ -3,6 +3,7 @@
 import { el, dialog, backControl } from './ui.js';
 import { getState } from './state.js';
 import { renderItem, renderGuide } from './art.js';
+import { applyRarityFx } from './rarityfx.js';
 import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY } from '../data/catalogue.js';
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
 import { sfx, music } from './sfx.js';
@@ -49,17 +50,20 @@ export function mount(container, params, ctx) {
     const equip = has && item.kind === 'boo' ? equippedArt(item.id) : null;
     const seas = !has && item.season ? SEASON[item.season] : null;
     const shinyCopies = (s.shinies && s.shinies[item.id]) || 0;   // per-copy shinies (RUN4 C8)
+    const collArt = el('div', { class: 'coll-art' + (has ? '' : ' mystery'), html: renderItem(item, { size: 84, equipArt: equip }) });
     const tile = el('button', {
       class: 'coll-tile' + (has ? ' owned' : ' locked') + ' rar-' + item.rarity + (has && shinyCopies > 0 ? ' has-shiny' : ''),
       onclick: () => { sfx.tap(); if (has) showItem(item, count); }
     }, [
-      el('div', { class: 'coll-art' + (has ? '' : ' mystery') + (has && shinyCopies > 0 ? ' shiny-wrap' : ''), html: renderItem(item, { size: 84, equipArt: equip }) }),
+      collArt,
       el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) : (seas ? seas.hint : '???') }),
       count > 1 ? el('div', { class: 'coll-badge', text: 'x' + count }) : null,
       has && shinyCopies > 0 ? el('div', { class: 'shiny-badge', text: shinyCopies > 1 ? `✨x${shinyCopies}` : '✨' }) : null,
       seas ? el('div', { class: 'coll-season', text: seas.icon }) : null
     ]);
     grid.appendChild(tile);
+    // shared rarity VFX (C2): calm versions in the grid
+    if (has) applyRarityFx(collArt, item, { context: 'calm', shiny: shinyCopies > 0 });
   }
 
   // Wardrobe — accessories collected, tap an owned one to put it on someone.
@@ -164,12 +168,15 @@ export function mount(container, params, ctx) {
     const isBoo = item.kind === 'boo';
     const nick = getDisplayName(item.id);
     const showsNick = isBoo && nick !== officialName(item.id);
+    const detailArt = el('div', { class: 'item-detail-art', html: renderItem(item, { size: 150, equipArt: isBoo ? equippedArt(item.id) : null, cls: item.fx ? '' : 'art-idle' }) });
     const body = el('div', { class: 'item-detail' }, [
-      el('div', { class: 'item-detail-art', html: renderItem(item, { size: 150, equipArt: isBoo ? equippedArt(item.id) : null, cls: item.fx ? '' : 'art-idle' }) }),
+      detailArt,
       showsNick ? el('div', { class: 'item-detail-official', text: officialName(item.id) }) : null,
       el('div', { class: 'item-detail-rarity', text: (RARITY[item.rarity] || { label: 'Your very own Boo!' }).label + (count > 1 ? ` · you have ${count}` : '') }),
       el('p', { class: 'item-detail-blurb', text: item.blurb })
     ]);
+    // shared rarity VFX (C2): the FULL effect on the focused card
+    applyRarityFx(detailArt, item, { context: 'full', shiny: ((s.shinies && s.shinies[item.id]) || 0) > 0 });
     const buttons = isBoo
       ? [
           { label: '👒 Dress up', value: 'dress' },
