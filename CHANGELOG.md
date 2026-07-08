@@ -2,6 +2,49 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 5: the quality run
+- **Resilience quick wins**: a friendly full-screen "oops" card with Restart replaces any
+  white screen (last technical message shown in the cog corner); a hub-only update toast
+  applies waiting updates on demand (never mid-round, never automatically); daily rolling
+  save snapshots in on-device storage (last 3, restorable); a one-time grown-up warning if
+  saving ever fails; a "Jump back in" hub card replaying the last game + mode; a
+  "Try Level {n+1}!" button on perfect at-comfort rounds.
+- **Star Ledger + crediting invariant**: the cog corner lists total stars and per-game
+  rounds/stars; an automated guard fails the build if any game ever bypasses the single
+  crediting path (plus a dev-only runtime assertion).
+- **Boo Blocks rework**: the dragged piece floats ~70px above the fingertip with
+  centre-based drop targeting and half-cell snap; invalid drops glide back; near-complete
+  lines shimmer; line clears sweep sparkles with a "+line!" flourish; a three-step
+  self-explaining intro with a demo line that completes itself.
+- **Boo Pop readability redesign**: colour now teaches the bonds — complement families
+  share a hue AND a silhouette (five shapes, colourblind-fair), every gem a Boo face
+  holding its numeral; 6x6 boards (5x5 Twin Pop) with chunkier gems; a doubled rule chip
+  above the board; squash-together pops and bounce-back invalid swaps; retuned named
+  thresholds (3 stars stays generous).
+- **Town spaciousness**: zones are 1.7 viewports wide with a deep three-row placement
+  band (front rows bigger and drawn on top); a minimum-spacing rule with a gentle
+  "spot's taken" wobble; wander/scroll/activities recalibrated; existing placements
+  migrated proportionally with nothing lost.
+- **Phone reachability**: every screen audited at 390x844 both orientations (scroll
+  traps, top/bottom reachability, tap-landing, scroll reset); flex-centred screens no
+  longer clip their tops on overflow; tablets byte-identical.
+- **First-play guided intros**: every game walks 2–3 short guide steps on its first-ever
+  open (skippable, "?" replays, flags persist); Teach Me gets a welcome line; the Golden
+  Round two steps.
+- **Studio expansion**: ~36 collage props in themed drawers (Party/Seaside/Nature/
+  Sparkle), four new backgrounds (bedroom, space, under the sea, blank), chunky A–Z
+  sticker letters in four colours, duplicate + labelled handles, the guide as a sticker;
+  Paint doubles to 24 colours with stamps (star/heart/flower/paw/sparkle) and stripe/
+  polka-dot pattern fills, new colouring pages (every Boo species, the five guide
+  species, playground items, a whole-town scene, two seasonal pages per season), and
+  save-and-resume drafts within the gallery cap.
+- **Toddler mode**: ages 4-and-under (or the cog override) get a four-card hub — Counting
+  Pop, Colour Feast, Shape Sort, Letter Pop — rounds of 6, hearts hidden, wrong taps
+  wobble with a spoken "try again", stars never below 2, at least 2 meter points a round,
+  everything spoken aloud AND fully playable with sound off; quests/Golden Round/Smart
+  Mix/Sound Twins/Trophies hidden; the same shared universe of Boos, boxes and the town;
+  a little-painter kit in Paint.
+
 ## Run 4: polish and progression
 - **Navigation**: the Android back button / gesture now navigates inside the app (one
   level, like the on-screen back button), never closing it by accident; confirm-on-leave
