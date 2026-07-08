@@ -139,6 +139,15 @@ function boot() {
             if (nw.state === 'installed' && navigator.serviceWorker.controller) setWaitingWorker(nw);
           });
         });
+        // RUN5 C0b (update discovery): the browser only re-checks sw.js on a hard
+        // navigation, so an app that is merely backgrounded and resumed can sit on an
+        // old build without noticing a deploy. Re-check when the app returns to the
+        // foreground — DETECTION ONLY: a new build installs to `waiting` and the hub
+        // offers the toast; it never auto-activates (that stays user-initiated,
+        // honouring the no-skipWaiting policy from hotfix 1). Same-origin and cheap.
+        const recheck = () => { try { reg.update(); } catch {} };
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
+        window.addEventListener('focus', recheck);
       }).catch(() => {});
     });
   }
