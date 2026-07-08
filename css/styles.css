@@ -908,6 +908,23 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .collage-pick.emoji { font-size: 28px; }
 .collage-bg.sel { background: var(--star); }
 
+/* Studio expansion (RUN5 C6) */
+.collage-drawer-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.collage-drawer-tabs .drawer-tab { font-size: 14px; padding: 5px 12px; }
+.collage-letter-colours { display: flex; gap: 8px; justify-content: center; }
+.collage-stickers.letters { max-width: 560px; margin: 0 auto; }
+.collage-pick.letter { font-family: var(--font-display); font-weight: 700; font-size: 24px; width: 44px; height: 44px; }
+.collage-handles .ch-btn { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 7px 12px; min-width: 62px; line-height: 1.1; }
+.collage-handles .ch-ic { font-size: 20px; }
+.collage-handles .ch-lbl { font-size: 12px; font-weight: 700; }
+.paint-swatches { max-width: 620px; margin: 0 auto; }   /* 24 colours wrap into two rows */
+.paint-subrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 4px 0; }
+.paint-subrow .acc-chip { font-size: 18px; padding: 8px 14px; min-height: 44px; }
+.paint-tmpl.draft-tmpl { background: var(--star); font-weight: 700; }
+.gallery-tile { position: relative; }
+.gallery-draft-badge { position: absolute; top: 6px; left: 6px; background: var(--star); color: var(--ink);
+  font-family: var(--font-display); font-weight: 700; font-size: 12px; padding: 2px 9px; border-radius: 9px; box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+
 /* Gallery */
 .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 8px; }
 .gallery-tile { border-radius: 14px; overflow: hidden; border: 3px solid var(--ink); background: var(--card); padding: 0; }

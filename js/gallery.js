@@ -25,8 +25,9 @@ export function mount(container, params, ctx) {
     clear(grid);
     if (!arts.length) { grid.appendChild(el('div', { class: 'gallery-empty' }, [el('div', { class: 'ge-big', text: '🎨' }), el('p', { text: 'Paint, collage or build to fill your gallery!' })])); return; }
     for (const a of arts) {
-      const tile = el('button', { class: 'gallery-tile', 'aria-label': 'artwork', onclick: () => view(a) });
+      const tile = el('button', { class: 'gallery-tile', 'aria-label': a.draft ? 'draft painting' : 'artwork', onclick: () => view(a) });
       tile.appendChild(el('img', { src: a.png, alt: 'artwork', class: 'gallery-img' }));
+      if (a.draft) tile.appendChild(el('span', { class: 'gallery-draft-badge', text: 'Draft' }));   // RUN5 C6
       attachHold(tile, () => confirmDelete(a));
       grid.appendChild(tile);
     }
@@ -35,7 +36,8 @@ export function mount(container, params, ctx) {
     const ov = el('div', { class: 'overlay gallery-view', onclick: (e) => { if (e.target === ov) ov.remove(); } });
     ov.appendChild(el('div', { class: 'gv-inner' }, [
       el('img', { src: a.png, class: 'gv-img', alt: 'artwork' }),
-      el('button', { class: 'btn', text: 'Close', onclick: () => ov.remove() })
+      a.draft ? el('button', { class: 'btn', text: '▶ Keep painting', onclick: () => { ov.remove(); ctx.go('paint', { draft: true }); } }) : null,
+      el('button', { class: a.draft ? 'btn soft' : 'btn', text: 'Close', onclick: () => ov.remove() })
     ]));
     root.appendChild(ov);
     requestAnimationFrame(() => ov.classList.add('show'));
