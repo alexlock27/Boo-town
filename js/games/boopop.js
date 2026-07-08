@@ -15,15 +15,60 @@ import { sfx, music } from '../sfx.js';
 import { recordBest, pickForMeButton } from '../picker.js';
 import { contentTier } from '../content.js';
 
-// Named constants (C7 — all tunable).
-export const N = 7;                 // 7x7 board
+// Named constants (RUN5 C2 — all tunable). Chunkier gems on a smaller board so the
+// puzzle reads at a glance; thresholds retune for the smaller board, 3★ kept generous.
+export const BOARD_STD = 6;         // 6x6 standard board
+export const BOARD_TWIN = 5;        // 5x5 for Twin Pop (biggest, chunkiest gems)
 export const MOVES = 20;            // moves per round, no timer ever
-export const POPS_3STAR = 12;       // 3★: 12+ pops, no manual hints
-export const POPS_2STAR = 8;        // 2★: 8+ pops
+export const POPS_3STAR = 9;        // 3★: 9+ pops on the 6x6, no manual hints (was 12 on 7x7)
+export const POPS_2STAR = 6;        // 2★: 6+ pops on the 6x6
+export const POPS_3STAR_TWIN = 7;   // 3★ on the 5x5 Twin board
+export const POPS_2STAR_TWIN = 4;   // 2★ on the 5x5 Twin board
 export const IDLE_HINT_MS = 6000;   // free soft glow after 6 idle seconds
 export const TWIN_COSY_AFTER = 3;   // Twin Pop is cosy after the 3rd lifetime round
 
 const rand = (n) => (Math.random() * n) | 0;
+
+// ---- colour + shape families (C2) -------------------------------------------
+// Colour now MEANS something: gems that belong together share a hue AND a shape, so
+// the board reads as a match puzzle at a glance and stays fair for colourblind eyes
+// (any two families differ by shape too). Five families → five hues + five shapes.
+export const GEM_SHAPES = ['round', 'square', 'teardrop', 'star', 'heart'];
+export const GEM_HUES = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#FFC93C', '#C6A9F0', '#F06292', '#4DD0E1', '#81C784', '#BA68C8', '#FFB74D'];
+// family index (1-based) → shape + hue. Family 1..5 map 1:1 onto the five silhouettes;
+// modes with more families (Make 20, Twin) keep distinct hues and cycle the shapes.
+function famShape(fam) { return (fam - 1) % GEM_SHAPES.length; }
+function famHue(fam) { return ((fam - 1) % GEM_HUES.length) + 1; }
+
+const SHAPE_EL = {
+  round:    (f) => `<circle cx="50" cy="53" r="42" fill="${f}" stroke="#2A1B4E" stroke-width="4"/>`,
+  square:   (f) => `<rect x="11" y="13" width="78" height="78" rx="20" fill="${f}" stroke="#2A1B4E" stroke-width="4"/>`,
+  teardrop: (f) => `<path d="M50 9C73 35 85 53 85 65a35 35 0 1 1-70 0C15 53 27 35 50 9Z" fill="${f}" stroke="#2A1B4E" stroke-width="4" stroke-linejoin="round"/>`,
+  star:     (f) => `<path d="M50 8l10.5 25.5L88 36l-21 17.5 6.5 27L50 92l-23.5 12.5 6.5-27L12 36l27.5-2.5z" transform="translate(0 -4)" fill="${f}" stroke="#2A1B4E" stroke-width="4" stroke-linejoin="round"/>`,
+  heart:    (f) => `<path d="M50 91C7 61 13 24 36 24c9 0 14 7 14 12 0-5 5-12 14-12 23 0 29 37-14 67z" fill="${f}" stroke="#2A1B4E" stroke-width="4" stroke-linejoin="round"/>`
+};
+
+// A gem is a little Boo face (two eyes + a grin) holding its numeral, on its family
+// silhouette. The numeral stays the dominant, most-legible element.
+function gemSVG(gem) {
+  const shape = GEM_SHAPES[(gem.shape || 0) % GEM_SHAPES.length];
+  const fill = GEM_HUES[((gem.hue || 1) - 1 + GEM_HUES.length) % GEM_HUES.length];
+  const face =
+    '<ellipse cx="37" cy="30" rx="7" ry="8" fill="#fff" stroke="#2A1B4E" stroke-width="2"/>' +
+    '<ellipse cx="63" cy="30" rx="7" ry="8" fill="#fff" stroke="#2A1B4E" stroke-width="2"/>' +
+    '<circle cx="38" cy="32" r="3" fill="#2A1B4E"/><circle cx="64" cy="32" r="3" fill="#2A1B4E"/>' +
+    '<path d="M43 41q7 5 14 0" fill="none" stroke="#2A1B4E" stroke-width="2.4" stroke-linecap="round"/>';
+  return `<svg viewBox="0 0 100 100" class="bp-gem-svg" xmlns="http://www.w3.org/2000/svg">${SHAPE_EL[shape](fill)}${face}${labelSVG(gem)}</svg>`;
+}
+function labelSVG(gem) {
+  const t = (s, y, size) => `<text x="50" y="${y}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="${size}" fill="#fff" stroke="#2A1B4E" stroke-width="1.1" paint-order="stroke">${s}</text>`;
+  if (gem.frac) {
+    const [num, den] = String(gem.v).split('/');
+    return t(num, 58, 24) + '<line x1="36" y1="63" x2="64" y2="63" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>' + t(den, 88, 24);
+  }
+  if (gem.fact && String(gem.label).includes('×')) return t(gem.label.replace(/\s+/g, ''), 74, 21);
+  return t(gem.label, 76, 40);
+}
 
 // ---- the level rules ---------------------------------------------------------
 // Fraction Friends equivalence families (exactly per C7).
@@ -36,50 +81,53 @@ FRACTION_FAMILIES.forEach((fam, i) => fam.forEach(f => { FRACTION_CLASS[f] = i; 
 const LEVELS = {
   twin: {
     key: 'twin', name: 'Twin Pop', rank: 0, tier: 'light',
-    rule: 'Twins pop: two of the SAME number',
-    intro: 'Put two of the SAME number side by side — POP! Swap gems to make it happen!',
-    gen: () => { const v = 1 + rand(9); return { v, label: String(v), hue: v }; },
+    rule: 'Pop the twins — two of the same!',
+    intro: 'Put two of the SAME gem side by side — POP! Swap gems to make it happen!',
+    // Identical number = identical gem (trivially readable): appearance is a pure
+    // function of the number, so twins always look exactly alike.
+    gen: () => { const v = 1 + rand(9); return { v, label: String(v), hue: famHue(v), shape: famShape(v) }; },
     match: (a, b) => a.v === b.v
   },
   make10: {
     key: 'make10', name: 'Make 10', rank: 1, tier: 'light',
-    rule: 'Pairs that ADD UP TO 10 pop',
-    intro: 'Put two numbers that ADD UP TO 10 side by side — like 7 and 3 — POP!',
-    gen: () => { const v = 1 + rand(9); return { v, label: String(v), hue: v }; },
+    rule: 'Pop the friends that make 10!',
+    intro: 'Matching colours are friends that make 10 — like 7 and 3. Put them side by side — POP!',
+    // Complement families: {1,9}{2,8}{3,7}{4,6}{5}. The two friends that make 10
+    // share a colour AND a shape, so colour teaches the bond.
+    gen: () => { const v = 1 + rand(9); const fam = Math.min(v, 10 - v); return { v, label: String(v), hue: famHue(fam), shape: famShape(fam) }; },
     match: (a, b) => a.v + b.v === 10
   },
   make20: {
     key: 'make20', name: 'Make 20', rank: 2, tier: 'medium',
-    rule: 'Pairs that ADD UP TO 20 pop',
-    intro: 'Put two numbers that ADD UP TO 20 side by side — like 12 and 8 — POP!',
-    gen: () => { const v = 1 + rand(19); return { v, label: String(v), hue: v % 10 }; },
+    rule: 'Pop the friends that make 20!',
+    intro: 'Matching colours are friends that make 20 — like 12 and 8. Put them side by side — POP!',
+    // Complement to 20 families: {1,19}…{10,10}. Family colouring by complement.
+    gen: () => { const v = 1 + rand(19); const fam = Math.min(v, 20 - v); return { v, label: String(v), hue: famHue(fam), shape: famShape(fam) }; },
     match: (a, b) => a.v + b.v === 20
   },
   fractions: {
     key: 'fractions', name: 'Fraction Friends', rank: 3, tier: 'full',
-    rule: 'Fractions worth the SAME amount pop',
-    intro: 'Fractions that are secretly the SAME — like 1/2 and 2/4 — pop side by side!',
+    rule: 'Pop fractions worth the same!',
+    intro: 'Matching colours are worth the same — like 1/2 and 2/4. Pop them side by side!',
+    // Colour by EQUIVALENCE family (C2): equal fractions now share a colour + shape.
     gen: () => {
-      const fam = FRACTION_FAMILIES[rand(FRACTION_FAMILIES.length)];
+      const cls = rand(FRACTION_FAMILIES.length);
+      const fam = FRACTION_FAMILIES[cls];
       const f = fam[rand(fam.length)];
-      // each fraction gets its OWN hue so equivalence is judged by value, not colour
-      const ALL = ['1/2', '2/4', '3/6', '1/4', '2/8', '3/4', '6/8'];
-      return { v: f, label: f, hue: ALL.indexOf(f) + 1, frac: true };
+      return { v: f, label: f, hue: famHue(cls + 1), shape: famShape(cls + 1), frac: true };
     },
     match: (a, b) => FRACTION_CLASS[a.v] === FRACTION_CLASS[b.v]
   },
   facts: {
     key: 'facts', name: 'Fact Pairs', rank: 3, tier: 'full',
-    rule: 'A times fact pops with its answer',
-    intro: 'Put a times question next to its ANSWER — like 3 × 4 beside 12 — POP!',
+    rule: 'Pop a times fact with its answer!',
+    intro: 'A fact and its answer wear the same colour — like 3 × 4 and 12. Pop them side by side!',
+    // Colour the fact gem and its answer gem alike (C2): both keyed on the answer.
     gen: () => {
-      // half fact gems ("3 × 4"), half answer gems (12); small friendly facts
-      if (rand(2)) {
-        const t = 2 + rand(11), f = 1 + rand(12);
-        return { v: 'q' + (t * f), label: `${t} × ${f}`, ans: t * f, hue: (t + f) % 10, fact: true };
-      }
-      const t = 2 + rand(11), f = 1 + rand(12);
-      return { v: 'a' + (t * f), label: String(t * f), ans: t * f, hue: (t * f) % 10 };
+      const t = 2 + rand(11), f = 1 + rand(12), ans = t * f;
+      const fam = (ans % GEM_HUES.length) + 1;
+      if (rand(2)) return { v: 'q' + ans, label: `${t} × ${f}`, ans, hue: famHue(fam), shape: famShape(fam), fact: true };
+      return { v: 'a' + ans, label: String(ans), ans, hue: famHue(fam), shape: famShape(fam) };
     },
     match: (a, b) => !!(a.fact !== b.fact && a.ans === b.ans)
   }
@@ -130,6 +178,10 @@ export function mount(container, params, ctx) {
   function play(levelKey) {
     clear(root);
     const rule = LEVELS[levelKey];
+    // Chunkier gems on a smaller board (C2): Twin Pop is 5x5, everything else 6x6.
+    const N = rule.key === 'twin' ? BOARD_TWIN : BOARD_STD;
+    const POPS3 = N === BOARD_TWIN ? POPS_3STAR_TWIN : POPS_3STAR;
+    const POPS2 = N === BOARD_TWIN ? POPS_2STAR_TWIN : POPS_2STAR;
     let moves = MOVES, pops = 0, hintsUsed = 0, busy = false, sel = null, ended = false;
     let idleTimer = null, glowPair = null;
     let board = [];   // board[r][c] = { gem, node }
@@ -142,15 +194,16 @@ export function mount(container, params, ctx) {
     root.appendChild(shell.root);
     shell.setProgress(0);
 
-    const grid = el('div', { class: 'bp-board', style: { '--n': N } });
-    // the round's rule stays visible ALL round (clarity fix: nothing on screen
-    // used to say WHY pairs pop — a first-time player had to guess)
+    const grid = el('div', { class: 'bp-board' });
+    grid.style.setProperty('--n', N);   // el() drops custom props; set the column count directly
+    // The rule chip is BIG and sits above the board (C2), embodying that matching
+    // colours are the friends that pop — a first-time player never has to guess.
+    const ruleChip = el('div', { class: 'bp-rule', text: rule.rule });
     const hud = el('div', { class: 'bp-hud' }, [
       el('span', { class: 'bp-pops', text: '0 pops' }),
-      el('span', { class: 'bp-rule', text: rule.rule }),
       el('span', { class: 'bp-moves', text: `${MOVES} moves` })
     ]);
-    shell.area.append(hud, grid);
+    shell.area.append(ruleChip, hud, grid);
 
     // ---- board engine ------------------------------------------------------
     const at = (r, c) => (r >= 0 && r < N && c >= 0 && c < N) ? board[r][c] : null;
@@ -226,9 +279,10 @@ export function mount(container, params, ctx) {
     // ---- rendering ---------------------------------------------------------
     function gemNode(g, r, c) {
       const n = el('button', {
-        class: `bp-gem hue-${g.hue}${g.frac ? ' frac' : ''}${g.fact ? ' fact' : ''}`,
-        dataset: { r, c }, 'aria-label': g.label
-      }, [el('span', { class: 'bp-label', text: g.label })]);
+        class: `bp-gem${g.frac ? ' frac' : ''}${g.fact ? ' fact' : ''}`,
+        dataset: { r, c, hue: g.hue, shape: g.shape }, 'aria-label': g.label,
+        html: gemSVG(g)   // family silhouette + Boo face + numeral (C2)
+      });
       n.addEventListener('pointerdown', (e) => onGemDown(e, n));
       return n;
     }
@@ -292,10 +346,13 @@ export function mount(container, params, ctx) {
       await animateSwap(na, nb, a, b);
       swapGems(a.r, a.c, b.r, b.c);
       if (!anyAdjacentMatch()) {
-        // gentle no: swap straight back, no move lost, nothing harsh
+        // gentle no: swap straight back, no move lost. BOTH gems bounce back with a
+        // soft wobble (C2) so a wrong guess feels mechanical, not punishing.
         swapGems(a.r, a.c, b.r, b.c);
         await animateSwap(na, nb, b, a);
-        wobble(na); sfx.oops();
+        na.classList.add('bounce'); nb.classList.add('bounce');
+        wobble(na); wobble(nb); sfx.oops();
+        setTimeout(() => { na.classList.remove('bounce'); nb.classList.remove('bounce'); }, 420);
         busy = false; restartIdle();
         return;
       }
@@ -395,7 +452,7 @@ export function mount(container, params, ctx) {
     function finish() {
       if (ended) return; ended = true;
       if (idleTimer) clearTimeout(idleTimer);
-      const stars = (pops >= POPS_3STAR && hintsUsed === 0) ? 3 : (pops >= POPS_2STAR ? 2 : 1);
+      const stars = (pops >= POPS3 && hintsUsed === 0) ? 3 : (pops >= POPS2 ? 2 : 1);
       recordBest('boopop', rule.key, stars);
       // Twin Pop is the tutorial, not the sport: after the 3rd lifetime Twin Pop
       // round it always counts as a cosy round for the meter (C7).
@@ -420,13 +477,16 @@ export function mount(container, params, ctx) {
     if (typeof window !== 'undefined') window.__boopop = {
       state: () => ({ moves, pops, hintsUsed, level: rule.key, busy, ended }),
       grid: () => board.map(row => row.map(cell => cell.gem.label)),
+      gems: () => board.map(row => row.map(cell => ({ label: cell.gem.label, v: cell.gem.v, hue: cell.gem.hue, shape: cell.gem.shape }))),  // C2 family/shape checks
+      n: () => N,
+      thresholds: () => ({ three: POPS3, two: POPS2 }),
       match: (a, b) => rule.match(a, b),
       findMove: () => findValidMove(),
       swap: (r1, c1, r2, c2) => trySwap({ r: r1, c: c1 }, { r: r2, c: c2 }),
       setTwinGrid: (vals) => {   // test-only: install an exact twin board
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
           const v = vals[r][c];
-          board[r][c].gem = { v, label: String(v), hue: v };
+          board[r][c].gem = { v, label: String(v), hue: famHue(v), shape: famShape(v) };
         }
         renderBoard();
         return !findValidMove();

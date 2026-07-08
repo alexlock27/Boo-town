@@ -93,10 +93,11 @@ console.log('== board generation guarantees ==');
     await openLevel(page, i % 2 ? 'Make 10' : 'Twin Pop');
     const g = await page.evaluate(() => ({ grid: window.__boopop.grid(), mv: window.__boopop.findMove(), lvl: window.__boopop.state().level }));
     let instant = false;
-    for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
+    const n = g.grid.length;   // RUN5 C2: 6x6 standard, 5x5 Twin Pop
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
       const v = +g.grid[r][c];
-      if (c + 1 < 7) { const w = +g.grid[r][c + 1]; if (g.lvl === 'twin' ? v === w : v + w === 10) instant = true; }
-      if (r + 1 < 7) { const w = +g.grid[r + 1][c]; if (g.lvl === 'twin' ? v === w : v + w === 10) instant = true; }
+      if (c + 1 < n) { const w = +g.grid[r][c + 1]; if (g.lvl === 'twin' ? v === w : v + w === 10) instant = true; }
+      if (r + 1 < n) { const w = +g.grid[r + 1][c]; if (g.lvl === 'twin' ? v === w : v + w === 10) instant = true; }
     }
     assert(!instant, `board ${i + 1} (${g.lvl}): no pair pops on arrival`);
     assert(!!g.mv, `board ${i + 1} (${g.lvl}): at least one valid pair is reachable`);
@@ -160,8 +161,9 @@ console.log('== sparkle-shuffle safety net ==');
   await openLevel(page, 'Twin Pop');
   // v(r,c) = 1 + (3r + c) % 9 has provably NO twin move (all swap deltas 2,4,6 mod 9)
   const rigged = await page.evaluate(() => {
+    const n = window.__boopop.n();   // 5 for Twin Pop (RUN5 C2)
     const vals = [];
-    for (let r = 0; r < 7; r++) { vals.push([]); for (let c = 0; c < 7; c++) vals[r].push(1 + ((3 * r + c) % 9)); }
+    for (let r = 0; r < n; r++) { vals.push([]); for (let c = 0; c < n; c++) vals[r].push(1 + ((3 * r + c) % 9)); }
     return window.__boopop.setTwinGrid(vals);
   });
   assert(rigged, 'rigged board really has no valid move');
@@ -190,8 +192,9 @@ console.log('== 3-star runs ==');
 for (const level of ['Twin Pop', 'Make 10']) {
   const { ctx, page } = await fresh(SAVE());
   await openLevel(page, level);
-  const st = await playFor(page, 12);
-  assert(st.pops >= 12, `${level}: reached ${st.pops} pops (needs 12+) with ${st.moves} moves left`);
+  const three = await page.evaluate(() => window.__boopop.thresholds().three);
+  const st = await playFor(page, three);
+  assert(st.pops >= three, `${level}: reached ${st.pops} pops (needs ${three}+) with ${st.moves} moves left`);
   await page.evaluate(() => window.__boopop.finish());
   await page.waitForSelector('.result-card');
   await sleep(800);
@@ -205,7 +208,8 @@ console.log('== Twin Pop cosy rule ==');
 {
   const { ctx, page } = await fresh(SAVE({ seen: { trophyRetro: true, twinPopRounds: 3 } }));
   await openLevel(page, 'Twin Pop');
-  const st = await playFor(page, 12);
+  const th = await page.evaluate(() => window.__boopop.thresholds());
+  const st = await playFor(page, th.three);
   const t0 = await page.evaluate(() => window.BooTown.State.getState().stars.total);
   await page.evaluate(() => window.__boopop.finish());
   await page.waitForSelector('.result-card');
@@ -213,7 +217,7 @@ console.log('== Twin Pop cosy rule ==');
   const after = await page.evaluate(() => ({ meter: window.BooTown.State.getState().meter, total: window.BooTown.State.getState().stars.total, twin: window.BooTown.State.getState().seen.twinPopRounds }));
   assert(after.twin === 4, `lifetime Twin Pop rounds counted (${after.twin})`);
   assert(after.meter === 2, `the 4th Twin Pop round is cosy: 2 meter points max (got ${after.meter})`);
-  assert(after.total - t0 === (st.pops >= 12 ? 3 : st.pops >= 8 ? 2 : 1), 'total stars still credit in full');
+  assert(after.total - t0 === (st.pops >= th.three ? 3 : st.pops >= th.two ? 2 : 1), 'total stars still credit in full');
   await ctx.close();
 }
 
