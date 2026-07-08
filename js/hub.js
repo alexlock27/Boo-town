@@ -243,6 +243,22 @@ export function mount(container, params, ctx) {
     requestAnimationFrame(() => ov.classList.add('show'));
   }
 
+  // Boo Quest card (RUN6 C6) — a storybook adventure. Never shown in Toddler mode
+  // (that hub is a separate render that omits it entirely).
+  {
+    const q = s.quest || { node: 0, lands: {} };
+    const landDone = !!(q.lands && q.lands.sparkle_meadow);
+    const prog = landDone ? 'Complete! ✓' : `Node ${Math.min((q.node || 0) + 1, 6)} of 6`;
+    specials.appendChild(el('button', { class: 'quest-card', onclick: () => { sfx.tap(); ctx.go('booquest'); } }, [
+      el('span', { class: 'quest-ic', text: '🗺️' }),
+      el('span', { class: 'quest-body' }, [
+        el('span', { class: 'quest-title', text: 'Boo Quest' }),
+        el('span', { class: 'quest-sub', text: `The Sparkle Meadow · ${prog}` })
+      ]),
+      el('span', { class: 'quest-ic', text: '✨' })
+    ]));
+  }
+
   const g = s.golden;
   if (g && ((g.words || []).length || (g.choices || []).length)) {
     const wc = (g.words || []).length, cc = (g.choices || []).length;

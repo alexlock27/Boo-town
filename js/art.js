@@ -146,6 +146,12 @@ function accessory(acc) {
       return path('M28 40 Q60 6 92 40 Z', COLORS.teal, `stroke="${INK}" stroke-width="3" stroke-linejoin="round"`) +
              path('M60 40 Q96 40 98 50 Q80 48 60 46 Z', COLORS.teal, `stroke="${INK}" stroke-width="3" stroke-linejoin="round"`) +
              `<circle cx="60" cy="16" r="4" fill="${COLORS.gold}" stroke="${INK}" stroke-width="2"/>`;
+    case 'explorerhat': {   // a little safari/adventure hat (RUN6 C6 — Scout)
+      const straw = '#C9A46A';
+      return ell(60, 34, 40, 11, straw, `stroke="${INK}" stroke-width="3"`) +
+             path('M40 34 Q60 4 80 34 Z', straw, `stroke="${INK}" stroke-width="3" stroke-linejoin="round"`) +
+             `<rect x="42" y="25" width="36" height="7" rx="3" fill="#7A5A34" stroke="${INK}" stroke-width="2"/>`;
+    }
     case 'glasses': {
       // heart-shaped glasses over the eyes
       const heart = (hx) => path(`M${hx} ${72} C${hx-9} ${60}, ${hx-18} ${72}, ${hx} ${84} C${hx+18} ${72}, ${hx+9} ${60}, ${hx} ${72} Z`, COLORS.pink, `stroke="${INK}" stroke-width="2.4" opacity="0.9"`);
@@ -687,6 +693,14 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         `<path d="M18 68 L60 34 L102 68" fill="none" ${ink}/>` +
         `<path d="M46 112 L46 84 Q60 74 74 84 L74 112 Z" fill="${COLORS.bubblegum}" ${ink}/>` +
         `<circle cx="60" cy="62" r="9" fill="${COLORS.teal}" ${ink}/>`;
+      break;
+    case 'questflag':   // exclusive Boo Quest reward (RUN6 C6)
+      inner =
+        rrect(56, 26, 8, 88, 4, COLORS.cocoa, halo) +
+        rrect(56, 26, 8, 88, 4, COLORS.cocoa, ink) +
+        path('M64 30 L106 46 L64 62 Z', COLORS.pink, halo) +
+        path('M64 30 L106 46 L64 62 Z', COLORS.pink, ink) +
+        path(starPath(82, 46, 7, 3), COLORS.star, `stroke="${INK}" stroke-width="1.5"`);
       break;
     case 'tree':
       inner =

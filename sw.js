@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run6-phase7';           // <-- bump on each deploy
+const BUILD_STAMP = 'run6-phase8';           // <-- bump on each deploy
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -45,6 +45,7 @@ const ASSETS = [
   'js/funfair.js',
   'js/band.js',
   'js/rarityfx.js',
+  'js/booquest.js',
   'js/shiny.js',
   'js/delights.js',
   'js/games/boopop.js',
@@ -78,6 +79,7 @@ const ASSETS = [
   'data/soundTwins.js',
   'data/sorting.js',
   'data/sortingExtra.js',
+  'data/quests.js',
   'assets/fonts/Fredoka-Variable.woff2',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',

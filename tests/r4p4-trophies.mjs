@@ -110,7 +110,7 @@ console.log('== retroactive award on first load ==');
   for (let f = 1; f <= 12; f++) ledger['tmul2:' + f] = { rights: 5, misses: 0, lastSeen: 1 };
   const { ctx, page } = await fresh(SAVE({
     seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, inventory: inv, ledger,
-    stars: { total: 250, byGame: {} },
+    stars: { total: 300, byGame: {} },   // ≥280: every zone open incl. the Boo Funfair
     catBest: { 'clockshop:l1': 3 },
     journal: { golden3: '2026-07-01' }
   }));

@@ -14,7 +14,7 @@ import { stampJournal } from './quests.js';
 import { ZONES } from './town.js';
 import { sfx } from './sfx.js';
 
-const ALL_ZONES_STARS = Math.max(...ZONES.map(z => z.unlock));   // Beach, currently 180
+const ALL_ZONES_STARS = Math.max(...ZONES.map(z => z.unlock));   // Boo Funfair, currently 280
 
 // ---- named constants (C4) --------------------------------------------------
 export const MEDAL_TIERS = [['bronze', 5, '🥉'], ['silver', 15, '🥈'], ['gold', 30, '🥇']];
@@ -125,7 +125,8 @@ export function buildCatalog() {
     { key: 'trophy_zones', type: 'trophy', group: 'adventures', label: 'Every Zone Open', hint: 'Open every part of the town…', icon: '🏆', earned: (s) => (s.stars && s.stars.total || 0) >= ALL_ZONES_STARS },
     { key: 'trophy_lessons', type: 'trophy', group: 'maths', label: 'Lesson Legend', hint: 'Three stars on every Teach Me lesson…', icon: '🏆', earned: (s) => LESSONS.every(l => cb(s, 'teachme:' + l.id) >= 3) },
     { key: 'trophy_custom', type: 'trophy', group: 'collector', label: 'First Custom Boo Won', hint: 'Win a Boo you built yourself…', icon: '🏆', earned: (s) => (s.customs || []).some(c => c.won) },
-    { key: 'trophy_golden', type: 'trophy', group: 'adventures', label: 'Golden Round Champion', hint: 'Three stars on a Golden Round…', icon: '🏆', earned: (s) => !!(s.journal && s.journal.golden3) }
+    { key: 'trophy_golden', type: 'trophy', group: 'adventures', label: 'Golden Round Champion', hint: 'Three stars on a Golden Round…', icon: '🏆', earned: (s) => !!(s.journal && s.journal.golden3) },
+    { key: 'trophy_sparkle_meadow', type: 'trophy', group: 'adventures', label: 'Sparkle Meadow Explorer', hint: 'Finish the first Boo Quest land…', icon: '🏆', earned: (s) => !!(s.quest && s.quest.lands && s.quest.lands.sparkle_meadow) }
   );
   return items;
 }

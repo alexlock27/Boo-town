@@ -114,7 +114,11 @@ export const CATALOGUE = [
   { id: 'acc_djheadphones', kind: 'accessory', name: 'DJ Headphones',  rarity: 'rare',   art: 'djheadphones', blurb: 'Drop the beat! (DJ Boo already has a pair, thanks.)' },
 
   // --- Free Easel (RUN3 C6): granted with the Studio, never drops from boxes ---
-  { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' }
+  { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' },
+
+  // --- Boo Quest exclusives (RUN6 C6): earned only by finishing a land, never in boxes ---
+  { id: 'boo_scout', kind: 'boo', name: 'Scout', rarity: 'ultra', species: 'pip', colors: { body: 'teal' }, acc: 'explorerhat', questOnly: true, blurb: 'Map in paw, hat on head, always first to the horizon.' },
+  { id: 'deco_questflag', kind: 'deco', name: 'Quest Flag', rarity: 'rare', deco: 'questflag', questOnly: true, blurb: 'Planted at the end of the Sparkle Meadow. You were here!' }
 ];
 
 // Convenience lookups.
@@ -127,7 +131,7 @@ export const ACCESSORIES  = CATALOGUE.filter(it => it.kind === 'accessory');
 
 // Grouped by kind then rarity for the type-first drop roll (RUN2 C2). Free items never drop.
 export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
-  if (it.free) return m;
+  if (it.free || it.questOnly) return m;   // quest-exclusives (RUN6 C6) never drop from boxes
   ((m[it.kind] ||= {})[it.rarity] ||= []).push(it);
   return m;
 }, {});
