@@ -332,6 +332,40 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gc-tag { font-size: 14px; color: #6B5E93; }
 .gc-stars { margin-top: 2px; }
 
+/* ---- Today rail (RUN7 C3): one compact, horizontally-swipeable row of chips ---- */
+/* Content, not navigation — the four-slot bottom bar is untouched. Only chips that */
+/* currently have content render; overflow scrolls sideways. The games grid below it */
+/* is the dominant hub content again (>=2 cards visible at 390x844). */
+.today-rail { flex: 0 0 auto; margin: 0 0 2px; max-width: 860px; width: 100%; margin-left: auto; margin-right: auto; overflow: hidden; }
+.trail-inner { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 8px 4px 10px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.trail-inner::-webkit-scrollbar { display: none; }
+.trail-chip {
+  position: relative; flex: 0 0 auto; height: 74px; min-width: 148px; max-width: 214px;
+  display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 16px; border: none;
+  background: var(--card); box-shadow: var(--card-shadow); cursor: pointer; text-align: left; --accent: var(--sky-mid);
+  border-left: 6px solid var(--accent); transition: transform 140ms ease-out;
+}
+.trail-chip:active { transform: scale(0.97) translateY(2px); }
+.trail-chip .tc-ic { flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center; font-size: 26px; }
+.trail-chip .tc-ic svg { width: 40px; height: 40px; }
+.trail-chip .tc-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.trail-chip .tc-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); white-space: nowrap; }
+.trail-chip .tc-sub { font-family: var(--font-body); font-size: 12.5px; color: #6b5ca0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px; }
+.trail-chip .tc-sub.open { color: var(--star); font-weight: 700; }
+.trail-chip .tc-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: #fff; font-family: var(--font-display); font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+.trail-chip.quests.done .tc-badge { background: var(--star); color: var(--ink); }
+.trail-chip .tc-x { position: absolute; top: 5px; right: 6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(42,27,78,0.09); color: #6b5ca0; font-size: 14px; font-weight: 700; line-height: 1; }
+.trail-chip .tc-x::before { content: '\00D7'; }
+.trail-chip.jumpback { padding-right: 24px; }
+.trail-chip .tc-track { width: 90px; height: 7px; border-radius: 4px; background: rgba(42,27,78,0.1); overflow: hidden; margin-top: 3px; }
+.trail-chip .tc-fill { display: block; height: 100%; border-radius: 4px; background: var(--star); transition: width 0.4s ease-out; }
+.trail-chip.chest.ready { background: #FFF6DE; --accent: var(--star); animation: chest-bounce 1.4s ease-in-out infinite; }
+.trail-chip.chest .chest-ic svg { width: 34px; height: 34px; }
+.trail-chip.botd .botd-art svg { width: 40px; height: 40px; }
+/* keep the games grid the dominant content: it takes the remaining height and scrolls */
+.game-cards-groups { flex: 1 1 auto; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .trail-chip.chest.ready { animation: none; } }
+
 .bottom-bar { display: flex; gap: 10px; justify-content: center; align-items: center; padding: 10px 0 12px; }
 .bar-btn {
   min-height: var(--tap); border: none; border-radius: 20px; background: rgba(255,255,255,0.14);

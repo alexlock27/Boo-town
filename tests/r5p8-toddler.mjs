@@ -74,7 +74,8 @@ console.log('== toddler hub ==');
   await page.waitForSelector('.toddler-hub');
   const words = await page.$$eval('.toddler-card .tc-word', ns => ns.map(n => n.textContent));
   assert(words.join(',') === 'Count,Colours,Shapes,Letters', `four giant one-word cards (${words.join(',')})`);
-  for (const sel of [['.quest-card', 'quests'], ['.golden-card', 'Golden Round'], ['.jumpback-card', 'jump-back'], ['.booday', 'Boo of the Day']]) {
+  // the Toddler hub has no Today rail and none of its meta chips
+  for (const sel of [['.today-rail', 'the Today rail'], ['.trail-chip.quests', 'quests chip'], ['.trail-chip.golden', 'Golden chip'], ['.trail-chip.jumpback', 'jump-back chip'], ['.trail-chip.botd', 'Boo-of-the-Day chip'], ['.trail-chip.booquest', 'Boo Quest chip']]) {
     assert(!(await page.$(sel[0])), `${sel[1]} hidden on the Toddler hub`);
   }
   const bar = await page.$$eval('.bottom-bar .bar-btn span', ns => ns.map(n => n.textContent).filter(Boolean));

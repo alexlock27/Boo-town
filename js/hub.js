@@ -1,7 +1,7 @@
 // js/hub.js — the home screen (spec §2, §5.2).
 
 import { el, clear, giftSVG, starsRow, REDUCED, suppressContextMenu } from './ui.js';
-import { getState, mutate } from './state.js';
+import { getState, mutate, todayKey } from './state.js';
 import { createGuideBubble, guideLine } from './guide.js';
 import { music, sfx } from './sfx.js';
 import { meterState, METER_CAP } from './rewards.js';
@@ -89,69 +89,64 @@ export function mount(container, params, ctx) {
     mutate(st => { st.seen.lastStarsShown = target; });
   }
 
-  // The Star Chest (RUN4 C8): a golden chest beside the meter with its own mini
-  // progress track tied to the visible star total. Every CHEST_EVERY stars past
-  // the anchor earns one; migrated saves start with a single welcome chest.
-  const cs = chestState();
-  const chestBtn = el('button', {
-    class: 'star-chest' + (cs.ready ? ' ready' : ''),
-    'aria-label': cs.ready ? 'Open your Star Chest!' : `Star Chest: ${cs.progress} of ${CHEST_EVERY} stars`,
-    onclick: () => { if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); } }
-  }, [
-    el('span', { class: 'chest-ic', html: chestSVG(cs.ready) }),
-    el('span', { class: 'chest-track' }, [
-      el('span', { class: 'chest-fill', style: { width: Math.round(cs.progress / CHEST_EVERY * 100) + '%' } })
-    ])
-  ]);
-
+  // The Star Chest (RUN4 C8) now lives as a Today-rail chip (RUN7 C3), decluttering
+  // the header down to the core star economy: speaker + total + meter + gift.
   const meterWrap = el('div', { class: 'meter-wrap' });
-  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap, chestBtn]);
+  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap]);
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
   const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
 
-  // Boo of the Day (RUN4 C9): a little podium beside the guide. Pure decoration,
-  // rotates at local midnight, wears a random owned accessory (or none, gracefully).
+  // Boo of the Day (RUN4 C9): rotates at local midnight; now a Today-rail chip (C3).
   const botd = booOfTheDay();
-  if (botd) {
-    const boodayArt = el('div', { class: 'booday-art', html: renderItem(botd.item, { size: 74, equipArt: botd.accArt, cls: 'art-idle' }) });
-    guideSection.appendChild(el('div', { class: 'booday' }, [
-      boodayArt,
-      el('div', { class: 'booday-podium' }, [el('span', { class: 'booday-star', text: '★' })]),
-      el('div', { class: 'booday-line', text: `Today's star: ${getDisplayName(botd.id) || botd.item.name}!` })
-    ]));
-    // shared rarity VFX (C2): Boo of the Day shows its rarity too
-    applyRarityFx(boodayArt, botd.item, { context: 'full', shiny: ((s.shinies && s.shinies[botd.id]) || 0) > 0 });
-  }
   // Long-press the guide to open the character creator (spec RUN2 C1).
   attachLongPress(gb.art, 550, () => { sfx.tap(); ctx.go('editguide', { from: 'hub' }); });
   gb.art.setAttribute('aria-label', 'Your character — press and hold to change');
   suppressContextMenu(gb.art);   // hold target: no native callout/context menu (C0.1)
 
-  // Jump back in (RUN5 C0b): once any round has ever been played, the very first
-  // card (right under the guide) replays her last game and mode in one tap.
-  let jumpBackNode = null;
-  const lp = s.seen && s.seen.lastPlay;
-  if (lp && lp.game && GAMES.some(g => g.id === lp.game)) {
+  // ---- the Today rail (RUN7 C3) --------------------------------------------
+  // One compact, horizontally-swipeable row between the hero and the games grid.
+  // It collapses every meta-card into chips shown ONLY when they have content, so
+  // the games grid is the dominant hub content again (≥2 cards visible at 390x844).
+  // This is CONTENT, not navigation — the four-slot bottom bar rule is untouched.
+  const todayRail = el('div', { class: 'today-rail', 'aria-label': 'Today' });
+  const railInner = el('div', { class: 'trail-inner' });
+  todayRail.appendChild(railInner);
+
+  // Jump back in (RUN5 C0b + RUN7 C3 manners): appears only if a last-played mode
+  // exists, has NOT been played today, and has NOT been dismissed today. Playing it
+  // (chip or grid) sets lastPlayDay=today → hidden; the small × dismisses until tomorrow.
+  function jumpbackAllowed() {
+    const lp = s.seen && s.seen.lastPlay;
+    if (!lp || !lp.game || !GAMES.some(g => g.id === lp.game)) return null;
+    const today = todayKey();
+    if (s.seen.lastPlayDay === today) return null;            // already played today
+    if (s.seen.jumpbackDismissedDay === today) return null;   // dismissed today
+    return lp;
+  }
+  function buildJumpbackChip() {
+    const lp = jumpbackAllowed();
+    if (!lp) return null;
     const g = GAMES.find(x => x.id === lp.game);
     const modeLabel = lp.mix ? 'Smart Mix'
       : (lp.gameName && lp.gameName !== g.name ? lp.gameName : '')
         + (lp.level != null ? (lp.gameName && lp.gameName !== g.name ? ' · ' : '') + 'Level ' + lp.level : '');
     const resume = { cat: lp.cat, level: lp.level, mix: !!lp.mix };
-    const jumpCard = el('button', { class: 'jumpback-card',
-      onclick: () => { sfx.tap(); ctx.go(lp.game, { resume }); } }, [
-      el('span', { class: 'jb-badge', text: 'Jump back in' }),
-      el('span', { class: 'jb-icon', html: g.icon() }),
-      el('span', { class: 'jb-body' }, [
-        el('span', { class: 'jb-name', text: g.name }),
-        el('span', { class: 'jb-mode', text: modeLabel || g.tag })
+    const chip = el('button', { class: 'trail-chip jumpback', onclick: () => { sfx.tap(); ctx.go(lp.game, { resume }); } }, [
+      el('span', { class: 'tc-ic', html: g.icon() }),
+      el('span', { class: 'tc-txt' }, [
+        el('span', { class: 'tc-title', text: 'Jump back in' }),
+        el('span', { class: 'tc-sub', text: (modeLabel || g.tag) + ' · ' + g.name })
       ]),
-      el('span', { class: 'jb-play', html: '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg>' })
+      el('span', { class: 'tc-x', 'aria-label': 'Not today', onclick: (e) => {
+        e.stopPropagation(); sfx.tap();
+        mutate(st => { st.seen = st.seen || {}; st.seen.jumpbackDismissedDay = todayKey(); });
+        chip.remove();
+      } })
     ]);
-    // el() drops custom props via Object.assign, so set --accent explicitly.
-    jumpCard.style.setProperty('--accent', g.accent);
-    jumpBackNode = el('section', { class: 'jumpback-wrap' }, [jumpCard]);
+    chip.style.setProperty('--accent', g.accent);
+    return chip;
   }
 
   // ---- game cards, grouped Learn / Play (RUN2 part D) ----
@@ -213,17 +208,8 @@ export function mount(container, params, ctx) {
     specials.appendChild(ageCard);
   }
 
-  // Daily quests card with a 0–3 badge (no streaks, no missed-day guilt — rule 1).
+  // Daily quests (RUN3 C4): always has content — three little things to try.
   const qs = questState();
-  const questCard = el('button', { class: 'quest-card' + (qs.allDone ? ' all-done' : ''), onclick: () => { sfx.tap(); showQuests(); } }, [
-    el('span', { class: 'quest-ic', text: '🎯' }),
-    el('span', { class: 'quest-body' }, [
-      el('span', { class: 'quest-title', text: 'Today\'s quests' }),
-      el('span', { class: 'quest-sub', text: qs.allDone ? 'All done — bonus box earned!' : 'Three little things to try' })
-    ]),
-    el('span', { class: 'quest-badge', text: qs.doneCount + '/3' })
-  ]);
-  specials.appendChild(questCard);
 
   function showQuests() {
     const st = questState();
@@ -243,36 +229,73 @@ export function mount(container, params, ctx) {
     requestAnimationFrame(() => ov.classList.add('show'));
   }
 
-  // Boo Quest card (RUN6 C6) — a storybook adventure. Never shown in Toddler mode
-  // (that hub is a separate render that omits it entirely).
+  // ---- assemble the Today rail (RUN7 C3): only chips that currently have content ----
   {
-    const q = s.quest || { node: 0, lands: {} };
-    const landDone = !!(q.lands && q.lands.sparkle_meadow);
-    const prog = landDone ? 'Complete! ✓' : `Node ${Math.min((q.node || 0) + 1, 6)} of 6`;
-    specials.appendChild(el('button', { class: 'quest-card', onclick: () => { sfx.tap(); ctx.go('booquest'); } }, [
-      el('span', { class: 'quest-ic', text: '🗺️' }),
-      el('span', { class: 'quest-body' }, [
-        el('span', { class: 'quest-title', text: 'Boo Quest' }),
-        el('span', { class: 'quest-sub', text: `The Sparkle Meadow · ${prog}` })
-      ]),
-      el('span', { class: 'quest-ic', text: '✨' })
+    const jb = buildJumpbackChip();
+    if (jb) railInner.appendChild(jb);
+
+    // Quests chip (always present — three little things to try, 0–3 badge)
+    railInner.appendChild(el('button', { class: 'trail-chip quests' + (qs.allDone ? ' done' : ''), onclick: () => { sfx.tap(); showQuests(); } }, [
+      el('span', { class: 'tc-ic', text: '🎯' }),
+      el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Quests' }), el('span', { class: 'tc-sub', text: qs.allDone ? 'All done! 🎁' : 'Three to try' })]),
+      el('span', { class: 'tc-badge', text: qs.doneCount + '/3' })
     ]));
+
+    // Boo Quest chip (always — resume/start at the current node)
+    {
+      const q = s.quest || { node: 0, lands: {} };
+      const landDone = !!(q.lands && q.lands.sparkle_meadow);
+      const prog = landDone ? 'Complete! ✓' : `Node ${Math.min((q.node || 0) + 1, 6)}/6`;
+      railInner.appendChild(el('button', { class: 'trail-chip booquest', onclick: () => { sfx.tap(); ctx.go('booquest'); } }, [
+        el('span', { class: 'tc-ic', text: '🗺️' }),
+        el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Boo Quest' }), el('span', { class: 'tc-sub', text: 'Sparkle Meadow · ' + prog })])
+      ]));
+    }
+
+    // Star Chest chip (mini progress, or Open! when ready)
+    {
+      const cs = chestState();
+      railInner.appendChild(el('button', { class: 'trail-chip chest' + (cs.ready ? ' ready' : ''),
+        'aria-label': cs.ready ? 'Open your Star Chest!' : `Star Chest: ${cs.progress} of ${CHEST_EVERY} stars`,
+        onclick: () => { if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); } } }, [
+        el('span', { class: 'tc-ic chest-ic', html: chestSVG(cs.ready) }),
+        el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Star Chest' }),
+          cs.ready ? el('span', { class: 'tc-sub open', text: 'Open! 🎁' })
+            : el('span', { class: 'tc-track' }, [el('span', { class: 'tc-fill', style: { width: Math.round(cs.progress / CHEST_EVERY * 100) + '%' } })])])
+      ]));
+    }
+
+    // Golden Round chip (only when a grown-up has published one)
+    const g = s.golden;
+    if (g && ((g.words || []).length || (g.choices || []).length)) {
+      const wc = (g.words || []).length, cc = (g.choices || []).length;
+      railInner.appendChild(el('button', { class: 'trail-chip golden', onclick: () => { sfx.tap(); ctx.go('golden'); } }, [
+        el('span', { class: 'tc-ic', text: '⭐' }),
+        el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Golden Round' }), el('span', { class: 'tc-sub', text: `${wc + cc} · double stars!` })])
+      ]));
+    }
+
+    // Boo of the Day chip (mini portrait) — only when she owns Boos
+    if (botd) {
+      const chip = el('button', { class: 'trail-chip botd', onclick: () => { sfx.tap(); ctx.go('collection'); } }, [
+        el('span', { class: 'tc-ic botd-art', html: renderItem(botd.item, { size: 42, equipArt: botd.accArt, cls: 'art-idle' }) }),
+        el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Boo of the Day' }), el('span', { class: 'tc-sub', text: getDisplayName(botd.id) || botd.item.name })])
+      ]);
+      railInner.appendChild(chip);
+      const art = chip.querySelector('.botd-art');
+      if (art) applyRarityFx(art, botd.item, { context: 'calm', shiny: ((s.shinies && s.shinies[botd.id]) || 0) > 0 });
+    }
   }
 
-  const g = s.golden;
-  if (g && ((g.words || []).length || (g.choices || []).length)) {
-    const wc = (g.words || []).length, cc = (g.choices || []).length;
-    specials.appendChild(el('button', { class: 'golden-card', onclick: () => { sfx.tap(); ctx.go('golden'); } }, [
-      el('span', { class: 'golden-star', text: '⭐' }),
-      el('span', { class: 'golden-body' }, [
-        el('span', { class: 'golden-title', text: 'Golden Round' }),
-        el('span', { class: 'golden-sub', text: `${wc} word${wc === 1 ? '' : 's'}${cc ? ` · ${cc} question${cc === 1 ? '' : 's'}` : ''} · double stars!` })
-      ]),
-      el('span', { class: 'golden-star', text: '⭐' })
-    ]));
-  }
+  // hero → Today rail → games grid (the grid is the dominant content again, C3).
+  root.append(top, guideSection, specials, todayRail, cards, bar);
 
-  root.append(top, guideSection, ...(jumpBackNode ? [jumpBackNode] : []), specials, cards, bar);
+  if (typeof window !== 'undefined') window.__hub = {
+    railChips: () => [...todayRail.querySelectorAll('.trail-chip')].map(c => [...c.classList].find(k => k !== 'trail-chip')),
+    jumpbackShown: () => !!todayRail.querySelector('.trail-chip.jumpback'),
+    dismissJumpback: () => { const x = todayRail.querySelector('.trail-chip.jumpback .tc-x'); if (x) x.click(); },
+    railScrollWidth: () => ({ scroll: railInner.scrollWidth, client: todayRail.clientWidth })
+  };
 
   renderMeter();
 

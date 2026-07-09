@@ -1,7 +1,7 @@
 // js/results.js — end-of-round results (spec §5.4).
 
 import { el, clear, confetti, giftSVG, backControl } from './ui.js';
-import { getState, mutate, takeRoundTally } from './state.js';
+import { getState, mutate, takeRoundTally, todayKey } from './state.js';
 import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
@@ -37,7 +37,9 @@ export function mount(container, params, ctx) {
   // Jump back in (RUN5 C0b): remember her last game and mode so the hub can replay
   // it in one tap. The Golden Round is a special daily card, not a repeatable mode.
   if (game && game !== 'golden') {
-    mutate(st => { st.seen = st.seen || {}; st.seen.lastPlay = { game, gameName, cat, level, mix: !!mix }; });
+    // lastPlayDay = the local day this mode was last played, so the Today rail's
+    // "Jump back in" chip hides once she's played today (RUN7 C3 manners).
+    mutate(st => { st.seen = st.seen || {}; st.seen.lastPlay = { game, gameName, cat, level, mix: !!mix }; st.seen.lastPlayDay = todayKey(); });
   }
   // Box meter (RUN4 C3): base = stars (+3-star bonus), Brave +1 above comfort
   // (first per category per day), cosy rounds cap at 2. The Golden Round banks a

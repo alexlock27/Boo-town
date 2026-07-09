@@ -149,7 +149,7 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await reach('.bottom-bar .cog-btn', 'hub: the cog (last control)');
 
   // quests overlay
-  await page.click('.quest-card', { force: true });
+  await page.click('.trail-chip.quests', { force: true });
   await page.waitForSelector('.quests-panel');
   await reach('.quests-panel .btn', 'quests overlay: Close');
   await page.click('.quests-panel .btn');

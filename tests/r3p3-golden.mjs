@@ -48,7 +48,7 @@ assert(persisted && persisted.words.length === 2, 'Golden Round persists across 
 
 // ---- hub gold card visible ----
 console.log('== D10: hub card ==');
-const cardText = await page.$eval('.golden-card', n => n.textContent).catch(() => null);
+const cardText = await page.$eval('.trail-chip.golden', n => n.textContent).catch(() => null);
 assert(cardText && /Golden Round/.test(cardText), 'gold Golden Round card appears on the hub');
 
 // ---- play: word tile, twin -> Sound Twins item, choice buttons; double stars ----
@@ -65,7 +65,7 @@ async function step() {
   });
 }
 async function playGolden() {
-  await page.click('.golden-card');
+  await page.click('.trail-chip.golden');
   await page.waitForSelector('.spell-stage');
   const seen = new Set();
   for (let g = 0; g < 30; g++) {

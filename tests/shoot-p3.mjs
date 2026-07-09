@@ -13,7 +13,7 @@ for (const [mode, vp] of [['landscape', { width: 1024, height: 768 }], ['portrai
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE);
   await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
   await page.screenshot({ path: `screenshots/p3-hub-${mode}.png` });
-  await page.click('.golden-card');
+  await page.click('.trail-chip.golden');
   await page.waitForSelector('.spell-stage'); await sleep(2200);
   await page.screenshot({ path: `screenshots/p3-play-${mode}.png` });
   // editor

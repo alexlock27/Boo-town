@@ -160,12 +160,11 @@ console.log('== jump back in ==');
 {
   // real mode: Bubble Pop, Times tables, Level 2
   const { ctx, page } = await fresh(SAVE({ seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, lastPlay: { game: 'bubblepop', gameName: 'Times tables', cat: 'tables', level: 2, mix: false } } }));
-  await page.waitForSelector('.jumpback-card');
-  const name = await page.$eval('.jumpback-card .jb-name', n => n.textContent);
-  const mode = await page.$eval('.jumpback-card .jb-mode', n => n.textContent);
-  assert(name === 'Bubble Pop', 'jump-back-in card names the last game');
-  assert(/Level 2/.test(mode), 'jump-back-in card shows the last mode (Level 2)');
-  await page.click('.jumpback-card');
+  await page.waitForSelector('.trail-chip.jumpback');
+  const sub = await page.$eval('.trail-chip.jumpback .tc-sub', n => n.textContent);
+  assert(/Bubble Pop/.test(sub), 'jump-back-in chip names the last game');
+  assert(/Level 2/.test(sub), 'jump-back-in chip shows the last mode (Level 2)');
+  await page.click('.trail-chip.jumpback');
   await page.waitForSelector('.bubble-field', { timeout: 5000 });
   const onStartCard = await page.$('.start-card');
   assert(!onStartCard, 'tapping jump-back-in launches straight into the round (no start card)');
@@ -174,10 +173,10 @@ console.log('== jump back in ==');
 {
   // mix mode label
   const { ctx, page } = await fresh(SAVE({ seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, lastPlay: { game: 'bubblepop', gameName: 'Smart Mix', cat: null, level: null, mix: true } } }));
-  await page.waitForSelector('.jumpback-card');
-  const mode = await page.$eval('.jumpback-card .jb-mode', n => n.textContent);
+  await page.waitForSelector('.trail-chip.jumpback');
+  const mode = await page.$eval('.trail-chip.jumpback .tc-sub', n => n.textContent);
   assert(/Smart Mix/.test(mode), 'a Smart Mix round shows the Smart Mix label');
-  await page.click('.jumpback-card');
+  await page.click('.trail-chip.jumpback');
   await page.waitForSelector('.bubble-field', { timeout: 5000 });
   assert(!(await page.$('.start-card')), 'Smart Mix jump-back-in launches a round');
   await ctx.close();

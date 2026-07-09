@@ -92,10 +92,10 @@ console.log('== unfound carries to tomorrow (no reminder) ==');
 console.log('== Boo of the Day ==');
 {
   const { ctx, page } = await fresh(SAVE());
-  const pod = await page.$('.booday');
-  assert(!!pod, 'the hub spotlights a Boo of the Day on a podium');
-  const line = await page.$eval('.booday .booday-line', n => n.textContent);
-  assert(/Today's star:/.test(line), `one-line fanfare ("${line}")`);
+  const pod = await page.$('.trail-chip.botd');
+  assert(!!pod, 'the hub spotlights a Boo of the Day (Today-rail chip)');
+  const title = await page.$eval('.trail-chip.botd .tc-title', n => n.textContent);
+  assert(/Boo of the Day/.test(title), `the chip reads Boo of the Day ("${title}")`);
   const boo1 = await page.evaluate(() => import('./js/delights.js').then(m => m.booOfTheDay().id));
   // rotates at local midnight
   const boo2 = await page.evaluate(() => { window.__bootownDay = '2026-07-06'; return import('./js/delights.js').then(m => m.booOfTheDay().id); });
@@ -109,7 +109,7 @@ console.log('== Boo of the Day ==');
   const { ctx, page } = await fresh(save);
   const ok = await page.evaluate(() => import('./js/delights.js').then(m => { const b = m.booOfTheDay(); return b && b.acc === null; }));
   assert(ok, 'zero accessories: the star gracefully wears nothing');
-  assert(!!(await page.$('.booday')), 'podium still renders');
+  assert(!!(await page.$('.trail-chip.botd')), 'the Boo-of-the-Day chip still renders');
   await ctx.close();
 }
 

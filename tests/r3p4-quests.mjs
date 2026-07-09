@@ -66,12 +66,12 @@ assert(nextDay.day === '2026-07-05' && nextDay.n === 3 && nextDay.done === 0, 'a
 // ---- D11: no streak / missed-day strings anywhere in the quests UI ----
 console.log('== D11: no guilt strings ==');
 await page.evaluate(() => { window.__bootownDay = '2026-07-05'; window.BooTown.go('hub'); });
-await page.waitForSelector('.quest-card');
-await page.click('.quest-card');
+await page.waitForSelector('.trail-chip.quests');
+await page.click('.trail-chip.quests');
 await page.waitForSelector('.quests-panel');
 // scope to the quests UI itself — the hub greeting legitimately says
 // "The Boos missed you." (a warm welcome, not quest guilt) and rotates randomly
-const uiText = await page.evaluate(() => (document.querySelector('.quests-panel') || document.body).innerText.toLowerCase() + ' ' + (document.querySelector('.quest-card') || { innerText: '' }).innerText.toLowerCase());
+const uiText = await page.evaluate(() => (document.querySelector('.quests-panel') || document.body).innerText.toLowerCase() + ' ' + (document.querySelector('.trail-chip.quests') || { innerText: '' }).innerText.toLowerCase());
 assert(!/streak|missed|don'?t lose|day in a row|keep the streak/.test(uiText), 'no streak / missed-day guilt strings in the quests UI');
 await page.evaluate(() => { const o = document.querySelector('.quests-overlay'); if (o) o.remove(); });
 

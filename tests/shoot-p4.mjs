@@ -13,9 +13,9 @@ for (const [mode, vp] of [['landscape', { width: 1024, height: 768 }], ['portrai
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE);
   await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
   await page.evaluate(() => { window.__bootownDay = '2026-07-04'; window.BooTown.go('hub'); });
-  await page.waitForSelector('.quest-card'); await sleep(200);
+  await page.waitForSelector('.trail-chip.quests'); await sleep(200);
   await page.screenshot({ path: `screenshots/p4-hub-${mode}.png` });
-  await page.click('.quest-card'); await page.waitForSelector('.quests-panel'); await sleep(200);
+  await page.click('.trail-chip.quests'); await page.waitForSelector('.quests-panel'); await sleep(200);
   await page.screenshot({ path: `screenshots/p4-quests-${mode}.png` });
   await page.evaluate(() => { const o = document.querySelector('.quests-overlay'); if (o) o.remove(); });
   await page.evaluate(() => window.BooTown.go('collection'));

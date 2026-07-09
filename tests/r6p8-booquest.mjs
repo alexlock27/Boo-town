@@ -48,10 +48,10 @@ console.log('== Scout excluded from box pool + Toddler hides the card ==');
   });
   assert(pool.scoutInCatalogue && pool.questFlag, 'Scout + Quest Flag exist in the catalogue');
   assert(!pool.hasScout, 'Scout is NOT in the box drop pool (questOnly)');
-  assert(!!(await page.$('.quest-card')), 'the hub shows a Boo Quest card at a normal tier');
+  assert(!!(await page.$('.trail-chip.booquest')), 'the hub shows a Boo Quest chip at a normal tier');
   await ctx.close();
   const t = await open(SAVE({ settings: { sound: false, music: false, voice: false, content: 'toddler' } }));
-  assert(!(await t.page.$('.quest-card')), 'Toddler tier shows NO Boo Quest card');
+  assert(!(await t.page.$('.trail-chip.booquest')), 'Toddler tier shows NO Boo Quest chip');
   await t.ctx.close();
 }
 
