@@ -127,43 +127,69 @@ console.log('== busiest town: 20 placed items, night winter, over-pressure on ev
   await ctx.close();
 }
 
-// ==================== (3) busiest FUNFAIR — all 5 rides built + fully seated, 21:00 ====================
-console.log('== busiest funfair: all rides running, fully seated, string lights on ==');
+// ==================== (3) busiest FUNFAIR — all 5 rides built + fully seated, AT NIGHT (1am) ====================
+// The hotfix keeps the funfair OPEN and its rides RUNNING at night (dark sky + glowing string
+// lights, but the rides never park). This scene runs at 01:00 at full pressure to prove the night
+// funfair — every ride structure idle-running PLUS 17 riders orbiting — still holds the gate.
+console.log('== busiest funfair at NIGHT (01:00): all rides running + fully seated, string lights on ==');
 {
   const boos = [...RARE_BOOS, ...ULTRA_BOOS, ...COMMON_BOOS];
   const inv = Object.fromEntries(boos.map(b => [b, 1]));
   // fill every seat on every ride (17 riders) to hit the funfair emitter budget
   const seats = { carousel: [boos[0], boos[1], boos[2]], ferris: [boos[3], boos[4], boos[5], boos[6]], teacups: [boos[7], boos[8], boos[9], boos[10]], bouncy: [boos[11], boos[12], boos[13]], helter: [boos[14], boos[15], boos[0]] };
-  const { ctx, page } = await open(SAVE({ inventory: inv, stars: { total: 520, byGame: {} }, funfair: { built: ALL_RIDES.slice(), build: null, pending: [], seats } }), { hour: 13 });
+  const { ctx, page } = await open(SAVE({ inventory: inv, stars: { total: 520, byGame: {} }, funfair: { built: ALL_RIDES.slice(), build: null, pending: [], seats } }), { hour: 1 });
   await page.evaluate(() => window.BooTown.go('town'));
   await page.waitForSelector('.town2');
   await page.waitForFunction(() => window.__townLife);
-  await page.evaluate(() => window.__townLife.scrollToFunfair());
-  await sleep(1600);   // let the rides settle + the loop populate every on-screen seat transform
 
+  // robust scroll: scrollToFunfair, then confirm a ride is actually on-screen; retry a few frames
+  // if the first call fired before layout settled (a test-harness race, not a product issue).
+  const onScreen = await page.evaluate(async () => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+    for (let tries = 0; tries < 30; tries++) {
+      window.__townLife.scrollToFunfair();
+      await frame(); await new Promise(r => setTimeout(r, 60));
+      const box = document.querySelector('.ff-ride');
+      if (box) { const l = box.getBoundingClientRect().left; if (l > -260 && l < window.innerWidth + 260) return true; }
+    }
+    return false;
+  });
+  assert(onScreen, 'the funfair scrolled on-screen at 01:00');
+  await sleep(400);
+
+  assert(await page.evaluate(() => !!document.querySelector('.ff-scenery.night')), 'night lighting is on at 01:00 (glowing string lights — .ff-scenery.night)');
   const rides = await page.evaluate(() => window.__townLife.ffRides());
   assert(rides.length === 5, `all five rides built and on screen (${rides.join(', ')})`);
   let seated = 0; for (const r of ALL_RIDES) seated += await page.evaluate(rd => window.__townLife.ffRideSeats(rd).filter(Boolean).length, r);
   assert(seated <= RIDE_SEAT_TOTAL, `seated riders within the seat budget: ${seated} ≤ sum(RIDE_SEATS)=${RIDE_SEAT_TOTAL}`);
-  assert(seated >= 15, `the fair is genuinely busy: ${seated} riders aboard`);
+  assert(seated >= 15, `the fair is genuinely busy at night: ${seated} riders aboard`);
 
-  // every ride animates — seat transforms change across frames. Collect IN-PAGE over ~0.5s of
-  // real rAF frames (keeps the funfair centred; avoids cross-evaluate scroll drift).
-  const distinctPerRide = await page.evaluate(async (RIDES) => {
+  // Collect IN-PAGE over ~0.5s of real rAF frames: BOTH the seated-rider orbits AND the ride
+  // STRUCTURE idle (.ffm) must animate — an empty OR full ride must never look "parked" at night.
+  const motion = await page.evaluate(async (RIDES) => {
     window.__townLife.scrollToFunfair();
     const frame = () => new Promise(r => requestAnimationFrame(() => r()));
     await frame(); await new Promise(r => setTimeout(r, 200));
-    const series = {}; RIDES.forEach(r => series[r] = new Set());
-    for (let f = 0; f < 30; f++) { for (const r of RIDES) series[r].add(window.__townLife.ffSeatTransforms(r).join('|')); await frame(); }
-    return RIDES.map(r => series[r].size);
+    const seat = {}, struct = {}; RIDES.forEach(r => { seat[r] = new Set(); struct[r] = new Set(); });
+    for (let f = 0; f < 30; f++) {
+      for (const r of RIDES) {
+        const box = [...document.querySelectorAll('.ff-ride')].find(x => x.dataset.ride === r);
+        seat[r].add(window.__townLife.ffSeatTransforms(r).join('|'));
+        const g = box && box.querySelector('.ffm'); struct[r].add(g ? g.getAttribute('transform') : 'none');
+      }
+      await frame();
+    }
+    return { seat: RIDES.map(r => seat[r].size), struct: RIDES.map(r => struct[r].size) };
   }, ALL_RIDES);
-  const ridesMoving = distinctPerRide.filter(s => s >= 2).length;
-  assert(ridesMoving === 5, `frame evidence: all ${ridesMoving}/5 rides' seats animate over ~0.5s (transform-only loops; distinct frames per ride: ${distinctPerRide.join('/')})`);
-  await page.screenshot({ path: 'screenshots/r6p9/funfair-busiest-1000x640.png' });
+  const seatsMoving = motion.seat.filter(s => s >= 2).length;
+  const structMoving = motion.struct.filter(s => s >= 2).length;
+  assert(seatsMoving === 5, `frame evidence: all ${seatsMoving}/5 rides' riders orbit at night (per-ride distinct: ${motion.seat.join('/')})`);
+  assert(structMoving === 5, `frame evidence: all ${structMoving}/5 ride STRUCTURES idle-run at night — the fair never parks (per-ride distinct: ${motion.struct.join('/')})`);
+  await page.screenshot({ path: 'screenshots/r6p9/funfair-busiest-night-1000x640.png' });
 
   const c = await cadence(page);
-  console.log(`  funfair cadence: avg ${c.avg}ms · max ${c.max}ms · ${c.long}/${c.frames} frames > 32ms`);
-  assert(c.avg < 40, `funfair main thread not pinned (avg frame ${c.avg}ms < 40ms)`);
+  console.log(`  funfair(night) cadence: avg ${c.avg}ms · max ${c.max}ms · ${c.long}/${c.frames} frames > 32ms`);
+  assert(c.avg < 40, `night funfair main thread not pinned (avg frame ${c.avg}ms < 40ms)`);
   await ctx.close();
 }
 

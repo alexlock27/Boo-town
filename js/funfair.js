@@ -109,35 +109,66 @@ export function emptySeatCount(ride) { return seatsFor(ride).filter(x => x == nu
 
 // ---- ride structure art (sticker style; the fixed installation) ----
 const S = (inner, w = RIDE_BOX, h = RIDE_BOX) => `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+// Each ride wraps its continuously-MOVING part in `<g class="ffm">` so it visibly RUNS
+// at any hour, whether or not Boos are aboard (driven every frame in stepRide, transform-
+// only; reduced-motion stills it because the ride loop is not stepped under reduced motion).
 const STRUCT = {
   carousel: S(`
     <ellipse cx="95" cy="168" rx="80" ry="16" fill="#C9A9F0" stroke="#2A1B4E" stroke-width="3"/>
     <rect x="90" y="40" width="10" height="128" fill="#B98A5A" stroke="#2A1B4E" stroke-width="2.5"/>
-    <path d="M20 60 Q95 8 170 60 Z" fill="#FF7AC6" stroke="#2A1B4E" stroke-width="3"/>
-    <path d="M35 55 L58 24 M72 42 L86 18 M110 42 L104 18 M147 55 L124 22" stroke="#FFF8F0" stroke-width="7" stroke-linecap="round"/>
-    <circle cx="95" cy="18" r="7" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.5"/>
-    <path d="M95 11 l10 -6 v10 z" fill="#35D0BA" stroke="#2A1B4E" stroke-width="2"/>`),
+    <g class="ffm">
+      <path d="M20 60 Q95 8 170 60 Z" fill="#FF7AC6" stroke="#2A1B4E" stroke-width="3"/>
+      <path d="M35 55 L58 24 M72 42 L86 18 M110 42 L104 18 M147 55 L124 22" stroke="#FFF8F0" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="95" cy="18" r="7" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.5"/>
+      <path d="M95 11 l10 -6 v10 z" fill="#35D0BA" stroke="#2A1B4E" stroke-width="2"/>
+    </g>`),
   ferris: S(`
     <line x1="55" y1="180" x2="95" y2="92" stroke="#8A8FB0" stroke-width="6" stroke-linecap="round"/>
     <line x1="135" y1="180" x2="95" y2="92" stroke="#8A8FB0" stroke-width="6" stroke-linecap="round"/>
-    <circle cx="95" cy="92" r="76" fill="none" stroke="#35D0BA" stroke-width="6"/>
-    <circle cx="95" cy="92" r="76" fill="none" stroke="#FF7AC6" stroke-width="6" stroke-dasharray="6 30"/>
-    <circle cx="95" cy="92" r="12" fill="#FFC93C" stroke="#2A1B4E" stroke-width="3"/>
+    <g class="ffm">
+      <circle cx="95" cy="92" r="76" fill="none" stroke="#35D0BA" stroke-width="6"/>
+      <circle cx="95" cy="92" r="76" fill="none" stroke="#FF7AC6" stroke-width="6" stroke-dasharray="6 30"/>
+      <circle cx="95" cy="92" r="12" fill="#FFC93C" stroke="#2A1B4E" stroke-width="3"/>
+    </g>
     <ellipse cx="95" cy="180" rx="60" ry="12" fill="#C9A9F0" stroke="#2A1B4E" stroke-width="3"/>`),
   teacups: S(`
     <ellipse cx="95" cy="150" rx="86" ry="30" fill="#8FC7FF" stroke="#2A1B4E" stroke-width="3"/>
-    <ellipse cx="95" cy="140" rx="78" ry="22" fill="#B6DCFF" stroke="#2A1B4E" stroke-width="2"/>
-    <circle cx="95" cy="140" r="9" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.5"/>`),
+    <g class="ffm">
+      <ellipse cx="95" cy="140" rx="78" ry="22" fill="#B6DCFF" stroke="#2A1B4E" stroke-width="2"/>
+      <circle cx="95" cy="140" r="9" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.5"/>
+      <circle cx="55" cy="140" r="5" fill="#FF7AC6"/><circle cx="135" cy="140" r="5" fill="#FF7AC6"/>
+      <circle cx="95" cy="120" r="5" fill="#35D0BA"/><circle cx="95" cy="160" r="5" fill="#35D0BA"/>
+    </g>`),
   bouncy: S(`
-    <rect x="18" y="70" width="154" height="100" rx="16" fill="#FF9AD5" stroke="#2A1B4E" stroke-width="3"/>
-    <rect x="30" y="120" width="130" height="50" fill="#FFC0E6" stroke="#2A1B4E" stroke-width="2"/>
-    <path d="M18 74 Q40 44 62 74 Q84 44 106 74 Q128 44 150 74 Q168 50 172 74" fill="#FFC93C" stroke="#2A1B4E" stroke-width="3"/>
-    <rect x="78" y="128" width="34" height="42" rx="6" fill="#C6A9F0" stroke="#2A1B4E" stroke-width="2.5"/>`),
+    <g class="ffm">
+      <rect x="18" y="70" width="154" height="100" rx="16" fill="#FF9AD5" stroke="#2A1B4E" stroke-width="3"/>
+      <rect x="30" y="120" width="130" height="50" fill="#FFC0E6" stroke="#2A1B4E" stroke-width="2"/>
+      <path d="M18 74 Q40 44 62 74 Q84 44 106 74 Q128 44 150 74 Q168 50 172 74" fill="#FFC93C" stroke="#2A1B4E" stroke-width="3"/>
+      <rect x="78" y="128" width="34" height="42" rx="6" fill="#C6A9F0" stroke="#2A1B4E" stroke-width="2.5"/>
+    </g>`),
   helter: S(`
-    <path d="M95 20 L70 150 L120 150 Z" fill="#FFD08A" stroke="#2A1B4E" stroke-width="3"/>
-    <path d="M95 30 Q150 60 118 92 Q60 120 120 148" fill="none" stroke="#FF7AC6" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
-    <ellipse cx="95" cy="166" rx="66" ry="14" fill="#C9A9F0" stroke="#2A1B4E" stroke-width="3"/>
-    <path d="M95 14 l12 -7 v11 z" fill="#35D0BA" stroke="#2A1B4E" stroke-width="2"/>`)
+    <g class="ffm">
+      <path d="M95 20 L70 150 L120 150 Z" fill="#FFD08A" stroke="#2A1B4E" stroke-width="3"/>
+      <path d="M95 30 Q150 60 118 92 Q60 120 120 148" fill="none" stroke="#FF7AC6" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+      <path d="M95 14 l12 -7 v11 z" fill="#35D0BA" stroke="#2A1B4E" stroke-width="2"/>
+    </g>
+    <ellipse cx="95" cy="166" rx="66" ry="14" fill="#C9A9F0" stroke="#2A1B4E" stroke-width="3"/>`)
+};
+// Continuous idle motion for each ride's `.ffm` group (SVG transform attribute, explicit
+// pivot). The three wheels turn at their seats' orbit rate so a ridden ride reads coherently
+// (gondolas/cups ride level while the wheel turns); the bouncy castle breathes; the helter
+// tower sways. t is `now` in ms.
+const DEG = 180 / Math.PI;
+const RIDE_IDLE = {
+  // Only the circular ferris wheel rotates cleanly in this side-on sticker style (full turn at
+  // the gondolas' orbit rate). A dome/flat-platform can't do a 2D 360° without flipping, so the
+  // carousel top gently bobs, the teacup platform jiggles a few degrees, the castle breathes and
+  // the helter tower sways — each a visually-correct "this ride is running" cue at any hour.
+  ferris:   t => `rotate(${((t / 2600) * DEG % 360).toFixed(2)} 95 92)`,
+  carousel: t => `translate(0 ${(-4 * (0.5 + 0.5 * Math.sin(t / 900))).toFixed(2)})`,
+  teacups:  t => `rotate(${(5 * Math.sin(t / 600)).toFixed(2)} 95 140)`,
+  bouncy:   t => `translate(0 ${(-3 * (0.5 + 0.5 * Math.sin(t / 520))).toFixed(2)})`,
+  helter:   t => `rotate(${(2.4 * Math.sin(t / 900)).toFixed(2)} 95 150)`
 };
 // where a ride's seats orbit / sit, within the RIDE_BOX (px from top-left)
 const CENTER = { carousel: [95, 96], ferris: [95, 92], teacups: [95, 132], bouncy: [95, 150], helter: [95, 90] };
@@ -169,8 +200,13 @@ export function renderRide(ride) {
 // Animate one ride at time `now` (ms). Transform-only; one composed loop. The
 // caller only steps rides in the visible zone (performance rule).
 export function stepRide(box, ride, now) {
-  const seats = box.querySelectorAll('.ff-seat');
   const t = now;
+  // The ride RUNS continuously whether or not it has riders (a fairground is never "parked"):
+  // drive its moving structure at any hour. Transform-only; stilled under reduced motion
+  // because the caller does not step rides then.
+  const moving = box.querySelector('.ffm');
+  if (moving && RIDE_IDLE[ride]) moving.setAttribute('transform', RIDE_IDLE[ride](t));
+  const seats = box.querySelectorAll('.ff-seat');
   seats.forEach((seat, i) => {
     if (seat.classList.contains('empty')) return;
     let x = 0, y = 0, extra = '';

@@ -3,6 +3,14 @@
 All notable changes to Boo Town. Newest first.
 
 ## Run 6: the elevation run
+- **Hotfix 1 — the funfair stays open and running at night**: previously a ride only animated its
+  seated riders, so an empty ride (common when no Boos are placed in the funfair, and typical at
+  night) sat motionless and looked "parked". Each ride's structure now runs continuously at any hour
+  regardless of riders — the ferris wheel turns, the carousel bobs, the teacups jiggle, the bouncy
+  castle breathes, the helter tower sways — keeping the dark-sky night look and glowing string
+  lights. Transform-only, reduced-motion still stills it, no save changes. The performance gate's
+  funfair scene was moved to 01:00 at full pressure (all five structures running + 17 riders) and
+  holds ~60fps.
 - **Run-5 reconciliation (phase 0)**: hardened the 3-second long-press (a shared
   `suppressContextMenu` kills the touch-callout / download-share pop on the cog and guide);
   the grown-ups corner became a real tab bar (Settings / Golden Round / Star Ledger / Backup
