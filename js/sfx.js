@@ -270,6 +270,43 @@ export const beatvoice = {
   thud() { play(t => { pitchDrum(t, 110, 60, 0.16, 0.4); logEvent({ kind: 'note', t, freq: 0, dur: 0.16, bus: 'sfx', tag: 'thud' }); }); }
 };
 
+// ---- Toddler Animal Sounds voices (RUN7 C4): a synthesised, clearly-distinct ----
+// cartoon call per animal. No files; on the effects bus; obeys the sound mute; each
+// logs a single note tagged `animal:<key>` so headless tests can prove distinctness.
+function glideTone(t0, f0, f1, dur, type, peak) {
+  if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t0);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur * 0.9);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(sfxGain); o.start(t0); o.stop(t0 + dur + 0.03);
+}
+export const ANIMAL_KEYS = ['cow', 'cat', 'dog', 'duck', 'sheep', 'owl', 'bee', 'snake', 'frog', 'lion'];
+export const ANIMAL_WORDS = { cow: 'Moo', cat: 'Meow', dog: 'Woof', duck: 'Quack', sheep: 'Baa', owl: 'Twit twoo', bee: 'Buzz', snake: 'Sssss', frog: 'Ribbit', lion: 'ROAR' };
+export const animal = {
+  call(key) {
+    play(t => {
+      switch (key) {
+        case 'cow':   glideTone(t, 300, 150, 0.62, 'sine', 0.42); break;
+        case 'cat':   glideTone(t, 520, 940, 0.18, 'triangle', 0.32); glideTone(t + 0.18, 940, 470, 0.30, 'triangle', 0.30); break;
+        case 'dog':   pitchDrum(t, 260, 130, 0.14, 0.5); pitchDrum(t + 0.22, 240, 118, 0.16, 0.5); break;
+        case 'duck':  glideTone(t, 540, 360, 0.13, 'sawtooth', 0.24); glideTone(t + 0.17, 520, 360, 0.13, 'sawtooth', 0.24); break;
+        case 'sheep': glideTone(t, 470, 430, 0.16, 'sawtooth', 0.26); glideTone(t + 0.16, 430, 470, 0.34, 'sawtooth', 0.24); break;
+        case 'owl':   glideTone(t, 720, 700, 0.16, 'sine', 0.30); glideTone(t + 0.30, 500, 780, 0.42, 'sine', 0.30); break;
+        case 'bee':   glideTone(t, 150, 138, 0.60, 'sawtooth', 0.30); break;
+        case 'snake': noiseHit(t, 0.60, 'highpass', 0.20, 5200); break;
+        case 'frog':  pitchDrum(t, 190, 120, 0.12, 0.42); pitchDrum(t + 0.17, 150, 96, 0.15, 0.42); break;
+        case 'lion':  noiseHit(t, 0.52, 'lowpass', 0.28, 520, 2); glideTone(t, 165, 88, 0.70, 'sawtooth', 0.36); break;
+        default:      glideTone(t, 400, 300, 0.4, 'sine', 0.30);
+      }
+      logEvent({ kind: 'note', t, freq: 0, dur: 0.5, bus: 'sfx', tag: 'animal:' + key });
+    });
+  }
+};
+
 // Pause loops when the tab is hidden (spec §11.3).
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {

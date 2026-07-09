@@ -1049,14 +1049,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
    Toddler mode (RUN5 C7): giant, calm, always-visual.
    ============================================================ */
 .toddler-hub .hub-guide { flex: 0 1 auto; }
-.toddler-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 10px 20px 14px; flex: 1; align-content: center; max-width: 720px; margin: 0 auto; width: 100%; }
-.toddler-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  background: var(--card); border-radius: 26px; padding: 22px 10px; min-height: 140px;
+/* the Toddler hub is a scrollable COLUMN of giant cards (RUN7 C4: 7 of them) */
+.toddler-cards { display: flex; flex-direction: column; gap: 14px; padding: 8px 16px 16px; flex: 1 1 auto; min-height: 0; overflow-y: auto; max-width: 560px; margin: 0 auto; width: 100%; }
+.toddler-card { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 22px;
+  background: var(--card); border-radius: 26px; padding: 16px 22px; min-height: 92px;
   box-shadow: 0 6px 0 rgba(0,0,0,0.18); }
 .toddler-card:active { transform: translateY(3px); box-shadow: 0 3px 0 rgba(0,0,0,0.18); }
-.toddler-card .tc-icon { font-size: 56px; line-height: 1; }
-.toddler-card .tc-word { font-family: var(--font-display); font-weight: 700; font-size: 28px; color: var(--ink); }
-@media (max-width: 600px) { .toddler-card { min-height: 116px; padding: 14px 8px; } .toddler-card .tc-icon { font-size: 44px; } .toddler-card .tc-word { font-size: 22px; } }
+.toddler-card .tc-icon { font-size: 50px; line-height: 1; }
+.toddler-card .tc-word { font-family: var(--font-display); font-weight: 700; font-size: 30px; color: var(--ink); }
+@media (max-width: 600px) { .toddler-card { min-height: 78px; padding: 12px 16px; gap: 16px; } .toddler-card .tc-icon { font-size: 42px; } .toddler-card .tc-word { font-size: 24px; } }
 
 .toddler .game-area { display: flex; flex-direction: column; align-items: center; }
 .td-target { display: flex; align-items: center; justify-content: center; gap: 14px; background: var(--card);
@@ -1099,6 +1100,39 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes tdPop { 0% { transform: scale(0.2); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .td-celebrate .td-cel-emoji { animation: none; } }
 .paint-swatches.toddler .paint-swatch { width: 52px; height: 52px; }
+
+/* ---- Toddler animal games (RUN7 C4) ---- */
+/* Animal Sounds: an optional portrait target (sound-off) + three giant animal cards */
+.td-animal-target { padding: 8px 16px; }
+.td-animal-portrait svg { display: block; }
+.td-animal-cards { display: flex; gap: 16px; justify-content: center; align-items: center; flex: 1; width: 100%; flex-wrap: wrap; padding: 8px; }
+.td-animal-card { background: var(--card); border-radius: 26px; padding: 14px; box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+  display: grid; place-items: center; cursor: pointer; touch-action: manipulation; }
+.td-animal-card:active { transform: translateY(3px); box-shadow: 0 3px 0 rgba(0,0,0,0.2); }
+.td-animal-card svg { display: block; }
+.td-anim-win { animation: tdAnimWin 0.9s ease-in-out; }
+@keyframes tdAnimWin { 0%,100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-16px) scale(1.12); } 60% { transform: translateY(0) scale(1.05); } }
+
+/* Animal Pairs: a memory board of flip cards with a Boo-pattern back */
+.td-pairs-board { display: grid; gap: 14px; padding: 10px; margin: auto; align-content: center; width: 100%; box-sizing: border-box; }
+.td-pairs-board.cards-6 { grid-template-columns: repeat(3, 1fr); max-width: 372px; }
+.td-pairs-board.cards-8 { grid-template-columns: repeat(4, 1fr); max-width: 468px; }
+.td-pair-card { background: none; border: none; padding: 0; cursor: pointer; aspect-ratio: 1; width: 100%; perspective: 600px; touch-action: manipulation; }
+.tp-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.42s cubic-bezier(0.4,0,0.2,1); }
+.td-pair-card.flipped .tp-inner, .td-pair-card.done .tp-inner { transform: rotateY(180deg); }
+.tp-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 18px; display: grid; place-items: center; box-shadow: 0 5px 0 rgba(0,0,0,0.2); overflow: hidden; }
+.tp-face svg { width: 100%; height: 100%; }
+.tp-front { transform: rotateY(180deg); background: var(--card); }
+.td-pair-card.done { animation: tdAnimWin 0.9s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .tp-inner { transition: none; } .td-anim-win, .td-pair-card.done { animation: none; } }
+
+/* Big and Small: two size-Boos with paw signs; items drawn unambiguously big or small */
+.td-paw-sign { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--card); border: 3px solid var(--ink); border-radius: 16px; padding: 6px 14px; margin-top: 4px; }
+.td-paw-word { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink); }
+.td-size-item { display: grid; place-items: center; }
+.td-size-item.big { width: 122px; height: 122px; }
+.td-size-item.small { width: 46px; height: 46px; }
+.td-size-item svg { width: 100%; height: 100%; }
 
 /* Gallery */
 .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 8px; }

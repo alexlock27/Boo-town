@@ -64,7 +64,10 @@ export const INTRO_SCRIPTS = {
   tcount:  [{ text: 'Pop the bubble with this many dots!' }],
   tcolour: [{ text: 'Feed each Boo its matching colour!' }],
   tshape:  [{ text: 'Match each shape to its hole!' }],
-  tletter: [{ text: 'Tap the letter that matches mine!' }]
+  tletter: [{ text: 'Tap the letter that matches mine!' }],
+  tanimal: [{ text: 'Tap the animal that makes the sound!' }],
+  tpairs:  [{ text: 'Turn two cards to find matching animals!' }],
+  tbigsmall: [{ text: 'Big things to the big paw, small to the small!' }]
 };
 
 // Show a game's intro on its first-ever open (no-op once seen).
