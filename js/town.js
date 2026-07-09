@@ -153,10 +153,11 @@ export function mount(container, params, ctx) {
     const gt = tickGrowth();
     if (gt.readyToReveal) setTimeout(() => playGrowthReveal(gt.readyToReveal), REDUCED ? 100 : 700);
     else if (gt.spawned.length) renderPlaced();   // a fresh site fence appears
-    // Funfair rides via the Boo Builders (RUN6 C1b): reveal a finished ride, else show a fresh site.
+    // Funfair rides via the Boo Builders (RUN6 C1b): reveal a finished ride, else render the
+    // (always-open, RUN7 C1) fair so its day-one Carousel/scenery/bandstand show on the first mount.
     const ft = tickFunfair();
     if (ft.readyToReveal) setTimeout(() => playFunfairReveal(ft.readyToReveal), REDUCED ? 120 : 900);
-    else if (ft.spawned.length) renderFunfair();
+    else renderFunfair();
   });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
@@ -617,6 +618,49 @@ export function mount(container, params, ctx) {
     speakMaybe(`The ${RIDE_NAME[ride]} is ready!`);
   }
 
+  // ---- funfair grand-opening (RUN7 C1) -----------------------------------
+  // The fair is open from the start on every save; her FIRST visit plays a one-time
+  // ceremony: two gates swing open, confetti, the guide announces the fair is OPEN.
+  // Fires once ever (seen.funfairOpened), and never stacks (grandOpeningShown guard).
+  let grandOpeningShown = false;
+  function maybeGrandOpening() {
+    if (grandOpeningShown) return;
+    const st = getState();
+    if (st.seen && st.seen.funfairOpened) { grandOpeningShown = true; return; }
+    grandOpeningShown = true;
+    mutate(s2 => { s2.seen = s2.seen || {}; s2.seen.funfairOpened = todayKeyLocal(); });
+    stampJournal('funfair_open');            // Journal: the fair opened (RUN3 C4 pattern)
+    playFunfairGrandOpening();
+  }
+  function playFunfairGrandOpening() {
+    sfx.fanfare();
+    const ov = el('div', { class: 'overlay funfair-grand' });
+    const panel = el('div', { class: 'fg-panel' }, [
+      el('div', { class: 'fg-gates' }, [
+        el('div', { class: 'fg-gate left', html: fairGateSVG('left') }),
+        el('div', { class: 'fg-gate right', html: fairGateSVG('right') }),
+        el('div', { class: 'fg-behind' }, [
+          el('div', { class: 'fg-ferris', html: funfairSilhouette() }),
+          el('div', { class: 'fg-title', text: 'The Boo Funfair' }),
+          el('div', { class: 'fg-open', text: 'is OPEN!' })
+        ])
+      ]),
+      el('button', { class: 'btn big fg-go', text: "Let's go! 🎡", onclick: () => { sfx.tap(); ov.remove(); scrollToZone(ZONE_INDEX['funfair']); } })
+    ]);
+    ov.appendChild(panel); root.appendChild(ov);
+    requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => ov.classList.add('open'), REDUCED ? 0 : 650); });
+    if (!REDUCED) { confetti({ count: 120, power: 1.15 }); setTimeout(() => confetti({ count: 70, power: 0.9 }), 700); }
+    speakMaybe('The Boo Funfair is OPEN!');
+  }
+  function fairGateSVG(side) {
+    const flip = side === 'right' ? 'scale(-1,1) translate(-120,0)' : '';
+    return `<svg viewBox="0 0 120 220" width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g transform="${flip}">
+      <rect x="8" y="18" width="104" height="196" rx="8" fill="#FF5C8A" stroke="#2A1B4E" stroke-width="4"/>
+      <rect x="20" y="30" width="80" height="184" rx="6" fill="#FFC0E6" stroke="#2A1B4E" stroke-width="3"/>
+      ${Array.from({ length: 5 }, (_, i) => `<circle cx="60" cy="${52 + i * 36}" r="7" fill="${['#FFC93C', '#35D0BA', '#8FC7FF'][i % 3]}" stroke="#2A1B4E" stroke-width="2.5"/>`).join('')}
+      <path d="M0 18 Q60 -14 120 18" fill="none" stroke="#FFC93C" stroke-width="6"/></g></svg>`;
+  }
+
   // ---- activity roles (RUN4 C5) -------------------------------------------
   // Every activity deco claims nearby free Boos: slide/swings/trampoline/pool/
   // bumper take one, seesaw and picnic need two, the campfire gathers a small
@@ -886,6 +930,8 @@ export function mount(container, params, ctx) {
   function updateZoneMusic() {
     if (!zoneW) return;
     const zi = Math.floor((scrollX + viewW / 2) / zoneW);
+    // First time the (always-open) funfair is centred, play its grand opening (RUN7 C1).
+    if (ZONES[zi] && ZONES[zi].key === 'funfair') maybeGrandOpening();
     let want = 'calm';
     if (ZONES[zi] && ZONES[zi].key === 'funfair' && funfairUnlocked()) {
       const bandPx = ZONE_INDEX['funfair'] * zoneW + BANDSTAND_X * zoneW - scrollX;
@@ -1183,7 +1229,9 @@ export function mount(container, params, ctx) {
     const st = getState();
     const seen = st.seen.zonesUnlocked || [];
     const nowUnlocked = unlockedZones(st.stars.total).map(z => z.key);
-    const fresh = nowUnlocked.filter(k => k !== 'meadow' && !seen.includes(k));
+    // The funfair is OPEN from the start (RUN7 C1) and has its own grand-opening
+    // ceremony (maybeGrandOpening) — keep it out of the generic star-gate ceremony.
+    const fresh = nowUnlocked.filter(k => k !== 'meadow' && k !== 'funfair' && !seen.includes(k));
     if (params && params.simulateUnlock) { /* tests can pass a zone to force */ }
     if (!fresh.length) return;
     const key = fresh[0];
@@ -1526,6 +1574,9 @@ export function mount(container, params, ctx) {
       starDay: () => (getState().seen || {}).shootingStarDay || null,
       // funfair (C1b)
       ffUnlocked: () => funfairUnlocked(),
+      ffOpened: () => !!(getState().seen || {}).funfairOpened,
+      ffGrandOpen: () => maybeGrandOpening(),   // force the grand-opening check
+      ffGrandShown: () => !!root.querySelector('.funfair-grand'),
       ffView: () => funfairView(),
       ffRides: () => [...ground.querySelectorAll('.ff-ride')].map(b => b.dataset.ride),
       ffRideSeats: (ride) => seatsFor(ride),

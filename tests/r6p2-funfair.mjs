@@ -44,21 +44,16 @@ const distinct = arr => new Set(arr).size;
 const ALL_RIDES = ['carousel', 'ferris', 'teacups', 'bouncy', 'helter'];
 const SEATS = { carousel: [BOOS[0], BOOS[1], null], ferris: [BOOS[2], BOOS[3], null, null], teacups: [BOOS[4], BOOS[5], null, null], bouncy: [BOOS[6], BOOS[7], null], helter: [BOOS[8], BOOS[9], null] };
 
-// ==================== unlock at 280 + silhouette beforehand ====================
-console.log('== unlocks at 280, silhouette while locked ==');
+// ==================== OPEN from the start (RUN7 C1): no star gate ====================
+console.log('== the funfair is open from the start (RUN7 C1) ==');
 {
-  const { ctx, page } = await openTown(SAVE({ stars: { total: 200, byGame: {} }, seen: { zonesUnlocked: ['meadow', 'riverside', 'hilltop'], introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true } }));
-  assert(await page.evaluate(() => window.__townLife.ffUnlocked()) === false, 'funfair locked below 280 stars');
-  assert(await page.$('.ff-silhouette'), 'a ferris-wheel silhouette shows on the locked funfair');
-  assert((await page.$$('.ff-ride')).length === 0, 'no rides render while locked');
-  await ctx.close();
-}
-{
-  const { ctx, page } = await openTown(SAVE({ stars: { total: 300, byGame: {} } }));
-  assert(await page.evaluate(() => window.__townLife.ffUnlocked()) === true, 'funfair unlocked at 300 stars');
+  // a brand-new 0-star save: the fair is already open with its Carousel
+  const { ctx, page } = await openTown(SAVE({ stars: { total: 0, byGame: {} }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true } }));
+  assert(await page.evaluate(() => window.__townLife.ffUnlocked()) === true, 'funfair OPEN on a 0-star save (no gate)');
+  assert((await page.$$('.ff-silhouette')).length === 0, 'no locked silhouette on the funfair');
   const view = await page.evaluate(() => window.__townLife.ffView());
-  assert(view.built.includes('carousel'), 'the Carousel is ready the moment the gates open');
-  await sleep(400);
+  assert(view.built.includes('carousel'), 'the Carousel is there day one');
+  await sleep(300);
   assert(await page.$('.ff-ride[data-ride="carousel"]'), 'the Carousel renders in the funfair');
   await ctx.close();
 }
@@ -113,14 +108,14 @@ console.log('== an autonomous Boo boards an empty seat ==');
   await ctx.close();
 }
 
-// ==================== milestone rides via the Boo Builders ====================
-console.log('== milestone rides arrive via the Boo Builders (24h) ==');
+// ==================== milestone rides via the Boo Builders (retuned RUN7) ====================
+console.log('== milestone rides arrive via the Boo Builders (24h, Ferris @80) ==');
 {
-  const { ctx, page } = await openTown(SAVE({ stars: { total: 300, byGame: {} }, funfair: { built: ['carousel'], build: null, pending: [], seats: {} } }));
+  const { ctx, page } = await openTown(SAVE({ stars: { total: 40, byGame: {} }, funfair: { built: ['carousel'], build: null, pending: [], seats: {} } }));
   const res = await page.evaluate(async () => {
     const F = await import('./js/funfair.js');
     const S = window.BooTown.State;
-    S.mutate(st => { st.stars.total = 340; st.funfair = { built: ['carousel'], build: null, pending: [], seats: {} }; });
+    S.mutate(st => { st.stars.total = 80; st.funfair = { built: ['carousel'], build: null, pending: [], seats: {} }; });
     window.__bootownNow = 1000000;
     F.tickFunfair();
     const building = (S.getState().funfair.build || {}).ride || null;
@@ -128,9 +123,10 @@ console.log('== milestone rides arrive via the Boo Builders (24h) ==');
     const t2 = F.tickFunfair();
     const ready = t2.readyToReveal;
     if (ready) F.completeRideReveal(ready);
-    return { building, ready, built: F.funfairView().built };
+    return { building, ready, built: F.funfairView().built, ms: F.RIDE_MILESTONE };
   });
-  assert(res.building === 'ferris', `crossing 340 stars starts building the Ferris Wheel (got ${res.building})`);
+  assert(res.ms.ferris === 80 && res.ms.teacups === 140 && res.ms.bouncy === 200 && res.ms.helter === 260, `milestones retuned to 80/140/200/260 (got ${JSON.stringify(res.ms)})`);
+  assert(res.building === 'ferris', `crossing 80 stars starts building the Ferris Wheel (got ${res.building})`);
   assert(res.ready === 'ferris', 'after 24h the Ferris Wheel is ready to reveal');
   assert(res.built.includes('ferris'), 'the reveal adds the Ferris Wheel to the built rides');
   await ctx.close();

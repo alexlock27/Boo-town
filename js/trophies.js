@@ -14,7 +14,7 @@ import { stampJournal } from './quests.js';
 import { ZONES } from './town.js';
 import { sfx } from './sfx.js';
 
-const ALL_ZONES_STARS = Math.max(...ZONES.map(z => z.unlock));   // Boo Funfair, currently 280
+const ALL_ZONES_STARS = Math.max(...ZONES.map(z => z.unlock));   // highest gate = Beach (180); the Funfair opens day-one (RUN7 C1)
 
 // ---- named constants (C4) --------------------------------------------------
 export const MEDAL_TIERS = [['bronze', 5, '🥉'], ['silver', 15, '🥈'], ['gold', 30, '🥇']];

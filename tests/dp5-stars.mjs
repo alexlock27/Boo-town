@@ -57,7 +57,7 @@ const signs = await page2.$$eval('.t-signpost', ns => ns.map(n => ({
   bar: !!n.querySelector('.t-sign-bar'),
   width: n.querySelector('.t-sign-bar i') ? n.querySelector('.t-sign-bar i').style.width : null
 })));
-assert(signs.length === 3, 'the still-locked zones show signposts (58 stars unlocks Riverside@40; Hilltop@100 + Beach@180 + Boo Funfair@280 remain)');
+assert(signs.length === 2, 'the still-locked zones show signposts (58 stars unlocks Riverside@40; Hilltop@100 + Beach@180 remain — the Boo Funfair opens day-one, RUN7 C1)');
 assert(signs.every(s => /^58 \/ \d+ ⭐$/.test(s.req)), 'signposts read current / required: ' + signs.map(s => s.req).join(' · '));
 assert(signs.every(s => s.bar && s.width), 'each signpost carries a mini progress bar');
 assert(parseInt(signs[0].width) === 58 && parseInt(signs[1].width) === 32, `bar widths match progress: 58/100 -> 58%, 58/180 -> 32% (${signs.map(s => s.width).join(', ')})`);

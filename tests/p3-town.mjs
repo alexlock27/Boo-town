@@ -67,13 +67,14 @@ console.log('== world scrolls full width ==');
 // 3) Zone gating by stars.
 console.log('== zones gate on stars ==');
 {
-  const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, zonesUnlocked: ['riverside', 'hilltop', 'beach'], trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }), {});
-  // At 190 stars only the Boo Funfair (280, RUN6 C1b) stays locked.
-  assert(await hi.page.$$eval('.t-band.locked', e => e.length) === 1, 'at 190 stars all but the funfair are unlocked');
+  const hi = await open(BASESAVE({ stars: { total: 190, byGame: {} }, seen: { funfairOpened: 'x', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, zonesUnlocked: ['riverside', 'hilltop', 'beach'], trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } }), {});
+  // The Boo Funfair opens day-one (RUN7 C1), so at 190 stars EVERY zone is open.
+  assert(await hi.page.$$eval('.t-band.locked', e => e.length) === 0, 'at 190 stars every zone (incl. the day-one funfair) is unlocked');
   await hi.ctx.close();
-  const lo = await open(BASESAVE({ stars: { total: 5, byGame: {} }, town: [] }), {});
-  assert(await lo.page.$$eval('.t-band.locked', e => e.length) === 4, 'at 5 stars only Meadow open (4 locked)');
-  assert(await lo.page.$$eval('.t-signpost', e => e.length) === 4, '4 signposts for locked zones');
+  // At 5 stars: Meadow + the day-one Funfair are open; Riverside/Hilltop/Beach are locked (3).
+  const lo = await open(BASESAVE({ stars: { total: 5, byGame: {} }, town: [], seen: { funfairOpened: 'x', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } }), {});
+  assert(await lo.page.$$eval('.t-band.locked', e => e.length) === 3, 'at 5 stars only the three star-gated zones are locked (funfair is open)');
+  assert(await lo.page.$$eval('.t-signpost', e => e.length) === 3, '3 signposts for the three locked star-gated zones');
   await lo.ctx.close();
 }
 

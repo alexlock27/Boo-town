@@ -1,9 +1,12 @@
-// js/funfair.js — the Boo Funfair (RUN6 C1b): a fifth town zone.
-// Unlocks at 280 stars with a Carousel; the other rides arrive through the Boo
-// Builders (the 24h construction pattern, mirrored from growth.js) at star
-// milestones. Rides are fixed installations with looping, transform-only,
-// multi-Boo animations. Seats hold owned-Boo ids; she seats them via the
-// "Who's riding?" picker, and autonomous Boos may board empty seats (town.js).
+// js/funfair.js — the Boo Funfair (RUN6 C1b; opened day-one in RUN7 C1): a fifth
+// town zone. OPEN FROM THE START on every save (the old 280-star gate is removed):
+// the Carousel, booth, bunting, string lights, popcorn cart and the fully-playable
+// bandstand are all there on the first visit. The remaining rides still arrive
+// through the Boo Builders (the 24h construction pattern, mirrored from growth.js)
+// at retuned star milestones (Ferris 80 / Teacups 140 / Bouncy 200 / Helter 260).
+// Rides are fixed installations with looping, transform-only, multi-Boo animations.
+// Seats hold owned-Boo ids; she seats them via the "Who's riding?" picker, and
+// autonomous Boos may board empty seats (town.js).
 
 import { getState, mutate } from './state.js';
 import { stampJournal } from './quests.js';
@@ -12,10 +15,13 @@ import { resolveItem } from './customs.js';
 import { renderItem } from './art.js';
 import { equippedArt } from './accessories.js';
 
-// ---- named constants (C1b) ----
-export const FUNFAIR_UNLOCK = 280;                     // total stars to open the gates
+// ---- named constants (C1b; retuned RUN7 C1) ----
+export const FUNFAIR_UNLOCK = 0;                       // OPEN from the start (RUN7 C1): no star gate
 export const RIDE_ORDER = ['carousel', 'ferris', 'teacups', 'bouncy', 'helter'];
-export const RIDE_MILESTONE = { ferris: 340, teacups: 400, bouncy: 460, helter: 520 };  // carousel free on unlock
+// The Boo Builders raise the four bigger rides at these total-star milestones (RUN7 C1);
+// the Carousel is there the moment the fair opens. Named constants so the tuning is one edit.
+export const FERRIS_MILESTONE = 80, TEACUPS_MILESTONE = 140, BOUNCY_MILESTONE = 200, HELTER_MILESTONE = 260;
+export const RIDE_MILESTONE = { ferris: FERRIS_MILESTONE, teacups: TEACUPS_MILESTONE, bouncy: BOUNCY_MILESTONE, helter: HELTER_MILESTONE };
 export const RIDE_SEATS = { carousel: 3, ferris: 4, teacups: 4, bouncy: 3, helter: 3 };
 export const RIDE_NAME = { carousel: 'Carousel', ferris: 'Ferris Wheel', teacups: 'Teacups', bouncy: 'Bouncy Castle', helter: 'Helter-Skelter' };
 export const FUNFAIR_BUILD_MS = 24 * 60 * 60 * 1000;   // the Builders take 24 real hours
