@@ -74,6 +74,25 @@ const WEATHER_PARTICLES = 14;   // per-season particle count (one particle layer
 const STAR_GAP_MS = [16000, 40000];  // random gap between night shooting stars
 const STAR_REWARD = 1;          // +1 meter, capped once per night
 
+// ---- zone identity (RUN7 C2): every zone is a distinct PLACE -------------------
+// Signature scenery + zone-only behaviours. All scenery is drawn as backdrop/mid-layer
+// that NEVER occupies the placement band; behaviours are self-contained vignettes.
+const BRIDGE_X = 0.5;           // the little wooden bridge sits mid-zone (riverside)
+const WINDMILL_X = 0.7;         // the windmill turns on the hill crest (hilltop)
+const PALM_X = 0.24, HUT_X = 0.75;   // palm + beach hut bookend the beach (within the centred view)
+const KITE_MS = 6000;           // a Boo flies a kite for a spell (hilltop)
+const PADDLE_MS = 4200;         // paddling at the bank / in the shallows (riverside / beach)
+const SKIM_MS = 2600;           // a stone skim + plink (riverside)
+const BRIDGE_SIT_MS = 5200;     // sitting on the bridge (riverside)
+const SANDCASTLE_MS = 3600;     // patting up a sandcastle (beach)
+const SANDCASTLE_FADE_MS = 22000;  // …which fades later (C2)
+const SUNBATHE_MS = 6000;       // sunbathing on a towel (beach)
+const ZONE_BEHAVIOURS = {       // which zone-only acts a Boo may pick, by zone + weight
+  riverside: [['paddle', 1.9], ['bridgesit', 1.5], ['skim', 1.3]],
+  hilltop:   [['kite', 2.2]],
+  beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]]
+};
+
 function seasonOf(month) {       // month 1..12
   if (month >= 3 && month <= 5) return 'spring';
   if (month >= 6 && month <= 8) return 'summer';
@@ -228,6 +247,8 @@ export function mount(container, params, ctx) {
 
   function renderPlaced() {
     ground.querySelectorAll('.t-item').forEach(n => n.remove());
+    // clear any orphaned zone-behaviour props (RUN7 C2) so a re-render never leaves them stranded
+    ground.querySelectorAll('.t-kite-wrap, .t-skip-stone, .t-skim-ring, .t-sandcastle, .t-towel').forEach(n => n.remove());
     actors = [];
     const st = getState();
     let count = 0, fancyCount = 0;
@@ -266,6 +287,7 @@ export function mount(container, params, ctx) {
     }
     applyDance();
     assignRoles();
+    renderZoneScenery();   // zone identity (RUN7 C2): distinct backdrop per zone, behind items
     renderGrowth();
     renderFunfair();
     renderHide();
@@ -463,6 +485,26 @@ export function mount(container, params, ctx) {
     for (const id of Object.keys(st.inventory || {})) { if ((st.inventory[id] || 0) > 0) { const it = resolveItem(id); if (it && it.kind === 'boo') ids.push(id); } }
     return ids;
   }
+  // ---- zone identity scenery (RUN7 C2) -----------------------------------
+  // Each distinct zone draws its signature backdrop in the GROUND layer, behind the
+  // placed items (low z-index, pointer-events none) so it never blocks placement and
+  // stays aligned with the Boos and their zone behaviours (no parallax drift).
+  function renderZoneScenery() {
+    ground.querySelectorAll('.t-zone-props').forEach(n => n.remove());
+    const stars = totalStars();
+    const night = isNight(currentHour());
+    ZONES.forEach((z, i) => {
+      if (z.key === 'meadow' || z.key === 'funfair') return;   // meadow = baseline, funfair = own theming
+      if (stars < z.unlock) return;                            // locked zones show only their signpost
+      const html = zoneScenery(z.key, zoneW, viewH, night);
+      if (!html) return;
+      const wrap = el('div', { class: 't-zone-props ' + z.key + (night ? ' night' : ''), html });
+      wrap.style.left = (i * zoneW) + 'px'; wrap.style.top = '0';
+      wrap.style.width = zoneW + 'px'; wrap.style.height = viewH + 'px'; wrap.style.zIndex = '2';
+      ground.insertBefore(wrap, ground.firstChild);
+    });
+  }
+
   function renderFunfair() {
     ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap').forEach(n => n.remove());
     if (!funfairUnlocked()) return;
@@ -960,6 +1002,21 @@ export function mount(container, params, ctx) {
       if (p < 1) requestAnimationFrame(step);
     })(dt0);
   }
+  // Zone-unlock reveal (RUN7 C2): pan across the whole new zone so the unlock reads as
+  // DISCOVERING a new place — its distinct scenery slides past left→right.
+  function panAcrossZone(zi, ms = 2200) {
+    const left = Math.max(0, Math.min(zi * zoneW, worldW - viewW));
+    const right = Math.max(0, Math.min(zi * zoneW + (zoneW - viewW), worldW - viewW));
+    if (REDUCED) { scrollX = Math.min(right, left + (right - left) / 2); clampScroll(); applyScroll(); return; }
+    scrollX = left; clampScroll(); applyScroll();
+    const dt0 = performance.now();
+    (function step(now) {
+      const p = Math.min(1, (now - dt0) / ms);
+      const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;   // ease-in-out across the zone
+      scrollX = left + (right - left) * e; clampScroll(); applyScroll();
+      if (p < 1) requestAnimationFrame(step);
+    })(dt0);
+  }
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
@@ -1238,7 +1295,7 @@ export function mount(container, params, ctx) {
     fresh.forEach(k => stampJournal('zone_' + k));   // Journal: each zone unlock (RUN3 C4)
     mutate(s2 => { s2.seen.zonesUnlocked = [...seen, ...fresh]; });
     const z = ZONES[ZONE_INDEX[key]];
-    scrollToZone(ZONE_INDEX[key]);
+    panAcrossZone(ZONE_INDEX[key]);   // pan across the new zone's distinct scenery (C2)
     setTimeout(() => {
       sfx.fanfare();
       confetti({ count: 110, power: 1.1 });
@@ -1326,6 +1383,8 @@ export function mount(container, params, ctx) {
     const recentlyWoken = a.wakeUntil && performance.now() < a.wakeUntil;
     if (night && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6]);
     if (!a.riding && pickBoardableRide(a)) cands.push(['board', 3.2]);   // funfair: hop on a ride (C1b)
+    // zone-only behaviours (RUN7 C2): daytime acts tied to the zone she's standing in
+    if (!night) { const zb = ZONE_BEHAVIOURS[a.place.zone]; if (zb) for (const [k, wt] of zb) cands.push([k, wt]); }
     return cands.length ? weightedPick(cands) : null;
   }
   function pickFriend(a) {
@@ -1379,7 +1438,105 @@ export function mount(container, params, ctx) {
     } else if (kind === 'board') {
       const r = pickBoardableRide(a); if (!r) return;
       a.goal = { kind, ride: r, targetDx: (RIDE_X[r] - a.place.x) * zoneW, start: now };
+    } else if (kind === 'paddle' || kind === 'shallow') {
+      a.goal = { kind, start: now, splashT: 0, colour: kind === 'shallow' ? '#BFE9FF' : '#CFEFFB' };
+    } else if (kind === 'skim') {
+      a.goal = { kind, start: now, stone: spawnSkipStone(a), plinks: 0 };
+    } else if (kind === 'bridgesit') {
+      a.goal = { kind, targetDx: (BRIDGE_X - a.place.x) * zoneW, start: now, sat: false };
+    } else if (kind === 'kite') {
+      a.goal = { kind, start: now, kite: spawnKite(a) };
+    } else if (kind === 'sandcastle') {
+      a.goal = { kind, targetDx: ((Math.random() * 0.05 - 0.025)) * zoneW, start: now, built: false, castle: null };
+    } else if (kind === 'sunbathe') {
+      a.goal = { kind, targetDx: ((Math.random() * 0.05 - 0.025)) * zoneW, start: now, lying: false, towel: null };
     }
+  }
+  // ---- zone-behaviour prop spawners (RUN7 C2) ----
+  function spawnSplash(a, colour) {
+    const base = a.wrap;
+    for (let i = 0; i < 4; i++) {
+      const d = el('div', { class: 't-splash' });
+      d.style.setProperty('--sx', ((Math.random() * 2 - 1) * 26).toFixed(0) + 'px');
+      d.style.setProperty('--sy', (-16 - Math.random() * 20).toFixed(0) + 'px');
+      d.style.background = colour; d.style.animationDelay = (i * 40) + 'ms';
+      base.appendChild(d); setTimeout(() => { try { d.remove(); } catch {} }, 700);
+    }
+  }
+  function spawnSkipStone(a) {
+    const stone = el('div', { class: 't-skip-stone' });
+    stone._x0 = parseFloat(a.wrap.style.left) + a.wrap.offsetWidth * 0.5;
+    stone._y0 = parseFloat(a.wrap.style.top) + a.wrap.offsetHeight * 0.4;
+    stone._dir = a.place.x < BRIDGE_X ? 1 : -1;   // skim toward the open water
+    stone.style.left = stone._x0 + 'px'; stone.style.top = stone._y0 + 'px';
+    ground.appendChild(stone);
+    return stone;
+  }
+  function spawnKite(a) {
+    const wrap = el('div', { class: 't-kite-wrap' });
+    wrap.innerHTML = `<svg width="260" height="240" viewBox="0 0 260 240" style="overflow:visible">
+      <line class="tk-string" x1="0" y1="0" x2="0" y2="0" stroke="#EADFA0" stroke-width="1.5"/>
+      <g class="tk-kite"><path d="M0 -20 L16 0 L0 22 L-16 0 Z" fill="#FF7AC6" stroke="#C0568F" stroke-width="2"/><path d="M0 -20 L0 22 M-16 0 L16 0" stroke="#C0568F" stroke-width="1.4"/>
+      <path class="tk-tail" d="M0 22 q6 10 -2 18 q-8 8 2 18 q8 8 -1 16" fill="none" stroke="#FFC93C" stroke-width="2.4"/>
+      <path d="M0 26 l4 4 -4 4 -4 -4 z" fill="#35D0BA"/><path d="M-1 44 l4 4 -4 4 -4 -4 z" fill="#8FC7FF"/></g></svg>`;
+    ground.appendChild(wrap);
+    return wrap;
+  }
+  function spawnSandcastle(a) {
+    const c = el('div', { class: 't-sandcastle' });
+    const cx = parseFloat(a.wrap.style.left) + a.wrap.offsetWidth + (a.dx || 0) + 24;   // beside the Boo, on the sand
+    const cy = parseFloat(a.wrap.style.top) + a.wrap.offsetHeight - 12;
+    c.style.left = (cx - 32) + 'px'; c.style.top = (cy - 42) + 'px';
+    c.style.zIndex = String(Math.round(cy) + 6);   // in front, so she reads as patting it up
+    c.innerHTML = `<svg width="64" height="52" viewBox="0 0 64 52"><g fill="#E8C784" stroke="#C79A54" stroke-width="2.5">
+      <rect x="5" y="22" width="12" height="26"/><rect x="26" y="14" width="12" height="34"/><rect x="47" y="22" width="12" height="26"/><rect x="2" y="42" width="60" height="8"/></g>
+      <path d="M5 22 l6 -10 6 10 z M26 14 l6 -10 6 10 z M47 22 l6 -10 6 10 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.8"/>
+      <path d="M11 12 v-8 l5 4 z M32 4 v-8 l5 4 z M53 12 v-8 l5 4 z" fill="#35D0BA"/></svg>`;
+    ground.appendChild(c);
+    requestAnimationFrame(() => c.classList.add('rise'));
+    // it fades later (C2) — a gentle, then removed
+    setTimeout(() => { c.classList.add('fade'); setTimeout(() => { try { c.remove(); } catch {} }, 1600); }, SANDCASTLE_FADE_MS);
+    return c;
+  }
+  function spawnTowel(a) {
+    const t = el('div', { class: 't-towel' });
+    t.innerHTML = `<svg width="86" height="30" viewBox="0 0 86 30"><g>
+      <rect x="2" y="6" width="82" height="20" rx="4" fill="#FF7AC6" stroke="#C0568F" stroke-width="2"/>
+      ${Array.from({ length: 6 }, (_, i) => `<rect x="${6 + i * 13}" y="6" width="6" height="20" fill="${i % 2 ? '#FFF3E0' : '#FFC93C'}" opacity="0.8"/>`).join('')}</g></svg>`;
+    a.wrap.insertBefore(t, a.wrap.firstChild);   // behind the Boo, so she lies on top of it
+    return t;
+  }
+  function stepSkim(a, g, now) {
+    const st = g.stone; if (!st) return;
+    const T = now - g.start;
+    if (T < 320) return;                        // wind-up before the throw
+    const p = Math.min(1, (T - 320) / (SKIM_MS - 320));
+    const dist = 220 * p;
+    const skips = 3;
+    const phase = (p * skips) % 1;
+    const hop = Math.sin(phase * Math.PI) * (26 * (1 - p));   // decaying skip arcs
+    st.style.left = (st._x0 + st._dir * dist) + 'px';
+    st.style.top = (st._y0 - hop) + 'px';
+    const skipIdx = Math.floor(p * skips);
+    if (skipIdx > g.plinks && p < 0.98) { g.plinks = skipIdx; sfx.pop(); ring(st._x0 + st._dir * dist, st._y0); }
+  }
+  function ring(x, y) {
+    const r = el('div', { class: 't-skim-ring' });
+    r.style.left = x + 'px'; r.style.top = y + 'px'; ground.appendChild(r);
+    setTimeout(() => { try { r.remove(); } catch {} }, 650);
+  }
+  function stepKite(a, g, now) {
+    const wrap = g.kite; if (!wrap) return;
+    const T = now - g.start;
+    const handX = parseFloat(a.wrap.style.left) + a.wrap.offsetWidth * 0.62 + (a.dx || 0);
+    const handY = parseFloat(a.wrap.style.top) + a.wrap.offsetHeight * 0.4;
+    const kiteX = handX + 96 + Math.sin(T / 900) * 22;
+    const kiteY = handY - 150 + Math.sin(T / 620) * 16;
+    wrap.style.left = handX + 'px'; wrap.style.top = handY + 'px';
+    const svg = wrap.querySelector('svg'), line = wrap.querySelector('.tk-string'), kite = wrap.querySelector('.tk-kite');
+    const kx = kiteX - handX, ky = kiteY - handY;
+    if (line) { line.setAttribute('x2', kx.toFixed(0)); line.setAttribute('y2', ky.toFixed(0)); }
+    if (kite) kite.setAttribute('transform', `translate(${kx.toFixed(0)} ${ky.toFixed(0)}) rotate(${(Math.sin(T / 500) * 12).toFixed(1)})`);
   }
   function spawnChaseCritter(a) {
     const isN = isNight(currentHour());
@@ -1398,6 +1555,10 @@ export function mount(container, params, ctx) {
   function endGoal(a) {
     const g = a.goal;
     if (g && g.critter) { try { g.critter.remove(); } catch {} }
+    if (g && g.kite) { try { g.kite.remove(); } catch {} }         // put the kite away (C2)
+    if (g && g.towel) { try { g.towel.remove(); } catch {} }       // fold up the towel (C2)
+    if (g && g.stone) { try { g.stone.remove(); } catch {} }       // the stone sinks (C2)
+    // NOTE: a sandcastle deliberately LINGERS and fades on its own timer (C2) — not removed here.
     a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
     a.goal = null; a.state = 'pause'; a.vx = 0; a.t = 0; a.next = 600 + Math.random() * 1400;
     a.home = Math.max(-zoneW * 0.45, Math.min(zoneW * 0.45, a.dx || 0));   // roam onward from here (no snap-back)
@@ -1469,6 +1630,68 @@ export function mount(container, params, ctx) {
       } else {
         svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
         if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      }
+      return;
+    }
+    // ---- zone-only behaviours (RUN7 C2) ----
+    if (g.kind === 'paddle' || g.kind === 'shallow') {
+      const T = now - g.start;
+      const bob = Math.abs(Math.sin(T / 200)) * 7;
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${bob.toFixed(1)}px) scale(1, ${(1 - bob / 90).toFixed(3)})`;
+      g.splashT += dt; if (g.splashT > 360) { g.splashT = 0; spawnSplash(a, g.colour); }
+      if (T > PADDLE_MS) endGoal(a);
+      return;
+    }
+    if (g.kind === 'skim') {
+      const T = now - g.start;
+      stepSkim(a, g, now);
+      const lean = T < 300 ? -(T / 300) * 12 : (T < 560 ? -12 + ((T - 300) / 260) * 20 : 8 - (T - 560) / 400 * 8);
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, 0px) rotate(${lean.toFixed(1)}deg)`;
+      if (T > SKIM_MS) endGoal(a);
+      return;
+    }
+    if (g.kind === 'kite') {
+      const T = now - g.start;
+      stepKite(a, g, now);
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, 0px) rotate(${(-6 + Math.sin(T / 700) * 3).toFixed(1)}deg)`;
+      if (T > KITE_MS) endGoal(a);
+      return;
+    }
+    if (g.kind === 'bridgesit') {
+      if (Math.abs(a.dx - g.targetDx) > 4 && !g.sat) {
+        a.dx += Math.sign(g.targetDx - a.dx) * Math.min(Math.abs(g.targetDx - a.dx), stride);
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+        if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      } else {
+        if (!g.sat) { g.sat = true; g.satStart = now; }
+        const lift = -viewH * 0.115;
+        const sway = Math.sin((now - g.satStart) / 620) * 4;
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${lift.toFixed(1)}px) rotate(${sway.toFixed(1)}deg)`;
+        if (now - g.satStart > BRIDGE_SIT_MS) endGoal(a);
+      }
+      return;
+    }
+    if (g.kind === 'sandcastle') {
+      if (Math.abs(a.dx - g.targetDx) > 4 && !g.built) {
+        a.dx += Math.sign(g.targetDx - a.dx) * Math.min(Math.abs(g.targetDx - a.dx), stride);
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+      } else {
+        if (!g.built) { g.built = true; g.buildStart = now; g.castle = spawnSandcastle(a); }
+        const pat = Math.abs(Math.sin((now - g.buildStart) / 150)) * 6;
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${pat.toFixed(1)}px) scale(1, ${(1 - pat / 80).toFixed(3)})`;
+        if (now - g.buildStart > SANDCASTLE_MS) endGoal(a);
+      }
+      return;
+    }
+    if (g.kind === 'sunbathe') {
+      if (Math.abs(a.dx - g.targetDx) > 4 && !g.lying) {
+        a.dx += Math.sign(g.targetDx - a.dx) * Math.min(Math.abs(g.targetDx - a.dx), stride);
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+      } else {
+        if (!g.lying) { g.lying = true; g.lieStart = now; g.towel = spawnTowel(a); }
+        const breathe = Math.sin((now - g.lieStart) / 1100) * 0.03;
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, 16px) rotate(74deg) scale(${(1 + breathe).toFixed(3)})`;
+        if (now - g.lieStart > SUNBATHE_MS) endGoal(a);
       }
       return;
     }
@@ -1588,6 +1811,12 @@ export function mount(container, params, ctx) {
       ffOpenPicker: (ride) => openRidePicker(ride),
       ffReveal: (ride) => playFunfairReveal(ride),
       scrollToFunfair: () => scrollToZone(ZONE_INDEX['funfair'], false),
+      scrollToZone: (key) => scrollToZone(ZONE_INDEX[key] ?? 0, false),   // pan to any zone (C2 QA)
+      zoneProps: (key) => { const n = ground.querySelector('.t-zone-props.' + key); return n ? { has: true, kids: n.querySelectorAll('*').length } : { has: false }; },
+      panAcross: (key) => panAcrossZone(ZONE_INDEX[key] ?? 0),            // unlock-pan test hook (C2)
+      // read a scenery element's live transform (for animation frame evidence)
+      sceneryXf: (sel) => { const n = ground.querySelector(sel); return n ? (getComputedStyle(n).transform || '') : null; },
+      sceneryAnimated: (sel) => { const n = ground.querySelector(sel); return n ? getComputedStyle(n).animationName !== 'none' : false; },
       hasBandstand: () => !!ground.querySelector('.ff-bandstand'),
       scrollToBandstand: () => { scrollX = ZONE_INDEX['funfair'] * zoneW + BANDSTAND_X * zoneW - viewW / 2; clampScroll(); applyScroll(); },
       scrollToFunfairGate: () => { scrollX = ZONE_INDEX['funfair'] * zoneW; clampScroll(); applyScroll(); },   // funfair centred but bandstand off-screen → jingle
@@ -1657,6 +1886,108 @@ function sceneryFor(key, w, h) {
 }
 function svg(w, h, inner) {
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+
+// ---- zone identity: the distinct near backdrop per zone (RUN7 C2) --------
+// Drawn in the GROUND layer at real pixels so objects keep their shape and stay
+// aligned with the Boos. Everything sits ABOVE the placement band (y < h*0.62) or is
+// thin decoration at the bank — the band itself (0.62→1.0) stays clear for placement.
+// Animation classes (.rv-*/.hl-*/.bc-*) are transform/opacity-only; reduced-motion stills them.
+function zoneScenery(key, w, h, night) {
+  if (key === 'riverside') return riversideScenery(w, h, night);
+  if (key === 'hilltop')   return hilltopScenery(w, h, night);
+  if (key === 'beach')     return beachScenery(w, h, night);
+  return '';
+}
+function rSVG(w, h, inner) {
+  return `<svg class="t-zsvg" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">${inner}</svg>`;
+}
+
+function riversideScenery(w, h, night) {
+  const top = h * 0.535, bot = h * 0.665, mid = (top + bot) / 2;
+  const water = night ? '#2C567A' : '#7FC7E8', deep = night ? '#20405E' : '#5FA9D0', foam = night ? '#B6D4E8' : '#EAF6FF';
+  // drifting ripple lines (two staggered layers) + shimmer sparkles on the water
+  const ripples = (cls, ys, dur, dist) => ys.map((yy, i) =>
+    `<path class="rv-drift ${cls}" style="--d:${dist}px;--t:${dur}s;--dl:${(-i * 1.7).toFixed(1)}s" d="M-40 ${yy} q ${w * 0.12} -6 ${w * 0.24} 0 t ${w * 0.24} 0 t ${w * 0.24} 0 t ${w * 0.24} 0 t ${w * 0.24} 0 t ${w * 0.24} 0" fill="none" stroke="${foam}" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>`).join('');
+  const shimmer = Array.from({ length: 7 }, (_, i) => {
+    const x = (i + 0.5) / 7 * w + (i % 2 ? 30 : -30), yy = top + 14 + (i % 3) * (bot - top - 24) / 2;
+    return `<ellipse class="rv-shimmer" style="--dl:${(-i * 0.6).toFixed(1)}s" cx="${x.toFixed(0)}" cy="${yy.toFixed(0)}" rx="16" ry="3" fill="${foam}" opacity="0.5"/>`;
+  }).join('');
+  // lily pads (one flowered) floating on the water
+  const lily = [[0.30, mid + 8], [0.62, top + 16], [0.78, mid + 2]].map(([fx, yy], i) =>
+    `<g class="rv-lily" style="--dl:${(-i).toFixed(1)}s"><ellipse cx="${(fx * w).toFixed(0)}" cy="${yy.toFixed(0)}" rx="20" ry="8" fill="${night ? '#3E7A54' : '#5FB86E'}" stroke="#2A6B3E" stroke-width="2"/><path d="M${(fx * w).toFixed(0)} ${yy.toFixed(0)} l9 -3" stroke="#2A6B3E" stroke-width="2"/>${i === 1 ? `<circle cx="${(fx * w + 2).toFixed(0)}" cy="${(yy - 4).toFixed(0)}" r="5" fill="#FF7AC6"/><circle cx="${(fx * w + 2).toFixed(0)}" cy="${(yy - 4).toFixed(0)}" r="2" fill="#FFF3B0"/>` : ''}</g>`).join('');
+  // reeds swaying at the near bank
+  const reeds = [0.08, 0.20, 0.9, 0.44].map((fx, i) => {
+    const bx = fx * w, by = bot + 10;
+    return `<g class="rv-reed" style="--dl:${(-i * 0.7).toFixed(1)}s">${[0, 6, -6].map((o, k) => `<path d="M${(bx + o).toFixed(0)} ${by.toFixed(0)} q ${o < 0 ? -8 : 8} -${28 + k * 6} ${o < 0 ? -3 : 3} -${44 + k * 8}" fill="none" stroke="${night ? '#3E7A54' : '#4FA85E'}" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="${(bx + o + (o < 0 ? -3 : 3)).toFixed(0)}" cy="${(by - 44 - k * 8).toFixed(0)}" rx="3" ry="8" fill="${night ? '#6B5A3A' : '#B98A4A'}"/>`).join('')}</g>`;
+  }).join('');
+  // a small wooden arched bridge spanning the river mid-zone
+  const bx = BRIDGE_X * w, deck = top - 4, span = Math.min(150, w * 0.13);
+  const bridge = `<g class="rv-bridge">
+    <path d="M${(bx - span).toFixed(0)} ${(bot + 6).toFixed(0)} Q${bx.toFixed(0)} ${(deck - 34).toFixed(0)} ${(bx + span).toFixed(0)} ${(bot + 6).toFixed(0)}" fill="none" stroke="#7A4F2A" stroke-width="9"/>
+    <path d="M${(bx - span).toFixed(0)} ${(deck - 2).toFixed(0)} Q${bx.toFixed(0)} ${(deck - 40).toFixed(0)} ${(bx + span).toFixed(0)} ${(deck - 2).toFixed(0)}" fill="none" stroke="#A9743F" stroke-width="12" stroke-linecap="round"/>
+    <path d="M${(bx - span).toFixed(0)} ${(deck + 8).toFixed(0)} Q${bx.toFixed(0)} ${(deck - 30).toFixed(0)} ${(bx + span).toFixed(0)} ${(deck + 8).toFixed(0)}" fill="none" stroke="#8A5A32" stroke-width="6"/>
+    ${Array.from({ length: 7 }, (_, i) => { const t = i / 6; const px = bx - span + t * span * 2; const py = deck - 40 * Math.sin(Math.PI * t) - 2; return `<line x1="${px.toFixed(0)}" y1="${py.toFixed(0)}" x2="${px.toFixed(0)}" y2="${(py - 16).toFixed(0)}" stroke="#7A4F2A" stroke-width="3"/>`; }).join('')}
+    <path d="M${(bx - span).toFixed(0)} ${(deck - 18).toFixed(0)} Q${bx.toFixed(0)} ${(deck - 54).toFixed(0)} ${(bx + span).toFixed(0)} ${(deck - 18).toFixed(0)}" fill="none" stroke="#A9743F" stroke-width="4"/></g>`;
+  const dfly = night ? '' : [[0.35, top - 26, 3], [0.66, top - 40, 5]].map(([fx, yy, dl]) =>
+    `<g class="rv-dragonfly" style="--dl:${-dl}s;left:${(fx * w).toFixed(0)}px;top:${yy.toFixed(0)}px"><ellipse cx="0" cy="0" rx="10" ry="2" fill="#6AA9C9"/><ellipse class="rv-wing" cx="-2" cy="-4" rx="7" ry="3" fill="#BFE6F5" opacity="0.8"/><ellipse class="rv-wing" cx="-2" cy="4" rx="7" ry="3" fill="#BFE6F5" opacity="0.8"/></g>`).join('');
+  return rSVG(w, h, `
+    <rect x="0" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(bot - top).toFixed(0)}" fill="${water}"/>
+    <rect x="0" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="7" fill="${deep}" opacity="0.7"/>
+    <rect x="0" y="${(bot - 6).toFixed(0)}" width="${w.toFixed(0)}" height="6" fill="${deep}" opacity="0.5"/>
+    ${ripples('a', [top + 22, mid + 6, bot - 14], 9, 60)}${ripples('b', [top + 40, mid + 22], 13, -50)}
+    ${shimmer}${lily}${bridge}${reeds}`)
+    // dragonflies + paper boat live OUTSIDE the svg as positioned DOM (their own drift anims)
+    + dfly
+    + (night ? '' : `<div class="rv-boat" style="--d:${(w + 120).toFixed(0)}px;top:${(top + 6).toFixed(0)}px"><svg viewBox="0 0 54 34" width="46" height="30"><path d="M4 20 h46 l-8 12 h-30 z" fill="#FFF3E0" stroke="#C97B4A" stroke-width="2"/><path d="M27 20 v-16 l14 12 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.6"/></svg></div>`);
+}
+
+function hilltopScenery(w, h, night) {
+  const grass = night ? '#3E6E4A' : '#7CC98A', grass2 = night ? '#2F5A3A' : '#5FA76C';
+  const crestX = WINDMILL_X * w, crestY = h * 0.44;
+  // faster, closer clouds drifting across the sky
+  const clouds = night ? '' : [[0.10, h * 0.14, 1.0, 26], [0.5, h * 0.09, 1.25, 20], [0.8, h * 0.2, 0.8, 32]].map(([fx, yy, sc, dur], i) =>
+    `<div class="hl-cloud" style="--d:${(w * 0.5).toFixed(0)}px;--t:${dur}s;--dl:${(-i * 5)}s;left:${(fx * w).toFixed(0)}px;top:${yy.toFixed(0)}px;transform:scale(${sc})"><svg viewBox="0 0 90 40" width="90" height="40"><g fill="#FFFFFF" opacity="0.9"><ellipse cx="28" cy="26" rx="24" ry="14"/><ellipse cx="52" cy="20" rx="22" ry="16"/><ellipse cx="68" cy="27" rx="18" ry="12"/></g></svg></div>`).join('');
+  // the big rounded hill rising to the crest, a gentle rise across the whole zone
+  const hill = `<path d="M0 ${(h * 0.66).toFixed(0)} Q${(w * 0.28).toFixed(0)} ${(h * 0.60).toFixed(0)} ${(crestX - 120).toFixed(0)} ${(crestY + 40).toFixed(0)} Q${crestX.toFixed(0)} ${(crestY - 8).toFixed(0)} ${(crestX + 120).toFixed(0)} ${(crestY + 46).toFixed(0)} Q${(w * 0.9).toFixed(0)} ${(h * 0.62).toFixed(0)} ${w.toFixed(0)} ${(h * 0.6).toFixed(0)} L${w.toFixed(0)} ${h.toFixed(0)} L0 ${h.toFixed(0)} Z" fill="${grass}"/>
+    <path d="M0 ${(h * 0.72).toFixed(0)} Q${(w * 0.5).toFixed(0)} ${(h * 0.66).toFixed(0)} ${w.toFixed(0)} ${(h * 0.7).toFixed(0)} L${w.toFixed(0)} ${h.toFixed(0)} L0 ${h.toFixed(0)} Z" fill="${grass2}" opacity="0.65"/>`;
+  // the windmill on the crest: tower + slowly turning sails
+  const ty = crestY + 4;
+  const windmill = `<g>
+    <path d="M${(crestX - 20).toFixed(0)} ${(ty + 66).toFixed(0)} L${(crestX - 12).toFixed(0)} ${ty.toFixed(0)} L${(crestX + 12).toFixed(0)} ${ty.toFixed(0)} L${(crestX + 20).toFixed(0)} ${(ty + 66).toFixed(0)} Z" fill="#EFE3C8" stroke="#8A6B3A" stroke-width="2.5"/>
+    <path d="M${(crestX - 15).toFixed(0)} ${(ty + 6).toFixed(0)} h30 l-4 -14 h-22 z" fill="#C0568F" stroke="#8A3A66" stroke-width="2"/>
+    <rect x="${(crestX - 6).toFixed(0)}" y="${(ty + 34).toFixed(0)}" width="12" height="16" rx="2" fill="#8A5A32"/>
+    <g class="hl-blades">
+      ${[0, 90, 180, 270].map(a => `<g transform="rotate(${a} ${crestX.toFixed(1)} ${(ty + 2).toFixed(1)})"><path d="M${crestX.toFixed(0)} ${(ty + 2).toFixed(0)} l-6 -46 l12 0 z" fill="#FFF8F0" stroke="#8A6B3A" stroke-width="2"/></g>`).join('')}
+      <circle cx="${crestX.toFixed(0)}" cy="${(ty + 2).toFixed(0)}" r="5" fill="#8A6B3A"/>
+    </g></g>`;
+  return rSVG(w, h, `${hill}${windmill}`) + clouds;
+}
+
+function beachScenery(w, h, night) {
+  const seaTop = h * 0.42, seaBot = h * 0.60;
+  const sea = night ? '#2C567A' : '#4FB3D9', sea2 = night ? '#21415E' : '#3C97C2';
+  // rolling foam edge: a wavy white band that rolls sideways at the shore line
+  const foamPath = (dl, op) => `<path class="bc-foam" style="--d:${(w * 0.16).toFixed(0)}px;--dl:${dl}s" d="M-30 ${seaBot.toFixed(0)} q 26 -9 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="${op}"/>`;
+  const shells = [[0.28, 0.80, '#FF9AD5'], [0.4, 0.9, '#FFC93C'], [0.55, 0.83, '#8FC7FF'], [0.68, 0.92, '#FF9AD5'], [0.92, 0.86, '#FFC0A0']].map(([fx, fy, c]) =>
+    `<g transform="translate(${(fx * w).toFixed(0)} ${(fy * h).toFixed(0)})"><path d="M0 6 C-9 6 -9 -6 0 -6 C9 -6 9 6 0 6 Z" fill="${c}" stroke="#B06A8A" stroke-width="1.4"/><path d="M0 -6 V6 M-5 -3 L-4 5 M5 -3 L4 5" stroke="#B06A8A" stroke-width="1"/></g>`).join('');
+  const palmX = PALM_X * w, palmBase = h * 0.7;
+  const palm = `<g class="bc-palm">
+    <path d="M${palmX.toFixed(0)} ${palmBase.toFixed(0)} q -10 -60 -2 -110" fill="none" stroke="#9A6B3A" stroke-width="11" stroke-linecap="round"/>
+    ${[[-1, -8], [-1, 18], [1, -8], [1, 18], [0, -34]].map(([dir, ang]) => `<path d="M${(palmX - 4).toFixed(0)} ${(palmBase - 108).toFixed(0)} q ${dir * 44} ${ang < 0 ? -10 : 20} ${dir * 74} ${28 + Math.abs(ang)}" fill="none" stroke="${night ? '#3E7A54' : '#4FA85E'}" stroke-width="9" stroke-linecap="round"/>`).join('')}
+    <circle cx="${(palmX - 4).toFixed(0)}" cy="${(palmBase - 108).toFixed(0)}" r="7" fill="#8A5A32"/>
+    <circle cx="${(palmX + 6).toFixed(0)}" cy="${(palmBase - 98).toFixed(0)}" r="5" fill="#7A4A22"/><circle cx="${(palmX - 12).toFixed(0)}" cy="${(palmBase - 96).toFixed(0)}" r="5" fill="#7A4A22"/></g>`;
+  const hx = HUT_X * w, hy = h * 0.5;
+  const hut = `<g>
+    <rect x="${(hx - 34).toFixed(0)}" y="${(hy + 6).toFixed(0)}" width="68" height="54" rx="4" fill="#F2DDA6" stroke="#8A6B3A" stroke-width="3"/>
+    <path d="M${(hx - 46).toFixed(0)} ${(hy + 8).toFixed(0)} L${hx.toFixed(0)} ${(hy - 24).toFixed(0)} L${(hx + 46).toFixed(0)} ${(hy + 8).toFixed(0)} Z" fill="#FF7AC6" stroke="#B0447E" stroke-width="3"/>
+    ${Array.from({ length: 5 }, (_, i) => `<rect x="${(hx - 44 + i * 18).toFixed(0)}" y="${(hy - 2).toFixed(0)}" width="9" height="10" fill="${i % 2 ? '#FFF8F0' : '#FF7AC6'}" opacity="0.85"/>`).join('')}
+    <rect x="${(hx - 12).toFixed(0)}" y="${(hy + 26).toFixed(0)}" width="24" height="34" rx="3" fill="#8FC7FF" stroke="#8A6B3A" stroke-width="2.5"/></g>`;
+  return rSVG(w, h, `
+    <rect x="0" y="${seaTop.toFixed(0)}" width="${w.toFixed(0)}" height="${(seaBot - seaTop).toFixed(0)}" fill="${sea}"/>
+    <rect x="0" y="${seaTop.toFixed(0)}" width="${w.toFixed(0)}" height="8" fill="${sea2}" opacity="0.7"/>
+    ${Array.from({ length: 3 }, (_, i) => `<path class="bc-swell" style="--dl:${(-i * 1.4).toFixed(1)}s" d="M0 ${(seaTop + 22 + i * 30).toFixed(0)} q ${(w * 0.25).toFixed(0)} -8 ${(w * 0.5).toFixed(0)} 0 t ${(w * 0.5).toFixed(0)} 0" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.28"/>`).join('')}
+    ${foamPath(0, 0.9)}${foamPath(-2.5, 0.5)}${palm}${hut}${shells}`);
 }
 
 function signSVG() {

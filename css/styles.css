@@ -1554,6 +1554,61 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes ffTwinkle { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
 .ff-silhouette { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%); opacity: 0.5; }
 @media (prefers-reduced-motion: reduce) { .ff-scenery.night .ff-bulb { animation: none; } }
+
+/* ============================================================
+   Zone identity (RUN7 C2): distinct animated backdrop per zone.
+   All transform/opacity-only; drawn behind the placement band.
+   ============================================================ */
+.t-zone-props { position: absolute; pointer-events: none; overflow: hidden; }
+.t-zone-props .t-zsvg { will-change: auto; }
+/* Riverside: shimmering, slow-drifting river + swaying reeds + a paper boat */
+.rv-drift { animation: rvDrift var(--t, 10s) linear infinite; animation-delay: var(--dl, 0s); }
+@keyframes rvDrift { to { transform: translateX(var(--d, 60px)); } }
+.rv-shimmer { animation: rvShimmer 3.4s ease-in-out infinite; animation-delay: var(--dl, 0s); transform-box: fill-box; transform-origin: center; }
+@keyframes rvShimmer { 0%,100% { opacity: 0.18; transform: scaleX(0.8); } 50% { opacity: 0.65; transform: scaleX(1.15); } }
+.rv-lily { animation: rvBob 5s ease-in-out infinite; animation-delay: var(--dl, 0s); transform-box: fill-box; transform-origin: center; }
+@keyframes rvBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+.rv-reed { animation: rvSway 4.2s ease-in-out infinite; animation-delay: var(--dl, 0s); transform-box: fill-box; transform-origin: bottom center; }
+@keyframes rvSway { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.rv-dragonfly { position: absolute; animation: rvFlit 7s ease-in-out infinite; animation-delay: var(--dl, 0s); }
+.rv-dragonfly svg, .rv-dragonfly { overflow: visible; }
+.rv-dragonfly > svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.rv-wing { transform-box: fill-box; transform-origin: right center; animation: rvWing 0.14s linear infinite; }
+@keyframes rvWing { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.4); } }
+@keyframes rvFlit { 0% { transform: translate(0,0); } 25% { transform: translate(50px,-16px); } 50% { transform: translate(120px,6px); } 75% { transform: translate(60px,-10px); } 100% { transform: translate(0,0); } }
+.rv-boat { position: absolute; left: -80px; animation: rvSail var(--boatdur, 34s) linear infinite; }
+@keyframes rvSail { from { transform: translateX(0) rotate(-2deg); } 50% { transform: translateX(calc(var(--d, 800px) * 0.5)) rotate(2deg); } to { transform: translateX(var(--d, 800px)) rotate(-2deg); } }
+/* Hilltop: turning windmill + faster clouds */
+.hl-blades { animation: hlSpin 7s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes hlSpin { to { transform: rotate(360deg); } }
+.hl-cloud { position: absolute; animation: hlCloud var(--t, 26s) linear infinite; animation-delay: var(--dl, 0s); }
+@keyframes hlCloud { from { transform: translateX(-40px); } to { transform: translateX(var(--d, 400px)); } }
+/* Beach: rolling foam edge + swaying palm + drifting swell */
+.bc-foam { animation: bcFoam 3.4s ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }
+@keyframes bcFoam { from { transform: translateX(0); } to { transform: translateX(var(--d, 40px)); } }
+.bc-swell { animation: bcSwell 6s ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }
+@keyframes bcSwell { from { transform: translateX(-20px); } to { transform: translateX(20px); } }
+.bc-palm { animation: bcPalm 5.5s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom center; }
+@keyframes bcPalm { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .rv-drift, .rv-shimmer, .rv-lily, .rv-reed, .rv-dragonfly, .rv-wing, .rv-boat,
+  .hl-blades, .hl-cloud, .bc-foam, .bc-swell, .bc-palm { animation: none; }
+}
+/* zone-only behaviour props (RUN7 C2) */
+.t-splash { position: absolute; left: 50%; bottom: 6px; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 6; animation: tSplash 0.62s ease-out forwards; }
+@keyframes tSplash { 0% { transform: translate(-50%,0) scale(0.5); opacity: 1; } 55% { transform: translate(calc(-50% + var(--sx)), var(--sy)) scale(1); opacity: 0.95; } 100% { transform: translate(calc(-50% + var(--sx) * 1.3), 8px) scale(0.4); opacity: 0; } }
+.t-skip-stone { position: absolute; width: 10px; height: 8px; border-radius: 50%; background: #9AA2B8; border: 1.5px solid #5A5A6A; pointer-events: none; z-index: 7; }
+.t-skim-ring { position: absolute; width: 8px; height: 5px; border: 2px solid rgba(255,255,255,0.75); border-radius: 50%; pointer-events: none; z-index: 6; animation: tRing 0.6s ease-out forwards; }
+@keyframes tRing { from { transform: translate(-50%,-50%) scale(0.4); opacity: 0.85; } to { transform: translate(-50%,-50%) scale(3.2); opacity: 0; } }
+.t-kite-wrap { position: absolute; pointer-events: none; z-index: 60; }
+.t-sandcastle { position: absolute; pointer-events: none; transform: scaleY(0); transform-origin: bottom center; transition: transform 0.5s cubic-bezier(0.34,1.4,0.6,1); }
+.t-sandcastle.rise { transform: scaleY(1); }
+.t-sandcastle.fade { opacity: 0; transition: opacity 1.5s ease; }
+.t-towel { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .t-splash, .t-skim-ring { animation: none; }
+  .t-sandcastle { transition: none; transform: scaleY(1); }
+}
 /* "Who's riding?" picker */
 .ride-picker .rp-card { padding: 18px; max-width: 560px; width: min(92vw, 560px); max-height: 84vh; overflow-y: auto; }
 .rp-card h3 { margin: 0 0 4px; color: var(--ink); }
