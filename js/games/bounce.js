@@ -1,9 +1,20 @@
-// js/games/bounce.js — Boo Bounce (spec RUN2 C5).
+// js/games/bounce.js — Boo Bounce (spec RUN2 C5; aim-and-launch RUN6 C4; integrity RUN8 C0).
 // A gentle brick-breaker: a draggable paddle, one soft ball, a candy brick wall
 // (6 across, 4 deep). Three bricks wear answer labels (one correct). Breaking the
 // correct brick clears its row and brings the next question. Breaking a wrong label
 // just breaks it and the label hops elsewhere. Ball loss dims a heart (never ends the
 // round). Round = 8 questions answered or the wall fully cleared twice.
+//
+// RUN8 C0 integrity:
+//  · aim EVERY question — the ball returns to the paddle for a full aim-and-launch (with
+//    the dotted preview) at the start of every question, not just round-start / ball-loss.
+//  · label invariants enforced continuously while a question is active — exactly three
+//    labelled bricks, exactly one correct; a labelled brick destroyed by anything other
+//    than its answer-hit re-homes its label with a visible sparkle-hop; wrong labels drop
+//    first when bricks are scarce (never below one wrong + the correct); a single brick
+//    always carries the correct answer.
+//  · wall replenishment — every new question tops the wall back up to at least MIN_WALL
+//    bricks with a quick restack animation.
 
 import { el, clear, starsRow, confetti, REDUCED, backControl } from '../ui.js';
 import { getState, recordResult } from '../state.js';
@@ -22,12 +33,15 @@ const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9
 const COLS = 6, ROWS = 4;
 const QUESTIONS = 8;           // round ends after 8 questions answered
 const MAX_WALL_CLEARS = 2;     // ...or the wall fully cleared twice
+const MIN_WALL = 12;           // every new question tops the wall back up to >= this many bricks (C0)
+const MAX_LABELS = 3;          // exactly three labelled bricks while bricks allow (C0)
 const BRICK_COLORS = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#C6A9F0', '#FFC93C', '#7FD8C3'];
 // Aim-and-launch (RUN6 C4): the serve rests on the paddle; a drag aims within an
 // upward cone; a dotted preview shows the path incl. its first wall bounce; release fires.
 const AIM_MIN = -172 * Math.PI / 180, AIM_MAX = -8 * Math.PI / 180;  // upward cone (never sideways/down)
 const AIM_DEFAULT = -Math.PI / 2;      // straight up if she just taps
 const PREVIEW_DOTS = 70, PREVIEW_STEP = 12;  // dotted trajectory sampling (long enough to reach a wall)
+const HOP_MS = 520, RESTACK_MS = 380;  // sparkle-hop + restack animation durations (C0)
 // Star thresholds as named constants (C4). Aiming makes intent expressible, so the
 // gentle floor stands; 3★ still rewards a clean run.
 const WRONG_3STAR = 1, DROPS_3STAR = 1;
@@ -76,9 +90,13 @@ export function mount(container, params, ctx) {
 
     const autoMix = category === AUTO;
     let question = autoMix ? autoQuestion(null, 3) : makeQuestion(category, level, null, 3);
-    let bricks = [], labels = [];
+    // The active question's option set, split into the one correct text and the wrong texts.
+    let correctText = '', wrongTexts = [];
+    let bricks = [];
     let questionsAnswered = 0, wrongBricks = 0, ballLosses = 0, wallClears = 0;
     let ended = false;
+    let hops = [];             // in-flight sparkle-hops {fx,fy,tx,ty,bornAt,text,correct}
+    let animNow = performance.now();
 
     shell = createGameShell({ title: 'Boo Bounce', rounds: QUESTIONS, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('bounce') });
     root.appendChild(shell.root);
@@ -94,6 +112,16 @@ export function mount(container, params, ctx) {
     let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 9, speed: 0, stuck: true };
     let aiming = false, aimAngle = AIM_DEFAULT;   // aim-and-launch (C4)
 
+    // Split the current question into correct + wrong option texts (deduped, correct kept).
+    function setQuestionTexts() {
+      const opts = question.options || [];
+      correctText = opts[question.correct];
+      const seen = new Set([correctText]);
+      wrongTexts = [];
+      opts.forEach((t, i) => { if (i !== question.correct && !seen.has(t)) { seen.add(t); wrongTexts.push(t); } });
+    }
+    setQuestionTexts();
+
     function resize() {
       const rect = canvas.parentElement.getBoundingClientRect();
       W = Math.max(320, rect.width); H = Math.max(300, rect.height);
@@ -103,18 +131,40 @@ export function mount(container, params, ctx) {
       paddle.x = Math.min(Math.max(0, paddle.x), W - paddle.w);
       ball.r = Math.max(8, W * 0.012); ball.speed = Math.max(4.4, H * 0.011);
       buildWall();
+      placeLabels();
       if (ball.stuck) resetBall();
     }
 
-    function buildWall() {
-      bricks = [];
+    // Geometry for a grid cell (positions depend on W/H, recomputed here so revived bricks land right).
+    function cellGeom(c, r) {
       const top = H * 0.10, gap = 6;
       const bw = (W - gap * (COLS + 1)) / COLS, bh = Math.max(20, H * 0.055);
-      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-        bricks.push({ c, r, x: gap + c * (bw + gap), y: top + r * (bh + gap), w: bw, h: bh, alive: true, color: BRICK_COLORS[(r * COLS + c) % BRICK_COLORS.length], label: null, correct: false });
-      }
-      placeLabels();
+      return { x: gap + c * (bw + gap), y: top + r * (bh + gap), w: bw, h: bh };
     }
+    function buildWall() {
+      bricks = [];
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        const g = cellGeom(c, r);
+        bricks.push({ c, r, x: g.x, y: g.y, w: g.w, h: g.h, alive: true, color: BRICK_COLORS[(r * COLS + c) % BRICK_COLORS.length], label: null, correct: false, bornAt: animNow });
+      }
+    }
+    // Wall replenishment (C0): top the wall back up to >= MIN_WALL by reviving dead cells,
+    // top rows first (a natural restack) so the revived bricks sit above and stay hittable.
+    function replenishWall() {
+      let alive = bricks.filter(b => b.alive).length;
+      if (alive >= MIN_WALL) return;
+      const dead = bricks.filter(b => !b.alive).sort((a, b) => (a.r - b.r) || (a.c - b.c));
+      for (const b of dead) {
+        if (alive >= MIN_WALL) break;
+        const g = cellGeom(b.c, b.r);
+        b.x = g.x; b.y = g.y; b.w = g.w; b.h = g.h;
+        b.alive = true; b.label = null; b.correct = false; b.bornAt = animNow;
+        b.color = BRICK_COLORS[(b.r * COLS + b.c) % BRICK_COLORS.length];
+        alive++;
+      }
+    }
+
+    function labelBricks() { return bricks.filter(b => b.alive && b.label != null); }
 
     // Reachability (C4): a labelled brick must have a clear column below it (a straight
     // shot) OR a one-bounce path (an adjacent column clear at/below its row).
@@ -124,33 +174,50 @@ export function mount(container, params, ctx) {
       for (const dc of [-1, 1]) { const nc = b.c + dc; if (nc >= 0 && nc < COLS && !bricks.some(x => x.alive && x.c === nc && x.r >= b.r)) return true; }
       return false;
     }
-    // Put the current question's 3 options on 3 alive bricks (one correct), preferring
-    // reachable bricks so every label can actually be hit.
-    function placeLabels() {
-      labels = [];
-      const alive = bricks.filter(b => b.alive);
-      bricks.forEach(b => { b.label = null; b.correct = false; });
-      const chosen = shuffle(alive.filter(reachable)).concat(shuffle(alive.filter(b => !reachable(b)))).slice(0, Math.min(3, alive.length));
-      const opts = shuffle(question.options.map((text, i) => ({ text, correct: i === question.correct })));
-      chosen.forEach((b, i) => { if (opts[i]) { b.label = opts[i].text; b.correct = opts[i].correct; labels.push(b); } });
+
+    // The texts that SHOULD be labelled right now: correct first, then wrongs, up to
+    // min(MAX_LABELS, alive). Wrong labels drop first when bricks are scarce; a single
+    // brick carries only the correct answer (C0).
+    function wantedTexts() {
+      const alive = bricks.filter(b => b.alive).length;
+      if (alive <= 0) return [];
+      const want = Math.min(MAX_LABELS, alive);
+      const out = [correctText];
+      for (const w of wrongTexts) { if (out.length >= want) break; out.push(w); }
+      return out;
     }
-    // If a labelled brick is (or becomes) unreachable — bricks around it bury it — move
-    // its label to a reachable brick (C4).
-    function ensureReachableLabels() {
-      for (const b of labels.slice()) {
-        if (reachable(b)) continue;
-        const free = shuffle(bricks.filter(x => x.alive && !x.label && reachable(x)));
-        if (!free.length) continue;
-        const t = free[0]; t.label = b.label; t.correct = b.correct; b.label = null; b.correct = false;
-        labels[labels.indexOf(b)] = t;
+    // Reconcile the bricks' labels to the wanted set, keeping every label on an alive,
+    // reachable brick. hop=true animates any move (the visible sparkle-hop).
+    function reconcile(hop) {
+      const want = wantedTexts();
+      // 1. strip labels on dead bricks or no longer wanted
+      bricks.forEach(b => { if (b.label != null && (!b.alive || want.indexOf(b.label) < 0)) { b.label = null; b.correct = false; } });
+      // 2. de-dupe (a text lives on at most one brick)
+      const placed = {};
+      bricks.forEach(b => { if (b.alive && b.label != null) { if (placed[b.label]) { b.label = null; b.correct = false; } else placed[b.label] = b; } });
+      // 3. every wanted text sits on an alive, reachable brick
+      for (const text of want) {
+        const isCorrect = text === correctText;
+        const cur = placed[text];
+        if (cur && reachable(cur)) { cur.correct = isCorrect; continue; }
+        const free = shuffle(bricks.filter(x => x.alive && x.label == null));
+        const rpool = free.filter(reachable);
+        const pool = rpool.length ? rpool : free;
+        if (!pool.length) { if (cur) cur.correct = isCorrect; continue; }  // best effort: no free home
+        const t = pool[0];
+        if (cur && cur !== t) { if (hop) spawnHop(cur.x + cur.w / 2, cur.y + cur.h / 2, t, text, isCorrect); cur.label = null; cur.correct = false; }
+        t.label = text; t.correct = isCorrect; placed[text] = t;
       }
     }
-    // Move one wrong label to another alive unlabelled brick (prefer reachable).
-    function rehomeLabel(text, correct) {
-      const free = bricks.filter(b => b.alive && !b.label);
-      if (!free.length) return;
-      const pool = free.filter(reachable).length ? free.filter(reachable) : free;
-      const b = pool[rand(pool.length)]; b.label = text; b.correct = correct; labels.push(b);
+    // Fresh assignment for a NEW question: clear every previous label, then place (no hops).
+    function placeLabels() { bricks.forEach(b => { b.label = null; b.correct = false; }); reconcile(false); }
+    // Exposed as the reflow hook: re-home any label buried out of reach (C4).
+    function ensureReachableLabels() { reconcile(true); }
+
+    // A visible sparkle-hop from (fx,fy) to a target brick — makes a re-home legible (C0).
+    function spawnHop(fx, fy, tb, text, correct) {
+      if (REDUCED) return;
+      hops.push({ fx, fy, tx: tb.x + tb.w / 2, ty: tb.y + tb.h / 2, bornAt: animNow, text: String(text), correct: !!correct });
     }
 
     function renderQuestion() {
@@ -202,45 +269,70 @@ export function mount(container, params, ctx) {
     canvas.addEventListener('pointerup', () => { if (aiming) launch(); });
 
     // ---- brick hit handling ----
+    // A labelled brick destroyed by anything OTHER than its registered answer-hit re-homes
+    // its label (with a sparkle-hop); reconcile keeps every surviving label hittable (C0).
+    function destroyBrick(b) {
+      if (!b.alive) return;
+      const fx = b.x + b.w / 2, fy = b.y + b.h / 2, lost = b.label, lostCorrect = b.correct;
+      b.alive = false; b.label = null; b.correct = false;
+      reconcile(true);
+      if (lost != null) {
+        const nb = labelBricks().find(x => x.label === lost);
+        if (nb) spawnHop(fx, fy, nb, lost, lostCorrect);   // its label found a new home → show the hop
+      }
+    }
     function onBrickHit(b) {
-      if (ended) return;
-      b.alive = false;
-      if (b.label != null) {
-        if (b.correct) { correctAnswer(b); return; } // correctAnswer handles a cleared wall
+      if (ended || !b.alive) return;
+      if (b.label != null && b.correct) {                 // the correct brick's answer-hit
+        b.alive = false; b.label = null; b.correct = false;
+        correctAnswer(b); return;
+      }
+      if (b.label != null) {                              // a wrong brick's answer-hit: count + re-home
         wrongBricks++; sfx.oops();
         recordResult(question.key, false);
         collector.add(choiceMiss({ id: question.key, game: 'bounce', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
         shell.react('Hmm!', { voice: false, hold: 1200 });
-        const idx = labels.indexOf(b); if (idx >= 0) labels.splice(idx, 1);
-        rehomeLabel(b.label, false);
       }
+      destroyBrick(b);                                    // re-homes its label (if any) + keeps invariants
+      if (bricks.every(x => !x.alive)) onWallCleared();
+    }
+    // Incidental destruction (collateral / scripted) — never counts as an answer (C0).
+    function killIncidental(b) {
+      if (!b || !b.alive || ended) return;
+      destroyBrick(b);
       if (bricks.every(x => !x.alive)) onWallCleared();
     }
     function correctAnswer(b) {
       sfx.correct();
       recordResult(question.key, true);
       // clear the whole row of the correct brick
-      bricks.filter(x => x.r === b.r).forEach(x => x.alive = false);
+      bricks.filter(x => x.r === b.r).forEach(x => { x.alive = false; x.label = null; x.correct = false; });
       if (!REDUCED) { const rc = canvas.getBoundingClientRect(); confetti({ count: 40, power: 0.7, origin: { x: rc.left + b.x + b.w / 2, y: rc.top + b.y } }); }
       sfx.fanfare();
       questionsAnswered++; shell.setProgress(questionsAnswered);
-      labels = [];
-      if (bricks.every(x => !x.alive)) { onWallCleared(); }
+      if (bricks.every(x => !x.alive)) onWallCleared();
       if (ended) return;
       if (questionsAnswered >= QUESTIONS) return finish();
+      // next question: clear old labels, top the wall up, place fresh labels, and return
+      // the ball to the paddle so she AIMS AGAIN (aim every question, C0).
       question = autoMix ? autoQuestion(question.key, 3) : makeQuestion(category, level, question.key, 3);
+      setQuestionTexts();
       renderQuestion();
+      replenishWall();
       placeLabels();
+      resetBall();
     }
     function onWallCleared() {
       wallClears++;
       if (wallClears >= MAX_WALL_CLEARS) return finish();
       buildWall();
+      placeLabels();   // the active question's labels reappear on the fresh wall (correct always present)
     }
 
     // ---- physics loop ----
     let last = performance.now();
     function step(now) {
+      animNow = now;
       const dt = Math.min(2.4, (now - last) / 16.6); last = now;
       if (!document.hidden && !ended) update(dt);
       draw();
@@ -264,7 +356,8 @@ export function mount(container, params, ctx) {
         ball.vx = Math.cos(ang) * ball.speed; ball.vy = Math.sin(ang) * ball.speed;
         clampAngle();
       }
-      // bricks
+      // bricks — hitting the correct brick always registers as the answer (C0), whatever
+      // the speed or approach: any overlap runs onBrickHit for the struck brick.
       for (const b of bricks) {
         if (!b.alive) continue;
         if (ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w && ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
@@ -290,21 +383,55 @@ export function mount(container, params, ctx) {
       resetBall(); // hearts never end the round
     }
 
+    function drawBrick(b) {
+      let sc = 1, dy = 0;
+      if (!REDUCED && b.bornAt != null) {
+        const t = Math.min(1, (animNow - b.bornAt) / RESTACK_MS);
+        if (t < 1) { const e = 1 - Math.pow(1 - t, 3); sc = 0.3 + 0.7 * e; dy = -(1 - e) * 16; }
+      }
+      const midx = b.x + b.w / 2, midy = b.y + b.h / 2;
+      cx.save();
+      if (sc !== 1 || dy !== 0) { cx.translate(midx, midy + dy); cx.scale(sc, sc); cx.translate(-midx, -midy); }
+      cx.fillStyle = b.color;
+      roundRect(cx, b.x, b.y, b.w, b.h, 6); cx.fill();
+      cx.lineWidth = 2.5; cx.strokeStyle = '#2A1B4E'; cx.stroke();
+      if (b.label != null) {
+        cx.fillStyle = '#2A1B4E'; cx.font = `700 ${Math.min(22, b.h * 0.55)}px Fredoka, sans-serif`;
+        cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText(String(b.label), midx, midy);
+      }
+      cx.restore();
+    }
+    function drawHops() {
+      hops = hops.filter(h => animNow - h.bornAt < HOP_MS);
+      for (const h of hops) {
+        const t = Math.min(1, (animNow - h.bornAt) / HOP_MS);
+        const e = 1 - Math.pow(1 - t, 2);
+        const x = h.fx + (h.tx - h.fx) * e;
+        const y = h.fy + (h.ty - h.fy) * e - Math.sin(t * Math.PI) * 30;   // a little hop-arc
+        cx.save();
+        for (let k = 0; k < 6; k++) {
+          const a = t * 6.5 + k * 1.05, rr = 5 + t * 12;
+          cx.globalAlpha = (1 - t) * 0.9; cx.fillStyle = k % 2 ? '#FFD84D' : '#FFFFFF';
+          cx.beginPath(); cx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 2.4, 0, Math.PI * 2); cx.fill();
+        }
+        // the hopping label chip
+        cx.globalAlpha = 1 - t * 0.25;
+        cx.fillStyle = h.correct ? '#FFE9A8' : '#FFFFFF';
+        roundRect(cx, x - 15, y - 12, 30, 24, 7); cx.fill();
+        cx.lineWidth = 2; cx.strokeStyle = '#2A1B4E'; cx.stroke();
+        cx.fillStyle = '#2A1B4E'; cx.font = '700 14px Fredoka, sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText(h.text, x, y);
+        cx.restore();
+      }
+    }
     function draw() {
       cx.clearRect(0, 0, W, H);
-      // bricks
-      for (const b of bricks) {
-        if (!b.alive) continue;
-        cx.fillStyle = b.label != null ? (b.correct ? b.color : b.color) : b.color;
-        roundRect(cx, b.x, b.y, b.w, b.h, 6); cx.fill();
-        cx.lineWidth = 2.5; cx.strokeStyle = '#2A1B4E'; cx.stroke();
-        if (b.label != null) {
-          cx.fillStyle = '#2A1B4E'; cx.font = `700 ${Math.min(22, b.h * 0.55)}px Fredoka, sans-serif`;
-          cx.textAlign = 'center'; cx.textBaseline = 'middle';
-          cx.fillText(String(b.label), b.x + b.w / 2, b.y + b.h / 2);
-        }
-      }
+      cx.globalAlpha = 1;
+      for (const b of bricks) { if (b.alive) drawBrick(b); }
+      drawHops();
       // paddle
+      cx.globalAlpha = 1;
       cx.fillStyle = '#FF7AC6'; roundRect(cx, paddle.x, paddle.y, paddle.w, paddle.h, 7); cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2A1B4E'; cx.stroke();
       // ball
       cx.beginPath(); cx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); cx.fillStyle = '#FFF8F0'; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#2A1B4E'; cx.stroke();
@@ -344,27 +471,41 @@ export function mount(container, params, ctx) {
       aimStart: () => { aiming = true; },
       preview: () => computePreview(),
       fire: () => launch(),
-      // reachability (C4)
-      labelInfo: () => labels.map(b => ({ c: b.c, r: b.r, correct: b.correct, reachable: reachable(b), clearColumn: columnClearBelow(b), label: b.label })),
+      // reachability + label invariants (C4/C0)
+      labelInfo: () => labelBricks().map(b => ({ c: b.c, r: b.r, correct: b.correct, reachable: reachable(b), clearColumn: columnClearBelow(b), label: b.label })),
+      labelSummary: () => { const L = labelBricks(); return { total: L.length, correct: L.filter(b => b.correct).length, correctPresent: L.some(b => b.correct), correctReachable: L.some(b => b.correct && reachable(b)), wrong: L.filter(b => !b.correct).length }; },
       brickAliveAt: (c, r) => bricks.some(b => b.c === c && b.r === r && b.alive),
       ballSpeed: () => Math.hypot(ball.vx, ball.vy),
       reflow: () => ensureReachableLabels(),
+      // wall replenishment + animation evidence (C0)
+      minWall: () => MIN_WALL,
+      wallCount: () => bricks.filter(b => b.alive).length,
+      restacking: () => bricks.filter(b => b.alive && b.bornAt != null && (animNow - b.bornAt) < RESTACK_MS).length,
+      hopCount: () => hops.length,
+      question: () => ({ prompt: question.prompt, key: question.key, correctText }),
+      // incidental (non-answer) destruction — for the integrity scenario (C0)
+      killBrickAt: (c, r) => { const b = bricks.find(x => x.c === c && x.r === r && x.alive); if (!b) return null; killIncidental(b); return { c, r }; },
+      killCorrectBrick: () => { const b = labelBricks().find(x => x.correct); if (!b) return null; const info = { c: b.c, r: b.r }; killIncidental(b); return info; },
+      killWrongBrick: () => { const b = labelBricks().find(x => !x.correct) || labelBricks()[0]; if (!b) return null; const info = { c: b.c, r: b.r, correct: b.correct }; killIncidental(b); return info; },
+      // deplete the wall to n alive bricks WITHOUT ever removing the correct answer (C0 88-case)
+      depleteTo: (n) => { let g = 0; while (bricks.filter(b => b.alive).length > n && g++ < 200) { const b = bricks.find(x => x.alive && !x.correct && x.label == null) || bricks.find(x => x.alive && !x.correct); if (!b) break; killIncidental(b); } return bricks.filter(b => b.alive).length; },
       // deliberately bury a label on a back brick with alive bricks below it, then it can re-place
       buryLabel: () => {
-        const lbl = labels.find(x => !x.correct) || labels[0]; if (!lbl) return null;
-        const buried = bricks.find(x => x.alive && !x.label && bricks.some(y => y.alive && y.c === x.c && y.r > x.r));
+        const lbl = labelBricks().find(x => !x.correct) || labelBricks()[0]; if (!lbl) return null;
+        const buried = bricks.find(x => x.alive && x.label == null && bricks.some(y => y.alive && y.c === x.c && y.r > x.r));
         if (!buried) return null;
-        buried.label = lbl.label; buried.correct = lbl.correct; lbl.label = null; lbl.correct = false; labels[labels.indexOf(lbl)] = buried;
+        buried.label = lbl.label; buried.correct = lbl.correct; lbl.label = null; lbl.correct = false;
         return { c: buried.c, r: buried.r, reachable: reachable(buried) };
       },
       // serve straight up the target label's column (deterministic aimed hit for the test)
       serveAtLabel: (text) => {
-        const b = labels.find(x => x.label === text) || labels.find(x => x.correct); if (!b) return null;
+        const b = labelBricks().find(x => x.label === text) || labelBricks().find(x => x.correct); if (!b) return null;
         ball.x = b.x + b.w / 2; paddle.x = Math.min(Math.max(0, ball.x - paddle.w / 2), W - paddle.w);
+        ball.y = paddle.y - ball.r - 2; ball.stuck = true;
         aimAngle = AIM_DEFAULT; aiming = true; launch();
         return { c: b.c, r: b.r, correct: b.correct, lowest: columnClearBelow(b) };
       },
-      state: () => ({ questionsAnswered, wrongBricks, ballLosses, wallClears, ended, aiming, stuck: ball.stuck, alive: bricks.filter(b => b.alive).length, labels: labels.length, hearts: shell.heartsLeft(), bx: +ball.x.toFixed(1), by: +ball.y.toFixed(1) })
+      state: () => ({ questionsAnswered, wrongBricks, ballLosses, wallClears, ended, aiming, stuck: ball.stuck, alive: bricks.filter(b => b.alive).length, labels: labelBricks().length, hearts: shell.heartsLeft(), bx: +ball.x.toFixed(1), by: +ball.y.toFixed(1) })
     };
     // clean up the resize listener on unmount via the shell cleanup chain
     play._cleanup = () => window.removeEventListener('resize', onResize);
