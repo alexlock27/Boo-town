@@ -101,11 +101,11 @@ console.log('== golden ceremony + badge + journal + reload ==');
 console.log('== Star Chest: welcome + boundaries ==');
 {
   const { ctx, page } = await fresh(SAVE());   // v4 @137 stars → migration: anchor 137, welcome
-  const chest = await page.$('.star-chest');
+  const chest = await page.$('.trail-chip.chest');
   assert(!!chest, 'a golden chest appears beside the hub meter');
-  const ready = await page.$('.star-chest.ready');
+  const ready = await page.$('.trail-chip.chest.ready');
   assert(!!ready, 'the migrated save has exactly one welcome chest waiting');
-  await page.click('.star-chest');
+  await page.click('.trail-chip.chest');
   await page.waitForSelector('.chest-reveal', { timeout: 6000 });
   await sleep(700);
   const st = await page.evaluate(() => window.BooTown.State.getState());
@@ -120,22 +120,22 @@ console.log('== Star Chest: welcome + boundaries ==');
   // no back-pay: 137 anchored stars grant nothing further
   await page.evaluate(() => window.BooTown.go('hub'));
   await page.waitForSelector('.hub');
-  assert(!(await page.$('.star-chest.ready')), 'no back-pay for stars earned before the update');
+  assert(!(await page.$('.trail-chip.chest.ready')), 'no back-pay for stars earned before the update');
   // mini track ties to the visible total: +30 stars → 30/50
   await page.evaluate(() => { window.BooTown.State.mutate(s => { s.stars.total += 30; }); window.BooTown.go('collection'); });
   await sleep(200);
   await page.evaluate(() => window.BooTown.go('hub'));
-  await page.waitForSelector('.star-chest');
-  const frac = await page.$eval('.star-chest .chest-fill', n => n.style.width);
+  await page.waitForSelector('.trail-chip.chest');
+  const frac = await page.$eval('.trail-chip.chest .tc-fill', n => n.style.width);
   assert(frac === '60%', `mini track matches the total (30/50 → "${frac}")`);
-  assert(!(await page.$('.star-chest.ready')), '30/50: not ready yet');
+  assert(!(await page.$('.trail-chip.chest.ready')), '30/50: not ready yet');
   // +20 more → boundary crossed → ready; open → opened=1, track resets
   await page.evaluate(() => { window.BooTown.State.mutate(s => { s.stars.total += 20; }); window.BooTown.go('collection'); });
   await sleep(200);
   await page.evaluate(() => window.BooTown.go('hub'));
-  await page.waitForSelector('.star-chest.ready');
+  await page.waitForSelector('.trail-chip.chest.ready');
   assert(true, 'the next chest appears exactly at the 50-star boundary');
-  await page.click('.star-chest');
+  await page.click('.trail-chip.chest');
   await page.waitForSelector('.chest-reveal');
   await sleep(500);
   const st3 = await page.evaluate(() => window.BooTown.State.getState());

@@ -2,6 +2,41 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 7: open the gates
+- **The funfair and band are open from day one**: the old 280-star gate is gone, so the fairground
+  is there on every save from the start. A player's first visit plays a one-time grand opening — two
+  gates swing apart, confetti, "The Boo Funfair is OPEN!". The Carousel, ticket booth, bunting,
+  string lights, popcorn cart and the fully-playable bandstand (drums, keys, guitar, record-a-jam)
+  are all available immediately with no stars needed. The four bigger rides still arrive one at a
+  time through the Boo Builders at retuned milestones — Ferris wheel at 80 stars, teacups at 140,
+  bouncy castle at 200, helter-skelter at 260 — and an existing save already past a milestone begins
+  its queued construction on first load.
+- **Every zone now looks like its name**: each town zone got a distinct, animated identity and its
+  own things to do, all behind the placement band so nothing blocks where Boos go.
+  - *Riverside*: a shimmering, slowly drifting river with a little wooden bridge, reeds, lily pads,
+    daytime dragonflies and the odd paper boat. Boos paddle at the bank, sit on the bridge, and skim
+    a stone across the water with a plink.
+  - *Hilltop*: the ground rises to a windmill turning on the crest, with faster clouds drifting past.
+    A Boo flies a kite on a string.
+  - *Beach*: a sea with a rolling foam edge, a palm tree, a beach hut and scattered shells. Boos
+    paddle in the shallows, pat up a sandcastle (which fades later) and sunbathe on a towel.
+  - Unlocking a zone now pans across its new scenery, so it reads as discovering a place.
+- **A tidier home screen**: the hub's meta-cards collapse into one compact, swipeable "Today" rail
+  between the guide and the games — Jump back in, Quests, Boo Quest, Star Chest, Golden Round and
+  Boo of the Day, each shown only when it has something to offer. The games grid is the star again
+  (two-plus full game cards visible on a phone without scrolling). "Jump back in" learned manners:
+  it appears only when there's a last game to resume that hasn't been played today, a small × tucks
+  it away until tomorrow, and playing it never leaves a stale card behind.
+- **Three new Toddler games** (in Toddler mode only, all playable with the sound off):
+  - *Animal Sounds*: hear a cartoon animal call and tap the animal that made it; ten animals, each
+    with its own clearly-different sound. With the sound off, a picture of the target shows instead.
+  - *Animal Pairs*: a gentle memory game — turn two cards to find matching animals; the board grows
+    from six cards to eight once you've cleared two.
+  - *Big and Small*: drag big things to the big-paw Boo and small things to the small-paw Boo.
+  The Toddler home screen is now a scrollable column of its seven big picture cards.
+- Everything new is transform-only and honours reduced-motion; performance stays capped on the busy
+  scenes. Old saves carry over untouched.
+
 ## Run 6: the elevation run
 - **Hotfix 1 — the funfair stays open and running at night**: previously a ride only animated its
   seated riders, so an empty ride (common when no Boos are placed in the funfair, and typical at
