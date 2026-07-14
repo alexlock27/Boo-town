@@ -24,6 +24,8 @@ import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
+import { SOCKETS } from '../data/sockets.js';
+import { createDrawer } from './drawer.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -64,6 +66,14 @@ const WATCH_MS = 4200;          // a sit-and-watch spell
 const NAP_MS = 22000;           // a chosen nap under a tree/house lasts a while (or until morning)
 const NAP_IDS = ['deco_boohouse', 'deco_tree'];   // a Boo naps by a house or under a Bubble Tree at night
 const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond'];
+// role kind per activity item — generic socket loop below (RUN10 P2)
+const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'pondpaddle' };
+const SETTLE_MS = 180;           // arrival settle: drop + squash (RUN10 P2)
+const SHRUG_MS = 300;            // no free socket → a small shrug, then wander off (RUN10 P2)
+const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
+
+// ---- Town 4.0 capacity (RUN10 P2) ----
+export const AREA_CAP = 24;      // items per area; a full area refuses drops with a guide line
 
 // ---- ambient life (RUN6 C1) ----
 const WEATHER_PARTICLES = 14;   // per-season particle count (one particle layer; caps hold)
@@ -176,7 +186,25 @@ export function mount(container, params, ctx) {
   const air = el('div', { class: 't-layer t-air' });   // fireflies / butterflies
   const viewport = el('div', { class: 't-viewport' }, [sky, hills, ground, air]);
 
-  const drawer = el('div', { class: 'town-drawer' });
+  // Town drawer (RUN10 P2): js/drawer.js tabs [Boos | Rides & fun | Decorations | Special],
+  // each a momentum-scrolling strip of item chips. `item.act` (catalogue.js) marks the
+  // playground/activity decos; ultra-rarity decos are the "Special" showpieces.
+  const DRAWER_TABS_SPEC = [
+    { id: 'boos', label: 'Boos', test: (it) => it.kind === 'boo' },
+    { id: 'rides', label: 'Rides & fun', test: (it) => it.kind === 'deco' && !!it.act },
+    { id: 'deco', label: 'Decorations', test: (it) => it.kind === 'deco' && !it.act && it.rarity !== 'ultra' },
+    { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' }
+  ];
+  const drawerStrips = {};
+  const drawerTabsNodes = DRAWER_TABS_SPEC.map(spec => {
+    const strip = el('div', { class: 'town-drawer-strip' });
+    attachStripMomentum(strip);
+    drawerStrips[spec.id] = strip;
+    return { id: spec.id, label: spec.label, node: strip };
+  });
+  const drawerApi = createDrawer({ tabs: drawerTabsNodes, initial: 0, ariaLabel: 'Town items' });
+  const drawer = drawerApi.root;   // kept as `drawer` — existing wobble/capacity-tint code targets it
+  drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
   root.append(header, hint, viewport, drawer);
   container.appendChild(root);
 
@@ -734,35 +762,96 @@ export function mount(container, params, ctx) {
   // circle at night, and Boos near a Boo House curl up asleep between 21:00 and
   // 07:00. The old bench-seat and pond-paddle promises (RUN2 C3) live here too.
   // Idempotent: safe to re-run every few seconds and on every re-render.
-  const benchCooldown = new Map();   // 'zone:x' -> timestamp
+  const benchCooldown = new Map();   // 'zone:x:item' -> timestamp
+  // ---- activity sockets (RUN10 P2): each placed item's seats, tracked by instance ----
+  const socketUse = new Map();       // 'zone:x:item' -> array of actor|null, length = SOCKETS[item].length
+  function itemKeyOf(t) { return t.zone + ':' + t.x + ':' + t.item; }
+  function socketArrFor(t) {
+    const sockets = SOCKETS[t.item]; if (!sockets) return null;
+    const key = itemKeyOf(t);
+    let arr = socketUse.get(key);
+    if (!arr || arr.length !== sockets.length) { arr = new Array(sockets.length).fill(null); socketUse.set(key, arr); }
+    // self-heal: an actor that no longer holds this exact socket frees the slot (role
+    // cleared, re-rendered, or reassigned elsewhere without going through releaseSocket)
+    for (let i = 0; i < arr.length; i++) {
+      const own = arr[i];
+      if (own && (!own.role || own.role.socketArrKey !== key || own.role.socketIdx !== i)) arr[i] = null;
+    }
+    return arr;
+  }
+  function releaseSocket(a) {
+    if (!a.role || !a.role.socketArrKey) return;
+    const arr = socketUse.get(a.role.socketArrKey);
+    if (arr && arr[a.role.socketIdx] === a) arr[a.role.socketIdx] = null;
+  }
+  // Hoisted to mount level (not just assignRoles' sweep) so stepGoal's arrival handler
+  // can also claim a socket the instant a Boo reaches an activity (RUN10 P2).
+  const wrapFor = (t) => [...ground.querySelectorAll('.t-item')].find(w => w.dataset.zone === t.zone && Math.abs(+w.dataset.x - t.x) < 0.001 && w.dataset.item === t.item);
+  // Use the Boo's CURRENT position (home + wander offset) so a Boo that walked
+  // UP to an activity (C1 behaviour engine) gets claimed on arrival, not just one
+  // that happened to be placed beside it. Goal-pursuers aren't yanked mid-act.
+  const curX = (a) => a.place.x + ((a.dx || 0) / (zoneW || 1));
+  const freeNear = (t, radius) => actors
+    .filter(a => !a.role && !a.dancing && !a.goal && ZONE_INDEX[a.place.zone] === ZONE_INDEX[t.zone] && Math.abs(curX(a) - t.x) <= radius)
+    .sort((p, q) => Math.abs(curX(p) - t.x) - Math.abs(curX(q) - t.x));
+  const give = (a, role) => {
+    if (actors.filter(x => x.role).length >= MAX_ACTIVE_ROLES) return false;
+    a.goal = null; a.dx = 0; a.depth = 0; a.depthTarget = 0;   // claimed → drop any goal + wander offset (C1)
+    a.role = Object.assign({ t: Math.random() * 500 }, role);
+    // Socket offset (RUN10 P2): x = fraction of the item's rendered WIDTH from its
+    // centre, so multi-seat items (seesaw, trampoline, picnic...) seat riders apart
+    // instead of stacking them on the item's own centre point.
+    const itemRow = rowOf(role.deco);
+    const itemW = (ACT_SIZE[role.deco.item] || 92) * ROW_SCALE[itemRow];
+    const sockX = role.socket ? role.socket.x * itemW : 0;
+    a.role.offX = (role.deco.x - a.place.x) * zoneW + sockX;
+    // Depth-align to the SOCKET's row (may differ from the item's own row, e.g. the
+    // trampoline's middle socket sits one row further back) so the role transforms
+    // (which assume a shared ground line) still read correctly.
+    const dw = role.decoWrap || wrapFor(role.deco);
+    if (dw) {
+      if (a._homeTop == null) { a._homeTop = a.wrap.style.top; a._homeZ = a.wrap.style.zIndex; }
+      const socketRow = (role.socket && role.socket.row != null) ? role.socket.row : itemRow;
+      // yFrac: fraction of the ITEM's rendered height the seat surface sits above its own
+      // ground line (fine-tuned per item against real screenshots — see data/sockets.js).
+      // Row-independent (unlike a raw px yNudge) since it scales with the item's own size.
+      const itemH = itemW * 130 / 120;   // every deco shares one 120x130 viewBox (art.js)
+      const yNudge = role.socket && role.socket.yFrac ? role.socket.yFrac * itemH : 0;
+      const rowGroundPx = viewH * ROW_GROUND[socketRow];
+      a.wrap.style.top = (rowGroundPx - a.wrap.offsetHeight + 8 + yNudge) + 'px';
+      a.wrap.style.zIndex = String(Math.round(rowGroundPx));
+    }
+    if (role.kind === 'sleep' && !a.wrap.querySelector('.t-zzz')) {
+      a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
+    }
+    // Arrival settle (RUN10 P2): 180ms ease drop + one squash, via a one-shot CSS class
+    // on the outer wrap (composes fine with the per-frame role transform on the svg).
+    if (!REDUCED) { a.wrap.classList.remove('role-settle'); void a.wrap.offsetWidth; a.wrap.classList.add('role-settle'); }
+    return true;
+  };
+  // Claim ANY free socket on a placed activity item, or return false (RUN10 P2). Used
+  // both by assignRoles' periodic sweep and by stepGoal's arrival handler (a Boo that
+  // just walked up claims immediately instead of waiting for the next tick).
+  function tryClaimActivity(a, t) {
+    const sockets = SOCKETS[t.item]; if (!sockets) return false;
+    const arr = socketArrFor(t); if (!arr) return false;
+    const i = arr.findIndex(x => !x); if (i < 0) return false;
+    const socketArrKey = itemKeyOf(t);
+    const ok = give(a, { kind: KIND_FOR[t.item], deco: t, decoWrap: wrapFor(t), socket: sockets[i], socketArrKey, socketIdx: i, slot: i });
+    if (ok) arr[i] = a;
+    return ok;
+  }
+  // No free socket → a small shrug (300ms), then back to free wandering (RUN10 P2). The
+  // shrug plays on the outer wrap (not the svg) so it composes with, rather than fights,
+  // the wander loop's own per-frame transform on the svg once wandering resumes.
+  function shrugAndEndGoal(a) {
+    if (!REDUCED) { a.wrap.classList.remove('t-shrug'); void a.wrap.offsetWidth; a.wrap.classList.add('t-shrug'); }
+    a.goal = null; a.dx = 0; a.next = SHRUG_MS + Math.random() * 200;
+  }
   function assignRoles() {
     const st = getState();
     const now = performance.now();
     const night = isSleepTime(currentHour());
-    let roleCount = actors.filter(a => a.role).length;
-    const wrapFor = (t) => [...ground.querySelectorAll('.t-item')].find(w => w.dataset.zone === t.zone && Math.abs(+w.dataset.x - t.x) < 0.001 && w.dataset.item === t.item);
-    // Use the Boo's CURRENT position (home + wander offset) so a Boo that walked
-    // UP to an activity (C1 behaviour engine) gets claimed on arrival, not just one
-    // that happened to be placed beside it. Goal-pursuers aren't yanked mid-act.
-    const curX = (a) => a.place.x + ((a.dx || 0) / (zoneW || 1));
-    const freeNear = (t, radius) => actors
-      .filter(a => !a.role && !a.dancing && !a.goal && ZONE_INDEX[a.place.zone] === ZONE_INDEX[t.zone] && Math.abs(curX(a) - t.x) <= radius)
-      .sort((p, q) => Math.abs(curX(p) - t.x) - Math.abs(curX(q) - t.x));
-    const give = (a, role) => {
-      if (roleCount >= MAX_ACTIVE_ROLES) return false;
-      a.goal = null; a.dx = 0; a.depth = 0; a.depthTarget = 0;   // claimed → drop any goal + wander offset (C1)
-      a.role = Object.assign({ t: Math.random() * 500 }, role);
-      a.role.offX = (role.deco.x - a.place.x) * zoneW;
-      // Depth-align to the deco's row (C3): sit the Boo on the activity's baseline so
-      // the role transforms (which assume a shared ground line) still read correctly.
-      const dw = role.decoWrap || wrapFor(role.deco);
-      if (dw) { if (a._homeTop == null) { a._homeTop = a.wrap.style.top; a._homeZ = a.wrap.style.zIndex; } a.wrap.style.top = dw.style.top; a.wrap.style.zIndex = dw.style.zIndex; }
-      roleCount++;
-      if (role.kind === 'sleep' && !a.wrap.querySelector('.t-zzz')) {
-        a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
-      }
-      return true;
-    };
     // stale roles: daytime ends sleep + campfire circles
     for (const a of actors) {
       if (!a.role) continue;
@@ -781,32 +870,37 @@ export function mount(container, params, ctx) {
     if (night) for (const t of decosOf('deco_campfire')) {
       freeNear(t, ACT_RADIUS + 0.05).slice(0, 3).forEach((a, i) => give(a, { kind: 'campfire', deco: t, decoWrap: wrapFor(t), slot: i }));
     }
-    // 3) two-Boo activities — only start when BOTH seats can fill
-    for (const t of decosOf('deco_seesaw')) {
-      const pair = freeNear(t, ACT_RADIUS).slice(0, 2);
-      if (pair.length === 2) pair.forEach((a, i) => give(a, { kind: 'seesaw', deco: t, decoWrap: wrapFor(t), slot: i }));
-    }
-    for (const t of decosOf('deco_picnic')) {
-      const pair = freeNear(t, ACT_RADIUS).slice(0, 2);
-      if (pair.length === 2) pair.forEach((a, i) => give(a, { kind: 'picnic', deco: t, decoWrap: wrapFor(t), slot: i }));
-    }
-    // 4) one-Boo activities
-    const oneBoo = [['deco_slide', 'slide'], ['deco_swings', 'swing'], ['deco_trampoline', 'bounce'], ['deco_paddlepool', 'paddle'], ['deco_bumper', 'drive'], ['deco_pond', 'pondpaddle']];
-    for (const [id, kind] of oneBoo) for (const t of decosOf(id)) {
-      const a = freeNear(t, ACT_RADIUS)[0];
-      if (a) give(a, { kind, deco: t, decoWrap: wrapFor(t) });
-    }
-    // 5) the bench seats a nearby Boo now and then (RUN2 C3 debt)
-    for (const t of decosOf('deco_bench')) {
-      const key = t.zone + ':' + t.x;
-      if ((benchCooldown.get(key) || 0) > now) continue;
-      const a = freeNear(t, ACT_RADIUS)[0];
-      if (a && give(a, { kind: 'sit', deco: t, decoWrap: wrapFor(t), until: now + BENCH_SIT_MS })) {
-        benchCooldown.set(key, now + BENCH_SIT_MS + BENCH_COOLDOWN_MS);
+    // 3) socket-driven activities (RUN10 P2): every ACT_IDS item claims one free socket
+    // per nearby free Boo. Sockets fill independently — a lone seesaw rider just sits
+    // still (stepRole checks sibling occupancy before it pivots); no more "only start
+    // when both seats can fill at once".
+    for (const id of ACT_IDS) {
+      const sockets = SOCKETS[id]; if (!sockets) continue;
+      const kind = KIND_FOR[id];
+      for (const t of decosOf(id)) {
+        if (id === 'deco_bench') {
+          const key = itemKeyOf(t);
+          if ((benchCooldown.get(key) || 0) > now) continue;
+        }
+        const arr = socketArrFor(t); if (!arr) continue;
+        const dw = wrapFor(t);
+        const socketArrKey = itemKeyOf(t);
+        for (let i = 0; i < sockets.length; i++) {
+          if (arr[i]) continue;
+          const a = freeNear(t, ACT_RADIUS)[0];
+          if (!a) break;   // no more free Boos nearby this tick
+          const role = { kind, deco: t, decoWrap: dw, socket: sockets[i], socketArrKey, socketIdx: i, slot: i };
+          if (id === 'deco_bench') role.until = now + BENCH_SIT_MS;
+          if (give(a, role)) {
+            arr[i] = a;
+            if (id === 'deco_bench') benchCooldown.set(socketArrKey, now + BENCH_SIT_MS + BENCH_COOLDOWN_MS);
+          }
+        }
       }
     }
   }
   function clearRole(a) {
+    releaseSocket(a);   // RUN10 P2: free the seat for the next Boo
     a.role = null;
     a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
     if (a._homeTop != null) { a.wrap.style.top = a._homeTop; a.wrap.style.zIndex = a._homeZ || ''; a._homeTop = null; a._homeZ = null; }   // restore its depth row (C3)
@@ -850,14 +944,22 @@ export function mount(container, params, ctx) {
         break;
       }
       case 'seesaw': {
-        const s = Math.sin(t / 800);
-        const side = r.slot === 0 ? -1 : 1;
-        const endY = side * s * 15;                       // plank end height
-        const hop = Math.max(0, side * s) * 10;           // little pop at the top
-        svg.style.transform = `translate(${(r.offX + side * 52).toFixed(1)}px, ${(-32 + endY - hop).toFixed(1)}px) scale(0.8)`;
-        if (r.slot === 0) {
-          const plank = r.decoWrap && r.decoWrap.querySelector('.ss-plank');
-          if (plank) plank.style.transform = `rotate(${(s * 8).toFixed(1)}deg)`;
+        // RUN10 P2: only pivots once BOTH sockets are seated (a lone rider just sits);
+        // ±8°, 2.2s period. r.offX already carries the socket's seat offset.
+        const arr = r.socketArrKey ? socketUse.get(r.socketArrKey) : null;
+        const bothSeated = arr && arr.filter(Boolean).length >= 2;
+        const flip = r.socket && r.socket.flip != null ? r.socket.flip : (r.slot === 0 ? 1 : -1);
+        if (bothSeated) {
+          const s = Math.sin(t * 2 * Math.PI / SEESAW_PERIOD_MS);
+          const endY = flip * s * 15;                       // plank end height
+          const hop = Math.max(0, flip * s) * 10;           // little pop at the top
+          svg.style.transform = `translate(${r.offX.toFixed(1)}px, ${(-32 + endY - hop).toFixed(1)}px) scale(0.8)`;
+          if (flip === 1) {
+            const plank = r.decoWrap && r.decoWrap.querySelector('.ss-plank');
+            if (plank) plank.style.transform = `rotate(${(s * 8).toFixed(1)}deg)`;
+          }
+        } else {
+          svg.style.transform = `translate(${r.offX.toFixed(1)}px, -32px) scale(0.8)`;   // waiting for a partner
         }
         break;
       }
@@ -878,9 +980,10 @@ export function mount(container, params, ctx) {
         break;
       }
       case 'picnic': {
+        // r.offX already carries the socket's seat offset (RUN10 P2) — side only leans the pose.
         const side = r.slot === 0 ? -1 : 1;
         const nibble = Math.max(0, Math.sin((t + r.slot * 400) / 380)) * 0.07;
-        svg.style.transform = `translate(${(r.offX + side * 30).toFixed(1)}px, 2px) rotate(${side * -4}deg) scale(0.86, ${(0.8 + nibble).toFixed(3)})`;
+        svg.style.transform = `translate(${r.offX.toFixed(1)}px, 2px) rotate(${side * -4}deg) scale(0.86, ${(0.8 + nibble).toFixed(3)})`;
         break;
       }
       case 'drive': {
@@ -1105,10 +1208,55 @@ export function mount(container, params, ctx) {
     hint.textContent = "That spot's taken — try a little further along!";
     if (sfx.oops) sfx.oops();
   }
+  // Capacity (RUN10 P2): a full area refuses new drops with a soft red tint + guide line.
+  function areaFull(except) {
+    const n = areaItems(getState()).filter(t => t !== except).length;
+    return n >= AREA_CAP;
+  }
+  function areaFullWobble() {
+    drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
+    setTimeout(() => drawer.classList.remove('taken'), 600);
+    const line = guideLine('L_AREA_FULL');
+    hint.textContent = line;
+    speakMaybe(line);
+    if (sfx.oops) sfx.oops();
+  }
+  // Illegal-drop preview (RUN10 P2): while dragging, find the nearest legal spot (same
+  // row first, then other rows) so a ghost ring can show WHERE it would land instead.
+  function nearestLegalSpot(zi, x, row, except) {
+    if (areaFull(except)) return null;
+    const STEP = MIN_SPACING * 0.6;
+    for (let d = 0; d <= 0.5; d += STEP) {
+      const cands = d === 0 ? [x] : [x - d, x + d];
+      for (const cand of cands) {
+        if (cand < 0 || cand > 1) continue;
+        if (!spotTaken(zi, cand, row, except)) return { x: cand, row };
+      }
+    }
+    for (let r2 = 0; r2 < DEPTH_ROWS; r2++) {
+      if (r2 !== row && !spotTaken(zi, x, r2, except)) return { x, row: r2 };
+    }
+    return null;
+  }
+  const dropGhost = el('div', { class: 'drop-ghost' });
+  air.appendChild(dropGhost);   // the air layer is never cleared by renderScenery/renderPlaced
+  function showDropPreview(dragEl, zi, x, row, except) {
+    const legal = !areaFull(except) && !spotTaken(zi, x, row, except);
+    dragEl.classList.toggle('invalid-drop', !legal);
+    if (legal) { dropGhost.classList.remove('show'); return; }
+    const spot = nearestLegalSpot(zi, x, row, except);
+    if (!spot) { dropGhost.classList.remove('show'); return; }
+    const rowGroundPx = viewH * ROW_GROUND[spot.row];
+    dropGhost.style.left = (zi * zoneW + spot.x * zoneW) + 'px';
+    dropGhost.style.top = rowGroundPx + 'px';
+    dropGhost.classList.add('show');
+  }
+  function hideDropPreview(dragEl) { if (dragEl) dragEl.classList.remove('invalid-drop'); dropGhost.classList.remove('show'); }
 
   function placeAtClient(cx, cy) {
     const { zi, x } = zoneAndXAt(clientToWorld(cx));
     if (!canPlaceIn(zi)) { flashLocked(zi); return; }
+    if (areaFull()) { areaFullWobble(); return; }
     const row = rowAtClient(cy);
     if (spotTaken(zi, x, row)) { spotWobble(); return; }   // keep holding it, try again
     const id = holding;
@@ -1119,7 +1267,6 @@ export function mount(container, params, ctx) {
   }
 
   function renderDrawer() {
-    clear(drawer);
     const st = getState();
     const placed = {};
     for (const t of areaItems(st)) placed[t.item] = (placed[t.item] || 0) + 1;
@@ -1131,10 +1278,16 @@ export function mount(container, params, ctx) {
     }
     const ids = Object.keys(free);
     if (holding && !ids.includes(holding)) ids.unshift(holding);
+    const tabButtons = drawer.querySelectorAll('.bd-tabs .bd-tab');
+    for (const strip of Object.values(drawerStrips)) clear(strip);
     if (!ids.length && !holding) {
-      drawer.appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
+      DRAWER_TABS_SPEC.forEach((spec, i) => {
+        drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
+        if (tabButtons[i]) tabButtons[i].textContent = spec.label;
+      });
       return;
     }
+    const counts = DRAWER_TABS_SPEC.map(() => 0);
     for (const id of ids) {
       const item = resolveItem(id);
       const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
@@ -1142,15 +1295,72 @@ export function mount(container, params, ctx) {
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
         free[id] > 1 ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
       ]);
-      makeDrawerDraggable(chip, id);
-      drawer.appendChild(chip);
+      // drag-to-lift is delegated to the strip's own pointer handler (attachStripMomentum,
+      // RUN10 P2) — it decides scroll-vs-lift by gesture direction since chips tile edge-to-edge
+      const ti = DRAWER_TABS_SPEC.findIndex(spec => spec.test(item));
+      const spec = DRAWER_TABS_SPEC[ti] || DRAWER_TABS_SPEC[2];   // fall back to Decorations
+      drawerStrips[spec.id].appendChild(chip);
+      counts[ti >= 0 ? ti : 2]++;
     }
+    DRAWER_TABS_SPEC.forEach((spec, i) => {
+      if (!drawerStrips[spec.id].children.length) drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Nothing here yet!' }));
+      if (tabButtons[i]) tabButtons[i].textContent = spec.label + (counts[i] ? ` (${counts[i]})` : '');
+    });
   }
   function selectHold(id) {
     sfx.tap();
     holding = (holding === id) ? null : id;
     placeMode = !!holding;
     renderDrawer(); updateHint();
+    // close the tray so it stops covering the ground once she's picked something (RUN10 P2)
+    if (holding) drawerApi.close();
+  }
+  // Horizontal momentum scroll for a drawer tab's chip strip (RUN10 P2): velocity fling,
+  // decel 0.94/frame — matches the camera's own momentum feel (town.js scrollX, 0.92/frame).
+  // A drag that starts on a chip could mean either "flick the sticker-book strip" or
+  // "pick this one up to place it" — chips tile the strip edge-to-edge, so there is no
+  // reliably-empty area to grab. Decided by GESTURE DIRECTION once the drag clears a
+  // 10px threshold (mobile-icon-grid convention): horizontal = scroll, vertical(-up) =
+  // lift. One delegated listener on the strip owns both (RUN10 P2).
+  function attachStripMomentum(strip) {
+    let phase = 'idle';   // idle -> deciding -> scroll | lift
+    let sx = 0, sy = 0, startScroll = 0, vel = 0, lastX = 0, lastT = 0, raf = null, downChip = null;
+    strip.addEventListener('pointerdown', e => {
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+      phase = 'deciding'; sx = e.clientX; sy = e.clientY; startScroll = strip.scrollLeft; vel = 0; lastX = e.clientX; lastT = performance.now();
+      downChip = e.target.closest ? e.target.closest('.drawer-item') : null;
+      // capture: once a lift is underway the pointer travels well outside the strip's own
+      // box (up into the world) — without capture the browser would stop routing events here
+      try { strip.setPointerCapture(e.pointerId); } catch {}
+    });
+    strip.addEventListener('pointermove', e => {
+      if (phase === 'idle') return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (phase === 'deciding') {
+        if (Math.hypot(dx, dy) < 10) return;
+        if (!downChip || Math.abs(dx) > Math.abs(dy)) phase = 'scroll';
+        else { phase = 'lift'; beginChipLift(downChip, downChip.dataset.item); }
+      }
+      if (phase === 'scroll') {
+        strip.scrollLeft = startScroll - dx;
+        const now = performance.now(); const dt = now - lastT;
+        if (dt > 0) vel = (e.clientX - lastX) / dt;
+        lastX = e.clientX; lastT = now;
+      } else if (phase === 'lift') {
+        updateChipLift(e.clientX, e.clientY);
+      }
+    });
+    const end = (e) => {
+      if (phase === 'scroll') {
+        let v = vel * 16;
+        if (Math.abs(v) >= 0.5 && !REDUCED) (function mom() { strip.scrollLeft -= v; v *= 0.94; if (Math.abs(v) > 0.4) raf = requestAnimationFrame(mom); })();
+      } else if (phase === 'lift') {
+        endChipLift(e.clientX, e.clientY);
+      }
+      phase = 'idle'; downChip = null;
+    };
+    strip.addEventListener('pointerup', end);
+    strip.addEventListener('pointercancel', () => { if (phase === 'lift') cancelChipLift(); phase = 'idle'; downChip = null; });
   }
 
   // ---- placed-item pointer: tap (squeak+menu) or drag-move ----------------
@@ -1181,11 +1391,14 @@ export function mount(container, params, ctx) {
         wrap.style.top = (rowGroundPx - wrap.offsetHeight + 8) + 'px';   // preview the depth row
         wrap.style.zIndex = String(Math.round(rowGroundPx));
         wrap.dataset._zi = zi; wrap.dataset._x = x; wrap.dataset._row = String(row);
+        const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+        showDropPreview(wrap, zi, x, row, cur);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
       }
     });
     wrap.addEventListener('pointerup', e => {
       if (!down) return; down = false;
       wrap.classList.remove('dragging');
+      hideDropPreview(wrap);
       if (moved) {
         const zi = +wrap.dataset._zi, x = +wrap.dataset._x, row = +wrap.dataset._row;
         const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
@@ -1199,7 +1412,7 @@ export function mount(container, params, ctx) {
         onTap(wrap, place, item);
       }
     });
-    wrap.addEventListener('pointercancel', () => { down = false; wrap.classList.remove('dragging'); });
+    wrap.addEventListener('pointercancel', () => { down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); });
   }
 
   function onTap(wrap, place, item) {
@@ -1220,9 +1433,11 @@ export function mount(container, params, ctx) {
 
   function squeak(wrap, item) {
     wakeIfSleeping(wrap);
-    // a tap always interrupts a chosen behaviour (C1): the Boo drops what it was doing
+    // a tap always interrupts a chosen behaviour (C1) — including a claimed activity
+    // socket (RUN10 P2): the Boo drops what it was doing and the seat frees for the next.
     const a = actors.find(x => x.wrap === wrap);
     if (a && a.goal) endGoal(a);
+    if (a && a.role && a.role.kind !== 'sleep') clearRole(a);
     // her own recorded voice plays instead of the squeak, only on tap (never ambient)
     if (voiceIds.has(item.id)) playVoice(item.id); else sfx.pop();
     noteQuest('sayHello', { count: 1 });   // daily quest: say hello to Boos (RUN3 C4)
@@ -1271,29 +1486,34 @@ export function mount(container, params, ctx) {
   function pickUp(place) { closeMenu(); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); }
   function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); }
 
-  // ---- drawer drag to place ----------------------------------------------
-  function makeDrawerDraggable(chip, id) {
-    let dragging = false, ghost = null, sX = 0, sY = 0, moved = false;
-    chip.addEventListener('pointerdown', e => { sX = e.clientX; sY = e.clientY; moved = false; dragging = true; chip.setPointerCapture(e.pointerId); });
-    chip.addEventListener('pointermove', e => {
-      if (!dragging) return;
-      if (!moved && Math.hypot(e.clientX - sX, e.clientY - sY) > 10) {
-        moved = true; holding = id; placeMode = true;
-        { const rit = resolveItem(id); ghost = el('div', { class: 'drag-ghost', html: renderItem(rit, { size: 80, equipArt: rit.kind === 'boo' ? equippedArt(id) : null }) }); }
-        document.body.appendChild(ghost);
-      }
-      if (moved && ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; }
-    });
-    chip.addEventListener('pointerup', e => {
-      if (!dragging) return; dragging = false;
-      if (ghost) { ghost.remove(); ghost = null; }
-      if (moved) {
-        const r = viewport.getBoundingClientRect();
-        if (e.clientY >= r.top && e.clientY <= r.bottom) placeAtClient(e.clientX, e.clientY);
-        else { renderDrawer(); updateHint(); }
-      }
-    });
-    chip.addEventListener('pointercancel', () => { dragging = false; if (ghost) { ghost.remove(); ghost = null; } });
+  // ---- drawer drag to place (delegated from attachStripMomentum, RUN10 P2) ----------
+  const LIFT = 70;   // px the dragged item floats ABOVE the fingertip (blocks.js pattern)
+  let liftGhost = null;
+  function beginChipLift(chip, id) {
+    holding = id; placeMode = true;
+    const rit = resolveItem(id);
+    liftGhost = el('div', { class: 'drag-ghost', html: renderItem(rit, { size: 80, equipArt: rit.kind === 'boo' ? equippedArt(id) : null }) });
+    document.body.appendChild(liftGhost);
+  }
+  function updateChipLift(cx, cy) {
+    if (!liftGhost) return;
+    const ly = cy - LIFT;
+    liftGhost.style.left = cx + 'px'; liftGhost.style.top = ly + 'px';
+    const r = viewport.getBoundingClientRect();
+    if (ly >= r.top && ly <= r.bottom) { const { zi, x } = zoneAndXAt(clientToWorld(cx)); showDropPreview(liftGhost, zi, x, rowAtClient(ly)); }
+    else hideDropPreview(liftGhost);
+  }
+  function endChipLift(cx, cy) {
+    hideDropPreview(liftGhost);
+    if (liftGhost) { liftGhost.remove(); liftGhost = null; }
+    const ly = cy - LIFT;
+    const r = viewport.getBoundingClientRect();
+    if (ly >= r.top && ly <= r.bottom) placeAtClient(cx, ly);
+    else { renderDrawer(); updateHint(); }
+  }
+  function cancelChipLift() {
+    hideDropPreview(liftGhost);
+    if (liftGhost) { liftGhost.remove(); liftGhost = null; }
   }
 
   function flashLocked(zi) {
@@ -1615,7 +1835,12 @@ export function mount(container, params, ctx) {
     }
     if (g.kind === 'approach') {
       svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
-      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) endGoal(a);   // arrived → assignRoles claims next tick
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) {
+        // arrived: claim a free socket right away — none free → a small shrug (RUN10 P2)
+        const deco = g.deco; const claimed = tryClaimActivity(a, deco);
+        endGoal(a);
+        if (!claimed) shrugAndEndGoal(a);
+      }
       else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
       return;
     }

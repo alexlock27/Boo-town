@@ -110,21 +110,25 @@ console.log('== seesaw (two Boos) ==');
   assert(distinct(plank) >= 4, `the plank itself tilts (${distinct(plank)} distinct)`);
   await ctx.close();
 }
-console.log('== seesaw needs two ==');
+console.log('== a lone Boo sits on the seesaw but does not pivot (needs two to swing) ==');
 {
+  // RUN10 P2: sockets claim independently now (a lone rider just sits, per data/sockets.js
+  // — was "only start when both seats can fill"), so this seat itself IS claimed; only the
+  // PIVOT motion is gated on both sockets being seated.
   const { ctx, page } = await openTown([
     { zone: 'meadow', x: 0.5, item: 'deco_seesaw' },
     { zone: 'meadow', x: 0.45, item: 'boo_inky' }
   ]);
   await sleep(1200);
-  // Assert the seesaw ROLE directly (needs two): its old Y-motion heuristic now
-  // collides with RUN6 C1 free-wander behaviours (a lone Boo may chase/hop).
-  const seesawing = await page.evaluate(() => {
+  const seated = await page.evaluate(() => {
     const L = window.__townLife; if (!L) return false;
     for (let i = 0; i < L.actorCount(); i++) if (L.goalOf(i) === 'role:seesaw') return true;
     return false;
   });
-  assert(!seesawing, 'one lone Boo never seesaws (needs two nearby)');
+  assert(seated, 'the lone Boo claims the seesaw seat (RUN10 P2 sockets)');
+  const frames = [];
+  for (let k = 0; k < 6; k++) { frames.push(await page.evaluate(() => { const s = document.querySelector('.t-item.boo svg'); return s ? s.style.transform : ''; })); await sleep(300); }
+  assert(new Set(frames).size === 1, `but it never pivots alone (${new Set(frames).size}/6 distinct frames)`);
   await ctx.close();
 }
 console.log('== picnic (two Boos nibble) ==');

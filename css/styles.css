@@ -1152,6 +1152,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
    the (non-scrolling, viewport-height) screen; the tray floats UP over content when open,
    so the screen always fits without scrolling and the collapsed handle is always reachable. */
 .boo-drawer { position: relative; margin-top: auto; width: 100%; max-width: 720px; margin-inline: auto; z-index: 40; flex: none; }
+/* RUN10 P2: the town drawer's open tray must always paint above the placed world — a
+   Boo/deco's own z-index (town.js rowGroundPx, up to ~2000) would otherwise cover it,
+   the shared .boo-drawer z-index (40) being tuned for Paint/Collage's flat canvases. */
+.town-drawer.open { z-index: 5000; }
 /* the screens that host a drawer become fit-to-viewport flex columns (canvas shrinks) */
 .paint-screen, .collage-screen { overflow: hidden; }
 .paint-stage, .collage-stage { flex: 1 1 auto; min-height: 0; align-items: center; }
@@ -1200,6 +1204,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   min-height: 44px; font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 15px; }
 .bd-tab.sel { background: var(--star); }
 .bd-body { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+/* RUN10 P2: a panel whose content is WIDER than the tray (e.g. town.js's 10-Boo strip)
+   must fill the tray's own width so ITS OWN internal overflow-x:auto scrolls correctly —
+   without this, align-items:center on .bd-body centers the (now oversized) panel itself,
+   pushing its content half off-screen to the left instead of scrolling in place. */
+.bd-panel { width: 100%; min-width: 0; }
 .bd-sub-label { color: var(--sky-mid); font-family: var(--font-display); font-weight: 700; font-size: 13px; text-align: center; margin-top: 2px; }
 .bd-tools-tab { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 @media (prefers-reduced-motion: reduce) {
@@ -1757,6 +1766,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   flex: 1; position: relative; overflow: hidden; margin: 0 8px; border-radius: 22px;
   background: linear-gradient(180deg, var(--sky-deep) 0%, var(--sky-mid) 100%);
   box-shadow: inset 0 6px 18px rgba(0,0,0,0.22); touch-action: pan-y; cursor: grab; user-select: none;
+  /* RUN10 P2: an explicit (low) z-index gives the viewport its own real stacking context,
+     so its children's inline z-index (up to ~2000, row-based) stays SCOPED here instead of
+     comparing directly against siblings like the drawer (which needs to paint above it). */
+  z-index: 1;
 }
 .t-viewport:active { cursor: grabbing; }
 .t-layer { position: absolute; top: 0; left: 0; height: 100%; will-change: transform; }
@@ -1778,6 +1791,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-band.locked { filter: grayscale(0.85) brightness(0.55); }
 .t-band.shake { animation: bandshake 0.4s ease; }
 @keyframes bandshake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+/* RUN10 P2: activity-socket arrival settle (180ms drop + squash) + the no-free-socket shrug.
+   Both play on the OUTER .t-item wrap so they compose with the child svg's own per-frame
+   role/wander transform instead of fighting it. */
+.t-item.role-settle { animation: roleSettle 180ms ease; }
+@keyframes roleSettle { 0% { transform: translateY(-20px) scaleY(0.86); } 100% { transform: translateY(0) scaleY(1); } }
+.t-item.t-shrug { animation: tShrug 300ms ease; }
+@keyframes tShrug { 0%,100% { transform: rotate(0deg) scale(1,1); } 30% { transform: rotate(-6deg) scale(0.97,1.03); } 70% { transform: rotate(6deg) scale(0.97,1.03); } }
+@media (prefers-reduced-motion: reduce) { .t-item.role-settle, .t-item.t-shrug { animation: none; } }
 
 .t-signpost { position: absolute; z-index: 4; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; }
 .t-sign-name { font-family: var(--font-display); font-weight: 700; color: var(--card); font-size: 18px; text-shadow: 0 2px 0 rgba(0,0,0,0.3); }
@@ -2042,18 +2064,37 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .bq-reward { display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .bq-plank.wobble, .bq-grump.huff .bq-grump-rain, .bq-grump.cheered .bq-grump-cloud, .bq-grump.floataway, .bq-opt.wrong { animation: none; } }
 
-.town-drawer { display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px 14px; min-height: 92px; align-items: center; }
-/* "this spot's taken" wobble on a collision (RUN5 C3) */
+/* RUN10 P2: .town-drawer is now the js/drawer.js createDrawer ROOT (tabs Boos | Rides
+   & fun | Decorations | Special); the scrollable chip row lives in .town-drawer-strip,
+   one per tab panel. The "spot's taken" / "area's full" wobble still shakes the root. */
 .town-drawer.taken { animation: drawerShake 0.5s ease; }
 @keyframes drawerShake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) { .town-drawer.taken { animation: none; } }
+.town-drawer-strip {
+  display: flex; gap: 10px; overflow-x: auto; padding: 6px 24px; min-height: 92px; align-items: center;
+  width: 100%; touch-action: pan-x; cursor: grab; scrollbar-width: none;
+  /* 24px edge fade (RUN10 P2) */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+.town-drawer-strip::-webkit-scrollbar { display: none; }
+.town-drawer-strip:active { cursor: grabbing; }
 .drawer-item { position: relative; border: 3px solid var(--ink); background: var(--card); border-radius: 16px; padding: 4px; cursor: pointer; flex-shrink: 0; touch-action: none; }
 .drawer-item.holding { border-color: var(--star); box-shadow: 0 0 12px rgba(255,201,60,0.6); }
 .drawer-art { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
 .drawer-badge { position: absolute; top: -6px; right: -6px; background: var(--pop); color: #fff; font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
 .drawer-empty { color: rgba(255,255,255,0.75); font-size: 16px; padding: 0 10px; }
-.drag-ghost { position: fixed; transform: translate(-50%,-50%); pointer-events: none; z-index: 9500; width: 80px; height: 80px; }
+.drag-ghost { position: fixed; transform: translate(-50%,-50%); pointer-events: none; z-index: 9500; width: 80px; height: 80px; transition: filter 0.1s ease; }
 .drag-ghost svg { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
+/* illegal-drop preview (RUN10 P2): a red tint on the dragged ghost/item + a ghost ring at
+   the nearest legal spot */
+.drag-ghost.invalid-drop, .t-item.dragging.invalid-drop { filter: drop-shadow(0 0 0 2px #E8636F) saturate(1.4) hue-rotate(-10deg) brightness(0.95); }
+.drop-ghost {
+  position: absolute; width: 64px; height: 64px; margin-left: -32px; margin-top: -64px;
+  border: 3px dashed #35D0BA; border-radius: 50%; opacity: 0; pointer-events: none; z-index: 5;
+  transition: opacity 0.15s ease; background: rgba(53,208,186,0.15);
+}
+.drop-ghost.show { opacity: 1; }
 
 /* ---- box ceremony (the signature moment) ---- */
 .ceremony { align-items: center; justify-content: center; padding: 20px; }
@@ -2593,7 +2634,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .result-bubble { font-size: clamp(15px, 4.2vw, 18px); }
 
   /* the town drawer shrinks (kit stays tappable) */
-  .town-drawer { min-height: 76px; padding: 8px 10px 10px; gap: 8px; }
+  .town-drawer-strip { min-height: 76px; padding: 6px 18px; gap: 8px; }
   .drawer-art { width: 50px; height: 50px; }
   .drawer-art svg { width: 50px; height: 50px; }
   .town-header h2 { font-size: 22px; }

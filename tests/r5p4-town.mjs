@@ -37,6 +37,13 @@ async function openTown(save, { area = 'meadow', reduced = false } = {}) {
   await sleep(400);
   return { ctx, page };
 }
+// RUN10 P2: the drawer is now js/drawer.js tabs — open it, then a native click (bypasses
+// page.click's screen-position actionability, which can flake on the tray's open transition).
+async function selectFirstDrawerItem(page) {
+  await page.click('.town-drawer .bd-collapsed');
+  await sleep(400);
+  await page.$eval('.bd-panel:not([hidden]) .drawer-item', (el) => el.click());
+}
 
 // ==================== 1. an area measures AREA_W_VIEWPORTS (4) ====================
 console.log('== 4-viewport area (RUN10 P1) ==');
@@ -80,7 +87,7 @@ console.log('== spacing rule ==');
   const itemC = await page.$eval('.t-item.boo', n => { const r = n.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; });
   // enter place mode with a drawer item, then tap empty ground JUST beside it (within
   // the min-spacing radius, but not on the Boo itself, which the ground ignores)
-  await page.click('.drawer-item');
+  await selectFirstDrawerItem(page);
   await page.mouse.click(itemC.cx + 62, itemC.cy);
   await sleep(200);
   const wobbled = await page.evaluate(() => document.querySelector('.town-drawer').classList.contains('taken'));
@@ -162,11 +169,11 @@ console.log('== place into back + front rows ==');
   const { ctx, page } = await openTown(SAVE());
   const vp = await page.$('.t-viewport'); const box = await vp.boundingBox();
   // place into the BACK row (high on the band)
-  await page.click('.drawer-item');
+  await selectFirstDrawerItem(page);
   await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.67);
   await sleep(300);
   // place a second into the FRONT row (low on the band)
-  await page.click('.drawer-item');
+  await selectFirstDrawerItem(page);
   await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.91);
   await sleep(300);
   const rows = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items.map(t => t.row));

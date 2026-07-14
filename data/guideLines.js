@@ -117,5 +117,8 @@ export const LINES = {
 
   // ---- Run 10 P1 additions (Town 4.0: the world map) ----
   L_MAP_LOCKED: ["Not far now — {n} more stars!"],
-  L_PLAYGROUND_NEW: ["A new place to play!"]
+  L_PLAYGROUND_NEW: ["A new place to play!"],
+
+  // ---- Run 10 P2 additions (Town 4.0: sockets, capacity, the drawer) ----
+  L_AREA_FULL: ["This spot's bursting! Try another area?"]
 };

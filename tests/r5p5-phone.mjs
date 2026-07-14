@@ -44,7 +44,9 @@ const SCREENS = [
   ['grownups',   (p) => p.evaluate(() => window.BooTown.go('grownups')),   '.grownups',     '.gu-switch:last-of-type'],
   ['editguide',  (p) => p.evaluate(() => window.BooTown.go('editguide')),  '.creator',      '.creator-btns .btn:last-of-type'],
   ['collection', (p) => p.evaluate(() => window.BooTown.go('collection')), '.coll-grid',    '.coll-grid:not(.wardrobe-grid) .coll-tile:last-of-type'],
-  ['town',       (p) => p.evaluate(() => window.BooTown.go('town')),       '.town2',        '.town-drawer .drawer-item, .town-drawer'],
+  // RUN10 P2: the drawer is a js/drawer.js tray, collapsed by default — its always-visible
+  // reachable control is the collapsed handle, not a chip inside the (currently closed) tray.
+  ['town',       (p) => p.evaluate(() => window.BooTown.go('town')),       '.town2',        '.town-drawer .bd-collapsed'],
   ['golden',     (p) => p.evaluate(() => window.BooTown.go('golden')),     '.screen, .golden', 'button:last-of-type'],
   ['bubblepop',  (p) => p.evaluate(() => window.BooTown.go('bubblepop')),  '.picker',       '.star-rule'],
   ['feedboos',   (p) => p.evaluate(() => window.BooTown.go('feedboos')),   '.picker',       '.star-rule'],
