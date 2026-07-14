@@ -3,6 +3,7 @@
 // The scene is authored as inline SVG so it rasterises to PNG cleanly (no tainted canvas).
 
 import { el, clear, backControl } from './ui.js';
+import { createDrawer } from './drawer.js';
 import { getState } from './state.js';
 import { sfx, music } from './sfx.js';
 import { renderItem, renderGuide } from './art.js';
@@ -32,12 +33,14 @@ const buntingSVG = `<g><path d="M5 20 Q45 34 85 20" stroke="#8A5A44" stroke-widt
 const partyHatSVG = `<g><path d="M45 12 L68 68 L22 68 Z" fill="#FF7AC6" stroke="#2A1B4E" stroke-width="3"/><circle cx="45" cy="12" r="7" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.4"/><path d="M28 52 q17 10 34 0" stroke="#FFC93C" stroke-width="4" fill="none"/></g>`;
 const beachBallSVG = `<g><circle cx="45" cy="45" r="32" fill="#fff" stroke="#2A1B4E" stroke-width="3"/><path d="M45 13 A32 32 0 0 1 45 77 A50 50 0 0 0 45 13" fill="#FF7AC6"/><path d="M45 13 A32 32 0 0 0 45 77 A50 50 0 0 1 45 13" fill="#35D0BA"/><circle cx="45" cy="45" r="32" fill="none" stroke="#2A1B4E" stroke-width="3"/></g>`;
 const glitterSVG = `<g fill="#FFC93C" stroke="#2A1B4E" stroke-width="1.4">${[[45,20,10],[22,48,7],[66,52,8],[38,66,5],[60,26,5]].map(([x,y,r]) => `<path d="M${x} ${y - r} L${x + r * 0.3} ${y - r * 0.3} L${x + r} ${y} L${x + r * 0.3} ${y + r * 0.3} L${x} ${y + r} L${x - r * 0.3} ${y + r * 0.3} L${x - r} ${y} L${x - r * 0.3} ${y - r * 0.3} Z"/>`).join('')}</g>`;
+// RUN9 C1: the drawer's prop tabs are exactly Party | Seaside | Nature | Sparkle (matching
+// the shared-drawer spec). The old "Favourites" catch-all drawer is folded into these four
+// by theme so nothing is lost — every one of its 12 stickers still lives here.
 const PROP_DRAWERS = [
-  { name: 'Party',    props: ['🎈', { svg: buntingSVG }, '🎂', '🎁', { svg: partyHatSVG }, '🎉'] },
-  { name: 'Seaside',  props: ['🏰', '🪣', '🐚', '🦀', '🍦', { svg: beachBallSVG }] },
-  { name: 'Nature',   props: ['🌸', '🍄', '🦋', '🌈', '☁️', '🐞'] },
-  { name: 'Sparkle',  props: ['⭐', '💖', { svg: glitterSVG }, '👑', '💎', '🌙'] },
-  { name: 'Favourites', props: ['🌟', '🍰', '🎀', '☀️', '🌳', '💜', '🌼', '🎵', '🍓', '🧁', '🪁', '🫧'] }
+  { name: 'Party',    props: ['🎈', { svg: buntingSVG }, '🎂', '🎁', { svg: partyHatSVG }, '🎉', '🎀', '🎵', '🧁'] },
+  { name: 'Seaside',  props: ['🏰', '🪣', '🐚', '🦀', '🍦', { svg: beachBallSVG }, '🫧'] },
+  { name: 'Nature',   props: ['🌸', '🍄', '🦋', '🌈', '☁️', '🐞', '🌳', '🌼', '🍓', '☀️', '🪁'] },
+  { name: 'Sparkle',  props: ['⭐', '💖', { svg: glitterSVG }, '👑', '💎', '🌙', '🌟', '💜', '🍰'] }
 ];
 
 // Sticker letters (RUN5 C6): chunky A–Z in four colours for spelling onto collages.
@@ -136,7 +139,7 @@ export function mount(container, params, ctx) {
   }
   renderHandles();
 
-  // ---- palettes ----
+  // ---- palette content nodes (RUN9 C1: each becomes a drawer tab) ----
   const bgRow = el('div', { class: 'collage-bgs' });
   BACKGROUNDS.forEach(b => bgRow.appendChild(el('button', { class: 'collage-bg' + (b === bg ? ' sel' : ''), text: b.name, onclick: () => { bg = b; sfx.tap(); [...bgRow.children].forEach(x => x.classList.remove('sel')); bgRow.children[BACKGROUNDS.indexOf(b)].classList.add('sel'); drawBg(); } })));
 
@@ -150,28 +153,19 @@ export function mount(container, params, ctx) {
   if (!ownedBoos.length) booRow.appendChild(el('span', { class: 'collage-hint', text: 'Win some Boos to add them here!' }));
   ownedBoos.forEach(item => { const btn = el('button', { class: 'collage-pick', html: renderItem(item, { size: 44, equipArt: item.kind === 'boo' && !item.custom ? equippedArt(item.id) : null }), 'aria-label': 'add Boo', onclick: () => { sfx.tap(); addSticker(renderItem(item, { size: 90, equipArt: item.kind === 'boo' && !item.custom ? equippedArt(item.id) : null }), 90); } }); booRow.appendChild(btn); });
 
-  // ---- themed prop drawers (RUN5 C6): tabs above one sticker row ----
-  let drawerIdx = 0;
-  const drawerTabs = el('div', { class: 'collage-drawer-tabs' });
-  const propRow = el('div', { class: 'collage-stickers' });
-  function renderDrawerTabs() {
-    clear(drawerTabs);
-    PROP_DRAWERS.forEach((d, i) => drawerTabs.appendChild(el('button', {
-      class: 'collage-bg drawer-tab' + (i === drawerIdx ? ' sel' : ''), text: d.name,
-      onclick: () => { drawerIdx = i; sfx.tap(); renderDrawerTabs(); renderProps(); }
-    })));
-  }
-  function renderProps() {
-    clear(propRow);
-    for (const p of PROP_DRAWERS[drawerIdx].props) {
+  // one prop row per theme (RUN9 C1: each theme is its own drawer tab now)
+  function buildPropRow(drawer) {
+    const row = el('div', { class: 'collage-stickers' });
+    for (const p of drawer.props) {
       if (typeof p === 'string') {
-        propRow.appendChild(el('button', { class: 'collage-pick emoji', text: p, onclick: () => { sfx.tap(); addSticker(`<text font-size="60" text-anchor="middle" x="45" y="60">${p}</text>`, 90); } }));
+        row.appendChild(el('button', { class: 'collage-pick emoji', text: p, onclick: () => { sfx.tap(); addSticker(`<text font-size="60" text-anchor="middle" x="45" y="60">${p}</text>`, 90); } }));
       } else {
-        propRow.appendChild(el('button', { class: 'collage-pick', html: `<svg viewBox="0 0 90 90" width="44" height="44">${p.svg}</svg>`, 'aria-label': 'add prop', onclick: () => { sfx.tap(); addSticker(p.svg, 90); } }));
+        row.appendChild(el('button', { class: 'collage-pick', html: `<svg viewBox="0 0 90 90" width="44" height="44">${p.svg}</svg>`, 'aria-label': 'add prop', onclick: () => { sfx.tap(); addSticker(p.svg, 90); } }));
       }
     }
+    return row;
   }
-  renderDrawerTabs(); renderProps();
+  const propRows = PROP_DRAWERS.map(buildPropRow);
 
   // ---- sticker letters (RUN5 C6): chunky A–Z in four colours ----
   let letterColour = LETTER_COLOURS[0];
@@ -189,6 +183,7 @@ export function mount(container, params, ctx) {
       addSticker(`<text font-family="Fredoka, sans-serif" font-weight="700" font-size="64" fill="${letterColour}" stroke="#2A1B4E" stroke-width="2.4" paint-order="stroke" text-anchor="middle" x="45" y="66">${ch}</text>`, 90);
     } }));
   }
+  const lettersContent = el('div', { class: 'collage-letters-tab' }, [el('div', { class: 'bd-sub-label', text: 'Letter colour' }), letterColours, letterRow]);
 
   const textBtn = el('button', { class: 'btn soft', text: '🔤 Add text', onclick: () => addText() });
   function addText() {
@@ -197,6 +192,9 @@ export function mount(container, params, ctx) {
     const col = TEXT_COLOURS[(Math.random() * TEXT_COLOURS.length) | 0];
     addSticker(`<text font-family="Fredoka, sans-serif" font-weight="700" font-size="40" fill="${col}" stroke="#2A1B4E" stroke-width="1" text-anchor="middle" x="60" y="50">${escapeXml(t.slice(0, 18))}</text>`, 120);
   }
+  const textContent = el('div', { class: 'collage-text-tab' }, [
+    el('span', { class: 'collage-hint', text: 'Type your own words onto the picture.' }), textBtn
+  ]);
 
   const saveBtn = el('button', { class: 'btn', text: '💾 Save to gallery', onclick: () => doSave() });
   const saveMsg = el('span', { class: 'gu-msg' });
@@ -222,16 +220,31 @@ export function mount(container, params, ctx) {
   }
   function svgToFallback() { const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d'); cx.fillStyle = bg.sky[0]; cx.fillRect(0, 0, W, H); return c.toDataURL('image/png'); }
 
+  // ---- the shared bottom drawer (RUN9 C1): Boos | Party | Seaside | Nature | Sparkle | Letters | Backgrounds | Text ----
+  const TAB_ICON = { boos: '🐾', Party: '🎈', Seaside: '🏖️', Nature: '🌿', Sparkle: '✨', letters: '🔤', backgrounds: '🖼️', text: '💬' };
+  const TAB_LABEL = { boos: 'Boos', letters: 'Letters', backgrounds: 'Backgrounds', text: 'Text' };
+  const drawerTabsSpec = [
+    { id: 'boos', label: 'Boos', node: booRow },
+    ...PROP_DRAWERS.map((d, i) => ({ id: d.name, label: d.name, node: propRows[i] })),
+    { id: 'letters', label: 'Letters', node: lettersContent },
+    { id: 'backgrounds', label: 'Backgrounds', node: bgRow },
+    { id: 'text', label: 'Text', node: textContent }
+  ];
+  const drawer = createDrawer({
+    ariaLabel: 'Stickers', initial: 0, tabs: drawerTabsSpec,
+    onTab: (id) => updateCurrent(id)
+  });
+  function updateCurrent(id) {
+    const label = TAB_LABEL[id] || id;
+    drawer.setCurrent(`<span class="bd-cur-ic">${TAB_ICON[id] || '🎨'}</span><span class="bd-cur-label">${label}</span>`);
+  }
+  updateCurrent('boos');
+
   root.append(header,
     el('div', { class: 'collage-stage' }, [svg]),
     handles,
-    el('div', { class: 'collage-palette' }, [
-      el('div', { class: 'cp-label', text: 'Background' }), bgRow,
-      el('div', { class: 'cp-label', text: 'Your Boos' }), booRow,
-      el('div', { class: 'cp-label', text: 'Props' }), drawerTabs, propRow,
-      el('div', { class: 'cp-label', text: 'Letters' }), letterColours, letterRow,
-      el('div', { class: 'collage-actions' }, [textBtn, saveBtn, saveMsg])
-    ]));
+    el('div', { class: 'collage-actions' }, [saveBtn, saveMsg]),
+    drawer.root);
   container.appendChild(root);
 
   if (typeof window !== 'undefined') window.__collage = {
@@ -239,10 +252,13 @@ export function mount(container, params, ctx) {
     count: () => stickers.length, save: doSave,
     // RUN5 C6 QA hooks
     drawers: () => PROP_DRAWERS.map(d => ({ name: d.name, n: d.props.length })),
-    setDrawer: (i) => { drawerIdx = i; renderDrawerTabs(); renderProps(); },
+    setDrawer: (i) => { drawer.showTab(PROP_DRAWERS[i].name); },
     backgrounds: () => BACKGROUNDS.map(b => b.id),
     selected: () => selected ? { x: selected.x, y: selected.y, scale: selected.scale, rot: selected.rot, w: selected.w, inner: selected.g.innerHTML.slice(0, 400) } : null,
-    selectLast: () => { if (stickers.length) select(stickers[stickers.length - 1]); }
+    selectLast: () => { if (stickers.length) select(stickers[stickers.length - 1]); },
+    // RUN9 C1 drawer hooks
+    drawer: { open: drawer.open, close: drawer.close, toggle: drawer.toggle, showTab: drawer.showTab, isOpen: drawer.isOpen, activeTab: drawer.activeTab },
+    tabs: () => drawerTabsSpec.map(t => t.label)
   };
   return { unmount() {} };
 }

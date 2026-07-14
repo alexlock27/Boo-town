@@ -37,34 +37,39 @@ console.log('== collage drawers ==');
   const { ctx, page } = await fresh(SAVE());
   await page.evaluate(() => window.BooTown.go('collage'));
   await page.waitForSelector('.collage-svg');
+  await page.evaluate(() => window.__collage.drawer.open());   // RUN9 C1: content lives in the shared drawer now
   const drawers = await page.evaluate(() => window.__collage.drawers());
   const names = drawers.map(d => d.name);
   for (const want of ['Party', 'Seaside', 'Nature', 'Sparkle']) assert(names.includes(want), `the ${want} drawer is present`);
-  const themed = drawers.filter(d => ['Party', 'Seaside', 'Nature', 'Sparkle'].includes(d.name));
-  assert(themed.every(d => d.n === 6), `each themed drawer holds 6 props (${themed.map(d => d.n).join(',')})`);
   const total = drawers.reduce((a, d) => a + d.n, 0);
-  assert(total >= 34 && total <= 38, `props grew to about 36 (${total})`);
-  const tabs = await page.$$eval('.collage-drawer-tabs .drawer-tab', ns => ns.map(n => n.textContent));
-  assert(tabs.length === drawers.length, 'drawer tabs render');
-  // switching drawers swaps the visible props
-  await page.evaluate(() => window.__collage.setDrawer(1));
-  const seasideProps = await page.$$eval('.collage-stickers:not(.letters) .collage-pick', ns => ns.map(n => n.textContent).join(''));
-  assert(/🦀|🐚|🪣/.test(seasideProps), 'the Seaside drawer shows its contents');
+  assert(total >= 34 && total <= 38, `props still ~36 after folding in Favourites (${total})`);
+  // RUN9 C1: the shared drawer shows exactly the 8 specced tabs
+  const tabs = await page.evaluate(() => window.__collage.tabs());
+  assert(tabs.join('|') === 'Boos|Party|Seaside|Nature|Sparkle|Letters|Backgrounds|Text', `the 8 specced drawer tabs (${tabs.join('|')})`);
+  // switching tabs swaps the visible props (only the active panel is shown)
+  await page.evaluate(() => window.__collage.setDrawer(1));   // Seaside
+  await sleep(60);
+  const seasideProps = await page.$$eval('.bd-panel:not([hidden]) .collage-pick', ns => ns.map(n => n.textContent).join(''));
+  assert(/🦀|🐚|🪣/.test(seasideProps), 'the Seaside tab shows its contents');
 
   // backgrounds gained bedroom / space / under-the-sea / white
   const bgs = await page.evaluate(() => window.__collage.backgrounds());
   for (const b of ['bedroom', 'space', 'undersea', 'white']) assert(bgs.includes(b), `background "${b}" present`);
 
   console.log('== sticker letters ==');
-  // pick the 2nd letter colour, add the letter B
-  await page.click('.collage-letter-colours .letter-colour:nth-child(2)');
-  await page.click('.collage-stickers.letters .collage-pick.letter:nth-child(2)');
+  await page.evaluate(() => window.__collage.drawer.showTab('letters'));
+  await sleep(60);
+  // pick the 2nd letter colour, add the letter B (both in the visible Letters panel)
+  await page.click('.bd-panel:not([hidden]) .collage-letter-colours .letter-colour:nth-child(2)');
+  await page.click('.bd-panel:not([hidden]) .collage-pick.letter:nth-child(2)');
   await sleep(120);
   let sel = await page.evaluate(() => window.__collage.selected());
   assert(sel && />B</.test(sel.inner), 'letter B placed as a sticker');
   assert(sel.inner.includes('#35D0BA'), 'the letter wears the chosen colour');
 
   console.log('== duplicate + resize + guide sticker ==');
+  await page.evaluate(() => window.__collage.drawer.close());   // the sticker handles live above the drawer; close it to adjust a placed sticker
+  await sleep(60);
   const before = await page.evaluate(() => window.__collage.count());
   await page.click('.collage-handles .ch-btn:has-text("Copy")');
   await sleep(120);
@@ -78,9 +83,11 @@ console.log('== collage drawers ==');
   await page.click('.collage-handles .ch-btn:has-text("Turn")');
   const s2 = await page.evaluate(() => window.__collage.selected());
   assert(s2.rot !== s1.rot, 'rotate works');
-  // the guide is the FIRST sticker chip in the Boo row
+  // the guide is the FIRST sticker chip in the Boo row (Boos tab)
+  await page.evaluate(() => { window.__collage.drawer.showTab('boos'); window.__collage.drawer.open(); });
+  await sleep(60);
   const nBefore = await page.evaluate(() => window.__collage.count());
-  await page.click('.collage-stickers:not(.letters) .collage-pick');   // first pick = wrong row? target boo row explicitly:
+  await page.click('.bd-panel:not([hidden]) .collage-pick');   // first pick in the Boos panel = guide
   await sleep(60);
   const guideAdd = await page.evaluate(() => window.__collage.count());
   assert(guideAdd === nBefore + 1, 'her own character places as a sticker (first chip in the Boo row)');

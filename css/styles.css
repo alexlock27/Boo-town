@@ -1054,7 +1054,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .paint-templates { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; flex: none; padding-bottom: 4px; }
 .paint-templates::-webkit-scrollbar { height: 5px; }
 .paint-templates .paint-tmpl { flex: none; }
-.paint-actions { flex: none; }
+.paint-actions, .collage-handles, .collage-actions { flex: none; }
+.collage-letters-tab, .collage-text-tab { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .bd-collapsed { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px;
   background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-bottom: none;
   border-radius: 22px 22px 0 0; padding: 10px 18px; box-shadow: 0 -4px 14px rgba(42,27,78,0.18);
