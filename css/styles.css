@@ -1056,6 +1056,19 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .paint-templates .paint-tmpl { flex: none; }
 .paint-actions, .collage-handles, .collage-actions { flex: none; }
 .collage-letters-tab, .collage-text-tab { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+/* Boo Beat: collapsible tune+steady reveal (RUN9 C1) */
+.tune-toggle { display: inline-flex; align-items: center; gap: 10px; margin: 4px auto; }
+.tune-toggle .tt-arrow { font-size: 13px; }
+.tune-reveal { display: none; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+.tune-reveal[data-open="true"] { display: flex; }
+/* Opt-in horizontal category strip on the busiest picker (RUN9 C1) */
+.picker-choices.scroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; padding-bottom: 6px; }
+.picker-choices.scroll .picker-choice { flex: 0 0 auto; scroll-snap-align: start; }
+.picker-choices.scroll::-webkit-scrollbar { height: 5px; }
+/* Chip-row category strip (RUN9 C1): Boo Beat's practise categories */
+.chip-row.scroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; padding-bottom: 6px; max-width: 340px; margin-inline: auto; }
+.chip-row.scroll .acc-chip { flex: 0 0 auto; }
+.chip-row.scroll::-webkit-scrollbar { height: 5px; }
 .bd-collapsed { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px;
   background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-bottom: none;
   border-radius: 22px 22px 0 0; padding: 10px 18px; box-shadow: 0 -4px 14px rgba(42,27,78,0.18);

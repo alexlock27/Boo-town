@@ -50,7 +50,7 @@ export function pickForMeButton(onTap) {
 // buildPicker({ game, choices:[{key,name,sub?,group?}], levelsFor(key)->[...],
 //   levelName(l)->str, onStart(key,level), smartMix=true, groupOrder:[label,...] })
 // Returns { node } — a two-step picker with best-star badges and a remembered default.
-export function buildPicker({ game, choices, levelsFor, levelName = (l) => 'Level ' + l, onStart, smartMix = true, groupOrder = [] }) {
+export function buildPicker({ game, choices, levelsFor, levelName = (l) => 'Level ' + l, onStart, smartMix = true, groupOrder = [], scrollChoices = false }) {
   const last = lastPick(game);
   // The default selection is always a real category (Pick for me is a one-tap
   // door, never a selection), so a first-time tap on a level plays a normal round.
@@ -58,7 +58,10 @@ export function buildPicker({ game, choices, levelsFor, levelName = (l) => 'Leve
   let choice = (last && last.choice !== MIX_KEY && choices.some(c => c.key === last.choice)) ? last.choice : firstReal.key;
 
   const wrap = el('div', { class: 'picker' });
-  const choiceRow = el('div', { class: 'picker-choices' });
+  // RUN9 C1 (opt-in): a horizontal scroll strip keeps only a few categories on screen
+  // at once (the 8-primary-buttons rule) while every choice stays one scroll + one tap
+  // away. Nothing is removed. Used on the busiest maths picker (Bubble Pop).
+  const choiceRow = el('div', { class: 'picker-choices' + (scrollChoices ? ' scroll' : '') });
   const levelWrap = el('div', { class: 'picker-levels' });
 
   if (smartMix) {

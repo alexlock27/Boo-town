@@ -68,7 +68,7 @@ export function mount(container, params, ctx) {
       const b = el('button', { class: 'acc-chip' + (track === k ? ' sel' : ''), text: TRACKS[k].name, onclick: () => { track = k; sfx.tap(); trackRow.querySelectorAll('.acc-chip').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } });
       trackRow.appendChild(b);
     });
-    const catRow = el('div', { class: 'chip-row center' });
+    const catRow = el('div', { class: 'chip-row center scroll' });   // RUN9 C1: category strip keeps ≤8 primary buttons on screen
     filterArcadeCategories(BLOCK_CATEGORIES).forEach(c => {
       const b = el('button', { class: 'acc-chip' + (category === c.key ? ' sel' : ''), text: c.name, onclick: () => { category = c.key; sfx.tap(); catRow.querySelectorAll('.acc-chip').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } });
       catRow.appendChild(b);
@@ -79,7 +79,26 @@ export function mount(container, params, ctx) {
     for (const lv of [1, 2, 3]) levels.appendChild(el('button', { class: 'btn level-btn', style: { '--accent': 'var(--star)' }, onclick: () => { sfx.tap(); play(category, lv, steady, track); } }, [el('span', { class: 'lv-num', text: 'Level ' + lv })]));
     // one-tap Smart-Mix front door (RUN4 C2), same control as the shared pickers
     const pfmRow = el('div', { class: 'picker-choices' }, [pickForMeButton(() => play(AUTO, 2, steady, track))]);
-    card.append(pfmRow, el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a tune' }), trackRow, el('div', { class: 'steady-wrap' }, [steadyBtn]), el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
+    // RUN9 C1 tidy sweep: the tune + steady choice (rarely changed) tucks into a
+    // collapsible reveal so the card leads with just practise + level (matching the
+    // other arcade cards) and stays under the 8-primary-buttons rule. Everything is
+    // still reachable in two taps (open reveal → tap), and nothing is removed.
+    const tuneReveal = el('div', { class: 'tune-reveal', dataset: { open: 'false' } }, [
+      el('p', { class: 'sc-q', text: 'Pick a tune' }), trackRow, el('div', { class: 'steady-wrap' }, [steadyBtn])
+    ]);
+    const tuneToggle = el('button', { class: 'btn soft tune-toggle', onclick: () => {
+      const open = tuneReveal.dataset.open === 'true';
+      tuneReveal.dataset.open = open ? 'false' : 'true';
+      tuneToggle.querySelector('.tt-arrow').textContent = open ? '▸' : '▾';
+      sfx.tap();
+    } });
+    const tuneLabel = () => `🎵 Tune: ${TRACKS[track].name}${steady ? ' · 🐢 Steady' : ''}`;
+    const refreshTune = () => { tuneToggle.querySelector('.tt-lbl').textContent = tuneLabel(); };
+    tuneToggle.append(el('span', { class: 'tt-lbl', text: tuneLabel() }), el('span', { class: 'tt-arrow', text: '▸' }));
+    // keep the toggle label current as she changes track/steady inside the reveal
+    trackRow.addEventListener('click', refreshTune);
+    steadyBtn.addEventListener('click', refreshTune);
+    card.append(pfmRow, el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, tuneToggle, tuneReveal, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [el('div', { html: starsRow(3, { size: 24 }) }), el('p', { text: 'Three stars: 8+ right with 5+ perfect taps.' })]));
     root.appendChild(card);
     root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)

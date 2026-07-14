@@ -66,7 +66,8 @@ export function mount(container, params, ctx) {
       choices: filterCategories(DASH_CATS.map(k => ({ key: k, name: BUBBLE_BY_KEY[k].name, sub: BUBBLE_BY_KEY[k].sample }))),
       levelsFor: (key) => filterLevels(BUBBLE_BY_KEY[key].levels),
       levelName: LEVEL_NAME,
-      onStart: (catKey, level) => play(catKey, level, steady)
+      onStart: (catKey, level) => play(catKey, level, steady),
+      scrollChoices: true   // RUN9 C1 tidy sweep: category strip keeps ≤8 primary buttons on screen
     });
     card.appendChild(picker.node);
     // steady mode is an explicit opt-in (never the default)

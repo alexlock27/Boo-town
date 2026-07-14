@@ -52,7 +52,8 @@ export function mount(container, params, ctx) {
       choices: filterCategories(BUBBLE_CATEGORIES).map(c => ({ key: c.key, name: c.name, sub: c.sample })),
       levelsFor: (key) => filterLevels(BUBBLE_BY_KEY[key].levels),
       levelName: LEVEL_NAME,
-      onStart: (catKey, level) => play(catKey, level)
+      onStart: (catKey, level) => play(catKey, level),
+      scrollChoices: true   // RUN9 C1 tidy sweep: category strip keeps ≤8 primary buttons on screen
     });
     // (Smart Mix is prepended by buildPicker; play() handles MIX_KEY.)
     card.appendChild(picker.node);
