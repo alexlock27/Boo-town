@@ -95,12 +95,12 @@ console.log('== C0.3 Boo Blocks rotation ==');
 {
   // motion ON so the quarter-turn animation is observable
   const { ctx, page } = await fresh(SAVE({ settings: { sound: false, music: false, voice: false, content: 'full' } }), { motion: true });
-  await page.evaluate(() => window.BooTown.go('blocks', { resume: { cat: 'tables', level: 1, mix: false } }));
+  await page.evaluate(() => window.BooTown.go('blocks', { resume: { mix: true } }));   // RUN9 C2: resume just starts a round
   await page.waitForSelector('.blk-board');
   await page.waitForFunction(() => window.__blocks, { timeout: 4000 });
   // rig a clearly-oriented I-tromino (1 row × 3 cols) into slot 0
   await page.evaluate(() => window.__blocks.rig(0, [[0, 0], [0, 1], [0, 2]]));
-  const before = await page.evaluate(() => window.__blocks.tray()[0]);
+  const before = await page.evaluate(() => window.__blocks.tray()[0].cells);
   const bboxOf = cells => ({ rows: Math.max(...cells.map(c => c[0])) + 1, cols: Math.max(...cells.map(c => c[1])) + 1 });
   const bb0 = bboxOf(before);
   assert(bb0.rows === 1 && bb0.cols === 3, 'rigged piece starts 1×3 (horizontal)');
@@ -109,7 +109,7 @@ console.log('== C0.3 Boo Blocks rotation ==');
   await page.waitForSelector('.blk-rotate');
   assert(true, 'the selected piece shows a rotate ↻ badge');
   await page.evaluate(() => window.__blocks.rotate());
-  const after = await page.evaluate(() => window.__blocks.tray()[0]);
+  const after = await page.evaluate(() => window.__blocks.tray()[0].cells);
   const bb1 = bboxOf(after);
   assert(bb1.rows === 3 && bb1.cols === 1, `a tap spins it 90° to 3×1 (got ${bb1.rows}×${bb1.cols})`);
   // frame evidence: the .blk-spin element is mid-rotation (transform not identity) then settles
@@ -126,11 +126,10 @@ console.log('== C0.3 Boo Blocks rotation ==');
   });
   const distinct = new Set(frames).size;
   assert(distinct >= 2, `the spin animates across frames (transform-only), ${distinct} distinct matrices over ~0.25s`);
-  // mid-round: rotate a freshly earned piece, then place it (rotation works between drags)
-  await page.evaluate(() => { const q = window.__blocks.question(); window.__blocks.answer(q.correct); });
-  await sleep(320);
-  const slot = await page.evaluate(() => window.__blocks.tray().findIndex(Boolean));
-  await page.evaluate(s => window.__blocks.rotateSlot(s), slot);
+  // mid-round: rotate a free piece, then place it (rotation works between drags)
+  await page.evaluate(() => { window.__blocks.resetForTest(); window.__blocks.rig(1, [[0, 0], [1, 0]]); });   // vertical domino
+  const slot = 1;
+  await page.evaluate(s => window.__blocks.rotateSlot(s), slot);   // → horizontal
   const placed = await page.evaluate(s => window.__blocks.place(s, 0, 0), slot);
   assert(placed === true, 'a rotated piece places successfully mid-round (rotation works between drags)');
   await ctx.close();

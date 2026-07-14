@@ -50,7 +50,7 @@ console.log('== step length rule (<12 words) ==');
   assert(over.length === 0, 'every C5 intro step is under 12 words' + (over.length ? ` (over: ${over.join(' | ')})` : ''));
   // Blocks still carries its exact C1 script
   const blocksSrc = readFileSync(join(ROOT, 'js', 'games', 'blocks.js'), 'utf8');
-  assert(blocksSrc.includes('Answer my question and you win a piece!'), "Blocks keeps its exact C1 script");
+  assert(blocksSrc.includes('Drop blocks to fill lines.') && blocksSrc.includes('Boo Boost'), "Blocks carries its RUN9 C2 score-chase + Boost intro script");
 }
 
 const browser = await chromium.launch();

@@ -63,11 +63,9 @@ for (const vp of [P, L]) {
     await p.waitForSelector('.collage-svg'); await sleep(400);
   });
   await shoot('blocks-round', vp, async (p) => {
-    await p.evaluate(() => window.BooTown.go('blocks', { resume: { cat: 'tables', level: 1, mix: false } }));
+    await p.evaluate(() => window.BooTown.go('blocks', { resume: { mix: true } }));   // RUN9 C2: resume just starts a round
     await p.waitForSelector('.blk-board'); await sleep(300);
-    // select a piece so the rotate badge shows
-    await p.evaluate(() => { const q = window.__blocks.question(); window.__blocks.answer(q.correct); });
-    await sleep(300);
+    // select a free piece so the rotate badge shows
     await p.evaluate(() => window.__blocks.select(0));
     await sleep(200);
   });

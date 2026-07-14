@@ -1,48 +1,51 @@
-// js/games/blocks.js — Boo Blocks (spec RUN2 C4).
-// A 9x9 block puzzle where learning dispenses the pieces. Answer a question to
-// dispense the next polyomino into a three-slot tray; drag pieces onto the board;
-// full rows/columns clear. Round ends after 12 placed pieces or no legal move.
+// js/games/blocks.js — Boo Blocks, the redesign (RUN9 C2).
+// A pure SCORE-CHASE block puzzle: pieces flow freely from a fair bag into a three-slot
+// tray (no question needed to receive them). Drag pieces onto an 8×8 board; fill a whole
+// line — any direction — and it POPS. Simultaneous multi-line clears multiply; back-to-back
+// clears build a cascade streak; clearing the whole board fires an all-clear firework.
+// Learning is the POWER-UP economy: the chunky Boo Boost button (3 uses/round) poses one
+// Smart-Mix question; a correct answer awards a special piece (Line Blaster → Sparkle Bomb →
+// Single Square, rotating). Stars come from score bands (tuned by self-play simulation).
 
-import { el, clear, starsRow, wobble, sparkleAt, backControl, REDUCED, suppressContextMenu } from '../ui.js';
-import { getState, recordResult } from '../state.js';
+import { el, clear, starsRow, wobble, sparkleAt, backControl, REDUCED, suppressContextMenu, confetti } from '../ui.js';
+import { getState, mutate, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { makeQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
-import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { autoQuestion } from '../questions.js';
 import { noteQuest } from '../quests.js';
-import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
-import { pickForMeButton } from '../picker.js';
 import { runIntro, introSeen } from '../intro.js';
 
-const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven questions (C9)
-
-const N = 9;                 // 9x9 board
-const END_PIECES = 12;       // round ends after 12 placed pieces
+const N = 8;                 // 8×8 board (RUN9 C2)
 const TRAY = 3;              // three-slot tray
-const LIFT = 70;             // px the dragged piece floats ABOVE the fingertip (C1) so the hand never hides it
+const PIECE_BUDGET = 60;     // a generous piece budget; a round also ends when no move fits
+const BOOST_USES = 3;        // Boo Boost uses per round (C2)
+const LIFT = 70;             // px the dragged piece floats ABOVE the fingertip so the hand never hides it
+const SPIN_MS = 220;         // snappy quarter-turn animation length
 const rand = (n) => (Math.random() * n) | 0;
 
-// Rotation (RUN6 C0.3): tapping a tray piece (or its ↻ badge) spins it a quarter turn.
-const SPIN_MS = 220;         // snappy quarter-turn animation length
-// Now that pieces can rotate, the bag leans a little harder on the spicier shapes
-// so intent matters — named so the balance is tunable (C0.3).
-const SPICY_KEYS = ['tetS', 'tetL', 'tetT', 'block23'];
-const SPICY_EXTRA = 1;       // extra bag copies of each spicy shape (more often, not always)
-// Star line-thresholds, retuned modestly upward at the top now rotation aids clearing
-// (C0.3). The gentle 1★/2★ floor is unchanged so a normal round rewards the same.
-const THREE_STAR_CORRECT = 10, THREE_STAR_LINES = 6;
-const TWO_STAR_CORRECT = 7, TWO_STAR_LINES = 3;
+// ---- scoring (named so the balance is tunable / simulatable) ----
+const CELL_POINTS = 1;                       // per cell placed
+const LINE_POINTS = 10;                       // base per cleared line
+const ALL_CLEAR_BONUS = 100;                  // clearing the whole board
+const SPECIAL_CELL_POINTS = 2;                // per cell a power-up clears
+// Star score bands (RUN9 C2), tuned by simulating 400 greedy self-play rounds — see
+// tests/sim-blocks.mjs and the PROGRESS.md report. 1★ is always earned for playing.
+const THREE_STAR_SCORE = 320, TWO_STAR_SCORE = 150;
 
-// The Blocks-specific first-play intro (C1). Step 2 completes a demo line as it shows.
+// Special power-up pieces, awarded by Boo Boost in this rotating order (C2).
+const SPECIAL_ORDER = ['lineblast', 'bomb', 'single'];
+const SPECIAL_NAME = { lineblast: 'Line Blaster', bomb: 'Sparkle Bomb', single: 'Single Square' };
+
+// The Blocks intro (RUN9 C2): teaches the score chase and the Boost.
 const BLOCKS_INTRO = [
-  { text: 'Answer my question and you win a piece!' },
-  { text: 'Drag pieces anywhere they fit. Fill a whole line, any direction, and it POPS!', demo: blocksDemoLine },
-  { text: 'Tap a piece to SPIN it! The board never fills to the top, just keep popping lines!' }
+  { text: 'Drop blocks to fill lines. Complete a line and it POPS for points!', demo: blocksDemoLine },
+  { text: 'Clear lines back-to-back for a streak — clear it ALL for a firework!' },
+  { text: 'Tap Boo Boost, answer a question, win a power-up piece!' }
 ];
 
-// A little self-completing demo line for intro step 2: fills cell by cell, then pops.
+// A little self-completing demo line for intro step 1: fills cell by cell, then pops.
 function blocksDemoLine(area) {
   const row = el('div', { class: 'blk-demo-row' });
   const dcells = [];
@@ -64,8 +67,7 @@ function blocksDemoLine(area) {
   return () => { alive = false; timers.forEach(clearTimeout); };
 }
 
-// Fair bag of piece shapes (cells as [row, col] offsets). Pieces can be spun a
-// quarter-turn at a time in the tray (C0.3).
+// Fair bag of piece shapes (cells as [row, col] offsets). Pieces spin a quarter-turn.
 const SHAPES = {
   single:   [[0,0]],
   domino:   [[0,0],[0,1]],
@@ -80,14 +82,14 @@ const SHAPES = {
   block23:  [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]]
 };
 const BAG_KEYS = Object.keys(SHAPES);
-const FIVE_LINE = [[0,0],[0,1],[0,2],[0,3],[0,4]];   // bonus for three-in-a-row correct
+const SPICY_KEYS = ['tetS', 'tetL', 'tetT', 'block23'];
+const SPICY_EXTRA = 1;
 const PIECE_COLORS = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#C6A9F0', '#FFC93C', '#7FD8C3'];
 
 function normShape(cells) {
   const minR = Math.min(...cells.map(c => c[0])), minC = Math.min(...cells.map(c => c[1]));
   return cells.map(([r, c]) => [r - minR, c - minC]);
 }
-// Rotate a cell-set 90° clockwise, then re-normalise to the top-left (C0.3).
 function rotateCells(cells) {
   const maxR = Math.max(...cells.map(c => c[0])) + 1;
   return normShape(cells.map(([r, c]) => [c, maxR - 1 - r]));
@@ -97,71 +99,69 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen blocks' });
   container.appendChild(root);
   let shell = null;
-  // Jump back in / level-up (RUN5 C0b).
   const rz = params && params.resume;
-  if (rz) { rz.mix ? play(AUTO, 2) : play(rz.cat, rz.level); }
-  else if (arcadeHasPicker()) startCard(); else play(AUTO, 2);   // Light tier auto-starts (C9)
-  // First-ever open shows the guided intro (C1/C5 pattern).
+  // The redesign is a pure puzzle — no category/level. Any resume just starts a round.
+  if (rz) play();
+  else startCard();
   if (!introSeen('blocks')) runIntro('blocks', { steps: BLOCKS_INTRO });
+
+  function bestScore() { return (getState().seen && getState().seen.blocksBestScore) || 0; }
 
   function startCard() {
     clear(root);
     music.play('game');
     const s = getState();
-    let category = s.seen.blocksCat || 'tables';
+    const best = bestScore();
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 104 }) }),
       el('h2', { text: 'Boo Blocks' }),
-      el('p', { class: 'sc-intro', text: 'Win pieces, spin them, fill lines, pop!' })
+      el('p', { class: 'sc-intro', text: 'Fill lines, pop them, chase a big score!' }),
+      el('div', { class: 'blk-best-card' }, [
+        el('span', { class: 'blk-best-star', text: '⭐' }),
+        el('span', { text: best > 0 ? `Your best score: ${best}` : 'Play to set your first best score!' })
+      ]),
+      el('button', { class: 'btn big', text: '▶ Play', onclick: () => { sfx.tap(); play(); } })
     ]);
-    // two-step picker: category, then level
-    const catRow = el('div', { class: 'chip-row center' });
-    const catBtns = {};
-    filterArcadeCategories(BLOCK_CATEGORIES).forEach(c => {
-      const b = el('button', { class: 'acc-chip' + (category === c.key ? ' sel' : ''), text: c.name, onclick: () => { category = c.key; sfx.tap(); Object.values(catBtns).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } });
-      catBtns[c.key] = b; catRow.appendChild(b);
-    });
-    const levels = el('div', { class: 'level-row' });
-    for (const lv of [1, 2, 3]) {
-      levels.appendChild(el('button', { class: 'btn level-btn', style: { '--accent': 'var(--zing)' },
-        onclick: () => { sfx.tap(); play(category, lv); } }, [
-        el('span', { class: 'lv-num', text: 'Level ' + lv })
-      ]));
-    }
-    // one-tap Smart-Mix front door (RUN4 C2), same control as the shared pickers
-    const pfmRow = el('div', { class: 'picker-choices' }, [pickForMeButton(() => play(AUTO, 2))]);
-    card.append(pfmRow, el('p', { class: 'sc-q', text: 'What shall we practise?' }), catRow, el('p', { class: 'sc-q', text: 'Pick a level' }), levels);
     card.appendChild(el('div', { class: 'star-rule' }, [
       el('div', { html: starsRow(3, { size: 24 }) }),
-      el('p', { text: 'Three stars: 10+ right and 6 lines cleared, no hints.' })
+      el('p', { text: `Three stars: score ${THREE_STAR_SCORE}+. Two stars: ${TWO_STAR_SCORE}+.` })
     ]));
     root.appendChild(card);
-    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
   }
 
-  function play(category, level) {
+  function play() {
     clear(root);
-    const s = getState();
-    // persist last-played category
-    getState().seen.blocksCat = category;
+    music.play('game');
 
     const board = Array.from({ length: N }, () => Array(N).fill(0));
     let tray = [null, null, null];
     const bag = [];
-    let correct = 0, wrong = 0, lines = 0, placed = 0, hintsUsed = 0, streak = 0;
-    let question = null, reAsked = false, locked = false, selected = -1, waitingSpace = false;
-    let spinNext = -1;   // slot index to play the quarter-turn animation on next render (C0.3)
-    let ended = false;
+    let score = 0, lines = 0, placed = 0, cascade = 0, ended = false;
+    let boostsLeft = BOOST_USES, boostAwardIdx = 0, boostRetryUsed = false, boostOpen = false;
+    let hintsUsed = 0;
+    let selected = -1, spinNext = -1;
+    const best0 = bestScore();
 
     shell = createGameShell({
-      title: 'Boo Blocks', rounds: END_PIECES, accent: 'var(--zing)',
+      title: 'Boo Blocks', accent: 'var(--zing)', hideHearts: true, hideProgress: true,
       onBack: () => ctx.go('hub'), onHint: doHint, hintEnabled: true,
-      onHelp: () => runIntro('blocks', { steps: BLOCKS_INTRO })   // "?" replays the intro (C1)
+      onHelp: () => runIntro('blocks', { steps: BLOCKS_INTRO })
     });
     root.appendChild(shell.root);
 
     // ---- layout ----
-    const qCard = el('div', { class: 'blk-question' });
+    const scoreEl = el('div', { class: 'blk-score' }, [
+      el('span', { class: 'blk-score-num', text: '0' }),
+      el('span', { class: 'blk-score-lbl', text: 'score' })
+    ]);
+    const bestEl = el('div', { class: 'blk-bestchip', text: best0 > 0 ? `best ${best0}` : '' });
+    const cascadeEl = el('div', { class: 'blk-cascade' });
+    const boostBtn = el('button', { class: 'btn blk-boost', onclick: () => openBoost() });
+    const boostLbl = () => `⚡ Boo Boost · ${boostsLeft} left`;
+    const refreshBoost = () => { boostBtn.textContent = boostLbl(); boostBtn.disabled = boostsLeft <= 0 || boostOpen; };
+    boostBtn.textContent = boostLbl();
+
     const boardEl = el('div', { class: 'blk-board' });
     const cells = [];
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
@@ -171,119 +171,87 @@ export function mount(container, params, ctx) {
       boardEl.appendChild(cell); cells.push(cell);
     }
     const trayEl = el('div', { class: 'blk-tray' });
-    const play2 = el('div', { class: 'blk-play' }, [boardEl, el('div', { class: 'blk-side' }, [qCard, trayEl])]);
+    const side = el('div', { class: 'blk-side' }, [
+      el('div', { class: 'blk-scorewrap' }, [scoreEl, bestEl, cascadeEl]),
+      boostBtn, trayEl
+    ]);
+    const play2 = el('div', { class: 'blk-play' }, [boardEl, side]);
     shell.area.appendChild(play2);
-    const collector = createTrickyCollector(shell.area);
 
-    nextQuestion();
+    fillTray();
     renderTray();
     renderBoard();
 
-    // Test hook (invisible in play): lets headless QA drive a full round.
     if (typeof window !== 'undefined') window.__blocks = {
       board: () => board.map(r => r.slice()),
-      tray: () => tray.map(p => (p ? p.cells : null)),
-      fits: (cellsArr, r, c) => fits(cellsArr, r, c),
+      tray: () => tray.map(p => (p ? { cells: p.cells, special: p.special || null, orient: p.orient || null } : null)),
+      fits: (cellsArr, r, c) => fits({ cells: cellsArr }, r, c),
       place: (slot, r, c) => tryPlace(slot, r, c),
-      answer: (i) => { const nodes = qCard.querySelectorAll('.blk-opt'); if (nodes[i]) onAnswer(i, nodes[i]); },
-      question: () => question,
-      waiting: () => waitingSpace,
+      score: () => score,
+      lines: () => lines,
+      cascade: () => cascade,
+      placed: () => placed,
       ended: () => ended,
-      hearts: () => shell.heartsLeft(),
-      stats: () => ({ correct, wrong, lines, placed, hintsUsed }),
-      // RUN5 C1 QA hooks: rig a known piece, resolve the lifted-centre anchor,
-      // and set up near-complete lines — all deterministic (no flaky mouse events).
-      rig: (slot, cellsArr) => { tray[slot] = { key: 'test', cells: normShape(cellsArr), color: '#FF7AC6' }; renderTray(); },
-      anchorFor: (slot, cx, cy) => { selected = slot; cacheGeom(); return anchorAt(cx, cy); },
-      nearRig: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
+      stats: () => ({ score, lines, placed, cascade, boostsLeft, hintsUsed }),
+      // rig a known piece into a slot (deterministic QA)
+      rig: (slot, cellsArr, opts) => { tray[slot] = Object.assign({ key: 'test', cells: normShape(cellsArr), color: '#FF7AC6' }, opts || {}); renderTray(); },
+      rigSpecial: (slot, special) => { tray[slot] = makeSpecial(special); renderTray(); },
       fillRowExceptLast: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
-      // RUN6 C0.3 rotation hooks: select/spin a tray piece, read its live cells.
+      fillBoardExcept: (skip) => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = (skip && skip.some(([rr, cc]) => rr === r && cc === c)) ? 0 : '#8FC7FF'; renderBoard(); },
+      clearBoard: () => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = 0; renderBoard(); },
+      resetForTest: () => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = 0; score = 0; lines = 0; cascade = 0; placed = 0; renderBoard(); updateScore(); renderCascade(); },
       select: (i) => selectPiece(i),
       rotate: () => rotateSelected(),
       rotateSlot: (i) => { selected = i; rotateSelected(); },
       selectedSlot: () => selected,
-      LIFT
+      anchorFor: (slot, cx, cy) => { selected = slot; cacheGeom(); return anchorAt(cx, cy); },
+      // Boost QA hooks
+      boost: () => openBoost(),
+      boostOpen: () => boostOpen,
+      boostAnswer: (i) => { const nodes = root.querySelectorAll('.blk-boost-opt'); if (nodes[i]) onBoostAnswer(i, nodes[i]); },
+      boostQuestion: () => boostQuestion,
+      boostsLeft: () => boostsLeft,
+      nextSpecial: () => SPECIAL_ORDER[boostAwardIdx % SPECIAL_ORDER.length],
+      LIFT, N
     };
 
-    // ---- questions ----
-    function nextQuestion() {
-      question = category === AUTO ? autoQuestion(question && question.key, 3) : makeQuestion(category, level, question && question.key, 3);
-      reAsked = false; locked = false;
-      renderQuestion();
-    }
-    function renderQuestion() {
-      clear(qCard);
-      if (waitingSpace) {
-        qCard.appendChild(el('div', { class: 'blk-wait', text: 'Place a block to earn the next! 🧩' }));
-        return;
-      }
-      qCard.appendChild(el('div', { class: 'blk-prompt', text: question.prompt }));
-      const opts = el('div', { class: 'blk-options' });
-      question.options.forEach((o, i) => {
-        opts.appendChild(el('button', { class: 'btn blk-opt', text: o, onclick: () => onAnswer(i, opts.children[i]) }));
-      });
-      qCard.appendChild(opts);
-      if (question.speak) speakMaybe(question.speak);
-      if (typeof window !== 'undefined') window.__booQuestion = question; // test hook (invisible)
-    }
-    function onAnswer(i, node) {
-      if (locked || waitingSpace) return;
-      if (i === question.correct) {
-        locked = true; sfx.correct(); correct++; streak++;
-        recordResult(question.key, true);
-        node.classList.add('right');
-        dispensePiece();
-        if (streak > 0 && streak % 3 === 0) dispensePiece(FIVE_LINE, true); // bonus five-line
-        setTimeout(() => { if (!ended) afterDispense(); }, 260);
-      } else {
-        wrong++; streak = 0; sfx.oops();
-        recordResult(question.key, false);
-        collector.add(choiceMiss({ id: question.key, game: 'blocks', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
-        wobble(node); node.classList.add('wrongflash');
-        setTimeout(() => node.classList.remove('wrongflash'), 420);
-        const left = shell.dimHeart();
-        if (!reAsked) { reAsked = true; shell.react(guideLine('oops'), { voice: false, hold: 1800 }); }
-        else { nextQuestion(); } // re-asked once, now swap
-      }
-    }
-    function afterDispense() {
-      if (tray.every(t => t)) { waitingSpace = true; renderQuestion(); }
-      else nextQuestion();
-    }
-
+    // ---- the bag / tray ----
     function drawKey() {
       if (!bag.length) {
         bag.push(...BAG_KEYS);
-        for (const k of SPICY_KEYS) for (let i = 0; i < SPICY_EXTRA; i++) bag.push(k);  // spicier shapes more often (C0.3)
+        for (const k of SPICY_KEYS) for (let i = 0; i < SPICY_EXTRA; i++) bag.push(k);
         shuffle(bag);
       }
       return bag.pop();
     }
-    function dispensePiece(forceCells, bonus) {
-      const idx = tray.findIndex(t => !t);
-      if (idx < 0) return; // full (shouldn't happen; guarded by waitingSpace)
-      const key = forceCells ? 'five' : drawKey();
-      const shapeCells = normShape(forceCells || SHAPES[key]);
-      tray[idx] = { key, cells: shapeCells, color: bonus ? '#FFD166' : PIECE_COLORS[rand(PIECE_COLORS.length)], bonus: !!bonus };
-      renderTray();
+    function newPiece() {
+      const key = drawKey();
+      return { key, cells: normShape(SHAPES[key]), color: PIECE_COLORS[rand(PIECE_COLORS.length)] };
+    }
+    // Classic flow: keep the tray topped up; when all three are gone, deal three fresh
+    // pieces at once (planning tension, no questions required).
+    function fillTray() {
+      if (tray.every(t => !t)) for (let i = 0; i < TRAY; i++) tray[i] = newPiece();
+    }
+    function makeSpecial(special) {
+      return { key: 'sp_' + special, cells: [[0, 0]], color: '#FFD166', special, orient: 'row' };
     }
 
-    // ---- tray ----
     function renderTray() {
       clear(trayEl);
       tray.forEach((p, i) => {
-        const slot = el('div', { class: 'blk-slot' + (selected === i ? ' sel' : '') + (p ? '' : ' empty') });
+        const slot = el('div', { class: 'blk-slot' + (selected === i ? ' sel' : '') + (p ? '' : ' empty') + (p && p.special ? ' special' : '') });
         if (p) {
           const piece = el('div', { class: 'blk-piece' + (spinNext === i && !REDUCED ? ' blk-spin' : ''), html: pieceSVG(p) });
           if (spinNext === i && !REDUCED) piece.style.setProperty('--spin-ms', SPIN_MS + 'ms');
           slot.appendChild(piece);
+          if (p.special) slot.appendChild(el('span', { class: 'blk-sp-name', text: SPECIAL_NAME[p.special] }));
           slot.addEventListener('click', () => selectPiece(i));
           makePieceDraggable(slot, i);
-          // Rotate badge on the selected piece — an explicit affordance beside tap-to-spin (C0.3).
-          if (selected === i) {
+          if (selected === i && canRotate(p)) {
             const badge = el('button', { class: 'blk-rotate no-callout', 'aria-label': 'Spin this piece',
               html: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12a7 7 0 1 1 2 4.9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M4 8v4h4" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' });
-            badge.addEventListener('pointerdown', e => e.stopPropagation());   // don't start a slot drag
+            badge.addEventListener('pointerdown', e => e.stopPropagation());
             badge.addEventListener('click', e => { e.stopPropagation(); rotateSelected(); });
             suppressContextMenu(badge);
             slot.appendChild(badge);
@@ -294,18 +262,17 @@ export function mount(container, params, ctx) {
       spinNext = -1;
       updateHintAvailability();
     }
+    function canRotate(p) { return p && (p.special === 'lineblast' || (!p.special && p.cells.length > 1)); }
     function selectPiece(i) {
       if (!tray[i]) return;
-      if (selected === i) { rotateSelected(); return; }   // re-tapping the selected piece SPINS it (C0.3)
-      sfx.tap();
-      selected = i;
-      renderTray(); clearPreview();
+      if (selected === i) { rotateSelected(); return; }
+      sfx.tap(); selected = i; renderTray(); clearPreview();
     }
-    // Spin the selected piece a quarter-turn; works between drags, mid-round (C0.3).
     function rotateSelected() {
       const p = tray[selected]; if (!p) return;
       sfx.tap();
-      p.cells = rotateCells(p.cells);
+      if (p.special === 'lineblast') p.orient = p.orient === 'row' ? 'col' : 'row';
+      else if (!p.special) p.cells = rotateCells(p.cells);
       spinNext = selected;
       renderTray(); clearPreview();
     }
@@ -318,8 +285,6 @@ export function mount(container, params, ctx) {
         cell.style.setProperty('--fill', board[r][c] ? board[r][c] : 'transparent');
         cell.classList.remove('valid', 'invalid', 'ghost', 'hint', 'blk-near', 'blk-gap');
       }
-      // Near-complete shimmer (C1): a row or column one cell from clearing glows, so
-      // the goal is visible in the board itself. Filled cells shimmer; the single gap pulses.
       for (let r = 0; r < N; r++) {
         let cnt = 0; for (let c = 0; c < N; c++) if (board[r][c]) cnt++;
         if (cnt === N - 1) for (let c = 0; c < N; c++) cells[r * N + c].classList.add(board[r][c] ? 'blk-near' : 'blk-gap');
@@ -329,36 +294,80 @@ export function mount(container, params, ctx) {
         if (cnt === N - 1) for (let r = 0; r < N; r++) cells[r * N + c].classList.add(board[r][c] ? 'blk-near' : 'blk-gap');
       }
     }
-    function fits(cells2, r, c) {
-      return cells2.every(([dr, dc]) => { const rr = r + dr, cc = c + dc; return rr >= 0 && rr < N && cc >= 0 && cc < N && !board[rr][cc]; });
+    function fits(p, r, c) {
+      if (p.special === 'lineblast' || p.special === 'bomb') return r >= 0 && r < N && c >= 0 && c < N;   // blasts drop on any cell
+      return p.cells.every(([dr, dc]) => { const rr = r + dr, cc = c + dc; return rr >= 0 && rr < N && cc >= 0 && cc < N && !board[rr][cc]; });
     }
     function hoverPreview(r, c) {
       clearPreview();
       const p = tray[selected]; if (!p) return;
-      const ok = fits(p.cells, r, c);
+      if (p.special === 'lineblast') {
+        const ok = true;
+        if (p.orient === 'row') { for (let cc = 0; cc < N; cc++) cells[r * N + cc].classList.add('ghost'); }
+        else { for (let rr = 0; rr < N; rr++) cells[rr * N + c].classList.add('ghost'); }
+        return;
+      }
+      if (p.special === 'bomb') {
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (rr >= 0 && rr < N && cc >= 0 && cc < N) cells[rr * N + cc].classList.add('ghost'); }
+        return;
+      }
+      const ok = fits(p, r, c);
       p.cells.forEach(([dr, dc]) => { const rr = r + dr, cc = c + dc; if (rr >= 0 && rr < N && cc >= 0 && cc < N) cells[rr * N + cc].classList.add(ok ? 'ghost' : 'invalid'); });
     }
     function clearPreview() { cells.forEach(c => c.classList.remove('ghost', 'invalid')); }
 
-    function onCellTap(r, c) {
-      if (selected < 0) return;
-      tryPlace(selected, r, c);
-    }
+    function onCellTap(r, c) { if (selected < 0) return; tryPlace(selected, r, c); }
+
     function tryPlace(slotIdx, r, c) {
       const p = tray[slotIdx]; if (!p) return false;
-      if (!fits(p.cells, r, c)) { sfx.oops(); return false; }
+      if (!fits(p, r, c)) { sfx.oops(); return false; }
+      if (p.special === 'lineblast') return placeLineBlast(slotIdx, r, c);
+      if (p.special === 'bomb') return placeBomb(slotIdx, r, c);
+      // normal (incl. Single Square) placement
       sfx.pop();
       p.cells.forEach(([dr, dc]) => { board[r + dr][c + dc] = p.color; });
-      const wasBonus = p.bonus;
+      score += p.cells.length * CELL_POINTS;
       tray[slotIdx] = null; selected = -1;
-      // Bonus five-lines are a free reward; only question-earned pieces count to the round limit.
-      if (!wasBonus) { placed++; shell.setProgress(placed); }
+      placed++;
       clearPreview(); renderBoard();
       clearLines();
-      renderTray();
-      if (waitingSpace) { waitingSpace = false; nextQuestion(); }
-      checkEnd();
+      afterPlace();
       return true;
+    }
+    function placeLineBlast(slotIdx, r, c) {
+      const cellsToClear = [];
+      if (tray[slotIdx].orient === 'row') { for (let cc = 0; cc < N; cc++) if (board[r][cc]) cellsToClear.push([r, cc]); }
+      else { for (let rr = 0; rr < N; rr++) if (board[rr][c]) cellsToClear.push([rr, c]); }
+      consumeSpecial(slotIdx);
+      lines += 1; noteBlast(cellsToClear, '⚡ ZAP!');
+      afterPlace();
+      return true;
+    }
+    function placeBomb(slotIdx, r, c) {
+      const cellsToClear = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (rr >= 0 && rr < N && cc >= 0 && cc < N && board[rr][cc]) cellsToClear.push([rr, cc]); }
+      consumeSpecial(slotIdx);
+      noteBlast(cellsToClear, '💥 BOOM!');
+      afterPlace();
+      return true;
+    }
+    function consumeSpecial(slotIdx) { tray[slotIdx] = null; selected = -1; placed++; clearPreview(); }
+    function noteBlast(cellList, label) {
+      sfx.star();
+      let delay = 0; const STEP = REDUCED ? 0 : 24;
+      cellList.forEach(([r, c]) => { sparkleCell(r, c, delay); delay += STEP; board[r][c] = 0; });
+      score += cellList.length * SPECIAL_CELL_POINTS;
+      updateScore();
+      lineFlourish(0, label);
+      setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 40 : Math.max(200, delay + 100));
+      shell.react(label, { voice: false, hold: 1300 });
+    }
+
+    function afterPlace() {
+      fillTray();
+      renderTray();
+      updateScore();
+      if (checkEnd()) return;
     }
 
     function clearLines() {
@@ -366,20 +375,35 @@ export function mount(container, params, ctx) {
       for (let r = 0; r < N; r++) if (board[r].every(v => v)) fullRows.push(r);
       for (let c = 0; c < N; c++) { let f = true; for (let r = 0; r < N; r++) if (!board[r][c]) { f = false; break; } if (f) fullCols.push(c); }
       const total = fullRows.length + fullCols.length;
-      if (!total) return;
+      if (!total) { cascade = 0; renderCascade(); return; }
       lines += total;
-      // Harder celebration (C1): a wipe of sparkles ALONG each cleared line (staggered
-      // so it reads as a sweep) plus a "+line!" flourish over the board.
-      let delay = 0;
-      const STEP = REDUCED ? 0 : 30;
+      cascade++;   // back-to-back clears build the streak
+      // score: base per line, multiplied by simultaneous count and the cascade streak
+      const cascadeMult = 1 + 0.5 * (cascade - 1);
+      // simultaneous multiply (total×total) then the back-to-back cascade streak
+      score += Math.round(LINE_POINTS * total * total * cascadeMult);
+      updateScore();
+      // escalating sparkle sweep along each cleared line
+      let delay = 0; const STEP = REDUCED ? 0 : (cascade > 2 ? 18 : 30);
       fullRows.forEach(r => { for (let c = 0; c < N; c++) { sparkleCell(r, c, delay); delay += STEP; } });
       fullCols.forEach(c => { for (let r = 0; r < N; r++) { sparkleCell(r, c, delay); delay += STEP; } });
       sfx.star();
-      lineFlourish(total);
-      shell.react(total > 1 ? 'DOUBLE clear! 🌟' : 'Line clear! ✨', { voice: false, hold: 1500 });
+      lineFlourish(total, cascade > 1 ? `Streak ×${cascade}! ` + (total > 1 ? `+${total} lines` : '+line') : (total > 1 ? `+${total} lines!` : '+line!'));
+      shell.react(cascade > 1 ? `Streak ×${cascade}! 🌟` : (total > 1 ? 'DOUBLE clear! 🌟' : 'Line clear! ✨'), { voice: false, hold: 1500 });
+      renderCascade();
       fullRows.forEach(r => { for (let c = 0; c < N; c++) board[r][c] = 0; });
       fullCols.forEach(c => { for (let r = 0; r < N; r++) board[r][c] = 0; });
-      setTimeout(renderBoard, REDUCED ? 60 : Math.max(240, delay + 120));
+      setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 60 : Math.max(240, delay + 120));
+    }
+    function checkAllClear() {
+      let empty = true;
+      for (let r = 0; r < N && empty; r++) for (let c = 0; c < N; c++) if (board[r][c]) { empty = false; break; }
+      if (!empty) return;
+      score += ALL_CLEAR_BONUS; updateScore();
+      shell.react('ALL CLEAR! 🎆', { voice: true, hold: 2200 });
+      lineFlourish(0, `ALL CLEAR! +${ALL_CLEAR_BONUS}`);
+      if (!REDUCED) { const b = boardEl.getBoundingClientRect(); confetti({ count: 60, power: 1.1, origin: { x: b.left + b.width / 2, y: b.top + b.height / 2 } }); }
+      sfx.fanfare && sfx.fanfare();
     }
     function sparkleCell(r, c, delay = 0) {
       const cell = cells[r * N + c];
@@ -390,55 +414,126 @@ export function mount(container, params, ctx) {
       };
       if (delay > 0) setTimeout(paint, delay); else paint();
     }
-    // A floating "+line!" (or "+2 lines!") flourish that pops over the board and fades.
-    function lineFlourish(count) {
+    function lineFlourish(count, label) {
       const br = boardEl.getBoundingClientRect();
-      const f = el('div', { class: 'blk-flourish', text: count > 1 ? `+${count} lines!` : '+line!' });
+      const f = el('div', { class: 'blk-flourish', text: label || (count > 1 ? `+${count} lines!` : '+line!') });
       f.style.left = (br.left + br.width / 2) + 'px';
       f.style.top = (br.top + br.height / 2) + 'px';
       document.body.appendChild(f);
       setTimeout(() => f.remove(), 1100);
     }
+    function updateScore() {
+      scoreEl.querySelector('.blk-score-num').textContent = String(score);
+      if (score > best0) bestEl.textContent = `NEW BEST ${score}! ⭐`;
+    }
+    function renderCascade() {
+      cascadeEl.textContent = cascade > 1 ? `🔥 Streak ×${cascade}` : '';
+      cascadeEl.classList.toggle('hot', cascade > 2);
+    }
+
+    // ---- Boo Boost: the learning power-up economy (C2) ----
+    let boostQuestion = null, boostOverlay = null;
+    function openBoost() {
+      if (boostOpen || boostsLeft <= 0 || ended) return;
+      boostOpen = true; refreshBoost();
+      boostRetryUsed = false;
+      boostQuestion = autoQuestion(null, 3);   // Smart-Mix, ledger-driven difficulty
+      renderBoostModal();
+    }
+    function renderBoostModal() {
+      if (boostOverlay) boostOverlay.remove();
+      const next = SPECIAL_ORDER[boostAwardIdx % SPECIAL_ORDER.length];
+      const card = el('div', { class: 'blk-boost-card card' }, [
+        el('div', { class: 'blk-boost-head', text: `⚡ Boo Boost — win a ${SPECIAL_NAME[next]}!` }),
+        el('div', { class: 'blk-boost-prompt', text: boostQuestion.prompt })
+      ]);
+      const opts = el('div', { class: 'blk-boost-opts' });
+      boostQuestion.options.forEach((o, i) => opts.appendChild(el('button', { class: 'btn blk-boost-opt', text: o, onclick: () => onBoostAnswer(i, opts.children[i]) })));
+      card.appendChild(opts);
+      card.appendChild(el('button', { class: 'btn soft blk-boost-skip', text: 'Not now', onclick: () => closeBoost(false) }));
+      boostOverlay = el('div', { class: 'blk-boost-overlay' }, [card]);
+      root.appendChild(boostOverlay);
+      if (boostQuestion.speak) speakMaybe(boostQuestion.speak);
+    }
+    function onBoostAnswer(i, node) {
+      if (!boostQuestion) return;
+      if (i === boostQuestion.correct) {
+        sfx.correct(); recordResult(boostQuestion.key, true);   // logs to the ledger like any answer (C2)
+        node.classList.add('right');
+        awardSpecial();
+        boostsLeft--;                                            // consumed only on a correct answer
+        setTimeout(() => closeBoost(true), 420);
+      } else {
+        sfx.oops(); recordResult(boostQuestion.key, false);
+        wobble(node); node.classList.add('wrongflash');
+        setTimeout(() => node.classList.remove('wrongflash'), 420);
+        if (!boostRetryUsed) { boostRetryUsed = true; shell.react(guideLine('oops'), { voice: false, hold: 1600 }); }
+        else { shell.react('No worries — your Boost is safe!', { voice: false, hold: 1600 }); closeBoost(false); }   // not consumed
+      }
+    }
+    function awardSpecial() {
+      const special = SPECIAL_ORDER[boostAwardIdx % SPECIAL_ORDER.length];
+      boostAwardIdx++;
+      // drop the special into the first free slot, or replace slot 0 if the tray is full
+      let idx = tray.findIndex(t => !t);
+      if (idx < 0) idx = 0;
+      tray[idx] = makeSpecial(special);
+      renderTray();
+      shell.react(`You won a ${SPECIAL_NAME[special]}! ✨`, { voice: false, hold: 1800 });
+    }
+    function closeBoost(won) {
+      boostOpen = false; boostQuestion = null;
+      if (boostOverlay) { boostOverlay.remove(); boostOverlay = null; }
+      refreshBoost();
+    }
 
     // ---- hint / no-move / end ----
     function anyLegal() {
-      for (const p of tray) if (p) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (fits(p.cells, r, c)) return { p, r, c };
+      for (const p of tray) if (p) {
+        if (p.special === 'lineblast' || p.special === 'bomb') return { p, r: 0, c: 0 };  // blasts always place
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (fits(p, r, c)) return { p, r, c };
+      }
       return null;
     }
-    function updateHintAvailability() {
-      // hint only meaningful if there is a piece and a legal spot
-      shell.enableHint(hintsUsed < 2 && tray.some(Boolean));
-    }
+    function updateHintAvailability() { shell.enableHint(hintsUsed < 3 && tray.some(Boolean)); }
     function doHint() {
-      if (hintsUsed >= 2) return;
+      if (hintsUsed >= 3) return;
       const spot = anyLegal();
-      if (!spot) { shell.react("Hmm, that board is snug!", { voice: false }); return; }
+      if (!spot) { shell.react("Hmm, that board is snug! Try a Boost ⚡", { voice: false }); return; }
       hintsUsed++;
       const idx = tray.indexOf(spot.p); selected = idx; renderTray();
-      spot.p.cells.forEach(([dr, dc]) => cells[(spot.r + dr) * N + (spot.c + dc)].classList.add('hint'));
+      if (!spot.p.special) spot.p.cells.forEach(([dr, dc]) => cells[(spot.r + dr) * N + (spot.c + dc)].classList.add('hint'));
       shell.react('Try here! 👇', { voice: false, hold: 2200 });
       setTimeout(() => cells.forEach(c => c.classList.remove('hint')), 2200);
       updateHintAvailability();
     }
     function checkEnd() {
-      if (ended) return;
-      if (placed >= END_PIECES) return finish();
-      // stuck: tray has pieces but none can be placed anywhere
-      if (tray.some(Boolean) && !anyLegal()) { shell.react("Board's full, brilliant building!", { voice: true, hold: 2600 }); setTimeout(finish, 1400); }
+      if (ended) return false;
+      if (placed >= PIECE_BUDGET) { finish('Great building — budget done!'); return true; }
+      // stuck: pieces remain but none fit AND no Boost left to rescue with a blast
+      if (tray.some(Boolean) && !anyLegal() && boostsLeft <= 0) {
+        shell.react("Board's full, brilliant building!", { voice: true, hold: 2600 });
+        setTimeout(() => finish("Board's full, brilliant building!"), 1400); return true;
+      }
+      return false;
     }
     function finish() {
       if (ended) return; ended = true;
       shell.cleanup();
-      const stars = starsForBlocks(correct, lines, hintsUsed);
-      if (lines > 0) noteQuest('linesCleared', { count: lines });   // daily quest (RUN3 C4)
-      ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, level, cat: category === AUTO ? null : category, mix: category === AUTO, tricky: collector.items(), replay: () => ctx.go('blocks') });
+      const stars = starsForBlocks(score);
+      if (lines > 0) noteQuest('linesCleared', { count: lines });
+      const beat = score > best0;
+      if (score > (getState().seen.blocksBestScore || 0)) mutate(s => { s.seen.blocksBestScore = score; });
+      const go = () => ctx.go('results', { game: 'blocks', gameName: 'Boo Blocks', stars, level: null, cat: null, mix: true, replay: () => ctx.go('blocks'), score });
+      if (beat && !REDUCED) {
+        const ov = el('div', { class: 'blk-boost-overlay' }, [el('div', { class: 'blk-best-burst card' }, [el('div', { class: 'bbb-star', text: '⭐' }), el('h2', { text: 'New best score!' }), el('p', { text: String(score) })])]);
+        root.appendChild(ov); confetti({ count: 70, power: 1.1 });
+        setTimeout(go, 1700);
+      } else go();
     }
 
-    // ---- drag a tray piece onto the board (C1 placement feel) ----
-    // The piece renders LIFTED ~70px above the fingertip so the hand never hides it;
-    // targeting is computed from the lifted piece's CENTRE, with a half-cell snap
-    // tolerance; an invalid drop GLIDES the piece back to its tray slot (never vanishes).
-    let cellGeom = null;  // cached per drag: { centres:[{x,y}], cell:size } — cells don't move mid-drag
+    // ---- drag a tray piece onto the board ----
+    let cellGeom = null;
     function cacheGeom() {
       const centres = cells.map(c => { const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
       const cell = cells[0] ? cells[0].getBoundingClientRect().width : 24;
@@ -450,8 +545,6 @@ export function mount(container, params, ctx) {
       slot.addEventListener('pointermove', e => {
         if (!dragging) return;
         if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) > 8) {
-          // Lift out of the slot WITHOUT rebuilding the tray — a renderTray() here
-          // would detach this captured slot and silently break the drag.
           moved = true; selected = i; cacheGeom();
           slot.classList.add('sel', 'dragging');
           const pv = slot.querySelector('.blk-piece'); if (pv) pv.style.opacity = '0.2';
@@ -459,7 +552,7 @@ export function mount(container, params, ctx) {
         }
         if (moved && ghost) {
           ghost.style.left = e.clientX + 'px';
-          ghost.style.top = (e.clientY - LIFT) + 'px';   // float above the finger
+          ghost.style.top = (e.clientY - LIFT) + 'px';
           const a = anchorAt(e.clientX, e.clientY);
           clearPreview(); if (a) hoverPreview(a.r, a.c);
         }
@@ -469,37 +562,27 @@ export function mount(container, params, ctx) {
         slot.classList.remove('dragging');
         if (!moved) { if (ghost) { ghost.remove(); ghost = null; } return; }
         const a = anchorAt(e.clientX, e.clientY);
-        if (a && fits(tray[i].cells, a.r, a.c)) {
-          if (ghost) { ghost.remove(); ghost = null; }
-          tryPlace(i, a.r, a.c);
-        } else {
-          clearPreview();
-          glideBack(ghost, slot); ghost = null;   // invalid → glide back, keep the piece
-        }
+        if (a && tray[i] && fits(tray[i], a.r, a.c)) { if (ghost) { ghost.remove(); ghost = null; } tryPlace(i, a.r, a.c); }
+        else { clearPreview(); glideBack(ghost, slot); ghost = null; }
       });
       slot.addEventListener('pointercancel', () => { dragging = false; if (ghost) { ghost.remove(); ghost = null; } clearPreview(); renderTray(); });
     }
-    // Animate the ghost back into its tray slot, then restore the tray (piece never lost).
     function glideBack(ghost, slot) {
       if (!ghost) { selected = -1; renderTray(); return; }
       sfx.oops();
       if (REDUCED) { ghost.remove(); selected = -1; renderTray(); return; }
       const sr = slot.getBoundingClientRect();
       ghost.style.transition = 'left 260ms ease, top 260ms ease, opacity 260ms ease';
-      requestAnimationFrame(() => {
-        ghost.style.left = (sr.left + sr.width / 2) + 'px';
-        ghost.style.top = (sr.top + sr.height / 2) + 'px';
-        ghost.style.opacity = '0.15';
-      });
+      requestAnimationFrame(() => { ghost.style.left = (sr.left + sr.width / 2) + 'px'; ghost.style.top = (sr.top + sr.height / 2) + 'px'; ghost.style.opacity = '0.15'; });
       setTimeout(() => { ghost.remove(); selected = -1; renderTray(); }, 280);
     }
-    // Anchor from the LIFTED piece's CENTRE (cx, cy-LIFT): find the on-board placement
-    // whose bounding-box centre is nearest, accepting within ~one cell (half-cell snap).
     function anchorAt(cx, cy) {
       const p = tray[selected]; if (!p) return null;
       if (!cellGeom) cacheGeom();
       const tx = cx, ty = cy - LIFT;
-      const maxR = Math.max(...p.cells.map(x => x[0])) + 1, maxC = Math.max(...p.cells.map(x => x[1])) + 1;
+      // blasts anchor on the single nearest cell
+      const maxR = p.special ? 1 : Math.max(...p.cells.map(x => x[0])) + 1;
+      const maxC = p.special ? 1 : Math.max(...p.cells.map(x => x[1])) + 1;
       let best = null, bestD = Infinity;
       for (let r = 0; r <= N - maxR; r++) for (let c = 0; c <= N - maxC; c++) {
         const tl = cellGeom.centres[r * N + c], brc = cellGeom.centres[(r + maxR - 1) * N + (c + maxC - 1)];
@@ -507,7 +590,6 @@ export function mount(container, params, ctx) {
         const d = Math.hypot(px - tx, py - ty);
         if (d < bestD) { bestD = d; best = { r, c }; }
       }
-      // Off the board (beyond ~one cell past the nearest slot) → no anchor (glide back).
       if (!best || bestD > cellGeom.cell * 1.3) return null;
       return best;
     }
@@ -516,13 +598,23 @@ export function mount(container, params, ctx) {
   return { unmount() { if (shell) shell.cleanup(); } };
 }
 
-export function starsForBlocks(correct, lines, hintsUsed) {
-  if (hintsUsed === 0 && correct >= THREE_STAR_CORRECT && lines >= THREE_STAR_LINES) return 3;
-  if (correct >= TWO_STAR_CORRECT && lines >= TWO_STAR_LINES) return 2;
+export function starsForBlocks(score) {
+  if (score >= THREE_STAR_SCORE) return 3;
+  if (score >= TWO_STAR_SCORE) return 2;
   return 1;
 }
 
 function pieceSVG(p) {
+  if (p.special === 'lineblast') {
+    const horiz = p.orient !== 'col';
+    const arrow = horiz
+      ? '<path d="M3 15h24M22 10l6 5-6 5" fill="none" stroke="#2A1B4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : '<path d="M15 3v24M10 22l5 6 5-6" fill="none" stroke="#2A1B4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+    return `<svg viewBox="0 0 30 30" width="34" height="34"><rect x="2" y="2" width="26" height="26" rx="7" fill="#FFD166" stroke="#2A1B4E" stroke-width="2.4"/>${arrow}</svg>`;
+  }
+  if (p.special === 'bomb') {
+    return `<svg viewBox="0 0 30 30" width="34" height="34"><rect x="2" y="2" width="26" height="26" rx="7" fill="#FF7AC6" stroke="#2A1B4E" stroke-width="2.4"/><circle cx="15" cy="16" r="7" fill="#FFD166" stroke="#2A1B4E" stroke-width="2"/><path d="M15 9l1.6 3.4 3.4-.4-2.3 2.6 1 3.4-3.7-2-3.7 2 1-3.4-2.3-2.6 3.4.4z" fill="#FF7AC6"/></svg>`;
+  }
   const maxC = Math.max(...p.cells.map(c => c[1])) + 1;
   const maxR = Math.max(...p.cells.map(c => c[0])) + 1;
   const u = 15, pad = 2;

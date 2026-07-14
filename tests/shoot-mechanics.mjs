@@ -31,12 +31,12 @@ await page.screenshot({ path: 'screenshots/mechanics/boopop-3-refilled.png' });
 // Boo Blocks: question card + tray, answer correctly, place a piece
 await page.evaluate(() => window.BooTown.go('blocks'));
 await page.waitForSelector('.start-card');
-await page.click('.level-row .level-btn');
+await page.click('.start-card .btn.big');
 await page.waitForSelector('.blk-board');
 await sleep(500);
-await page.screenshot({ path: 'screenshots/mechanics/blocks-1-question.png' });
-await page.evaluate(() => window.__blocks.answer(window.__blocks.question().correct));
+await page.screenshot({ path: 'screenshots/mechanics/blocks-1-board.png' });
+await page.evaluate(() => window.__blocks.boost());   // RUN9 C2: open a Boo Boost question
 await sleep(600);
-await page.screenshot({ path: 'screenshots/mechanics/blocks-2-piece-earned.png' });
+await page.screenshot({ path: 'screenshots/mechanics/blocks-2-boost.png' });
 console.log('done');
 await browser.close();

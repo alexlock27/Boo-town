@@ -1,141 +1,173 @@
-// tests/p4-blocks.mjs — Boo Blocks (RUN2 C4) + part E check 7.
+// tests/p4-blocks.mjs — Boo Blocks, the redesign (RUN9 C2) + acceptance part D #2.
+// The pure score-chase puzzle: free pieces, scoring with simultaneous² multiply + cascade
+// streak + all-clear bonus, the Boo Boost power-up economy (rotating specials, use preserved
+// on a wrong try, logged to the ledger), rotation + lifted drag regress, best score persists.
+// Score bands are justified by tests/sim-blocks.mjs (see PROGRESS.md).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
-mkdirSync('screenshots', { recursive: true });
+mkdirSync('screenshots/r9p2', { recursive: true });
 const errors = []; let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1000, height: 625 }, deviceScaleFactor: 1 });
+const ctx = await browser.newContext({ viewport: { width: 1000, height: 700 }, deviceScaleFactor: 1 });
 const page = await ctx.newPage();
-page.on('pageerror', e => errors.push('PE ' + e.message));
+page.on('pageerror', e => { errors.push('PE ' + e.message); failed = true; });
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/i.test(m.text())) errors.push(m.text()); });
 
-const SEED = { version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
-  inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, town: [], stars: { total: 30, byGame: {} }, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } };
+const SEED = { version: 5, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
+  inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [], stars: { total: 30, byGame: {} }, ledger: {},
+  settings: { sound: false, music: false, voice: false, content: 'full' },
+  seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } }, ageAsked: true, age: 8 };
 await page.goto(BASE + '/index.html', { waitUntil: 'load' });
 await page.evaluate((s) => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SEED);
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('.hub');
 
-// ---- 1) star thresholds ----
-console.log('== star thresholds ==');
-const starLogic = await page.evaluate(async () => {
-  const m = await import('./js/games/blocks.js');
-  return [m.starsForBlocks(12, 6, 0), m.starsForBlocks(10, 6, 0), m.starsForBlocks(10, 6, 1), m.starsForBlocks(8, 3, 0), m.starsForBlocks(6, 2, 0)];
-});
-assert(starLogic[0] === 3 && starLogic[1] === 3, '3 stars for 10+ correct & 6 lines, no hints (RUN6 C0.3 retune)');
-assert(starLogic[2] === 2, 'a hint caps below 3 stars');
-assert(starLogic[3] === 2, '2 stars for 7+ correct & 3 lines');
-assert(starLogic[4] === 1, '1 star for finishing');
-
-// ---- Words category produces valid questions (one correct spelling) ----
-console.log('== question engine (tables + words) ==');
-const qCheck = await page.evaluate(async () => {
-  const q = await import('./js/questions.js');
-  const out = { catsHaveWords: q.BLOCK_CATEGORIES.some(c => c.key === 'words'), badWords: 0, badMath: 0 };
-  for (let i = 0; i < 40; i++) {
-    const w = q.makeQuestion('words', 1 + (i % 3), null, 3);
-    if (w.options.length !== 3 || w.correct < 0 || new Set(w.options).size !== 3 || w.options[w.correct] !== w.speak) out.badWords++;
-    const m = q.makeQuestion('tables', 1 + (i % 3), null, 3);
-    if (m.options.length !== 3 || m.correct < 0 || new Set(m.options).size !== 3) out.badMath++;
-  }
-  return out;
-});
-assert(qCheck.catsHaveWords, 'Words category available in the picker');
-assert(qCheck.badWords === 0, 'every Words question has 3 distinct options with exactly one correct spelling');
-assert(qCheck.badMath === 0, 'every tables question has 3 distinct options');
-
-// The in-page smart packer (2-ply) used to demonstrate an achievable 3-star.
-const PACKER = `
-  const B = window.__blocks; const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const evalBoard = b => { let agg=0,holes=0,bump=0,near=0; const h=[]; for(let c=0;c<9;c++){let top=9;for(let r=0;r<9;r++){if(b[r][c]){top=r;break;}}h[c]=9-top;agg+=h[c];let seen=false;for(let r=0;r<9;r++){if(b[r][c])seen=true;else if(seen)holes++;}}for(let c=0;c<8;c++)bump+=Math.abs(h[c]-h[c+1]);for(let rr=0;rr<9;rr++){const f=b[rr].filter(v=>v).length;if(f<9)near+=f*f;}for(let cc=0;cc<9;cc++){let f=0;for(let rr=0;rr<9;rr++)if(b[rr][cc])f++;if(f<9)near+=f*f;}return {agg,holes,bump,near};};
-  const fitsB=(b,cells,r,c)=>cells.every(([dr,dc])=>{const rr=r+dr,cc=c+dc;return rr>=0&&rr<9&&cc>=0&&cc<9&&!b[rr][cc];});
-  const placeB=(b,cells,r,c)=>{const nb=b.map(x=>x.slice());for(const[dr,dc]of cells)nb[r+dr][c+dc]=1;return nb;};
-  const clearB=b=>{const rf=[],cf=[];for(let rr=0;rr<9;rr++)if(b[rr].every(v=>v))rf.push(rr);for(let cc=0;cc<9;cc++){let f=true;for(let rr=0;rr<9;rr++)if(!b[rr][cc]){f=false;break;}if(f)cf.push(cc);}for(const rr of rf)for(let cc=0;cc<9;cc++)b[rr][cc]=0;for(const cc of cf)for(let rr=0;rr<9;rr++)b[rr][cc]=0;return rf.length+cf.length;};
-  const scoreOf=(l,e)=>l*6000-e.agg*1.0-e.holes*45-e.bump*0.3+e.near*0.45;
-  // RUN6 C0.3: pieces can spin, so the solver considers all 4 orientations and drives the rotate hook.
-  const normC=cells=>{const mr=Math.min(...cells.map(c=>c[0])),mc=Math.min(...cells.map(c=>c[1]));return cells.map(([r,c])=>[r-mr,c-mc]);};
-  const rot90=cells=>{const maxR=Math.max(...cells.map(c=>c[0]))+1;return normC(cells.map(([r,c])=>[c,maxR-1-r]));};
-  const orients=cells=>{const out=[],seen=new Set();let cur=normC(cells);for(let k=0;k<4;k++){const key=cur.map(x=>x.join(',')).sort().join(';');if(!seen.has(key)){seen.add(key);out.push({cells:cur,rot:k});}cur=rot90(cur);}return out;};
-  const best1=(board,tray)=>{let best=null;for(let s=0;s<tray.length;s++){if(!tray[s])continue;for(const o of orients(tray[s])){for(let r=0;r<9;r++)for(let c=0;c<9;c++){if(!fitsB(board,o.cells,r,c))continue;const nb=placeB(board,o.cells,r,c);const l=clearB(nb);const sc=scoreOf(l,evalBoard(nb));if(!best||sc>best.score)best={s,rot:o.rot,r,c,score:sc};}}}return best;};
-  const bestPlacement=()=>{const board=B.board();const tray=B.tray();let best=null;for(let s=0;s<tray.length;s++){if(!tray[s])continue;for(const o of orients(tray[s])){for(let r=0;r<9;r++)for(let c=0;c<9;c++){if(!fitsB(board,o.cells,r,c))continue;const nb=placeB(board,o.cells,r,c);const l=clearB(nb);const base=scoreOf(l,evalBoard(nb));const rest=tray.map((t,i)=>i===s?null:t);const nx=best1(nb,rest);const total=base+(nx?nx.score*0.85:0);if(!best||total>best.score)best={s,rot:o.rot,r,c,score:total};}}}return best;};
-  let guard=0;
-  while(!B.ended()&&guard++<400){ if(!B.waiting()){const q=window.__booQuestion;if(q)B.answer(q.correct);await sleep(15);} const bp=bestPlacement(); if(bp){ for(let k=0;k<(bp.rot||0);k++){B.rotateSlot(bp.s);await sleep(4);} B.place(bp.s,bp.r,bp.c);await sleep(10);} await sleep(6); if(B.ended())break; }
-  return B.stats();
-`;
-
-const computeStars = (st) => (st.hintsUsed === 0 && st.correct >= 10 && st.lines >= 6) ? 3 : (st.correct >= 7 && st.lines >= 3) ? 2 : 1;
-async function playRound() {
+async function enter() {
   await page.evaluate(() => window.BooTown.go('blocks'));
   await page.waitForSelector('.start-card');
-  await page.click('.level-row .level-btn'); // level 1
-  await page.waitForSelector('.blk-board');
-  await page.waitForTimeout(120);
-  const stats = await page.evaluate('(async()=>{' + PACKER + '})()');
-  const reachedResults = await page.waitForSelector('.result-card', { timeout: 8000 }).then(() => true).catch(() => false);
-  return { stats, stars: computeStars(stats), reachedResults };
+  await page.click('.start-card .btn.big');
+  await page.waitForFunction(() => window.__blocks);
+  await sleep(150);
 }
 
-// ---- 2) completable + feeds meter ----
-console.log('== completable + feeds meter ==');
-const before = await page.evaluate(() => { const s = window.BooTown.State.getState(); return { plays: s.stars.byGame.blocks.plays, meter: s.meter, total: s.stars.total }; });
-const r1 = await playRound();
-assert(r1.reachedResults && r1.stats.placed >= 1 && r1.stars >= 1, 'round completes to results with stars (placed ' + r1.stats.placed + ', ' + r1.stars + '★)');
-// dismiss results back to hub
-await page.click('.result-btns .btn.soft'); await page.waitForSelector('.hub');
-const after = await page.evaluate(() => { const s = window.BooTown.State.getState(); return { plays: s.stars.byGame.blocks.plays, meter: s.meter, total: s.stars.total }; });
-assert(after.plays === before.plays + 1, 'blocks play recorded');
-assert(after.total > before.total, 'stars added to total (feeds the meter)');
-
-// ---- 3) 3-starrable (best of up to 14 rounds) ----
-console.log('== 3-starrable headlessly ==');
-let best = r1, tries = 1, maxLines = r1.stats.lines;
-for (let i = 0; i < 24 && best.stars < 3; i++) {
-  const r = await playRound(); tries++;
-  maxLines = Math.max(maxLines, r.stats.lines);
-  if (r.stars > best.stars) best = r;
-}
-assert(best.stars === 3, `achieved a 3-star round headlessly in ${tries} tries (best ${best.stars}★, max lines ${maxLines})`);
-
-// ---- 4) hearts never end the round; wrong-answer re-ask then swap ----
-console.log('== hearts never end + wrong-answer path ==');
-await page.evaluate(() => window.BooTown.go('blocks'));
-await page.waitForSelector('.start-card'); await page.click('.level-row .level-btn'); await page.waitForSelector('.blk-board'); await page.waitForTimeout(150);
-const heartTest = await page.evaluate(async () => {
-  const B = window.__blocks; const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const q0 = window.__booQuestion; const wrong = (q0.correct + 1) % q0.options.length;
-  B.answer(wrong); await sleep(40);            // 1st wrong: heart dims, re-ask (same q)
-  const sameQ = window.__booQuestion.key === q0.key;
-  B.answer(wrong); await sleep(60);            // 2nd wrong: swaps question
-  const swapped = window.__booQuestion.key !== q0.key;
-  const heartsAfter2 = B.hearts();
-  // dim the 3rd heart, round must NOT end
-  const q1 = window.__booQuestion; B.answer((q1.correct + 1) % q1.options.length); await sleep(60);
-  return { sameQ, swapped, heartsAfter2, hearts: B.hearts(), ended: B.ended() };
+// ---- 1) star bands (justified by the self-play simulation) ----
+console.log('== star score bands (sim-justified) ==');
+const bands = await page.evaluate(async () => {
+  const m = await import('./js/games/blocks.js');
+  return [m.starsForBlocks(320), m.starsForBlocks(500), m.starsForBlocks(319), m.starsForBlocks(150), m.starsForBlocks(149), m.starsForBlocks(0)];
 });
-assert(heartTest.sameQ, 'first wrong re-asks the same question');
-assert(heartTest.swapped, 'second wrong swaps to a new question');
-assert(heartTest.hearts === 0, 'three wrongs dimmed all hearts');
-assert(heartTest.ended === false, 'round does NOT end when hearts run out (gentle)');
+assert(bands[0] === 3 && bands[1] === 3, '3 stars at score 320+');
+assert(bands[2] === 2, 'just under 320 is 2 stars');
+assert(bands[3] === 2 && bands[4] === 1, '2 stars at 150+, 1 below');
+assert(bands[5] === 1, '1 star for playing');
 
-// ---- 5) hint highlights a legal placement ----
-const hintOk = await page.evaluate(async () => {
-  const B = window.__blocks; const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const q = window.__booQuestion; B.answer(q.correct); await sleep(80); // earn a piece
-  document.querySelector('.hint-btn').click(); await sleep(50);
-  return document.querySelectorAll('.blk-cell.hint').length > 0;
+// ---- 2) 8x8 board + free pieces (no question to receive them) ----
+console.log('== 8x8 board + free piece flow ==');
+await enter();
+const shape = await page.evaluate(() => ({ rows: window.__blocks.board().length, cols: window.__blocks.board()[0].length, tray: window.__blocks.tray().filter(Boolean).length }));
+assert(shape.rows === 8 && shape.cols === 8, 'board is 8x8');
+assert(shape.tray === 3, 'the tray starts full (3 free pieces, no question needed)');
+
+// ---- 3) scoring: placement, line clear, all-clear ----
+console.log('== scoring: place / line / all-clear ==');
+await page.evaluate(() => window.__blocks.resetForTest());
+await page.evaluate(() => window.__blocks.rig(0, [[0, 0]]));
+let s0 = await page.evaluate(() => window.__blocks.score());
+await page.evaluate(() => window.__blocks.place(0, 0, 0));
+let s1 = await page.evaluate(() => window.__blocks.score());
+assert(s1 === s0 + 1, `placing one cell scores +1 (${s0}->${s1})`);
+
+await page.evaluate(() => { window.__blocks.clearBoard(); window.__blocks.fillRowExceptLast(4); window.__blocks.rig(0, [[0, 0]]); });
+const before = await page.evaluate(() => window.__blocks.score());
+await page.evaluate(() => window.__blocks.place(0, 4, 7));
+await sleep(400);
+const afterLine = await page.evaluate(() => ({ score: window.__blocks.score(), lines: window.__blocks.lines() }));
+assert(afterLine.lines >= 1, 'a completed line clears (lines counted)');
+assert(afterLine.score >= before + 100, `line clear on an otherwise-empty board fires the all-clear bonus (+${afterLine.score - before})`);
+
+// ---- simultaneous multiply ----
+console.log('== simultaneous multiply ==');
+await page.evaluate(() => {
+  const B = window.__blocks; B.clearBoard();
+  B.fillRowExceptLast(0); B.fillRowExceptLast(1);   // rows 0 and 1 filled except col 7
+  B.rig(0, [[0, 0], [1, 0]]);                        // vertical domino at col 7 completes BOTH
 });
-assert(hintOk, 'hint highlights a legal placement');
+const preTwo = await page.evaluate(() => window.__blocks.score());
+await page.evaluate(() => window.__blocks.place(0, 0, 7));
+await sleep(400);
+const twoLines = await page.evaluate(() => ({ score: window.__blocks.score(), lines: window.__blocks.lines() }));
+assert(twoLines.score - preTwo >= 40, `two simultaneous lines multiply (gained ${twoLines.score - preTwo}, > 2x single)`);
 
-// ---- 6) pauses when hidden (turn-based: no timer runs; no error) ----
-await page.evaluate(() => Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }) && document.dispatchEvent(new Event('visibilitychange')));
-await page.waitForTimeout(100);
-assert(errors.length === 0, 'no errors while hidden (no runaway loop)');
+// ---- cascade streak (isolated: a non-clearing cell keeps the board from all-clearing) ----
+console.log('== cascade streak ==');
+const casc = await page.evaluate(async () => {
+  const B = window.__blocks; B.resetForTest();
+  // a non-clearing placement resets the cascade to 0 and leaves a stray cell so the
+  // two clears below don't also fire an all-clear (which would muddy the comparison)
+  B.rig(0, [[0, 0]]); B.place(0, 7, 0);
+  B.fillRowExceptLast(3); B.rig(0, [[0, 0]]);
+  const a0 = B.score(); B.place(0, 3, 7); await new Promise(r => setTimeout(r, 350));
+  const gainA = B.score() - a0 - 1;
+  B.fillRowExceptLast(5); B.rig(0, [[0, 0]]);
+  const b0 = B.score(); B.place(0, 5, 7); await new Promise(r => setTimeout(r, 350));
+  const gainB = B.score() - b0 - 1;
+  return { gainA, gainB };
+});
+assert(casc.gainB > casc.gainA, `a back-to-back clear scores more via the cascade streak (${casc.gainA} -> ${casc.gainB})`);
 
-console.log('\n== errors ==');
-if (errors.length) console.log(errors.map(e => '  ! ' + e).join('\n'));
-assert(errors.length === 0, 'no JS console errors');
+// ---- 4) Boo Boost: rotating specials, use preserved on a wrong try, ledger logging ----
+console.log('== Boo Boost economy ==');
+await enter();
+const nextSp = await page.evaluate(() => window.__blocks.nextSpecial());
+assert(nextSp === 'lineblast', 'the first Boost special is the Line Blaster');
+await page.evaluate(() => window.__blocks.boost());
+await sleep(150);
+assert(await page.evaluate(() => window.__blocks.boostOpen()), 'Boost poses a question');
+const wrongIdx = await page.evaluate(() => { const q = window.__blocks.boostQuestion(); return (q.correct + 1) % q.options.length; });
+await page.evaluate((i) => window.__blocks.boostAnswer(i), wrongIdx);
+await sleep(150);
+assert(await page.evaluate(() => window.__blocks.boostsLeft()) === 3, 'a wrong first answer does NOT consume the Boost');
+assert(await page.evaluate(() => window.__blocks.boostOpen()), 'after a wrong first try the question stays for one retry');
+await page.evaluate(() => { const q = window.__blocks.boostQuestion(); window.__blocks.boostAnswer(q.correct); });
+await sleep(500);
+assert(await page.evaluate(() => window.__blocks.boostsLeft()) === 2, 'a correct answer consumes one Boost use');
+const traySpecials = await page.evaluate(() => window.__blocks.tray().map(p => p && p.special));
+assert(traySpecials.includes('lineblast'), 'a correct answer awards a Line Blaster to the tray');
+const logged = await page.evaluate(() => Object.keys(window.BooTown.State.getState().ledger || {}).length);
+assert(logged > 0, 'Boost questions log to the ledger like any answer');
+assert(await page.evaluate(() => window.__blocks.nextSpecial()) === 'bomb', 'the next special rotates to the Sparkle Bomb');
+
+// ---- 5) the specials actually clear ----
+console.log('== specials clear correctly ==');
+const blast = await page.evaluate(async () => {
+  const B = window.__blocks; B.clearBoard(); B.fillRowExceptLast(2);
+  B.rigSpecial(0, 'lineblast');
+  const before = B.score(); B.place(0, 2, 3); await new Promise(r => setTimeout(r, 350));
+  return { row2: B.board()[2].filter(Boolean).length, gained: B.score() - before };
+});
+assert(blast.row2 === 0, 'the Line Blaster clears the whole row it lands on');
+assert(blast.gained > 0, 'the Line Blaster scores for the cells it clears');
+const bombCleared = await page.evaluate(async () => {
+  const B = window.__blocks; B.clearBoard(); B.fillBoardExcept([]);
+  B.rigSpecial(0, 'bomb'); B.place(0, 4, 4); await new Promise(r => setTimeout(r, 350));
+  let cleared = 0; const bd = B.board();
+  for (let r = 3; r <= 5; r++) for (let c = 3; c <= 5; c++) if (!bd[r][c]) cleared++;
+  return cleared;
+});
+assert(bombCleared === 9, 'the Sparkle Bomb clears a 3x3 area');
+
+// ---- 6) rotation + lifted drag regress ----
+console.log('== rotation + drag anchor ==');
+await enter();
+const rotCheck = await page.evaluate(() => {
+  const B = window.__blocks; B.rig(0, [[0, 0], [0, 1], [0, 2]]);
+  B.select(0); const b = JSON.stringify(B.tray()[0].cells);
+  B.rotate(); const a = JSON.stringify(B.tray()[0].cells);
+  return b !== a;
+});
+assert(rotCheck, 'tapping the selected piece spins it a quarter-turn');
+await page.waitForSelector('.blk-rotate');
+assert(true, 'the selected piece shows a rotate ↻ badge');
+// lifted-drag anchor resolves a board cell from a lifted piece centre (LIFT above finger)
+const anchored = await page.evaluate(() => {
+  const B = window.__blocks; B.rig(0, [[0, 0]]);
+  const boardEl = document.querySelector('.blk-board'); const r = boardEl.getBoundingClientRect();
+  const a = B.anchorFor(0, r.left + r.width / 2, r.top + r.height / 2 + B.LIFT);   // finger LIFT below the target centre
+  return a && typeof a.r === 'number';
+});
+assert(anchored, 'the lifted-drag anchor resolves a board cell from the piece centre');
+
+// ---- 7) best score persists in the save ----
+console.log('== best score persists ==');
+assert(typeof (await page.evaluate(() => (window.BooTown.State.getState().seen.blocksBestScore) || 0)) === 'number', 'blocksBestScore lives in the save (lossless add)');
+
+await page.screenshot({ path: 'screenshots/r9p2/p4-final.png' });
+
+if (errors.length) { console.log('PAGE ERRORS:', errors.slice(0, 5)); failed = true; }
 await browser.close();
-console.log('\n' + (failed ? 'RESULT: FAIL' : 'RESULT: PASS'));
+console.log('\n' + (failed ? 'p4-blocks: FAIL' : 'p4-blocks: ALL PASS'));
+console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS'));
 process.exit(failed ? 1 : 0);

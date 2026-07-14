@@ -139,9 +139,11 @@ if (run(3)) try {
 if (run(4)) try {
   const page = await freshPage();
   await goPlay(page, 'blocks');
+  // RUN9 C2: Boo Blocks opens on a start card; tap Play. Pieces are free (tray pre-filled).
+  await page.waitForSelector('.start-card .btn.big', { timeout: 4000 });
+  await page.click('.start-card .btn.big');
   await page.waitForSelector('.blk-board', { timeout: 4000 });
-  // answer questions to dispense pieces into the tray
-  await page.evaluate(async () => { const B = window.__blocks; for (let k = 0; k < 3; k++) { const q = B.question(); if (q) B.answer(q.correct); await new Promise(r => setTimeout(r, 120)); } });
+  await page.waitForFunction(() => window.__blocks, { timeout: 4000 });
   const slot = await page.$('.blk-slot:not(.empty)');
   let moved = false, any = false, g1 = [], g2 = [];
   if (slot) {

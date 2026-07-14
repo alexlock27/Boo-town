@@ -452,7 +452,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .blocks .game-area { display: flex; }
 .blk-play { display: flex; gap: 14px; width: 100%; height: 100%; align-items: center; justify-content: center; padding: 6px; }
 .blk-board {
-  display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
+  display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
   gap: 2px; width: min(58vh, 52vw); aspect-ratio: 1; background: rgba(20,12,48,0.5);
   border-radius: 14px; padding: 6px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none;
 }
@@ -510,6 +510,37 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   text-shadow: 0 2px 0 var(--ink), 0 0 18px rgba(255,201,60,0.8); animation: blkFlourish 1.05s ease-out forwards; }
 @keyframes blkFlourish { 0% { transform: translate(-50%,-30%) scale(0.4); opacity: 0; } 20% { transform: translate(-50%,-60%) scale(1.15); opacity: 1; } 70% { transform: translate(-50%,-90%) scale(1); opacity: 1; } 100% { transform: translate(-50%,-140%) scale(0.9); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .blk-cell.blk-near, .blk-cell.blk-gap { animation: none; } .blk-flourish { animation: none; opacity: 1; } }
+
+/* Boo Blocks redesign (RUN9 C2): score chase + Boo Boost economy */
+.blk-scorewrap { background: var(--card); border-radius: 18px; padding: 12px; box-shadow: var(--card-shadow); text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.blk-score { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.blk-score-num { font-family: var(--font-display); font-weight: 700; font-size: 40px; color: var(--ink); line-height: 1; }
+.blk-score-lbl { font-family: var(--font-display); font-size: 15px; color: var(--sky-mid); text-transform: uppercase; letter-spacing: 1px; }
+.blk-bestchip { font-family: var(--font-display); font-size: 14px; color: var(--pop); font-weight: 700; min-height: 18px; }
+.blk-cascade { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--star); min-height: 20px; }
+.blk-cascade.hot { animation: blkHot 0.6s ease-in-out infinite; }
+@keyframes blkHot { 0%,100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+.blk-boost { background: linear-gradient(135deg, #FFC93C, #FF9F68); color: var(--ink); font-size: 20px; padding: 14px 18px; box-shadow: 0 4px 0 rgba(42,27,78,0.25); }
+.blk-boost:disabled { opacity: 0.45; filter: grayscale(0.4); }
+.blk-slot.special { border-color: var(--star); background: rgba(255,209,102,0.22); }
+.blk-sp-name { position: absolute; bottom: -2px; left: 0; right: 0; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 10px; color: var(--star); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.blk-best-card { display: flex; align-items: center; gap: 8px; justify-content: center; background: rgba(255,201,60,0.16); border: 2px solid var(--star); border-radius: 14px; padding: 8px 14px; font-family: var(--font-display); font-weight: 700; color: var(--ink); }
+.blk-best-star { font-size: 22px; }
+/* Boost question modal */
+.blk-boost-overlay { position: fixed; inset: 0; background: rgba(20,12,48,0.72); display: flex; align-items: center; justify-content: center; z-index: 9700; padding: 16px; }
+.blk-boost-card { max-width: 380px; width: 100%; text-align: center; display: flex; flex-direction: column; gap: 12px; }
+.blk-boost-head { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--pop); }
+.blk-boost-prompt { font-family: var(--font-display); font-weight: 700; font-size: 26px; color: var(--ink); }
+.blk-boost-opts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.blk-boost-opt { min-width: 72px; padding: 12px 16px; font-size: 22px; background: var(--zing); }
+.blk-boost-opt.right { box-shadow: 0 0 0 3px #fff, 0 0 14px var(--zing); }
+.blk-boost-opt.wrongflash { background: var(--oops); }
+.blk-boost-skip { font-size: 15px; }
+.blk-best-burst { max-width: 300px; text-align: center; }
+.blk-best-burst .bbb-star { font-size: 60px; animation: blkHot 0.7s ease-in-out infinite; }
+.blk-best-burst h2 { color: var(--pop); }
+.blk-best-burst p { font-family: var(--font-display); font-weight: 700; font-size: 40px; color: var(--star); }
+.blk-best-card + .btn.big, .start-card .btn.big { font-size: 22px; padding: 14px 30px; }
 
 /* "?" help button in the game shell (RUN5 C1/C5) */
 .help-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: rgba(255,255,255,0.16); color: var(--card);
