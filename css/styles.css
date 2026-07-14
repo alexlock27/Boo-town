@@ -600,6 +600,23 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .roll-finish-medal { font-size: 64px; }
 @media (prefers-reduced-motion: reduce) { .roll-stage.boing { animation: none; } }
 
+/* Echo Boos (RUN9 C5) */
+.screen.echoboos { display: flex; flex-direction: column; height: 100%; align-items: center; justify-content: center; gap: 18px; }
+.echo-top { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.echo-len { font-family: var(--font-display); font-weight: 700; color: var(--star); font-size: 16px; }
+.echo-status { font-family: var(--font-display); font-weight: 700; color: var(--card); font-size: 24px; min-height: 30px; }
+.echo-best { background: rgba(255,201,60,0.16); border: 2px solid var(--star); border-radius: 14px; padding: 8px 16px; font-family: var(--font-display); font-weight: 700; color: var(--ink); }
+.echo-board { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(14px, 4vh, 34px); }
+.echo-podium { display: flex; flex-direction: column; align-items: center; }
+.echo-boo { width: clamp(84px, 20vw, 150px); height: clamp(84px, 20vw, 150px); border-radius: 50%; border: none; background: none; padding: 0;
+  filter: brightness(0.82) saturate(0.85); transition: filter 120ms, transform 120ms; touch-action: manipulation; }
+.echo-boo .echo-face { display: block; width: 100%; height: 100%; }
+.echo-boo.lit { filter: brightness(1.35) saturate(1.3) drop-shadow(0 0 18px var(--boo)); transform: scale(1.06) translateY(-4px); }
+.echo-boo.flourish { animation: echoFlourish 0.4s ease; }
+@keyframes echoFlourish { 0%,100% { transform: scale(1); } 50% { transform: scale(1.16) translateY(-8px); } }
+.echo-base { width: 60%; height: 12px; border-radius: 0 0 12px 12px; background: rgba(0,0,0,0.28); margin-top: -4px; }
+@media (prefers-reduced-motion: reduce) { .echo-boo, .echo-boo.lit { transition: none; } .echo-boo.flourish { animation: none; } }
+
 /* "?" help button in the game shell (RUN5 C1/C5) */
 .help-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: rgba(255,255,255,0.16); color: var(--card);
   font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: 1; display: grid; place-items: center; flex: 0 0 auto; }

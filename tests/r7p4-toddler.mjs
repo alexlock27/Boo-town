@@ -44,7 +44,7 @@ for (const tier of ['light', 'medium', 'full']) {
   const { ctx, page } = await fresh(SAVE());
   await page.waitForSelector('.toddler-hub');
   const words = await page.$$eval('.toddler-card .tc-word', ns => ns.map(n => n.textContent));
-  assert(words.join(',') === 'Count,Colours,Shapes,Letters,Animals,Pairs,Sizes', `the Toddler hub is a column of all 7 giant cards (${words.join(',')})`);
+  assert(words.join(',') === 'Count,Colours,Shapes,Letters,Animals,Pairs,Sizes,Echo', `the Toddler hub is a column of all 8 giant cards (7 games + Echo Boos) (${words.join(',')})`);
   // the column scrolls if it overflows
   const scrollable = await page.$eval('.toddler-cards', n => getComputedStyle(n).overflowY === 'auto' || getComputedStyle(n).overflowY === 'scroll');
   assert(scrollable, 'the Toddler card column scrolls');

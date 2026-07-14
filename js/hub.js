@@ -40,7 +40,8 @@ const GAMES = [
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
   { id: 'dash',      name: 'Boo Dash',     tag: 'Fluency run',   accent: 'var(--pop)',  icon: dashIcon, group: 'Play' },
   { id: 'boopop',    name: 'Boo Pop',      tag: 'Match & pop',   accent: 'var(--zing)', icon: popIcon, group: 'Play' },
-  { id: 'booroll',   name: 'Boo Roll',     tag: 'Tilt & roll',   accent: 'var(--star)', icon: rollIcon, group: 'Play' }
+  { id: 'booroll',   name: 'Boo Roll',     tag: 'Tilt & roll',   accent: 'var(--star)', icon: rollIcon, group: 'Play' },
+  { id: 'echoboos',  name: 'Echo Boos',    tag: 'Musical memory', accent: 'var(--pop)', icon: echoIcon, group: 'Play' }
 ];
 
 export function mount(container, params, ctx) {
@@ -434,6 +435,10 @@ function mountToddlerHub(container, params, ctx) {
       el('span', { class: 'tc-word', text: g.word })
     ]));
   }
+  // Echo Boos (RUN9 C5) is enjoyed at every tier, so the Toddler hub gets it too (gentler cap).
+  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Echo Boos', onclick: () => {
+    sfx.tap(); speakMaybe('Echo Boos'); ctx.go('echoboos');
+  } }, [el('span', { class: 'tc-icon', text: '🎵' }), el('span', { class: 'tc-word', text: 'Echo' })]));
 
   // bottom bar: Town, Collection, Studio + the cog behind its long-press, as ever
   const say = (word, fn) => () => { sfx.tap(); speakMaybe(word); fn(); };
@@ -519,6 +524,9 @@ function spellIcon() {
 }
 function blocksIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="16" height="16" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="10" width="16" height="16" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><rect x="10" y="28" width="16" height="16" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="28" width="16" height="16" rx="3" fill="var(--lilac,#C6A9F0)" stroke="var(--ink)" stroke-width="3"/><rect x="37" y="37" width="14" height="14" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/></svg>`;
+}
+function echoIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="18" cy="22" r="10" fill="#3B2E7E" stroke="var(--ink)" stroke-width="2.6"/><circle cx="42" cy="22" r="10" fill="#FF7AC6" stroke="var(--ink)" stroke-width="2.6"/><circle cx="18" cy="44" r="10" fill="#35D0BA" stroke="var(--ink)" stroke-width="2.6"/><circle cx="42" cy="44" r="10" fill="#FFC93C" stroke="var(--ink)" stroke-width="2.6"/><path d="M30 8 q6 4 0 8" fill="none" stroke="var(--card)" stroke-width="2" stroke-linecap="round" opacity="0.8"/></svg>`;
 }
 function rollIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M8 46 Q22 30 34 40 Q44 48 54 34" fill="none" stroke="var(--zing)" stroke-width="4" stroke-linecap="round"/><circle cx="20" cy="30" r="12" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><circle cx="16" cy="28" r="2.4" fill="var(--ink)"/><circle cx="24" cy="28" r="2.4" fill="var(--ink)"/><path d="M16 33 q4 4 8 0" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M48 16 l3 6 6 .8 -4.5 4.4 1 6.3 -5.5-3 -5.5 3 1-6.3 -4.5-4.4 6-.8 z" fill="var(--pop)" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></svg>`;

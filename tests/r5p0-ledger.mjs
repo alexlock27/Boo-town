@@ -119,7 +119,7 @@ console.log('== Star Ledger panel ==');
     return { name: td[0].textContent.trim(), plays: td[1].textContent.trim(), earned: td[2].textContent.trim() };
   }));
   const find = (name) => rows.find(r => r.name === name);
-  assert(rows.length === 19, `ledger lists all 19 games (12 main incl. Word Detective + Boo Roll + 7 toddler), got ${rows.length}`);
+  assert(rows.length === 20, `ledger lists all 20 games (13 main incl. Detective + Boo Roll + Echo Boos + 7 toddler), got ${rows.length}`);
   assert(find('Bubble Pop') && find('Bubble Pop').plays === '8' && find('Bubble Pop').earned === '19', 'Bubble Pop row: 8 rounds / 19 stars');
   assert(find('Spell Boo') && find('Spell Boo').plays === '4' && find('Spell Boo').earned === '9', 'Spell Boo row: 4 rounds / 9 stars');
   assert(find('Boo Dash') && find('Boo Dash').plays === '6' && find('Boo Dash').earned === '15', 'Boo Dash row: 6 rounds / 15 stars');

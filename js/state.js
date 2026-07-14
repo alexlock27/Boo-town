@@ -30,6 +30,7 @@ function freshSave() {
         boopop:    { best: 0, plays: 0, earned: 0 },
         detective: { best: 0, plays: 0, earned: 0 },   // Word Detective (RUN9 C3)
         booroll:   { best: 0, plays: 0, earned: 0 },   // Boo Roll (RUN9 C4)
+        echoboos:  { best: 0, plays: 0, earned: 0 },   // Echo Boos (RUN9 C5)
         // Toddler mode (RUN5 C7)
         tcount:    { best: 0, plays: 0, earned: 0 },
         tcolour:   { best: 0, plays: 0, earned: 0 },
