@@ -13,6 +13,7 @@ import { getState, mutate } from '../state.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
+import { haptic } from '../haptics.js';
 import { runIntro, introSeen } from '../intro.js';
 import { checkAndCelebrate } from '../trophies.js';
 
@@ -263,7 +264,7 @@ export function mount(container, params, ctx) {
       // goal
       if (flagHit && Math.hypot(bx - course.goal.x, by - course.goal.y) < BALL_R + 28) return win();
     }
-    function bump() { sfx.tap(); }
+    function bump() { sfx.tap(); try { haptic('bump'); } catch {} }   // a gentle bump on a wall hit (RUN9 C7)
     function resolveWall(w) {
       const nx = clamp(bx, w.x, w.x + w.w), ny = clamp(by, w.y, w.y + w.h);
       const dx = bx - nx, dy = by - ny, d2 = dx * dx + dy * dy;

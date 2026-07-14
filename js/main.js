@@ -6,6 +6,7 @@ import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
 import { starField, clearConfetti, setBackAction, getBackAction } from './ui.js';
 import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker } from './resilience.js';
+import { setHapticsEnabled } from './haptics.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -78,6 +79,8 @@ export function applyAudioSettings() {
   setSoundEnabled(s.settings.sound);
   setMusicEnabled(s.settings.music);
   tts.setEnabled(s.settings.voice);
+  try { setHapticsEnabled(s.settings.haptics !== false); } catch {}   // RUN9 C7
+  try { if (s.settings.voiceName) tts.setVoiceByName(s.settings.voiceName); } catch {}   // RUN9 C6b
 }
 
 // Android hardware/gesture back (RUN4 C1): keep one sentinel entry behind the app

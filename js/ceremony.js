@@ -1,6 +1,7 @@
 // js/ceremony.js — the box-opening ceremony (spec §5.5). The signature moment.
 
 import { el, clear, confetti, backControl } from './ui.js';
+import { haptic } from './haptics.js';
 import { getState } from './state.js';
 import { renderItem } from './art.js';
 import { RARITY } from '../data/catalogue.js';
@@ -81,6 +82,7 @@ export function mount(container, params, ctx) {
     function reveal() {
       const rar = RARITY[result.rarity] || { label: 'Your very own Boo!' };
       sfx.fanfare();
+      try { haptic('open'); } catch {}   // a tiny double-buzz on a box / chest opening (RUN9 C7)
       confetti({ count: result.isCustom || result.rarity === 'secret' ? 160 : result.rarity === 'ultra' ? 120 : 80, power: result.isCustom || result.rarity === 'secret' ? 1.3 : 1 });
       // a shiny (or the golden chest) gets an EXTRA golden confetti layer (C8)
       if (result.shiny || chestMode) setTimeout(() => confetti({ count: 70, power: 1.1 }), 300);

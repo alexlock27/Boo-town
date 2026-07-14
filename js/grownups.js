@@ -6,6 +6,7 @@ import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
 import { deleteAllVoices, voiceCount } from './voices.js';
 import { setRequestsEnabled } from './requests.js';
+import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
 
@@ -26,8 +27,40 @@ export function mount(container, params, ctx) {
     toggle('Sound effects', s.settings.sound, v => { mutate(st => st.settings.sound = v); setSoundEnabled(v); }),
     toggle('Music', s.settings.music, v => { mutate(st => st.settings.music = v); setMusicEnabled(v); if (v) music.play('calm'); }),
     toggle('Voice (reads words aloud)', s.settings.voice, v => { mutate(st => st.settings.voice = v); tts.setEnabled(v); }),
-    el('p', { class: 'gu-note', text: tts.available() ? 'A voice is available on this device.' : 'No speech voice found — the Peek button covers spelling.' })
+    // Haptics toggle (RUN9 C7) — Android only; the row hides where vibration is unsupported.
+    ...(hapticsSupported() ? [toggle('Gentle buzzes (haptics)', s.settings.haptics !== false, v => { mutate(st => st.settings.haptics = v); setHapticsEnabled(v); if (v) haptic('tick'); })] : []),
+    el('p', { class: 'gu-note', text: tts.available() ? 'A voice is available on this device.' : 'No speech voice found — the Peek button covers spelling.' }),
+    voiceSection()
   ]);
+
+  // ---- voice picker (RUN9 C6b): choose from the device's installed English voices ----
+  function voiceSection() {
+    const wrap = el('div', { class: 'gu-voice' });
+    function render() {
+      wrap.innerHTML = '';
+      const voices = tts.available() ? tts.listVoices() : [];
+      if (!voices.length) { wrap.style.display = 'none'; return; }   // hide gracefully where absent
+      wrap.style.display = '';
+      const chosen = (getState().settings.voiceName) || tts.getVoiceName();
+      wrap.appendChild(el('div', { class: 'gu-voice-label', text: 'Choose a voice' }));
+      const list = el('div', { class: 'gu-voice-list' });
+      voices.forEach(v => {
+        const sel = v.name === chosen;
+        const row = el('div', { class: 'gu-voice-row' + (sel ? ' sel' : '') }, [
+          el('button', { class: 'gu-voice-pick', onclick: () => { mutate(st => st.settings.voiceName = v.name); tts.setVoiceByName(v.name); render(); } }, [
+            el('span', { class: 'gv-name', text: v.name + (v.local ? '' : ' ☁️') }),
+            el('span', { class: 'gv-lang', text: v.lang })
+          ]),
+          el('button', { class: 'btn soft gv-preview', text: '🔊 Hi', 'aria-label': 'Preview ' + v.name, onclick: () => { tts.setVoiceByName(v.name); tts.speak(`Hello ${v.name.split(/[ -]/)[0]}!`); } })
+        ]);
+        list.appendChild(row);
+      });
+      wrap.appendChild(list);
+      wrap.appendChild(el('p', { class: 'gu-note', text: 'Tip: install the “enhanced” English (UK) voice in your device’s text-to-speech settings for a nicer voice everywhere.' }));
+    }
+    render();
+    return wrap;
+  }
 
   // ---- microphone / Boo voices (RUN3 C7) ----
   const delMsg = el('span', { class: 'gu-msg' });

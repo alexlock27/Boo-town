@@ -2,6 +2,8 @@
 // Sound effects + gentle music loops, separate mutes, ducking while the guide speaks.
 // Everything is feature-detected and wrapped so a missing/blocked context never throws.
 
+import { haptic } from './haptics.js';   // a gentle tick on correct answers (RUN9 C7)
+
 let ctx = null;
 let master = null;     // master gain
 let sfxGain = null;    // effects bus
@@ -94,7 +96,7 @@ function play(fn) {
 export const sfx = {
   tap()   { play(t => envTone(520, t, 0.08, 'triangle', 0.28)); },
   pop()   { play(t => { envTone(660, t, 0.09, 'sine', 0.4); envTone(990, t + 0.02, 0.12, 'sine', 0.25); }); },
-  correct() { play(t => { envTone(587, t, 0.12, 'triangle', 0.4); envTone(880, t + 0.09, 0.16, 'triangle', 0.4); }); },
+  correct() { play(t => { envTone(587, t, 0.12, 'triangle', 0.4); envTone(880, t + 0.09, 0.16, 'triangle', 0.4); }); try { haptic('tick'); } catch {} },   // gentle tick (RUN9 C7)
   oops()  { play(t => {
       // soft descending friendly wobble (never harsh)
       const o = ctx.createOscillator(), g = ctx.createGain();

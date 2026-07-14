@@ -8,6 +8,7 @@
 // warmly: solved → a bounce-spell; unsolved → a friendly reveal.
 
 import { el, clear, backControl, REDUCED, confetti } from '../ui.js';
+import { haptic } from '../haptics.js';
 import { getState, mutate, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
@@ -174,7 +175,7 @@ export function mount(container, params, ctx) {
       const STEP = REDUCED ? 0 : 260;
       score.forEach((st, i) => {
         const t = tileEls[r][i];
-        const paint = () => { t.textContent = guess[i].toUpperCase(); t.className = `det-tile ${st}` + (REDUCED ? '' : ' flip'); upgradeKey(guess[i], st); };
+        const paint = () => { t.textContent = guess[i].toUpperCase(); t.className = `det-tile ${st}` + (REDUCED ? '' : ' flip'); upgradeKey(guess[i], st); if (st === 'green') { try { haptic('pulse'); } catch {} } };   // a light pulse on a green (RUN9 C7)
         if (REDUCED) paint(); else setTimeout(paint, i * STEP);
       });
       const revealMs = REDUCED ? 30 : score.length * STEP + 260;

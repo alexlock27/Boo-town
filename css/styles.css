@@ -1516,6 +1516,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-card { background: var(--card); border-radius: 16px; padding: 16px 18px; box-shadow: var(--card-shadow); }
 .gu-card h3 { margin: 0 0 10px; font-size: 20px; color: var(--ink); }
 .gu-note { font-size: 15px; color: #5a4d84; margin: 6px 0; font-family: var(--font-body); }
+/* Voice picker (RUN9 C6b) */
+.gu-voice-label { font-family: var(--font-display); font-weight: 700; color: var(--ink); margin: 8px 0 6px; }
+.gu-voice-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.gu-voice-row { display: flex; gap: 8px; align-items: center; }
+.gu-voice-pick { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; background: rgba(107,75,168,0.08); border: 2px solid transparent; border-radius: 10px; padding: 7px 12px; text-align: left; color: var(--ink); }
+.gu-voice-row.sel .gu-voice-pick { border-color: var(--zing); background: rgba(53,208,186,0.14); }
+.gu-voice-pick .gv-name { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.gu-voice-pick .gv-lang { font-size: 12px; color: #6b5ca0; }
+.gv-preview { flex: none; font-size: 14px; padding: 8px 12px; }
 .gu-toggle { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
 .gu-label { font-size: 18px; color: var(--ink); font-family: var(--font-body); }
 .gu-switch { width: 60px; height: 34px; border-radius: 20px; border: none; background: #C9C0E0; position: relative; cursor: pointer; transition: background 150ms; flex-shrink: 0; }

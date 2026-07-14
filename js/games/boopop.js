@@ -187,6 +187,26 @@ export function mount(container, params, ctx) {
     let moves = MOVES, pops = 0, hintsUsed = 0, busy = false, sel = null, ended = false;
     let idleTimer = null, glowPair = null;
     let board = [];   // board[r][c] = { gem, node }
+    let shakeUsed = false;   // shake-to-shuffle: once per round (RUN9 C7)
+
+    // Shake-to-shuffle (RUN9 C7): a firm, debounced device shake triggers the existing
+    // sparkle-shuffle once per round with a cheer. Drag players lose nothing (the automatic
+    // no-moves shuffle still exists). Absent-safe: no devicemotion → nothing happens.
+    const SHAKE_THRESH = 24, SHAKE_DEBOUNCE = 1400;
+    let lastShakeAt = -SHAKE_DEBOUNCE;   // allow the very first shake (performance.now() can be < the debounce early on)
+    const shakeHandler = (e) => {
+      if (ended || busy || shakeUsed) return;
+      const a = e.accelerationIncludingGravity || e.acceleration; if (!a) return;
+      const mag = Math.hypot(a.x || 0, a.y || 0, a.z || 0);
+      const nowMs = performance.now();
+      if (mag > SHAKE_THRESH && nowMs - lastShakeAt > SHAKE_DEBOUNCE) {
+        lastShakeAt = nowMs; shakeUsed = true;
+        sparkleShuffle(false);   // shuffle silently, then show the shake cheer (not the auto-shuffle line)
+        sfx.star();
+        shell.react('Shake it up! 🎉', { voice: false, hold: 1800 });
+      }
+    };
+    if (!REDUCED && typeof window !== 'undefined') { window.addEventListener('devicemotion', shakeHandler); cleanupFns.push(() => window.removeEventListener('devicemotion', shakeHandler)); }
 
     shell = createGameShell({
       title: rule.name, rounds: MOVES, accent: 'var(--pop)',
@@ -479,6 +499,10 @@ export function mount(container, params, ctx) {
     // invisible test hook
     if (typeof window !== 'undefined') window.__boopop = {
       state: () => ({ moves, pops, hintsUsed, level: rule.key, busy, ended }),
+      // shake-to-shuffle (RUN9 C7) QA hooks
+      shake: (mag = 30) => shakeHandler({ accelerationIncludingGravity: { x: mag, y: 0, z: 0 } }),
+      shakeUsed: () => shakeUsed,
+      grid0: () => board.map(row => row.map(cell => cell.gem.label)).join('|'),
       grid: () => board.map(row => row.map(cell => cell.gem.label)),
       gems: () => board.map(row => row.map(cell => ({ label: cell.gem.label, v: cell.gem.v, hue: cell.gem.hue, shape: cell.gem.shape }))),  // C2 family/shape checks
       n: () => N,
@@ -504,5 +528,5 @@ export function mount(container, params, ctx) {
     };
   }
 
-  return { unmount() { if (shell) shell.cleanup(); } };
+  return { unmount() { if (shell) shell.cleanup(); cleanupFns.forEach(f => { try { f(); } catch {} }); cleanupFns = []; } };
 }
