@@ -25,6 +25,7 @@ const registry = {
   dash:       () => import('./games/dash.js'),
   clockshop:  () => import('./games/clockshop.js'),
   boopop:     () => import('./games/boopop.js'),
+  detective:  () => import('./games/detective.js'),   // Word Detective (RUN9 C3)
   golden:     () => import('./golden.js'),
   toddlergame: () => import('./toddler.js'),   // Toddler mode's four games (RUN5 C7)
   studio:     () => import('./studio.js'),

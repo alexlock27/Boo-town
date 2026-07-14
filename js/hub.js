@@ -33,6 +33,7 @@ const GAMES = [
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon, group: 'Learn' },
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon, group: 'Learn' },
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
+  { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
@@ -517,6 +518,9 @@ function spellIcon() {
 }
 function blocksIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="16" height="16" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="10" width="16" height="16" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><rect x="10" y="28" width="16" height="16" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="28" width="16" height="16" rx="3" fill="var(--lilac,#C6A9F0)" stroke="var(--ink)" stroke-width="3"/><rect x="37" y="37" width="14" height="14" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/></svg>`;
+}
+function detectiveIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="8" y="20" width="13" height="13" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.6"/><rect x="23" y="20" width="13" height="13" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="2.6"/><rect x="38" y="20" width="13" height="13" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.6"/><circle cx="36" cy="40" r="11" fill="none" stroke="var(--ink)" stroke-width="4"/><line x1="44" y1="48" x2="53" y2="55" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/></svg>`;
 }
 function bounceIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="12" width="12" height="8" rx="2" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/><rect x="24" y="12" width="12" height="8" rx="2" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.5"/><rect x="38" y="12" width="12" height="8" rx="2" fill="var(--star)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="34" cy="36" r="6" fill="var(--card)" stroke="var(--ink)" stroke-width="2.5"/><rect x="20" y="46" width="22" height="6" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.5"/></svg>`;

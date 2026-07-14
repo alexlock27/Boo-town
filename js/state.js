@@ -28,6 +28,7 @@ function freshSave() {
         dash:      { best: 0, plays: 0, earned: 0 },
         clockshop: { best: 0, plays: 0, earned: 0 },
         boopop:    { best: 0, plays: 0, earned: 0 },
+        detective: { best: 0, plays: 0, earned: 0 },   // Word Detective (RUN9 C3)
         // Toddler mode (RUN5 C7)
         tcount:    { best: 0, plays: 0, earned: 0 },
         tcolour:   { best: 0, plays: 0, earned: 0 },

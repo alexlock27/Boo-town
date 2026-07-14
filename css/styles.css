@@ -542,6 +542,36 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .blk-best-burst p { font-family: var(--font-display); font-weight: 700; font-size: 40px; color: var(--star); }
 .blk-best-card + .btn.big, .start-card .btn.big { font-size: 22px; padding: 14px 30px; }
 
+/* Word Detective (RUN9 C3) */
+.det-modes { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.det-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; height: 100%; justify-content: center; padding: 8px; }
+.det-grid { display: flex; flex-direction: column; gap: 8px; }
+.det-row { display: flex; gap: 8px; justify-content: center; }
+.det-tile { width: clamp(40px, 9vh, 62px); height: clamp(40px, 9vh, 62px); border-radius: 10px; border: 3px solid rgba(255,255,255,0.28);
+  display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 5vh, 34px);
+  color: var(--card); background: rgba(255,255,255,0.06); text-transform: uppercase; }
+.det-tile.filled { border-color: rgba(255,255,255,0.6); }
+.det-tile.green { background: var(--zing); border-color: var(--zing); color: #fff; }
+.det-tile.orange { background: #FF9F68; border-color: #FF9F68; color: #fff; }
+.det-tile.grey { background: #6b6486; border-color: #6b6486; color: #fff; }
+.det-tile.flip { animation: detFlip 0.42s ease; }
+@keyframes detFlip { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+.det-tile.bounce { animation: detBounce 0.5s ease; }
+@keyframes detBounce { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-16px) scale(1.1); } }
+.det-kb { display: flex; flex-direction: column; gap: 7px; width: 100%; max-width: 520px; }
+.det-kb-row { display: flex; gap: 5px; justify-content: center; }
+.det-key { min-width: 30px; height: 50px; flex: 1 1 auto; max-width: 46px; border-radius: 8px; border: 2px solid var(--ink);
+  background: var(--card); color: var(--ink); font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+.det-key.wide { max-width: 62px; flex: 1.4; font-size: 20px; }
+.det-key:active { transform: scale(0.94); }
+.det-key.green { background: var(--zing); color: #fff; border-color: var(--zing); }
+.det-key.orange { background: #FF9F68; color: #fff; border-color: #FF9F68; }
+.det-key.grey { background: #6b6486; color: #fff; border-color: #6b6486; }
+.det-hint-chip { background: var(--star); color: var(--ink); font-family: var(--font-display); font-weight: 700; padding: 6px 16px; border-radius: 20px; }
+.det-reveal { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--card); color: var(--ink); padding: 10px 24px; border-radius: 16px; box-shadow: var(--card-shadow); }
+.det-reveal strong { font-family: var(--font-display); font-size: 30px; color: var(--pop); letter-spacing: 2px; }
+@media (prefers-reduced-motion: reduce) { .det-tile.flip, .det-tile.bounce { animation: none; } }
+
 /* "?" help button in the game shell (RUN5 C1/C5) */
 .help-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: rgba(255,255,255,0.16); color: var(--card);
   font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: 1; display: grid; place-items: center; flex: 0 0 auto; }

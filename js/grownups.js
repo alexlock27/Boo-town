@@ -195,7 +195,7 @@ export function mount(container, params, ctx) {
     const NAMES = {
       bubblepop: 'Bubble Pop', feedboos: 'Feed the Boos', spellboo: 'Spell Boo',
       blocks: 'Boo Blocks', bounce: 'Boo Bounce', beat: 'Boo Beat', teachme: 'Teach Me',
-      dash: 'Boo Dash', clockshop: 'Clock Shop', boopop: 'Boo Pop',
+      dash: 'Boo Dash', clockshop: 'Clock Shop', boopop: 'Boo Pop', detective: 'Word Detective',
       tcount: 'Counting Pop', tcolour: 'Colour Feast', tshape: 'Shape Sort', tletter: 'Letter Pop',
       tanimal: 'Animal Sounds', tpairs: 'Animal Pairs', tbigsmall: 'Big and Small'
     };
