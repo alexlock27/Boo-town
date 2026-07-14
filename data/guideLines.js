@@ -124,5 +124,11 @@ export const LINES = {
 
   // ---- Run 10 P3 additions (Town 4.0: build mode, paths, landscape, fishing) ----
   L_PATH_FULL: ["That's a LOT of path! Erase some to lay more."],
-  L_LANDSCAPE_OUTDOORS: ["Landscape needs the outdoors!"]
+
+  // ---- Run 10 P4 additions (Interiors: the Boo House and the Gallery) ----
+  // Superseded L_LANDSCAPE_OUTDOORS — the packet's own general-purpose line now covers
+  // BOTH landscape and rides refusing to go indoors.
+  L_NOT_INDOORS: ["That belongs outside!"],
+  L_NOT_OUTDOORS: ["Cosy things like a roof!"],
+  L_GALLERY_SEED: ["Every Boo you meet earns a spot in here!"]
 };

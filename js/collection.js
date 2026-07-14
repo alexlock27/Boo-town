@@ -23,7 +23,7 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'collection' });
 
   const header = el('header', { class: 'coll-header' }, [
-    backControl(() => ctx.go('hub')),
+    backControl(() => ctx.go((params && params.from) || 'hub')),   // RUN10 P4: return to whoever sent us here (e.g. the Gallery)
     el('h2', { text: 'My Collection' }),
     el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` }),
     shinyTotal > 0 ? el('span', { class: 'coll-shiny-count', text: `✨ ${shinyTotal} shin${shinyTotal === 1 ? 'y' : 'ies'}` }) : null
@@ -190,6 +190,13 @@ export function mount(container, params, ctx) {
       else if (v === 'rename') openRename(item.id, { onDone: () => ctx.go('collection') });
       else if (v === 'voice') openVoiceRecorder(item.id, nick);
     });
+  }
+
+  // Arriving from a specific figure (RUN10 P4: the Gallery) opens straight to its card.
+  if (params && params.openItem) {
+    const wanted = params.openItem;
+    const item = wanted.startsWith('custom:') ? ownedCustomItems().find(c => c.id === wanted) : COLLECTIBLES.find(it => it.id === wanted);
+    if (item && (owned[wanted] || 0) > 0) setTimeout(() => showItem(item, owned[wanted] || 1), 50);
   }
 
   return { unmount() {} };

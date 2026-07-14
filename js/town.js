@@ -35,6 +35,14 @@ import { createDrawer } from './drawer.js';
 // one entry, every `ZONE_INDEX[...] === zi` comparison and `zi * zoneW` offset still holds).
 const MAX_WANDERERS = 30;
 
+// ---- interior scenes (RUN10 P4): the Boo House ----
+// Only kind:'interior' areas mounted BY town.js (the Gallery is its own dedicated
+// screen — see js/gallerymuseum.js). A room is snug: 1.5 viewports, not 4.
+const INTERIOR_W_VIEWPORTS = 1.5;
+const INTERIOR_WALL_FRAC = 0.55;   // room backdrop: wall band = top 55%, floor band = the rest
+const WALL_ROW = 3;                // sentinel row value for wall-hung items (floor uses 0-2)
+const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no depth variation
+
 const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of viewport height
 const GROUND_FRAC = BAND_TOP;          // the grass band starts at the top of the placement band
 // three depth rows: feet-line (fraction of viewH), and a size scale (smaller toward the back)
@@ -64,7 +72,7 @@ const GOAL_TIMEOUT_MS = 9000;   // abandon a goal if unreached — a Boo is neve
 const CHASE_MS = 3800;          // a butterfly (day) / firefly (night) chase
 const WATCH_MS = 4200;          // a sit-and-watch spell
 const NAP_MS = 22000;           // a chosen nap under a tree/house lasts a while (or until morning)
-const NAP_IDS = ['deco_boohouse', 'deco_tree'];   // a Boo naps by a house or under a Bubble Tree at night
+const NAP_IDS = ['deco_boohouse', 'deco_tree', 'deco_bed'];   // a Boo naps by a house, under a Bubble Tree, or (preferred, RUN10 P4) in a placed bed
 const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond'];
 // role kind per activity item — generic socket loop below (RUN10 P2)
 const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'fish' };
@@ -139,7 +147,9 @@ const lerp = (a, b, k) => a + (b - a) * k;
 // Activity kit renders bigger than a Boo so climbing/sitting reads properly.
 const ACT_SIZE = {
   deco_slide: 150, deco_swings: 150, deco_seesaw: 160, deco_trampoline: 140,
-  deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120
+  deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120,
+  // furniture (RUN10 P4)
+  deco_bed: 140, deco_sofa: 150, deco_wardrobe: 130, deco_bookshelf: 130, deco_bathtub: 130
 };
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
@@ -158,6 +168,9 @@ export function mount(container, params, ctx) {
   // that don't specify an area).
   const areaKey = (params && params.area) || 'meadow';
   const AREA = areaByKey(areaKey);
+  // Interior scene mode (RUN10 P4): only the Boo House reaches town.js as kind:'interior'
+  // — the Gallery is routed to its own screen (js/gallerymuseum.js) from the world map.
+  const isInterior = AREA.kind === 'interior';
   // Single-area "zones" shim: every zone-comparison helper below was written for the old
   // 5-zone continuous world and reads ZONES/ZONE_INDEX from the enclosing closure. With
   // exactly one entry here (index 0, unlock 0 — already-unlocked by construction, since
@@ -265,6 +278,19 @@ export function mount(container, params, ctx) {
   // Entry crossfade (P1): the map badge scales up into this scene, 300ms.
   requestAnimationFrame(() => { requestAnimationFrame(() => root.classList.remove('entering')); });
 
+  // The Boo House starts with a rug + table lamp pre-placed (RUN10 P4) — a one-time seed,
+  // not a grant (they aren't added to inventory, so they don't count as "collected" until
+  // she wins her own copy from a box).
+  if (AREA.key === 'boohouse' && !((getState().seen || {}).boohouseSeeded)) {
+    mutate(st => {
+      st.seen = st.seen || {};
+      st.seen.boohouseSeeded = true;
+      const items = areaItems(st);
+      items.push({ zone: 'boohouse', x: 0.3, row: 1, item: 'deco_rug' });
+      items.push({ zone: 'boohouse', x: 0.62, row: 1, item: 'deco_tablelamp' });
+    });
+  }
+
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
     if (params && params.enterPan) setTimeout(() => panAcrossZone(0, 1600), REDUCED ? 0 : 200);
@@ -286,8 +312,9 @@ export function mount(container, params, ctx) {
   function layout() {
     viewH = viewport.clientHeight || 400;
     viewW = viewport.clientWidth || 600;
-    // Each area is AREA_W_VIEWPORTS (4) viewports wide (RUN10 P1) — room to roam, not a corridor.
-    zoneW = viewW * AREA_W_VIEWPORTS;
+    // Each outdoor area is AREA_W_VIEWPORTS (4) viewports wide (RUN10 P1) — room to roam,
+    // not a corridor. A room is snug instead (RUN10 P4): INTERIOR_W_VIEWPORTS (1.5).
+    zoneW = viewW * (isInterior ? INTERIOR_W_VIEWPORTS : AREA_W_VIEWPORTS);
     worldW = zoneW * ZONES.length;   // ZONES.length is always 1 now: worldW === zoneW === the area
     groundY = viewH * GROUND_FRAC;
     for (const L of [sky, hills, ground, air]) { L.style.width = worldW + 'px'; L.style.height = viewH + 'px'; }
@@ -419,13 +446,17 @@ export function mount(container, params, ctx) {
     hammerBtn.classList.toggle('active', buildMode);
     hammerBtn.setAttribute('aria-label', buildMode ? 'Exit build mode' : 'Build mode');
     pathStyleRow.style.display = (buildMode && buildTool === 'paths') ? '' : 'none';
+    // Landscape is a Build-only, outdoor-only toybox (RUN10 P3/P4) — hidden whenever
+    // either condition isn't met (e.g. build mode toggled on inside the Boo House).
+    const landscapeVisible = buildMode && AREA.kind === 'outdoor';
     const landscapeTabBtn = drawer.querySelectorAll('.bd-tabs .bd-tab')[4];
-    if (landscapeTabBtn) landscapeTabBtn.style.display = buildMode ? '' : 'none';
-    if (!buildMode && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
+    if (landscapeTabBtn) landscapeTabBtn.style.display = landscapeVisible ? '' : 'none';
+    if (!landscapeVisible && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
   }
 
   function renderScenery() {
     clear(sky); clear(hills); clear(ground);
+    if (isInterior) { renderInteriorScenery(); renderPaths(); return; }
     // sky: gradient + a scatter of stars across the whole world
     sky.appendChild(el('div', { class: 't-skygrad' }));
     const starN = 90;
@@ -474,6 +505,22 @@ export function mount(container, params, ctx) {
     renderPaths();   // ground layer, above grass, below row-0 items (RUN10 P3) — renderScenery wipes ground
   }
 
+  // Room backdrop (RUN10 P4): a wall band (top 55%) + a floor band, no sky/hills/signpost —
+  // the Boo House is always unlocked and is never a "place to discover", it's home.
+  function renderInteriorScenery() {
+    const wallH = viewH * INTERIOR_WALL_FRAC;
+    const wall = el('div', { class: 't-interior-wall' });
+    wall.style.width = worldW + 'px'; wall.style.height = wallH + 'px';
+    hills.appendChild(wall);
+    const windowEl = el('div', { class: 't-interior-window' });
+    windowEl.style.left = (worldW * 0.5 - 46) + 'px'; windowEl.style.top = (wallH * 0.28) + 'px';
+    hills.appendChild(windowEl);
+    const floor = el('div', { class: 't-interior-floor' });
+    floor.style.left = '0'; floor.style.top = wallH + 'px';
+    floor.style.width = worldW + 'px'; floor.style.height = (viewH - wallH) + 'px';
+    ground.appendChild(floor);
+  }
+
   function renderPlaced() {
     ground.querySelectorAll('.t-item').forEach(n => n.remove());
     // clear any orphaned zone-behaviour props (RUN7 C2) so a re-render never leaves them stranded
@@ -493,15 +540,19 @@ export function mount(container, params, ctx) {
       const zi = ZONE_INDEX[t.zone] ?? 0;
       const x = clamp01(t.x);
       const px = zi * zoneW + x * zoneW;
-      // Three depth rows (C3): items scale smaller toward the back and, being lower on
-      // screen (larger y), the front rows draw ABOVE the back rows.
-      const row = rowOf(t);
-      const rowGroundPx = viewH * ROW_GROUND[row];
-      const size = (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
-      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
+      // Wall-hung items (RUN10 P4): a fixed row, no depth variation, drawn behind the
+      // floor's own items (lower z) — a bookshelf never blocks a Boo standing in front of it.
+      const onWall = t.row === WALL_ROW;
+      const row = onWall ? WALL_ROW : rowOf(t);
+      const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
+      const size = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
+      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
       wrap.style.left = (px - size / 2) + 'px';
       wrap.style.top = (rowGroundPx - size + 8) + 'px';
-      wrap.style.zIndex = String(Math.round(rowGroundPx));
+      wrap.style.zIndex = onWall ? '1' : String(Math.round(rowGroundPx));
+      // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
+      // growth.js's fairy lights.
+      if (t.item === 'deco_tablelamp' && isNight(currentHour())) wrap.classList.add('lit');
       wrap.innerHTML = renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
       attachItemPointer(wrap, t, item);
       ground.appendChild(wrap);
@@ -1444,6 +1495,10 @@ export function mount(container, params, ctx) {
   function spotTaken(zi, x, row, except) {
     return areaItems(getState()).some(t => t !== except && (ZONE_INDEX[t.zone] ?? 0) === zi && rowOf(t) === row && Math.abs(t.x - x) < MIN_SPACING);
   }
+  // Wall-hung items (RUN10 P4) live in their own lane — never compared against floor rows.
+  function wallSpotTaken(x, except) {
+    return areaItems(getState()).some(t => t !== except && t.row === WALL_ROW && Math.abs(t.x - x) < MIN_SPACING);
+  }
   function spotWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
     setTimeout(() => drawer.classList.remove('taken'), 600);
@@ -1463,11 +1518,20 @@ export function mount(container, params, ctx) {
     speakMaybe(line);
     if (sfx.oops) sfx.oops();
   }
-  // Landscape items are outdoor-only (RUN10 P3: catalogue kind:'landscape').
-  function landscapeOutdoorWobble() {
+  // Outdoor-only items (landscape + rides) refuse indoors; furniture refuses outdoors
+  // (RUN10 P4). Same wobble, two directions, two lines.
+  function notIndoorsWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
     setTimeout(() => drawer.classList.remove('taken'), 600);
-    const line = guideLine('L_LANDSCAPE_OUTDOORS');
+    const line = guideLine('L_NOT_INDOORS');
+    hint.textContent = line;
+    speakMaybe(line);
+    if (sfx.oops) sfx.oops();
+  }
+  function notOutdoorsWobble() {
+    drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
+    setTimeout(() => drawer.classList.remove('taken'), 600);
+    const line = guideLine('L_NOT_OUTDOORS');
     hint.textContent = line;
     speakMaybe(line);
     if (sfx.oops) sfx.oops();
@@ -1508,8 +1572,25 @@ export function mount(container, params, ctx) {
     const { zi, x } = zoneAndXAt(clientToWorld(cx));
     if (!canPlaceIn(zi)) { flashLocked(zi); return; }
     const heldItem = resolveItem(holding);
-    if (heldItem && heldItem.kind === 'landscape' && AREA.kind !== 'outdoor') { landscapeOutdoorWobble(); return; }
+    if (heldItem) {
+      // Outdoor-only: landscape (Build toybox) and rides (any activity item, `act`) —
+      // furniture is indoor-only (RUN10 P4). Both directions, both ways.
+      const outdoorOnly = heldItem.kind === 'landscape' || !!heldItem.act;
+      const indoorOnly = heldItem.kind === 'furniture';
+      if (outdoorOnly && AREA.kind !== 'outdoor') { notIndoorsWobble(); return; }
+      if (indoorOnly && AREA.kind !== 'interior') { notOutdoorsWobble(); return; }
+    }
     if (areaFull()) { areaFullWobble(); return; }
+    // Wall-hung furniture (RUN10 P4): its own single-row lane, no depth-row Y choice.
+    if (heldItem && heldItem.wall) {
+      if (wallSpotTaken(x)) { spotWobble(); return; }
+      const id = holding;
+      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +x.toFixed(3), row: WALL_ROW, item: id }); });
+      holding = null; placeMode = false;
+      renderPlaced(); renderDrawer(); updateHint();
+      sfx.pop();
+      return;
+    }
     const row = rowAtClient(cy);
     if (spotTaken(zi, x, row)) { spotWobble(); return; }   // keep holding it, try again
     const id = holding;
@@ -1637,6 +1718,7 @@ export function mount(container, params, ctx) {
       down = true; moved = false; dsx = e.clientX; dsy = e.clientY;
       wrap.setPointerCapture(e.pointerId);
     });
+    const onWall = !!item.wall;
     wrap.addEventListener('pointermove', e => {
       if (!down) return;
       if (!moved && Math.hypot(e.clientX - dsx, e.clientY - dsy) > 10) {
@@ -1644,14 +1726,17 @@ export function mount(container, params, ctx) {
       }
       if (moved) {
         const { zi, x } = zoneAndXAt(clientToWorld(e.clientX));
-        const row = rowAtClient(e.clientY);
-        const rowGroundPx = viewH * ROW_GROUND[row];
+        // Wall items (RUN10 P4) never leave the wall row — only x moves.
+        const row = onWall ? WALL_ROW : rowAtClient(e.clientY);
+        const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
         wrap.style.left = (zi * zoneW + x * zoneW - wrap.offsetWidth / 2) + 'px';
         wrap.style.top = (rowGroundPx - wrap.offsetHeight + 8) + 'px';   // preview the depth row
-        wrap.style.zIndex = String(Math.round(rowGroundPx));
+        wrap.style.zIndex = onWall ? '1' : String(Math.round(rowGroundPx));
         wrap.dataset._zi = zi; wrap.dataset._x = x; wrap.dataset._row = String(row);
-        const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
-        showDropPreview(wrap, zi, x, row, cur);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
+        if (!onWall) {
+          const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+          showDropPreview(wrap, zi, x, row, cur);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
+        }
       }
     });
     wrap.addEventListener('pointerup', e => {
@@ -1660,8 +1745,11 @@ export function mount(container, params, ctx) {
       hideDropPreview(wrap);
       if (moved) {
         const zi = +wrap.dataset._zi, x = +wrap.dataset._x, row = +wrap.dataset._row;
-        const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
-        if (canPlaceIn(zi) && !spotTaken(zi, x, row, cur)) {
+        const cur = onWall
+          ? areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === WALL_ROW)
+          : areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+        const taken = onWall ? wallSpotTaken(x, cur) : spotTaken(zi, x, row, cur);
+        if (canPlaceIn(zi) && !taken) {
           mutate(st => { const items = areaItems(st); const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); t.row = row; } });
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
@@ -1909,7 +1997,12 @@ export function mount(container, params, ctx) {
   function pickNapSpot(a) {
     const st = getState(); const zi = ZONE_INDEX[a.place.zone];
     const cands = areaItems(st).filter(t => NAP_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) < 0.6);
-    cands.sort((p, q) => Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x));
+    // A placed bed is the preferred nap spot (RUN10 P4) — beats distance.
+    cands.sort((p, q) => {
+      const bp = p.item === 'deco_bed' ? 0 : 1, bq = q.item === 'deco_bed' ? 0 : 1;
+      if (bp !== bq) return bp - bq;
+      return Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x);
+    });
     return cands[0] || null;
   }
   // Near a Boo House at bedtime the sleep ROLE (assignRoles) has priority — a Boo there
@@ -2365,7 +2458,19 @@ export function mount(container, params, ctx) {
         if (!a.wrap.querySelector('.t-rod')) a.wrap.appendChild(el('div', { class: 't-rod' }, [el('div', { class: 't-bobber' })]));
         return true;
       },
-      dripCount: () => ground.querySelectorAll('.t-drip').length
+      dripCount: () => ground.querySelectorAll('.t-drip').length,
+      // RUN10 P4 QA hooks: interiors (the Boo House).
+      isInterior: () => isInterior,
+      napSpotItem: (i) => { const a = actors[i]; return a && a.goal && a.goal.spot ? a.goal.spot.item : null; },
+      wallItems: () => areaItems(getState()).filter(t => t.row === WALL_ROW).map(t => t.item),
+      floorItems: () => areaItems(getState()).filter(t => t.row !== WALL_ROW).map(t => t.item),
+      lampLit: (sel) => { const n = ground.querySelector(sel || '.t-item[data-item="deco_tablelamp"]'); return n ? n.classList.contains('lit') : null; },
+      lampGlowOpacity: (sel) => { const n = ground.querySelector((sel || '.t-item[data-item="deco_tablelamp"]') + ' .lamp-glow'); return n ? getComputedStyle(n).opacity : null; },
+      // Force-hold any item id directly (bypasses the drawer UI) — for exercising a
+      // placement guard regardless of whether that item's tab happens to be reachable
+      // in the current area (e.g. Landscape is hidden indoors by design).
+      forceHold: (id) => { holding = id; placeMode = true; renderDrawer(); },
+      placeAt: (fx, fy) => { const r = viewport.getBoundingClientRect(); placeAtClient(r.left + r.width * fx, r.top + r.height * fy); }
     };
   }
 

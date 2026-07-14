@@ -16,11 +16,13 @@ import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
 import { tickGrowth } from './growth.js';
 
-// Reveal cards announce what the item is (spec RUN2 C2).
-const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
+// Reveal cards announce what the item is (spec RUN2 C2). Furniture (RUN10 P4) reads the
+// same as a decoration reveal — it drops from the same 'deco' box pool at the same odds.
+const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', furniture: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
 const TYPE_LINE = {
   boo: 'Boos live in your town!',
   deco: 'Place it in your town!',
+  furniture: 'Place it in your town!',
   accessory: 'Dress up any Boo, or your own character!'
 };
 

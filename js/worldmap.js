@@ -64,6 +64,8 @@ export function mount(container, params, ctx) {
 
   function enterArea(key) {
     sfx.tap();
+    // The Gallery is its own dedicated screen (RUN10 P4), not a town.js area scene.
+    if (key === 'gallery') { ctx.go('gallerymuseum'); return; }
     ctx.go('town', { area: key, enterPan: justUnlocked.has(key) });
   }
 

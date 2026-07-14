@@ -114,8 +114,8 @@ await page.evaluate((s) => localStorage.setItem('bootown.save.v1', s), SAVE({ in
 await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
 await page.evaluate(() => window.BooTown.go('collection')); await page.waitForSelector('.coll-grid');
 const coll = await page.evaluate(() => ({ slots: document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile').length, count: document.querySelector('.coll-count').textContent }));
-assert(coll.slots === 62, 'collection shows 62 slots (52 + 8 activity items + Scout + Quest Flag, RUN6 C6) (' + coll.slots + ')');
-assert(/of 62/.test(coll.count), 'counter shows "of 62" (' + coll.count + ')');
+assert(coll.slots === 70, 'collection shows 70 slots (52 + 8 activity items + Scout + Quest Flag + 8 furniture, RUN10 P4) (' + coll.slots + ')');
+assert(/of 70/.test(coll.count), 'counter shows "of 70" (' + coll.count + ')');
 
 console.log('\n== errors ==');
 if (errors.length) console.log(errors.map(e => '  ! ' + e).join('\n'));

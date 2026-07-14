@@ -110,6 +110,19 @@ export const CATALOGUE = [
   { id: 'deco_rock',       kind: 'landscape', name: 'Rock',       rarity: 'common', deco: 'rock',       free: true, blurb: 'Solid, mossy, an excellent place to sit and think.' },
   { id: 'deco_flowerbed',  kind: 'landscape', name: 'Flowerbed',  rarity: 'common', deco: 'flowerbed',  free: true, blurb: 'A tidy row of blooms, strictly not for eating.' },
 
+  // --- Furniture (8, RUN10 P4): kind:'furniture', indoor-only, joins box pools at
+  // decoration odds (bucketed under 'deco' in BY_TYPE_RARITY below, not a separate type
+  // roll). `wall:true` hangs in the interior scene's wall band; everything else stands
+  // on the floor. The Boo House starts with rug+lamp pre-placed.
+  { id: 'deco_bed',       kind: 'furniture', name: 'Cosy Bed',      rarity: 'common', deco: 'bed',       blurb: 'Plump pillow, softest blanket, prime napping real estate.' },
+  { id: 'deco_rug',       kind: 'furniture', name: 'Round Rug',     rarity: 'common', deco: 'rug',       blurb: 'Ties the whole room together, or so the Boos insist.' },
+  { id: 'deco_table',     kind: 'furniture', name: 'Little Table',  rarity: 'common', deco: 'table',     blurb: 'Just the right height for tea and important meetings.' },
+  { id: 'deco_sofa',      kind: 'furniture', name: 'Squashy Sofa',  rarity: 'rare',   deco: 'sofa',      blurb: 'Three cushions, infinite Boos somehow fit on it anyway.' },
+  { id: 'deco_tablelamp', kind: 'furniture', name: 'Table Lamp',    rarity: 'rare',   deco: 'tablelamp', blurb: 'Glows a soft gold the moment the sun goes down.' },
+  { id: 'deco_wardrobe',  kind: 'furniture', name: 'Tall Wardrobe', rarity: 'rare',   deco: 'wardrobe',  blurb: 'Every accessory lives in here, in theory.' },
+  { id: 'deco_bathtub',   kind: 'furniture', name: 'Bubble Bath',   rarity: 'rare',   deco: 'bathtub',   blurb: 'Bubbles optional. A Boo will find them anyway.' },
+  { id: 'deco_bookshelf', kind: 'furniture', name: 'Bookshelf',     rarity: 'ultra',  deco: 'bookshelf', wall: true, blurb: 'Every shelf a different colour, none of them alphabetised.' },
+
   // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
   // Wearable on any Boo (one slot each) and on the player's own character.
   { id: 'acc_bow',          kind: 'accessory', name: 'Purple Bow',     rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
@@ -143,7 +156,10 @@ export const ACCESSORIES  = CATALOGUE.filter(it => it.kind === 'accessory');
 export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
   if (it.free || it.questOnly) return m;   // quest-exclusives (RUN6 C6) never drop from boxes
   if (it.kind === 'landscape') return m;   // Build-mode toybox items (RUN10 P3) never drop either
-  ((m[it.kind] ||= {})[it.rarity] ||= []).push(it);
+  // Furniture (RUN10 P4) joins the box pools "at decoration odds" — bucketed under the
+  // same 'deco' type-roll weight, not a separate furniture type/weight of its own.
+  const bucketKind = it.kind === 'furniture' ? 'deco' : it.kind;
+  ((m[bucketKind] ||= {})[it.rarity] ||= []).push(it);
   return m;
 }, {});
 

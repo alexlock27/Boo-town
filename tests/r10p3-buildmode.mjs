@@ -173,18 +173,21 @@ console.log('== path cap: 300 cells/area, L_PATH_FULL on the 301st ==');
 // ==================== landscape: outdoor-only placement ====================
 console.log('== landscape items: outdoor areas only ==');
 {
+  // RUN10 P4 tightened this further: the Landscape tab itself is hidden in any interior
+  // area (not just outside build mode), so there's no drawer chip to reach here at all —
+  // exercise the underlying guard directly via the forceHold QA hook instead (P4 does the
+  // same; see tests/r10p4-interiors.mjs), and additionally prove the tab really is hidden.
   const { ctx, page } = await openArea('boohouse', []);
   await page.evaluate(() => window.__townLife.toggleBuild());
-  await page.click('.bd-collapsed');
-  await page.click('.bd-tabs .bd-tab:nth-child(5)');   // Landscape tab
-  await page.$eval('.bd-panel:not([hidden]) .drawer-item', n => n.click());
-  const vp = await page.$eval('.t-viewport', n => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.75 }; });
-  await page.mouse.click(vp.x, vp.y);
+  const tabHiddenIndoors = await page.evaluate(() => getComputedStyle(document.querySelectorAll('.bd-tabs .bd-tab')[4]).display === 'none');
+  assert(tabHiddenIndoors, 'the Landscape tab is hidden indoors, even in build mode');
+  await page.evaluate(() => { window.__townLife.forceHold('deco_palm'); window.__townLife.placeAt(0.5, 0.75); });
   await sleep(150);
   const placedIndoors = await page.evaluate(() => document.querySelectorAll('.t-item[data-item^="deco_palm"], .t-item[data-item^="deco_oak"], .t-item[data-item^="deco_pine"], .t-item[data-item^="deco_bush"], .t-item[data-item^="deco_rock"], .t-item[data-item^="deco_flowerbed"]').length);
   assert(placedIndoors === 0, 'a landscape item refuses to place indoors');
   const hint = await page.$eval('.town-hint-bar', n => n.textContent);
-  assert(/outdoors/i.test(hint), `the guide explains why ("${hint}")`);
+  // RUN10 P4 generalised the line to cover both landscape and rides refusing indoors
+  assert(/belongs outside/i.test(hint), `the guide explains why ("${hint}")`);
   await ctx.close();
 }
 {

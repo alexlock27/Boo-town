@@ -26,15 +26,16 @@ await page.waitForTimeout(400);
 await page.screenshot({ path: 'screenshots/m2-collection.png' });
 
 // scope to the main collectibles grid (the wardrobe grid also uses .coll-tile).
-// RUN4 C5 + RUN6 C6: 62 collectibles (52 + 8 activity items + Scout + Quest Flag).
+// RUN4 C5 + RUN6 C6 + RUN10 P4: 70 collectibles (52 + 8 activity items + Scout + Quest
+// Flag + 8 furniture).
 const tiles = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile').length);
-assert(tiles === 62, 'grid shows all 62 slots (' + tiles + ')');
+assert(tiles === 70, 'grid shows all 70 slots (' + tiles + ')');
 const owned = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile.owned').length);
 assert(owned === 5, '5 owned tiles in colour (' + owned + ')');
 const locked = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile.locked').length);
-assert(locked === 57, '57 mystery silhouettes (' + locked + ')');
+assert(locked === 65, '65 mystery silhouettes (' + locked + ')');
 const countText = await page.textContent('.coll-count');
-assert(countText.includes('5 of 62'), 'counter shows 5 of 62 (' + countText + ')');
+assert(countText.includes('5 of 70'), 'counter shows 5 of 70 (' + countText + ')');
 const badge = await page.evaluate(() => !!document.querySelector('.coll-badge'));
 assert(badge, 'a count badge shows for the item owned x3');
 

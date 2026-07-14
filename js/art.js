@@ -928,6 +928,74 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         `<circle class="cf-spark s1" cx="52" cy="46" r="2.2" fill="${COLORS.star}"/>` +
         `<circle class="cf-spark s2" cx="70" cy="40" r="1.8" fill="${COLORS.orange}"/>`;
       break;
+    // ---- furniture (RUN10 P4): the Boo House's indoor toybox ----
+    case 'bed':
+      inner =
+        rrect(20, 78, 80, 30, 8, COLORS.cocoa, halo) +
+        rrect(20, 78, 80, 30, 8, COLORS.cocoa, ink) +
+        rrect(26, 66, 24, 20, 6, COLORS.cream, halo) +
+        rrect(26, 66, 24, 20, 6, COLORS.cream, ink) +
+        rrect(50, 82, 46, 20, 6, COLORS.bubblegum, halo) +
+        rrect(50, 82, 46, 20, 6, COLORS.bubblegum, ink);
+      break;
+    case 'rug':
+      inner =
+        ell(60, 100, 46, 16, COLORS.teal, halo) +
+        ell(60, 100, 46, 16, COLORS.teal, ink) +
+        ell(60, 100, 30, 10, COLORS.cream, ink) +
+        ell(60, 100, 14, 5, COLORS.bubblegum, ink);
+      break;
+    case 'table':
+      inner =
+        ell(60, 62, 34, 10, COLORS.cocoa, halo) +
+        ell(60, 62, 34, 10, COLORS.cocoa, ink) +
+        rrect(30, 66, 6, 36, 3, COLORS.cocoa, ink) +
+        rrect(84, 66, 6, 36, 3, COLORS.cocoa, ink) +
+        ell(60, 60, 30, 8, '#A9744F', ink);
+      break;
+    case 'sofa':
+      inner =
+        rrect(16, 60, 88, 24, 12, COLORS.bubblegum, halo) +
+        rrect(16, 60, 88, 24, 12, COLORS.bubblegum, ink) +
+        rrect(20, 80, 80, 26, 10, COLORS.pink, halo) +
+        rrect(20, 80, 80, 26, 10, COLORS.pink, ink) +
+        ell(38, 74, 12, 10, '#FF97D0', ink) + ell(60, 74, 12, 10, '#FF97D0', ink) + ell(82, 74, 12, 10, '#FF97D0', ink) +
+        rrect(12, 78, 10, 26, 5, COLORS.bubblegum, ink) + rrect(98, 78, 10, 26, 5, COLORS.bubblegum, ink);
+      break;
+    // .lamp-glow: dim by day, boosted by CSS when the wrap carries .lit (town.js sets it
+    // 21:00-07:00 via __bootownHour, same pattern as growth.js's fairy lights).
+    case 'tablelamp':
+      inner =
+        rrect(52, 96, 16, 8, 3, COLORS.cocoa, ink) +
+        rrect(58, 60, 4, 38, 2, COLORS.cocoa, ink) +
+        `<g class="lamp-glow">` +
+        path('M40 62 Q60 34 80 62 Z', COLORS.gold, halo) +
+        path('M40 62 Q60 34 80 62 Z', COLORS.gold, ink) +
+        `<circle cx="60" cy="54" r="8" fill="#FFF3B0"/>` +
+        `</g>`;
+      break;
+    case 'wardrobe':
+      inner =
+        rrect(30, 30, 60, 82, 8, COLORS.cocoa, halo) +
+        rrect(30, 30, 60, 82, 8, COLORS.cocoa, ink) +
+        `<line x1="60" y1="34" x2="60" y2="108" stroke="${INK}" stroke-width="3"/>` +
+        `<circle cx="54" cy="70" r="2.5" fill="${COLORS.gold}"/><circle cx="66" cy="70" r="2.5" fill="${COLORS.gold}"/>`;
+      break;
+    case 'bathtub':
+      inner =
+        path('M20 70 Q20 100 50 100 L84 100 Q100 100 100 82 L100 70 Z', COLORS.sky, halo) +
+        path('M20 70 Q20 100 50 100 L84 100 Q100 100 100 82 L100 70 Z', COLORS.sky, ink) +
+        ell(60, 68, 42, 10, '#fff', ink) +
+        `<circle cx="46" cy="60" r="5" fill="#fff" opacity="0.85"/><circle cx="60" cy="54" r="4" fill="#fff" opacity="0.8"/><circle cx="72" cy="60" r="5" fill="#fff" opacity="0.85"/>`;
+      break;
+    case 'bookshelf':
+      inner =
+        rrect(18, 22, 84, 86, 6, COLORS.cocoa, halo) +
+        rrect(18, 22, 84, 86, 6, COLORS.cocoa, ink) +
+        `<line x1="18" y1="64" x2="102" y2="64" stroke="${INK}" stroke-width="3"/>` +
+        [26, 40, 54, 68, 82].map((x, i) => rrect(x, 30, 10, 30, 2, c(['bubblegum', 'teal', 'gold', 'lilac', 'pink'][i % 5]), ink)).join('') +
+        [26, 44, 62, 80].map((x, i) => rrect(x, 72, 14, 30, 2, c(['teal', 'bubblegum', 'pink', 'gold'][i % 4]), ink)).join('');
+      break;
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);
   }
@@ -947,10 +1015,10 @@ export function renderAccessory(item, { size = 120, cls = '' } = {}) {
 // opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {
   if (item.custom) return renderCustomBoo(item.custom, opts);
-  // landscape (RUN10 P3: build-mode toybox scenery) draws exactly like a deco —
-  // 'landscape' is a game-logic tag (box exclusion, outdoor-only, its own drawer tab),
-  // not a different art path.
-  if (item.kind === 'deco' || item.kind === 'landscape') return renderDeco(item, opts);
+  // landscape (RUN10 P3) and furniture (RUN10 P4) draw exactly like a deco — both are
+  // game-logic tags (box exclusion/odds, indoor-vs-outdoor placement, their own drawer
+  // tab), not a different art path.
+  if (item.kind === 'deco' || item.kind === 'landscape' || item.kind === 'furniture') return renderDeco(item, opts);
   if (item.kind === 'accessory') return renderAccessory(item, opts);
   return renderBoo(item, opts);
 }

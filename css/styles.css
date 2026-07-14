@@ -1762,6 +1762,32 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .map-badge, .map-badge.wobble, .map-toast { animation: none; transition: none; }
 }
 
+/* ---- RUN10 P4: the Gallery — a self-curating museum, no build mode ---- */
+.gallerymuseum { display: flex; flex-direction: column; height: 100%; }
+.gm-stage {
+  flex: 1; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+  touch-action: pan-x; cursor: grab; user-select: none; margin: 0 8px; border-radius: 22px;
+  background: linear-gradient(180deg, var(--sky-deep) 0%, var(--sky-mid) 100%);
+  box-shadow: inset 0 6px 18px rgba(0,0,0,0.22); scrollbar-width: none;
+}
+.gm-stage::-webkit-scrollbar { display: none; }
+.gm-stage:active { cursor: grabbing; }
+.gm-wall { display: flex; gap: 14px; padding: 16px 24px 4px; align-items: center; min-height: 56px; flex-wrap: nowrap; }
+.gm-trophy { font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); flex: 0 0 auto; }
+.gm-portrait { width: 44px; height: 44px; border-radius: 8px; background: var(--card); border: 3px solid var(--star); padding: 2px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); flex: 0 0 auto; }
+.gm-wings { display: flex; align-items: flex-start; padding: 8px 24px 24px; gap: 44px; }
+.gm-wing { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 0 0 auto; }
+.gm-banner { color: var(--star); font-family: var(--font-display); font-weight: 700; font-size: 16px; text-align: center; }
+.gm-grid { display: grid; grid-template-columns: repeat(6, 96px); grid-auto-rows: 110px; gap: 12px; }
+.gm-plinth { position: relative; border: none; background: none; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding: 0; width: 96px; height: 110px; }
+.gm-plinth:active { transform: scale(0.96); }
+.gm-pedestal { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 70px; height: 16px; border-radius: 50%; background: #5F4FC4; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+.gm-pedestal.gold { background: linear-gradient(180deg, #FFE08A 0%, var(--star) 100%); box-shadow: 0 4px 14px rgba(255,201,60,0.6); }
+.gm-art { position: relative; z-index: 1; margin-bottom: 10px; }
+.gm-seed-room { display: flex; gap: 16px; padding: 40px 24px; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+.gm-plinth.seed { opacity: 0.6; cursor: default; }
+.gm-seed-q { font-family: var(--font-display); font-size: 34px; color: rgba(255,255,255,0.5); margin-bottom: 16px; }
+
 .t-viewport {
   flex: 1; position: relative; overflow: hidden; margin: 0 8px; border-radius: 22px;
   background: linear-gradient(180deg, var(--sky-deep) 0%, var(--sky-mid) 100%);
@@ -1791,6 +1817,22 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-band.locked { filter: grayscale(0.85) brightness(0.55); }
 .t-band.shake { animation: bandshake 0.4s ease; }
 @keyframes bandshake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+/* Interior room backdrop (RUN10 P4): wall band (top 55%) + floor band, no sky/grass. */
+.t-interior-wall { position: absolute; left: 0; top: 0; background: linear-gradient(180deg, #EFE0C8 0%, #E6D3B0 100%); }
+.t-interior-window {
+  position: absolute; width: 92px; height: 34%; border-radius: 10px;
+  background: linear-gradient(180deg, #8FC7FF 0%, #5BA3E8 100%);
+  border: 6px solid #C9A876; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.4);
+}
+.town2.night .t-interior-window { background: linear-gradient(180deg, #201858 0%, #0E0A2E 100%); }
+.t-interior-floor { position: absolute; z-index: 2; background: linear-gradient(180deg, #D8B98A 0%, #C9A876 100%); }
+.t-interior-floor.locked { filter: grayscale(0.85) brightness(0.55); }
+
+/* Table lamp (RUN10 P4): dim by day, boosted when the wrap carries .lit (21:00-07:00). */
+.t-item .lamp-glow { opacity: 0.45; transition: opacity 0.3s ease; }
+.t-item.lit .lamp-glow { opacity: 1; filter: drop-shadow(0 0 10px rgba(255, 201, 60, 0.85)); }
+@media (prefers-reduced-motion: reduce) { .t-item .lamp-glow { transition: none; } }
 
 /* RUN10 P2: activity-socket arrival settle (180ms drop + squash) + the no-free-socket shrug.
    Both play on the OUTER .t-item wrap so they compose with the child svg's own per-frame
