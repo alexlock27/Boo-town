@@ -29,6 +29,7 @@ function freshSave() {
         clockshop: { best: 0, plays: 0, earned: 0 },
         boopop:    { best: 0, plays: 0, earned: 0 },
         detective: { best: 0, plays: 0, earned: 0 },   // Word Detective (RUN9 C3)
+        booroll:   { best: 0, plays: 0, earned: 0 },   // Boo Roll (RUN9 C4)
         // Toddler mode (RUN5 C7)
         tcount:    { best: 0, plays: 0, earned: 0 },
         tcolour:   { best: 0, plays: 0, earned: 0 },
@@ -71,6 +72,7 @@ function freshSave() {
     funfair: { built: [], build: null, pending: [], seats: {} },  // Boo Funfair rides + seat riders (RUN6 C1b)
     bandSong: null,             // id of the saved jam set as the bandstand's watch-mode song (RUN6 C1c)
     quest: { node: 0, lands: {} },  // Boo Quest progress: current node in the active land + completed lands (RUN6 C6)
+    booRoll: { best: {}, medals: {} },  // Boo Roll per-course best times (ms) + best medal (RUN9 C4)
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)

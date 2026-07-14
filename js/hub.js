@@ -39,7 +39,8 @@ const GAMES = [
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
   { id: 'dash',      name: 'Boo Dash',     tag: 'Fluency run',   accent: 'var(--pop)',  icon: dashIcon, group: 'Play' },
-  { id: 'boopop',    name: 'Boo Pop',      tag: 'Match & pop',   accent: 'var(--zing)', icon: popIcon, group: 'Play' }
+  { id: 'boopop',    name: 'Boo Pop',      tag: 'Match & pop',   accent: 'var(--zing)', icon: popIcon, group: 'Play' },
+  { id: 'booroll',   name: 'Boo Roll',     tag: 'Tilt & roll',   accent: 'var(--star)', icon: rollIcon, group: 'Play' }
 ];
 
 export function mount(container, params, ctx) {
@@ -518,6 +519,9 @@ function spellIcon() {
 }
 function blocksIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="10" y="10" width="16" height="16" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="10" width="16" height="16" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><rect x="10" y="28" width="16" height="16" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="28" y="28" width="16" height="16" rx="3" fill="var(--lilac,#C6A9F0)" stroke="var(--ink)" stroke-width="3"/><rect x="37" y="37" width="14" height="14" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/></svg>`;
+}
+function rollIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M8 46 Q22 30 34 40 Q44 48 54 34" fill="none" stroke="var(--zing)" stroke-width="4" stroke-linecap="round"/><circle cx="20" cy="30" r="12" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><circle cx="16" cy="28" r="2.4" fill="var(--ink)"/><circle cx="24" cy="28" r="2.4" fill="var(--ink)"/><path d="M16 33 q4 4 8 0" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M48 16 l3 6 6 .8 -4.5 4.4 1 6.3 -5.5-3 -5.5 3 1-6.3 -4.5-4.4 6-.8 z" fill="var(--pop)" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></svg>`;
 }
 function detectiveIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="8" y="20" width="13" height="13" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="2.6"/><rect x="23" y="20" width="13" height="13" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="2.6"/><rect x="38" y="20" width="13" height="13" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="2.6"/><circle cx="36" cy="40" r="11" fill="none" stroke="var(--ink)" stroke-width="4"/><line x1="44" y1="48" x2="53" y2="55" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/></svg>`;

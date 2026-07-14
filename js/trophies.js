@@ -18,6 +18,7 @@ const ALL_ZONES_STARS = Math.max(...ZONES.map(z => z.unlock));   // highest gate
 
 // ---- named constants (C4) --------------------------------------------------
 export const MEDAL_TIERS = [['bronze', 5, '🥉'], ['silver', 15, '🥈'], ['gold', 30, '🥇']];
+const ROLL_COURSE_IDS = ['roll1', 'roll2', 'roll3', 'roll4', 'roll5', 'roll6'];   // Boo Roll (RUN9 C4)
 export const STAR_MILESTONES = [100, 500, 1000];
 export const BOO_MILESTONES = [10, 25, 40];
 export const SHINY_MILESTONES = [1, 5, 10];
@@ -126,7 +127,11 @@ export function buildCatalog() {
     { key: 'trophy_lessons', type: 'trophy', group: 'maths', label: 'Lesson Legend', hint: 'Three stars on every Teach Me lesson…', icon: '🏆', earned: (s) => LESSONS.every(l => cb(s, 'teachme:' + l.id) >= 3) },
     { key: 'trophy_custom', type: 'trophy', group: 'collector', label: 'First Custom Boo Won', hint: 'Win a Boo you built yourself…', icon: '🏆', earned: (s) => (s.customs || []).some(c => c.won) },
     { key: 'trophy_golden', type: 'trophy', group: 'adventures', label: 'Golden Round Champion', hint: 'Three stars on a Golden Round…', icon: '🏆', earned: (s) => !!(s.journal && s.journal.golden3) },
-    { key: 'trophy_sparkle_meadow', type: 'trophy', group: 'adventures', label: 'Sparkle Meadow Explorer', hint: 'Finish the first Boo Quest land…', icon: '🏆', earned: (s) => !!(s.quest && s.quest.lands && s.quest.lands.sparkle_meadow) }
+    { key: 'trophy_sparkle_meadow', type: 'trophy', group: 'adventures', label: 'Sparkle Meadow Explorer', hint: 'Finish the first Boo Quest land…', icon: '🏆', earned: (s) => !!(s.quest && s.quest.lands && s.quest.lands.sparkle_meadow) },
+    // Boo Roll medals (RUN9 C4) — the six course ids are roll1..roll6
+    { key: 'trophy_roll_first', type: 'trophy', group: 'adventures', label: 'First Medal!', hint: 'Win any medal in Boo Roll…', icon: '🏅', earned: (s) => Object.keys((s.booRoll && s.booRoll.medals) || {}).length > 0 },
+    { key: 'trophy_roll_bronze', type: 'trophy', group: 'adventures', label: 'All Courses Rolled', hint: 'Earn a medal on every Boo Roll course…', icon: '🥉', earned: (s) => ROLL_COURSE_IDS.every(id => !!((s.booRoll && s.booRoll.medals) || {})[id]) },
+    { key: 'trophy_roll_gold', type: 'trophy', group: 'adventures', label: 'Golden Roller', hint: 'Earn GOLD on every Boo Roll course…', icon: '🥇', earned: (s) => ROLL_COURSE_IDS.every(id => (((s.booRoll && s.booRoll.medals) || {})[id]) === 'gold') }
   );
   return items;
 }

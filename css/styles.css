@@ -572,6 +572,34 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .det-reveal strong { font-family: var(--font-display); font-size: 30px; color: var(--pop); letter-spacing: 2px; }
 @media (prefers-reduced-motion: reduce) { .det-tile.flip, .det-tile.bounce { animation: none; } }
 
+/* Boo Roll (RUN9 C4) */
+.screen.booroll { display: flex; flex-direction: column; height: 100%; }
+.roll-map { max-width: 620px; margin: auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.roll-course-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; margin-top: 8px; }
+.roll-course-card { background: var(--card); border: 3px solid var(--ink); border-radius: 16px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink); }
+.roll-course-card.won { box-shadow: 0 0 0 3px var(--star); }
+.roll-course-card:active { transform: scale(0.96); }
+.rcc-num { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--sky-mid); }
+.rcc-name { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.rcc-medal { font-size: 26px; }
+.rcc-best { font-size: 12px; color: var(--sky-mid); }
+.roll-calibrate { max-width: 480px; margin: auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.roll-tip { color: var(--sky-mid); }
+.roll-cal-btns { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.roll-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
+.roll-canvas { border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); background: #2E2660; touch-action: none; }
+.roll-stage.boing { animation: rollBoing 0.4s ease; }
+@keyframes rollBoing { 0%,100% { transform: translateY(0); } 30% { transform: translateY(6px) scale(0.995); } 60% { transform: translateY(-4px); } }
+.roll-hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; background: rgba(20,12,48,0.7); padding: 6px 16px; border-radius: 20px; color: var(--card); font-family: var(--font-display); font-weight: 700; }
+.roll-recentre { position: absolute; top: 10px; right: 10px; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); font-size: 22px; z-index: 6; }
+.roll-stick { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); width: 108px; height: 108px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 3px solid rgba(255,255,255,0.35); display: none; align-items: center; justify-content: center; touch-action: none; z-index: 6; }
+.roll-stick.on { display: flex; }
+.roll-stick-nub { width: 52px; height: 52px; border-radius: 50%; background: var(--pop); border: 3px solid var(--ink); pointer-events: none; }
+.roll-finish-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(20,12,48,0.6); z-index: 9700; }
+.roll-finish { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 300px; }
+.roll-finish-medal { font-size: 64px; }
+@media (prefers-reduced-motion: reduce) { .roll-stage.boing { animation: none; } }
+
 /* "?" help button in the game shell (RUN5 C1/C5) */
 .help-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: rgba(255,255,255,0.16); color: var(--card);
   font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: 1; display: grid; place-items: center; flex: 0 0 auto; }
