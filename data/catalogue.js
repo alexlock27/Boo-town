@@ -100,6 +100,16 @@ export const CATALOGUE = [
   { id: 'deco_bumper',     kind: 'deco', name: 'Bumper Car',     rarity: 'rare',   deco: 'bumper',     act: 'drive',      blurb: 'One little car, one very serious Boo driver.' },
   { id: 'deco_campfire',   kind: 'deco', name: 'Campfire',       rarity: 'ultra',  deco: 'campfire',   act: 'campfire', fx: 'glow', blurb: 'At night the Boos gather round to warm their paws.' },
 
+  // --- Landscape items (RUN10 P3): Build-mode scenery, never a box drop, always
+  // available in the toybox (kind:'landscape' is excluded from BY_TYPE_RARITY in
+  // rewards.js AND carries free:true for defence-in-depth — see the guard test).
+  { id: 'deco_palm',       kind: 'landscape', name: 'Palm Tree',  rarity: 'common', deco: 'palm',       free: true, blurb: 'Leans just enough to look relaxed about it.' },
+  { id: 'deco_oak',        kind: 'landscape', name: 'Oak Tree',   rarity: 'common', deco: 'oak',        free: true, blurb: 'Wide, round and made for leaning against.' },
+  { id: 'deco_pine',       kind: 'landscape', name: 'Pine Tree',  rarity: 'common', deco: 'pine',       free: true, blurb: 'Tall, pointy, smells like every good campfire.' },
+  { id: 'deco_bush',       kind: 'landscape', name: 'Bush',       rarity: 'common', deco: 'bush',       free: true, blurb: 'A friendly green puff, perfect for hide-and-seek.' },
+  { id: 'deco_rock',       kind: 'landscape', name: 'Rock',       rarity: 'common', deco: 'rock',       free: true, blurb: 'Solid, mossy, an excellent place to sit and think.' },
+  { id: 'deco_flowerbed',  kind: 'landscape', name: 'Flowerbed',  rarity: 'common', deco: 'flowerbed',  free: true, blurb: 'A tidy row of blooms, strictly not for eating.' },
+
   // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
   // Wearable on any Boo (one slot each) and on the player's own character.
   { id: 'acc_bow',          kind: 'accessory', name: 'Purple Bow',     rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
@@ -132,6 +142,7 @@ export const ACCESSORIES  = CATALOGUE.filter(it => it.kind === 'accessory');
 // Grouped by kind then rarity for the type-first drop roll (RUN2 C2). Free items never drop.
 export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
   if (it.free || it.questOnly) return m;   // quest-exclusives (RUN6 C6) never drop from boxes
+  if (it.kind === 'landscape') return m;   // Build-mode toybox items (RUN10 P3) never drop either
   ((m[it.kind] ||= {})[it.rarity] ||= []).push(it);
   return m;
 }, {});

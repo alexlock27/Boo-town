@@ -118,7 +118,21 @@ export const sfx = {
   // Spell Boo (RUN6 C5): a soft ascending chime as each letter lands, and a brighter
   // per-letter ping during the bounce-spell.
   chime(step = 0) { play(t => envTone(523.25 * Math.pow(2, (step % 8) / 12), t, 0.22, 'sine', 0.22, sfxGain, 'chime')); },
-  ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); }
+  ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); },
+  // Pond fishing (RUN10 P3): a happy little triplet on a catch...
+  giggle() { play(t => { [700, 880, 660, 940].forEach((f, i) => envTone(f, t + i * 0.07, 0.09, 'triangle', 0.3, sfxGain, 'giggle')); }); },
+  // ...and a trombone-ish descending wobble for the comedy boot.
+  trombone() { play(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(220, t);
+      o.frequency.exponentialRampToValueAtTime(90, t + 0.6);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.26, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+      o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.68);
+      if (audioLog) logEvent({ kind: 'note', t, freq: 220, dur: 0.65, bus: 'sfx', tag: 'trombone' });
+    }); }
 };
 
 // ---- background music (two gentle loops) ----

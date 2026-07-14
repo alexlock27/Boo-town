@@ -120,5 +120,9 @@ export const LINES = {
   L_PLAYGROUND_NEW: ["A new place to play!"],
 
   // ---- Run 10 P2 additions (Town 4.0: sockets, capacity, the drawer) ----
-  L_AREA_FULL: ["This spot's bursting! Try another area?"]
+  L_AREA_FULL: ["This spot's bursting! Try another area?"],
+
+  // ---- Run 10 P3 additions (Town 4.0: build mode, paths, landscape, fishing) ----
+  L_PATH_FULL: ["That's a LOT of path! Erase some to lay more."],
+  L_LANDSCAPE_OUTDOORS: ["Landscape needs the outdoors!"]
 };

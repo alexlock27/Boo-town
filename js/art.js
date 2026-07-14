@@ -726,6 +726,55 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         `<path d="M64 92 Q74 88 84 92" fill="none" stroke="#fff" stroke-width="2.5" opacity="0.7"/>` +
         ell(72, 86, 12, 6, COLORS.teal, ink);
       break;
+    // ---- landscape items (RUN10 P3): Build-mode toybox scenery ----
+    case 'palm':
+      inner =
+        path('M60 112 Q50 70 58 40', 'none', halo) +
+        path('M60 112 Q50 70 58 40', COLORS.cocoa, `stroke="${COLORS.cocoa}" stroke-width="7" stroke-linecap="round" fill="none"`) +
+        [[-1, -6], [-1, 20], [1, -6], [1, 20], [0, -32]].map(([dir, ang]) =>
+          `<path d="M56 42 q ${dir * 30} ${ang < 0 ? -8 : 16} ${dir * 50} ${20 + Math.abs(ang)}" fill="none" stroke="${COLORS.teal}" stroke-width="8" stroke-linecap="round"/>`).join('') +
+        `<circle cx="56" cy="42" r="6" fill="${COLORS.cocoa}" ${ink}/>`;
+      break;
+    case 'oak':
+      inner =
+        rrect(54, 82, 12, 30, 5, COLORS.cocoa, halo) +
+        rrect(54, 82, 12, 30, 5, COLORS.cocoa, ink) +
+        ell(60, 54, 40, 34, '#6FBF77', halo) +
+        ell(60, 54, 40, 34, '#6FBF77', ink) +
+        `<circle cx="44" cy="46" r="7" fill="#fff" opacity="0.45"/><circle cx="70" cy="58" r="6" fill="#fff" opacity="0.4"/><circle cx="60" cy="40" r="5" fill="#fff" opacity="0.45"/>`;
+      break;
+    case 'pine':
+      inner =
+        rrect(56, 96, 8, 16, 3, COLORS.cocoa, halo) +
+        rrect(56, 96, 8, 16, 3, COLORS.cocoa, ink) +
+        path('M60 24 L88 62 L74 62 L92 92 L28 92 L46 62 L32 62 Z', '#3E9A56', halo) +
+        path('M60 24 L88 62 L74 62 L92 92 L28 92 L46 62 L32 62 Z', '#3E9A56', ink) +
+        `<circle cx="50" cy="76" r="4" fill="#fff" opacity="0.4"/><circle cx="68" cy="54" r="3.5" fill="#fff" opacity="0.4"/>`;
+      break;
+    case 'bush':
+      inner =
+        ell(60, 92, 38, 20, '#5FB86E', halo) +
+        ell(60, 92, 38, 20, '#5FB86E', ink) +
+        ell(36, 78, 20, 18, '#6FC77E', ink) +
+        ell(84, 78, 20, 18, '#6FC77E', ink) +
+        ell(60, 68, 22, 20, '#6FC77E', ink) +
+        `<circle cx="46" cy="86" r="4" fill="${COLORS.bubblegum}"/><circle cx="76" cy="90" r="4" fill="${COLORS.gold}"/>`;
+      break;
+    case 'rock':
+      inner =
+        path('M20 106 Q16 78 42 68 Q60 52 82 66 Q104 74 100 100 Q102 112 84 112 L30 112 Q18 112 20 106 Z', '#B8B0C8', halo) +
+        path('M20 106 Q16 78 42 68 Q60 52 82 66 Q104 74 100 100 Q102 112 84 112 L30 112 Q18 112 20 106 Z', '#B8B0C8', ink) +
+        `<path d="M40 76 Q56 68 66 76" fill="none" stroke="#8E86A0" stroke-width="3" opacity="0.6"/>` +
+        `<path d="M50 92 Q68 86 84 94" fill="none" stroke="#8E86A0" stroke-width="3" opacity="0.6"/>` +
+        `<ellipse cx="34" cy="100" rx="6" ry="3" fill="#7FC77E" opacity="0.8"/>`;
+      break;
+    case 'flowerbed':
+      inner =
+        rrect(18, 92, 84, 18, 6, COLORS.cocoa, halo) +
+        rrect(18, 92, 84, 18, 6, COLORS.cocoa, ink) +
+        [[30, 88, 'bubblegum'], [48, 84, 'gold'], [66, 88, 'lilac'], [84, 84, 'teal'], [96, 90, 'pink']]
+          .map(([x, y, col]) => `<circle cx="${x}" cy="${y}" r="6" fill="${c(col)}" ${ink}/><circle cx="${x}" cy="${y}" r="2.5" fill="${COLORS.gold}"/>`).join('');
+      break;
     case 'lamp':
       inner =
         rrect(56, 60, 8, 52, 4, COLORS.cocoa, halo) +
@@ -898,7 +947,10 @@ export function renderAccessory(item, { size = 120, cls = '' } = {}) {
 // opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {
   if (item.custom) return renderCustomBoo(item.custom, opts);
-  if (item.kind === 'deco') return renderDeco(item, opts);
+  // landscape (RUN10 P3: build-mode toybox scenery) draws exactly like a deco —
+  // 'landscape' is a game-logic tag (box exclusion, outdoor-only, its own drawer tab),
+  // not a different art path.
+  if (item.kind === 'deco' || item.kind === 'landscape') return renderDeco(item, opts);
   if (item.kind === 'accessory') return renderAccessory(item, opts);
   return renderBoo(item, opts);
 }

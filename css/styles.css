@@ -1716,8 +1716,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .town-header h2 { color: var(--card); margin: 0; font-size: 22px; flex: 1; text-align: center; }
 .town-hint { flex: 1; color: var(--star); font-family: var(--font-display); font-size: 16px; text-align: right; }
 .town-hint-bar { min-height: 20px; padding: 0 14px 4px; color: var(--star); font-family: var(--font-display); font-size: 14px; text-align: center; }
-.town-hammer-btn { font-size: 20px; opacity: 0.55; cursor: default; }   /* P3 wires this up */
-.town-hammer-btn:active { transform: none; }
+.town-hammer-btn { font-size: 20px; }   /* RUN10 P3: build mode toggle */
+.town-hammer-btn.active { background: #5F4FC4; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset; }
 /* entry/exit crossfade (P1): the map badge scales up into this scene, 300ms */
 .town2 { opacity: 1; transition: opacity 0.3s ease; }
 .town2.entering { opacity: 0; }
@@ -2095,6 +2095,70 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   transition: opacity 0.15s ease; background: rgba(53,208,186,0.15);
 }
 .drop-ghost.show { opacity: 1; }
+
+/* ---- RUN10 P3: build mode — toybox lid opening, calm/powerful/reversible ---- */
+/* Freeze: living behaviours pause (JS skips stepActors) and this transition eases the
+   last pose in rather than a hard cut; CSS-driven animations (dance, sleep breathe,
+   twinkle) pause outright so NOTHING moves while she's placing things. */
+.town2.building .t-item svg { transition: transform 250ms ease; }
+.town2.building .t-item, .town2.building .t-item * { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .town2.building .t-item svg { transition: none; } }
+
+/* 5%-cell grid overlay, 12% white, fades in — lives in the (pointer-events:none) air
+   layer so it never blocks placement taps; background-size set per-layout in JS. */
+.t-build-grid {
+  position: absolute; left: 0; top: 0; opacity: 0; pointer-events: none; transition: opacity 200ms ease;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
+}
+.town2.building .t-build-grid { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .t-build-grid { transition: none; } }
+
+/* Build-mode tool row (right edge, vertical, 56px buttons) + path-style strip. Hidden
+   outside build mode; the style strip additionally hides unless Paths is the active tool
+   (toggled in JS via updateBuildUI). */
+.t-tool-row, .t-path-style-row {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 8px; z-index: 20;
+}
+.t-path-style-row { right: 76px; }
+.town2:not(.building) .t-tool-row, .town2:not(.building) .t-path-style-row { display: none; }
+.t-tool-btn {
+  width: 56px; height: 56px; border-radius: 16px; border: 3px solid var(--ink); background: var(--card);
+  font-size: 24px; box-shadow: 0 3px 10px rgba(0,0,0,0.25); cursor: pointer;
+}
+.t-tool-btn:active { transform: scale(0.92); }
+.t-tool-btn.sel { background: #5F4FC4; border-color: #5F4FC4; box-shadow: 0 0 0 2px rgba(255,255,255,0.6) inset; }
+
+/* Painted path cells: ground layer, above grass (z 2), below row-0 items (z 300+). */
+.t-path-cell { position: absolute; z-index: 5; border-radius: 3px; pointer-events: none; }
+.t-path-cell.path-stone { background: #C7C2B8; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.08); }
+.t-path-cell.path-sand { background: #EAD8A6; }
+.t-path-cell.path-flower {
+  background: #DCEFC6
+    radial-gradient(circle at 28% 32%, #FF9AD5 0 3px, transparent 4px)
+    radial-gradient(circle at 68% 62%, #FFC93C 0 3px, transparent 4px)
+    radial-gradient(circle at 50% 82%, #8FC7FF 0 3px, transparent 4px);
+}
+
+/* Pond fishing (RUN10 P3): a small rod+bobber sprite carried by the fishing Boo. */
+.t-rod { position: absolute; left: 50%; top: -30px; width: 2px; height: 30px; background: #8A5A2B; transform-origin: bottom center; transform: rotate(16deg); pointer-events: none; }
+.t-bobber { position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: #FF5A5A; border: 1.5px solid #B22222; transition: transform 120ms ease; }
+/* comedy-boot drips */
+.t-drip { position: absolute; left: 50%; top: 60%; width: 6px; height: 10px; margin-left: -3px; background: #7EC8E3; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; animation: dripFall 700ms ease-in forwards; pointer-events: none; }
+@keyframes dripFall { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(26px); } }
+/* tap-the-pond ripples: three rings, 900ms. Fixed at full (110x40) size and SCALED down
+   via transform instead of animating width/height/margin — transform/opacity only, so
+   the ring never forces a reflow (perf rule, RUN6 C1b onward). */
+.t-ripple {
+  position: absolute; left: 50%; bottom: 8%; width: 110px; height: 40px; margin-left: -55px;
+  border: 2px solid rgba(255,255,255,0.85); border-radius: 50%; pointer-events: none;
+  transform: scale(0.127, 0.35); opacity: 0.9;
+  animation: rippleGrow 900ms ease-out forwards;
+}
+@keyframes rippleGrow { from { transform: scale(0.127, 0.35); opacity: 0.9; } to { transform: scale(1, 1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .t-drip, .t-ripple { animation: none; opacity: 0; } }
 
 /* ---- box ceremony (the signature moment) ---- */
 .ceremony { align-items: center; justify-content: center; padding: 20px; }

@@ -46,7 +46,7 @@ function freshSave() {
     boxes: 0,
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
-    inventory: {},              // itemId -> count
+    inventory: {},               // itemId -> count
     town: { areas: {} },         // { areas: { areaKey: { items:[{x,row,item}], paths:[{cx,cy,style}] } } } (v6, RUN10 P1); old flat [{zone,x,item,row}] (v3-5) / [{plot,item}] (pre-v3) migrated forward
     nicknames: {},              // itemId -> nickname (owned Boos)
     equips: {},                 // Boo itemId -> accessory itemId

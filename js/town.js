@@ -67,13 +67,29 @@ const NAP_MS = 22000;           // a chosen nap under a tree/house lasts a while
 const NAP_IDS = ['deco_boohouse', 'deco_tree'];   // a Boo naps by a house or under a Bubble Tree at night
 const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond'];
 // role kind per activity item — generic socket loop below (RUN10 P2)
-const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'pondpaddle' };
+const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'fish' };
 const SETTLE_MS = 180;           // arrival settle: drop + squash (RUN10 P2)
 const SHRUG_MS = 300;            // no free socket → a small shrug, then wander off (RUN10 P2)
 const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
+// items whose socket cools down after a visit rather than instantly refilling (RUN10 P3: pond joins the bench)
+const COOLDOWN_ITEMS = new Set(['deco_bench', 'deco_pond']);
+const FISH_HOLD_MIN = 6000, FISH_HOLD_MAX = 10000;   // hold time before the splash burst (RUN10 P3)
+const FISH_DIP_CHANCE = 0.6;      // odds the bobber visibly dips once during the hold
+const FISH_CATCH_MS = 2000;       // sparkling fish arc
+const FISH_BOOT_MS = 2200;        // comedy boot: slow lift + drips
+const FISH_CATCH_CHANCE = 0.85;   // 85% catch / 15% comedy boot
+const FISH_COOLDOWN_MS = 9000;    // matches the bench's cooldown feel
 
 // ---- Town 4.0 capacity (RUN10 P2) ----
 export const AREA_CAP = 24;      // items per area; a full area refuses drops with a guide line
+// ---- Town 4.0 build mode (RUN10 P3) ----
+export const PATH_CAP = 300;      // path cells per area
+const PATH_CELL = 0.05;           // grid cell size: 5% of the area's width, square within the ground band
+// Landscape items are a Build-mode toybox, not a collectible — always available in the
+// drawer regardless of `inventory` (never granted/decremented there), so a fresh save's
+// inventory stays exactly what she's actually won.
+const LANDSCAPE_IDS = Object.values(BY_ID).filter(it => it.kind === 'landscape').map(it => it.id);
+const LANDSCAPE_STOCK = 999;
 
 // ---- ambient life (RUN6 C1) ----
 const WEATHER_PARTICLES = 14;   // per-season particle count (one particle layer; caps hold)
@@ -172,11 +188,14 @@ export function mount(container, params, ctx) {
   let scrollX = 0, worldW = 0, zoneW = 0, viewW = 0, viewH = 0, groundY = 0;
   let raf = null, actors = [], fx = [];
   let currentSeasonName = '', starTimer = null;   // ambient life (RUN6 C1)
+  // ---- build mode (RUN10 P3) ----
+  let buildMode = false, buildTool = 'place', pathStyle = 'stone';
+  let pendingPaths = null, pathCommitTimer = null, painting = false;
 
   const root = el('div', { class: 'town2 area-' + AREA.key + ' entering' });
   const back = backControl(() => ctx.go('worldmap'));
   const title = el('h2', { text: AREA.name });
-  const hammerBtn = el('button', { class: 'icon-btn town-hammer-btn', 'aria-label': 'Build mode (coming soon)', disabled: '', html: '🔨' });
+  const hammerBtn = el('button', { class: 'icon-btn town-hammer-btn', 'aria-label': 'Build mode', onclick: () => toggleBuildMode(), html: '🔨' });
   const header = el('header', { class: 'town-header' }, [back, title, hammerBtn]);
   const hint = el('div', { class: 'town-hint-bar' });
 
@@ -184,16 +203,46 @@ export function mount(container, params, ctx) {
   const hills = el('div', { class: 't-layer t-hills' });
   const ground = el('div', { class: 't-layer t-ground' });
   const air = el('div', { class: 't-layer t-air' });   // fireflies / butterflies
+  const buildGrid = el('div', { class: 't-build-grid' });
+  air.appendChild(buildGrid);   // never cleared by renderScenery/renderPlaced, like the drop-ghost
   const viewport = el('div', { class: 't-viewport' }, [sky, hills, ground, air]);
 
+  // Build-mode tool row (right edge, vertical, RUN10 P3): Place | Paths | Erase, plus a
+  // secondary path-style strip (stone/sand/flower) that only shows while Paths is picked.
+  const BUILD_TOOLS = [
+    { id: 'place', label: '✋', title: 'Place' },
+    { id: 'paths', label: '🛤️', title: 'Paths' },
+    { id: 'erase', label: '🧹', title: 'Erase' }
+  ];
+  const toolBtns = BUILD_TOOLS.map(td => el('button', {
+    class: 't-tool-btn' + (buildTool === td.id ? ' sel' : ''), text: td.label, type: 'button', 'aria-label': td.title,
+    onclick: () => selectBuildTool(td.id)
+  }));
+  const toolRow = el('div', { class: 't-tool-row' }, toolBtns);
+  toolRow.addEventListener('pointerdown', e => e.stopPropagation());
+  const PATH_STYLES = [
+    { id: 'stone', label: '🪨', title: 'Stone path' },
+    { id: 'sand', label: '🏖️', title: 'Sand path' },
+    { id: 'flower', label: '🌸', title: 'Flower path' }
+  ];
+  const styleBtns = PATH_STYLES.map(sd => el('button', {
+    class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : ''), text: sd.label, type: 'button', 'aria-label': sd.title,
+    onclick: () => selectPathStyle(sd.id)
+  }));
+  const pathStyleRow = el('div', { class: 't-path-style-row' }, styleBtns);
+  pathStyleRow.addEventListener('pointerdown', e => e.stopPropagation());
+  viewport.append(toolRow, pathStyleRow);
+
   // Town drawer (RUN10 P2): js/drawer.js tabs [Boos | Rides & fun | Decorations | Special],
-  // each a momentum-scrolling strip of item chips. `item.act` (catalogue.js) marks the
-  // playground/activity decos; ultra-rarity decos are the "Special" showpieces.
+  // plus a Build-only Landscape tab (RUN10 P3, tab button hidden outside build mode).
+  // `item.act` (catalogue.js) marks the playground/activity decos; ultra-rarity decos are
+  // the "Special" showpieces.
   const DRAWER_TABS_SPEC = [
     { id: 'boos', label: 'Boos', test: (it) => it.kind === 'boo' },
     { id: 'rides', label: 'Rides & fun', test: (it) => it.kind === 'deco' && !!it.act },
     { id: 'deco', label: 'Decorations', test: (it) => it.kind === 'deco' && !it.act && it.rarity !== 'ultra' },
-    { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' }
+    { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' },
+    { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' }
   ];
   const drawerStrips = {};
   const drawerTabsNodes = DRAWER_TABS_SPEC.map(spec => {
@@ -205,6 +254,7 @@ export function mount(container, params, ctx) {
   const drawerApi = createDrawer({ tabs: drawerTabsNodes, initial: 0, ariaLabel: 'Town items' });
   const drawer = drawerApi.root;   // kept as `drawer` — existing wobble/capacity-tint code targets it
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
+  updateBuildUI();   // hides the Landscape tab + build tool rows until the hammer is tapped
   root.append(header, hint, viewport, drawer);
   container.appendChild(root);
 
@@ -241,10 +291,137 @@ export function mount(container, params, ctx) {
     worldW = zoneW * ZONES.length;   // ZONES.length is always 1 now: worldW === zoneW === the area
     groundY = viewH * GROUND_FRAC;
     for (const L of [sky, hills, ground, air]) { L.style.width = worldW + 'px'; L.style.height = viewH + 'px'; }
+    const cell = zoneW * PATH_CELL;
+    buildGrid.style.width = worldW + 'px'; buildGrid.style.height = viewH + 'px';
+    buildGrid.style.backgroundSize = cell + 'px ' + cell + 'px';
     renderScenery();
     renderPlaced();
     clampScroll();
     applyScroll();
+  }
+  // Ground-band grid geometry (RUN10 P3): cells are square within the placement band,
+  // 5% of the area's width in x and matched to that same px size in y.
+  function cellGeom() {
+    const bandTopPx = viewH * BAND_TOP, bandBotPx = viewH * BAND_BOTTOM;
+    // Cells are 5% of each axis's OWN extent — 5% of the area's width across, 5% of the
+    // (much shorter) placement band down — so the grid reads as a fine brush, not one
+    // giant square: ~20 columns x ~20 rows, comfortably above the 300-cell cap.
+    return { bandTopPx, bandBotPx, cellW: zoneW * PATH_CELL, cellH: (bandBotPx - bandTopPx) * PATH_CELL };
+  }
+  function pathCellEl(c) {
+    const { bandTopPx, cellW, cellH } = cellGeom();
+    const e = el('div', { class: 't-path-cell path-' + c.style, dataset: { cx: String(c.cx), cy: String(c.cy) } });
+    e.style.left = (c.cx * cellW) + 'px';
+    e.style.top = (bandTopPx + c.cy * cellH) + 'px';
+    e.style.width = Math.ceil(cellW) + 'px';
+    e.style.height = Math.ceil(cellH) + 'px';
+    return e;
+  }
+  // The saved list while not actively editing, or the in-memory batch while build mode
+  // holds one (RUN10 P3: painting doesn't hit the save on every cell — see commitPaths).
+  function currentPaths() {
+    if (pendingPaths) return pendingPaths;
+    const a = getState().town.areas[AREA.key];
+    return (a && a.paths) || [];
+  }
+  function renderPaths() {
+    ground.querySelectorAll('.t-path-cell').forEach(n => n.remove());
+    const frag = document.createDocumentFragment();
+    for (const c of currentPaths()) frag.appendChild(pathCellEl(c));
+    ground.appendChild(frag);
+  }
+  function redrawPathCell(cx, cy) {
+    ground.querySelectorAll(`.t-path-cell[data-cx="${cx}"][data-cy="${cy}"]`).forEach(n => n.remove());
+    const rec = pendingPaths.find(c => c.cx === cx && c.cy === cy);
+    if (rec) ground.appendChild(pathCellEl(rec));
+  }
+  function loadPendingPaths() {
+    const a = getState().town.areas[AREA.key];
+    pendingPaths = a && Array.isArray(a.paths) ? a.paths.slice() : [];
+  }
+  // Flushes the in-memory batch to the save. Also the setInterval(commitPaths, 10000)
+  // callback itself — must NOT touch pathCommitTimer, or the first auto-commit would
+  // cancel its own repeat and every commit after it would silently stop happening.
+  function commitPaths() {
+    if (!pendingPaths) return;
+    const toSave = pendingPaths;
+    mutate(st => { areaItems(st); st.town.areas[AREA.key].paths = toSave.slice(); });
+  }
+  function pathCapWobble() {
+    drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
+    setTimeout(() => drawer.classList.remove('taken'), 600);
+    const line = guideLine('L_PATH_FULL');
+    hint.textContent = line;
+    speakMaybe(line);
+    if (sfx.oops) sfx.oops();
+  }
+  function paintCell(cx, cy) {
+    const i = pendingPaths.findIndex(c => c.cx === cx && c.cy === cy);
+    if (buildTool === 'erase') {
+      if (i >= 0) { pendingPaths.splice(i, 1); redrawPathCell(cx, cy); }
+      return;
+    }
+    if (i >= 0) {
+      if (pendingPaths[i].style === pathStyle) pendingPaths.splice(i, 1);   // toggle-erase: same cell, same style
+      else pendingPaths[i].style = pathStyle;
+      redrawPathCell(cx, cy);
+      return;
+    }
+    if (pendingPaths.length >= PATH_CAP) { pathCapWobble(); return; }
+    pendingPaths.push({ cx, cy, style: pathStyle });
+    redrawPathCell(cx, cy);
+  }
+  function cellAtClient(cx, cy) {
+    const r = viewport.getBoundingClientRect();
+    const worldX = (cx - r.left) + scrollX;
+    const localY = cy - r.top;
+    const { bandTopPx, bandBotPx, cellW, cellH } = cellGeom();
+    return { cx: Math.floor(worldX / cellW), cy: Math.floor((localY - bandTopPx) / cellH), inBand: localY >= bandTopPx && localY <= bandBotPx };
+  }
+  function paintAtClient(cx, cy) {
+    const cell = cellAtClient(cx, cy);
+    if (!cell.inBand) return;
+    paintCell(cell.cx, cell.cy);
+  }
+
+  // ---- build mode toggle (RUN10 P3) ----------------------------------------
+  function toggleBuildMode() {
+    sfx.tap();
+    buildMode = !buildMode;
+    if (buildMode) {
+      loadPendingPaths();
+      pathCommitTimer = setInterval(commitPaths, 10000);   // "commit on exit or every 10s" (spec)
+      buildTool = 'place';
+      toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === buildTool));
+    } else {
+      if (pathCommitTimer) { clearInterval(pathCommitTimer); pathCommitTimer = null; }
+      commitPaths();
+      pendingPaths = null;
+      holding = null; placeMode = false;
+      renderDrawer();
+    }
+    updateBuildUI();
+    renderPlaced();
+  }
+  function selectBuildTool(id) {
+    sfx.tap();
+    buildTool = id;
+    toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === id));
+    updateBuildUI();
+  }
+  function selectPathStyle(id) {
+    sfx.tap();
+    pathStyle = id;
+    styleBtns.forEach((b, i) => b.classList.toggle('sel', PATH_STYLES[i].id === id));
+  }
+  function updateBuildUI() {
+    root.classList.toggle('building', buildMode);
+    hammerBtn.classList.toggle('active', buildMode);
+    hammerBtn.setAttribute('aria-label', buildMode ? 'Exit build mode' : 'Build mode');
+    pathStyleRow.style.display = (buildMode && buildTool === 'paths') ? '' : 'none';
+    const landscapeTabBtn = drawer.querySelectorAll('.bd-tabs .bd-tab')[4];
+    if (landscapeTabBtn) landscapeTabBtn.style.display = buildMode ? '' : 'none';
+    if (!buildMode && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
   }
 
   function renderScenery() {
@@ -294,6 +471,7 @@ export function mount(container, params, ctx) {
         ground.appendChild(sign);
       }
     });
+    renderPaths();   // ground layer, above grass, below row-0 items (RUN10 P3) — renderScenery wipes ground
   }
 
   function renderPlaced() {
@@ -301,6 +479,12 @@ export function mount(container, params, ctx) {
     // clear any orphaned zone-behaviour props (RUN7 C2) so a re-render never leaves them stranded
     ground.querySelectorAll('.t-kite-wrap, .t-skip-stone, .t-skim-ring, .t-sandcastle, .t-towel').forEach(n => n.remove());
     actors = [];
+    // Every actor object is being rebuilt below, so any socket occupancy pointing at the
+    // OLD (now orphaned) actor objects would otherwise stay "taken" forever — self-heal
+    // in socketArrFor() only catches an actor whose OWN role no longer matches, and an
+    // orphaned actor's role is untouched, so it never trips. assignRoles() (called at the
+    // end of this function) re-claims every still-valid seat fresh.
+    socketUse.clear();
     const st = getState();
     let count = 0, fancyCount = 0;
     for (const t of areaItems(st)) {
@@ -878,7 +1062,7 @@ export function mount(container, params, ctx) {
       const sockets = SOCKETS[id]; if (!sockets) continue;
       const kind = KIND_FOR[id];
       for (const t of decosOf(id)) {
-        if (id === 'deco_bench') {
+        if (COOLDOWN_ITEMS.has(id)) {
           const key = itemKeyOf(t);
           if ((benchCooldown.get(key) || 0) > now) continue;
         }
@@ -902,7 +1086,7 @@ export function mount(container, params, ctx) {
   function clearRole(a) {
     releaseSocket(a);   // RUN10 P2: free the seat for the next Boo
     a.role = null;
-    a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
+    a.wrap.querySelectorAll('.t-zzz, .t-rod').forEach(n => n.remove());
     if (a._homeTop != null) { a.wrap.style.top = a._homeTop; a.wrap.style.zIndex = a._homeZ || ''; a._homeTop = null; a._homeZ = null; }   // restore its depth row (C3)
     const svg = a.wrap.querySelector('svg');
     if (svg) svg.style.transform = '';
@@ -969,13 +1153,51 @@ export function mount(container, params, ctx) {
         svg.style.transform = `translate(${r.offX.toFixed(1)}px, ${(-26 + y).toFixed(1)}px)${squash}`;
         break;
       }
-      case 'paddle': case 'pondpaddle': {
+      case 'paddle': {
         const x = r.offX + Math.sin(t / 900) * 16;
-        const y = (r.kind === 'paddle' ? -10 : -2) + Math.sin(t / 500) * 4;
+        const y = -10 + Math.sin(t / 500) * 4;
         svg.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(Math.sin(t / 700) * 8).toFixed(1)}deg)`;
-        if (r.kind === 'paddle') {
-          const water = r.decoWrap && r.decoWrap.querySelector('.pp-water');
-          if (water) { water.style.transformOrigin = '60px 94px'; water.style.transform = `scale(1, ${(1 + Math.sin(t / 500) * 0.06).toFixed(3)})`; }
+        const water = r.decoWrap && r.decoWrap.querySelector('.pp-water');
+        if (water) { water.style.transformOrigin = '60px 94px'; water.style.transform = `scale(1, ${(1 + Math.sin(t / 500) * 0.06).toFixed(3)})`; }
+        break;
+      }
+      // Pond fishing (RUN10 P3): hold 6-10s (a bobber dip 60% of the time), then a splash
+      // burst — 85% a sparkling fish arc, 15% a comedy boot. All timings/outcome are rolled
+      // ONCE on arrival and stored on the role, so a re-render never re-rolls mid-act.
+      case 'fish': {
+        if (r.holdMs == null) {
+          r.holdMs = FISH_HOLD_MIN + Math.random() * (FISH_HOLD_MAX - FISH_HOLD_MIN);
+          r.willDip = Math.random() < FISH_DIP_CHANCE;
+          r.dipAt = r.willDip ? r.holdMs * (0.35 + Math.random() * 0.4) : -1;
+          r.outcome = Math.random() < FISH_CATCH_CHANCE ? 'catch' : 'boot';
+          r.phase = 'hold';
+          if (!a.wrap.querySelector('.t-rod')) a.wrap.appendChild(el('div', { class: 't-rod' }, [el('div', { class: 't-bobber' })]));
+        }
+        if (r.phase === 'hold') {
+          const dipping = r.willDip && Math.abs(t - r.dipAt) < 220;
+          // A patient, breathing sway while she waits — not just the rod-tip's own dip —
+          // so a fishing Boo reads as alive even before anything bites.
+          const bob = Math.sin(t / 900) * 4;
+          svg.style.transform = `translate(${r.offX.toFixed(1)}px, ${(-4 + bob).toFixed(1)}px) rotate(${(Math.sin(t / 1400) * 3).toFixed(1)}deg) scale(0.86)`;
+          const bobber = a.wrap.querySelector('.t-bobber');
+          if (bobber) bobber.style.transform = `translateY(${dipping ? 9 : Math.sin(t / 600) * 2}px)`;
+          if (t >= r.holdMs) {
+            r.phase = 'burst'; r.burstStart = t;
+            if (r.outcome === 'catch') sfx.giggle(); else sfx.trombone();
+          }
+        } else if (r.phase === 'burst') {
+          const bt = t - r.burstStart;
+          if (r.outcome === 'catch') {
+            const p = Math.min(1, bt / FISH_CATCH_MS);
+            const arc = -Math.sin(p * Math.PI) * 74;
+            svg.style.transform = `translate(${r.offX.toFixed(1)}px, ${(-4 + arc).toFixed(1)}px) rotate(${(p * 340).toFixed(0)}deg) scale(0.86)`;
+            if (bt >= FISH_CATCH_MS) { benchCooldown.set(r.socketArrKey, now + FISH_COOLDOWN_MS); clearRole(a); }
+          } else {
+            const p = Math.min(1, bt / FISH_BOOT_MS);
+            svg.style.transform = `translate(${r.offX.toFixed(1)}px, ${(-4 - p * 42).toFixed(1)}px) rotate(${(p * 22 - 11).toFixed(1)}deg) scale(0.86)`;
+            if (!r.dripped && p > 0.28) { r.dripped = true; spawnDrips(a.wrap); }
+            if (bt >= FISH_BOOT_MS) { benchCooldown.set(r.socketArrKey, now + FISH_COOLDOWN_MS); clearRole(a); }
+          }
         }
         break;
       }
@@ -1010,6 +1232,18 @@ export function mount(container, params, ctx) {
         if (r.until && now > r.until) clearRole(a);
         break;
       }
+    }
+  }
+
+  // Comedy boot drips (RUN10 P3 fishing): three little drops, staggered, fading as they fall.
+  function spawnDrips(wrap) {
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        if (!wrap.isConnected) return;
+        const d = el('div', { class: 't-drip' });
+        wrap.appendChild(d);
+        setTimeout(() => d.remove(), 700);
+      }, i * 220);
     }
   }
 
@@ -1149,11 +1383,18 @@ export function mount(container, params, ctx) {
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
     if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand')) return; // items/rides/bandstand handle their own
+    if (buildMode && (buildTool === 'paths' || buildTool === 'erase')) {
+      painting = true;
+      viewport.setPointerCapture(e.pointerId);
+      paintAtClient(e.clientX, e.clientY);
+      return;
+    }
     if (momRaf) { cancelAnimationFrame(momRaf); momRaf = null; }
     dragScroll = true; movedScroll = false; sx = e.clientX; sScroll = scrollX; vel = 0; lastX = e.clientX; lastT = performance.now();
     viewport.setPointerCapture(e.pointerId);
   });
   viewport.addEventListener('pointermove', e => {
+    if (painting) { paintAtClient(e.clientX, e.clientY); return; }
     if (!dragScroll) return;
     const dx = e.clientX - sx;
     if (Math.abs(dx) > 4) movedScroll = true;
@@ -1163,6 +1404,7 @@ export function mount(container, params, ctx) {
     lastX = e.clientX; lastT = now;
   });
   const endScroll = (e) => {
+    if (painting) { painting = false; return; }
     if (!dragScroll) return;
     dragScroll = false;
     // place-mode: a tap on empty ground places the held item here
@@ -1175,7 +1417,7 @@ export function mount(container, params, ctx) {
     })();
   };
   viewport.addEventListener('pointerup', endScroll);
-  viewport.addEventListener('pointercancel', () => { dragScroll = false; });
+  viewport.addEventListener('pointercancel', () => { dragScroll = false; painting = false; });
   viewport.addEventListener('wheel', e => { scrollX += e.deltaY + e.deltaX; clampScroll(); applyScroll(); }, { passive: true });
 
   // ---- placement ----------------------------------------------------------
@@ -1221,6 +1463,15 @@ export function mount(container, params, ctx) {
     speakMaybe(line);
     if (sfx.oops) sfx.oops();
   }
+  // Landscape items are outdoor-only (RUN10 P3: catalogue kind:'landscape').
+  function landscapeOutdoorWobble() {
+    drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
+    setTimeout(() => drawer.classList.remove('taken'), 600);
+    const line = guideLine('L_LANDSCAPE_OUTDOORS');
+    hint.textContent = line;
+    speakMaybe(line);
+    if (sfx.oops) sfx.oops();
+  }
   // Illegal-drop preview (RUN10 P2): while dragging, find the nearest legal spot (same
   // row first, then other rows) so a ghost ring can show WHERE it would land instead.
   function nearestLegalSpot(zi, x, row, except) {
@@ -1256,6 +1507,8 @@ export function mount(container, params, ctx) {
   function placeAtClient(cx, cy) {
     const { zi, x } = zoneAndXAt(clientToWorld(cx));
     if (!canPlaceIn(zi)) { flashLocked(zi); return; }
+    const heldItem = resolveItem(holding);
+    if (heldItem && heldItem.kind === 'landscape' && AREA.kind !== 'outdoor') { landscapeOutdoorWobble(); return; }
     if (areaFull()) { areaFullWobble(); return; }
     const row = rowAtClient(cy);
     if (spotTaken(zi, x, row)) { spotWobble(); return; }   // keep holding it, try again
@@ -1276,11 +1529,17 @@ export function mount(container, params, ctx) {
       const f = n - (placed[id] || 0);
       if (f > 0) free[id] = f;
     }
+    // Landscape items live in the Build toybox, not `inventory` (RUN10 P3) — always
+    // available, independent of what she's actually won.
+    for (const id of LANDSCAPE_IDS) free[id] = LANDSCAPE_STOCK - (placed[id] || 0);
     const ids = Object.keys(free);
     if (holding && !ids.includes(holding)) ids.unshift(holding);
     const tabButtons = drawer.querySelectorAll('.bd-tabs .bd-tab');
     for (const strip of Object.values(drawerStrips)) clear(strip);
-    if (!ids.length && !holding) {
+    // Landscape items don't count toward "she hasn't collected anything yet" — that empty
+    // state is about Boos/decorations she's still working to win.
+    const nonLandscapeIds = ids.filter(id => { const it = resolveItem(id); return !it || it.kind !== 'landscape'; });
+    if (!nonLandscapeIds.length && !holding) {
       DRAWER_TABS_SPEC.forEach((spec, i) => {
         drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
         if (tabButtons[i]) tabButtons[i].textContent = spec.label;
@@ -1417,7 +1676,18 @@ export function mount(container, params, ctx) {
 
   function onTap(wrap, place, item) {
     if (item.kind === 'boo') squeak(wrap, item);
+    if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);
+  }
+
+  // Three ripple rings, 900ms, tappable any time — not tied to fishing (RUN10 P3).
+  function spawnPondRipple(wrap) {
+    for (let i = 0; i < 3; i++) {
+      const ring = el('div', { class: 't-ripple' });
+      ring.style.animationDelay = (i * 150) + 'ms';
+      wrap.appendChild(ring);
+      setTimeout(() => ring.remove(), 900 + i * 150 + 60);
+    }
   }
 
   function wakeIfSleeping(wrap) {
@@ -1543,7 +1813,10 @@ export function mount(container, params, ctx) {
     let last = performance.now();
     const tick = (now) => {
       const dt = Math.min(48, now - last); last = now;
-      if (!document.hidden) { stepActors(dt); stepFunfairRides(now); }
+      // Build mode pauses living behaviours (RUN10 P3): the loop keeps ticking so a resume
+      // is instant, but skips stepping — the CSS transition on .t-item svg (see styles.css)
+      // eases the freeze/resume rather than a hard cut.
+      if (!document.hidden && !buildMode) { stepActors(dt); stepFunfairRides(now); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -2057,7 +2330,42 @@ export function mount(container, params, ctx) {
       // RUN10 P1: an area is 4 viewports wide, so a single "centred" scroll no longer
       // shows the whole area (e.g. the funfair's 5 rides span x 0.18-0.92) — tests that
       // need a specific spot in view should scroll to it directly.
-      scrollToFrac: (x) => { scrollX = Math.max(0, Math.min(x * zoneW - viewW / 2, worldW - viewW)); clampScroll(); applyScroll(); }
+      scrollToFrac: (x) => { scrollX = Math.max(0, Math.min(x * zoneW - viewW / 2, worldW - viewW)); clampScroll(); applyScroll(); },
+      // RUN10 P3 QA hooks: build mode, path painting, landscape restriction, fishing.
+      buildMode: () => buildMode,
+      toggleBuild: () => toggleBuildMode(),
+      buildTool: () => buildTool,
+      setBuildTool: (id) => selectBuildTool(id),
+      pathStyleSel: () => pathStyle,
+      setPathStyle: (id) => selectPathStyle(id),
+      paths: () => currentPaths().slice(),
+      paintCellAt: (cx, cy) => paintCell(cx, cy),
+      paintClient: (cx, cy) => paintAtClient(cx, cy),
+      cellGeom: () => cellGeom(),
+      gridOpacity: () => getComputedStyle(buildGrid).opacity,
+      commitPathsNow: () => commitPaths(),
+      pathCellCount: () => ground.querySelectorAll('.t-path-cell').length,
+      pathCellZ: (sel) => { const n = ground.querySelector(sel || '.t-path-cell'); return n ? getComputedStyle(n).zIndex : null; },
+      itemZ: (sel) => { const n = ground.querySelector(sel); return n ? (n.style.zIndex || getComputedStyle(n).zIndex) : null; },
+      ripple: (sel) => { const w = ground.querySelector(sel || '.t-item[data-item="deco_pond"]'); if (w) spawnPondRipple(w); },
+      rippleCount: () => ground.querySelectorAll('.t-ripple').length,
+      // force actor i onto the pond's fish socket with a deterministic outcome, skipping
+      // the 6-10s hold's randomness — a real full-frame run of the state machine, just fast
+      forceFish: (i, outcome, holdMs) => {
+        const a = actors[i]; if (!a) return null;
+        const pond = areaItems(getState()).find(t => t.item === 'deco_pond');
+        if (!pond) return null;
+        clearRole(a);
+        const ok = tryClaimActivity(a, pond);
+        if (!ok) return null;
+        a.role.holdMs = holdMs != null ? holdMs : 60;
+        a.role.willDip = false; a.role.dipAt = -1;
+        a.role.outcome = outcome === 'boot' ? 'boot' : 'catch';
+        a.role.phase = 'hold';
+        if (!a.wrap.querySelector('.t-rod')) a.wrap.appendChild(el('div', { class: 't-rod' }, [el('div', { class: 't-bobber' })]));
+        return true;
+      },
+      dripCount: () => ground.querySelectorAll('.t-drip').length
     };
   }
 
@@ -2068,6 +2376,8 @@ export function mount(container, params, ctx) {
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);
       if (starTimer) clearTimeout(starTimer);
+      if (pathCommitTimer) clearInterval(pathCommitTimer);
+      commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)
       ambient.stop();
       stopBand();
       window.removeEventListener('resize', onResize);

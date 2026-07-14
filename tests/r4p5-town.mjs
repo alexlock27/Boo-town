@@ -62,7 +62,7 @@ const CASES = [
   ['trampoline', 'deco_trampoline', 'trampoline: bounces higher than a hop (>12px)', 20],
   ['paddlepool', 'deco_paddlepool', 'paddling pool: splashy paddle', 8],
   ['bumper',     'deco_bumper',     'bumper car: drives back and forth', 30],
-  ['pond',       'deco_pond',       'pond: a nearby Boo paddles (RUN2 debt)', 8]
+  ['pond',       'deco_pond',       'pond: a nearby Boo settles in to fish (RUN10 P3: was paddling, RUN2 debt)', 6]
 ];
 for (const [name, deco, label, minDelta] of CASES) {
   console.log(`== ${name} ==`);
