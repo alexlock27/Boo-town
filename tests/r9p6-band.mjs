@@ -29,7 +29,7 @@ async function openBand(save) {
 }
 
 // ---- 1) songs match the brief exactly ----
-console.log('== songs: Golden Boo + Little Boo Songs match the brief ==');
+console.log('== songs: authored content matches the brief ==');
 {
   const { ctx, page } = await openBand();
   const songs = await page.evaluate(async () => {
@@ -38,40 +38,63 @@ console.log('== songs: Golden Boo + Little Boo Songs match the brief ==');
     const notes = (mel) => mel.map(x => x.note).join(' ');
     const hit = (id) => m.BOO_POP_HITS.find(h => h.id === id);
     const little = (id) => m.LITTLE_BOO_SONGS.find(s => s.id === id);
-    return { golden: seq(hit('golden').melody), row: notes(little('row').melody), oldmac: notes(little('oldmac').melody) };
+    return { goldenOpen: seq(hit('golden').melody.slice(0, 21)), goldenBpm: hit('golden').bpm, goldenProg: hit('golden').progression.join(' '), row: notes(little('row').melody), oldmac: notes(little('oldmac').melody) };
   });
-  const GOLDEN = "A:0.5 A:0.5 C':1 A:0.5 G:0.5 E:1 G:0.5 G:0.5 A:1 G:0.5 E:0.5 D:1 C:0.5 D:0.5 E:1 G:1 A:1 G:0.5 E:0.5 D:0.5 C:1.5";
-  assert(songs.golden === GOLDEN, 'Golden Boo matches the brief note-for-note including beats');
+  // Golden Boo's hook + opening phrase (the brief's 21 authored notes) verbatim at the start
+  const GOLDEN_SEED = "A:0.5 A:0.5 C':1 A:0.5 G:0.5 E:1 G:0.5 G:0.5 A:1 G:0.5 E:0.5 D:1 C:0.5 D:0.5 E:1 G:1 A:1 G:0.5 E:0.5 D:0.5 C:1.5";
+  assert(songs.goldenOpen === GOLDEN_SEED, 'Golden Boo seeds the authored hook + opening phrase verbatim (notes + beats)');
+  assert(songs.goldenBpm === 116 && songs.goldenProg === 'Am F C G', 'Golden Boo is 116 bpm, Am F C G');
   assert(songs.row === "C C C D E E D E F G C' C' C' G G G E E E C C C G F E D C", 'Row Your Boat matches the brief note sequence');
   assert(songs.oldmac === "C C C G A A G E E D D C C C C G A A G E E D D C", 'Old MacDonald matches the brief note sequence');
   await ctx.close();
 }
 
-// ---- 2) the three composed Hits pass every style-spec criterion ----
-console.log('== composed Hits pass the style spec ==');
+// ---- 2) ALL FOUR Hits pass the C6 melody validator (the addendum's binding rules) ----
+console.log('== the melody validator: every Hit passes all 14 checks ==');
 {
+  const { validateHit, validateTrio } = await import('./lib/melody.mjs');
   const { ctx, page } = await openBand();
-  const rep = await page.evaluate(async () => {
-    const m = await import('./data/songs.js');
-    return m.BOO_POP_HITS.filter(h => h.id !== 'golden').map(h => {
-      const semis = h.melody.map(x => x.semi);
-      const beats = h.melody.reduce((a, x) => a + x.beats, 0);
-      const motif = h.melody.slice(0, 6).map(x => x.note).join(',');
-      let recur = 0; for (let i = 0; i + 6 <= h.melody.length; i++) if (h.melody.slice(i, i + 6).map(x => x.note).join(',') === motif) recur++;
-      let sync = false, acc = 0; for (const x of h.melody) { if (Math.abs(acc % 1) > 0.01) sync = true; acc += x.beats; }
-      return { name: h.name, bpm: h.bpm, chords: h.progression.length, minS: Math.min(...semis), maxS: Math.max(...semis), bars: beats / 4, recur, sync };
-    });
-  });
-  for (const h of rep) {
-    assert(h.bpm >= 112 && h.bpm <= 124, `${h.name}: bpm ${h.bpm} in 112–124`);
-    assert(h.chords === 4, `${h.name}: a four-chord loop`);
-    assert(h.minS >= 0 && h.maxS <= 16, `${h.name}: melody within C4–E5 (${h.minS}–${h.maxS})`);
-    assert(Number.isInteger(h.bars), `${h.name}: whole-bar melody loops seamlessly (${h.bars} bars)`);
-    // the melody loops to fill 16 bars, so the hook recurs (internal recur) × (16/bars) times
-    const per16 = h.recur * Math.floor(16 / h.bars);
-    assert(per16 >= 3, `${h.name}: the 2-bar hook recurs ≥3×/16 bars (${per16}× incl. looping)`);
-    assert(h.sync, `${h.name}: syncopation present`);
+  const hits = await page.evaluate(async () => { const m = await import('./data/songs.js'); return m.BOO_POP_HITS; });
+  for (const h of hits) {
+    // Golden Boo's hook is authored verbatim (no ≥4th leap inside it) — the documented
+    // authored-content exemption moves its leap requirement to the whole melody.
+    const r = validateHit(h, { authoredHook: h.id === 'golden' });
+    const fails = Object.entries(r.checks).filter(([, c]) => !c.ok).map(([k, c]) => `${k}(${c.detail})`);
+    assert(r.pass, `${h.name}: validator ${r.score}/${r.of}${fails.length ? ' — ' + fails.join(', ') : ''}`);
   }
+  const trio = validateTrio(hits.filter(h => h.id !== 'golden'));
+  assert(trio.ok, `the three composed Hits differ pairwise in progression, bpm and hook-first-4 (${trio.details.join(' · ')})`);
+  // 64 beats exactly, with rests represented
+  const shape = await page.evaluate(async () => { const m = await import('./data/songs.js'); return m.BOO_POP_HITS.map(h => ({ id: h.id, beats: h.melody.reduce((a, x) => a + x.beats, 0), rests: h.melody.filter(x => x.note === 'rest').length })); });
+  for (const s of shape) { assert(Math.abs(s.beats - 64) < 1e-6, `${s.id}: exactly 64 beats (16 bars)`); assert(s.rests >= 2, `${s.id}: ≥2 rests (${s.rests})`); }
+  await ctx.close();
+}
+
+// ---- 2b) the specified backing plays in Boo Beat (kick 1&3, snare 2&4, eighth hats,
+// fill every 4th bar, bass roots + passing notes, OFF-beat chord stabs) ----
+console.log('== the specified pop backing (scheduling logs) ==');
+{
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: 640 } });
+  const page = await ctx.newPage();
+  const s = SAVE(); s.settings.content = 'light';
+  s.seen = { introSeen: { beat: 1, bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, beatTrack: 'golden', beatSteady: false };
+  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  await page.evaluate(v => localStorage.setItem('bootown.save.v1', JSON.stringify(v)), s);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('.hub');
+  await page.mouse.click(500, 300);
+  await page.evaluate(async () => { const m = await import('./js/sfx.js'); m.setAudioLog(true); });
+  await page.evaluate(() => window.BooTown.go('beat'));
+  await page.waitForSelector('.beat-field', { timeout: 5000 });
+  await page.evaluate(async () => { const m = await import('./js/sfx.js'); m.setAudioLog(true); });
+  await sleep(4500);   // ~2 bars at 116bpm
+  const log = await page.evaluate(async () => { const m = await import('./js/sfx.js'); return m.getAudioLog().filter(e => e.kind === 'note').map(e => e.tag); });
+  const count = (re) => log.filter(t => re.test(t)).length;
+  assert(count(/beat-drum:kick/) >= 2, `kicks land (${count(/beat-drum:kick/)})`);
+  assert(count(/beat-drum:snare/) >= 2, `snares land (${count(/beat-drum:snare/)})`);
+  assert(count(/beat-drum:hihat/) >= count(/beat-drum:kick/) * 2, `hats run in eighths (${count(/beat-drum:hihat/)} hats vs ${count(/beat-drum:kick/)} kicks)`);
+  assert(count(/beat-bass/) >= 4, `the bass walks the roots (${count(/beat-bass/)})`);
+  assert(count(/beat-stab:/) >= 2, `chord stabs land off-beat (${count(/beat-stab:/)})`);
   await ctx.close();
 }
 

@@ -273,7 +273,9 @@ export const beatvoice = {
       if (shimmer) envTone(f * 1.5, t + 0.05, 0.5, 'triangle', 0.09, sfxGain, 'shimmer'); // combo-fever layer
     });
   },
-  thud() { play(t => { pitchDrum(t, 110, 60, 0.16, 0.4); logEvent({ kind: 'note', t, freq: 0, dur: 0.16, bus: 'sfx', tag: 'thud' }); }); }
+  thud() { play(t => { pitchDrum(t, 110, 60, 0.16, 0.4); logEvent({ kind: 'note', t, freq: 0, dur: 0.16, bus: 'sfx', tag: 'thud' }); }); },
+  // off-beat chord stab (RUN9 C6 addendum backing): a short soft triad on the music bus
+  stab(chord) { play(t => { (CHORD[chord] || CHORD.C).slice(0, 3).forEach(s => envTone(261.63 * Math.pow(2, s / 12), t, 0.16, 'triangle', 0.07, musicGain, 'beat-stab:' + chord)); }); }
 };
 
 // ---- Toddler Animal Sounds voices (RUN7 C4): a synthesised, clearly-distinct ----

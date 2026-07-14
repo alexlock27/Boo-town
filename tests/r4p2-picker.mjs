@@ -53,16 +53,19 @@ console.log('== Pick for me: one tap, every buildPicker game ==');
 console.log('== Pick for me: arcade start cards ==');
 {
   const { ctx, page } = await fresh(SAVE());
+  // RUN9 C2: Boo Blocks is a pure puzzle now (no categories — its learning is the Boost),
+  // so its start card has a one-tap ▶ Play instead of Pick for me.
   const ROUND = { blocks: '.blk-board', bounce: '.bounce-canvas', beat: '.game-topbar' };
   for (const game of ['blocks', 'bounce', 'beat']) {
     await page.evaluate(g => window.BooTown.go(g), game);
     await page.waitForSelector('.start-card');
-    const pfm = await page.$('.start-card .pickforme');
-    assert(!!pfm, `${game}: arcade start card offers Pick for me`);
+    const oneTap = game === 'blocks' ? '.start-card .btn.big' : '.start-card .pickforme';
+    const pfm = await page.$(oneTap);
+    assert(!!pfm, `${game}: arcade start card offers a one-tap start (${game === 'blocks' ? 'Play' : 'Pick for me'})`);
     const before = await page.$$eval('.start-card', els => els.length);
-    await page.click('.start-card .pickforme');
+    await page.click(oneTap);
     const started = await page.waitForSelector(ROUND[game], { timeout: 5000 }).then(() => true).catch(() => false);
-    assert(started && before === 1, `${game}: one tap starts the Smart-Mix round`);
+    assert(started && before === 1, `${game}: one tap starts the round`);
     await page.evaluate(() => window.BooTown.go('hub'));
     await page.waitForSelector('.hub');
   }

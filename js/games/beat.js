@@ -35,8 +35,9 @@ const HIT_ROOT_OFFSET = { C: -7, G: 0, Am: 2, F: -2, Em: -3, Dm: -5 };   // chor
 function hitToBeatTrack(hit) {
   return {
     id: hit.id, name: hit.name + ' 🎵', bpm: hit.bpm,
-    melody: hit.melody.map(m => m.semi - 7),               // C4-relative → G4-relative (beatvoice frame)
-    bass: hit.progression.map(ch => HIT_ROOT_OFFSET[ch] != null ? HIT_ROOT_OFFSET[ch] : 0)
+    melody: hit.melody.filter(m => m.note !== 'rest').map(m => m.semi - 7),   // C4-relative → G4-relative; rests shape the sheet, not the lead
+    bass: hit.progression.map(ch => HIT_ROOT_OFFSET[ch] != null ? HIT_ROOT_OFFSET[ch] : 0),
+    chords: hit.progression
   };
 }
 const TRACKS = Object.fromEntries(BOO_POP_HITS.map(h => [h.id, hitToBeatTrack(h)]));
@@ -152,16 +153,29 @@ export function mount(container, params, ctx) {
     const now = () => performance.now();
     const curBeat = () => (now() - startTime) / beatMs;
 
-    // ---- backing track (C3): soft drums + bass, never stops, on the music bus (ducks w/ TTS) ----
+    // ---- backing track (RUN9 C6 addendum — the specified pop backing, never optional):
+    // kick on beats 1 & 3, snare on 2 & 4, hats in EIGHTHS with a small fill every fourth
+    // bar, bass on the chord roots with passing notes, chord stabs landing OFF-beat.
+    // Runs on an eighth-note grid (beatMs/2 per step, 8 steps/bar), music bus (ducks w/ TTS).
     function startBacking() {
       if (backingTimer) return;
       backingTimer = setInterval(() => {
         if (document.hidden || ended) return;
-        const step = backingStep % 8;
-        if (step % 2 === 0) beatvoice.backingDrum('hihat');
+        const step = backingStep % 8;                        // eighth within the bar
+        const bar = Math.floor(backingStep / 8);
+        const fillBar = bar % 4 === 3;                       // every fourth bar carries the fill
+        // hats: every eighth; the fill swaps the last two hats for quick snares
+        if (fillBar && step >= 6) beatvoice.backingDrum('snare');
+        else beatvoice.backingDrum('hihat');
+        // kick on beats 1 & 3 (steps 0, 4); snare on 2 & 4 (steps 2, 6)
         if (step === 0 || step === 4) beatvoice.backingDrum('kick');
         if (step === 2 || step === 6) beatvoice.backingDrum('snare');
-        if (step % 2 === 0) beatvoice.bass(98 * Math.pow(2, track.bass[(backingStep / 2 | 0) % track.bass.length] / 12));
+        // bass: the chord root on each beat, a passing note on the bar's last eighth
+        const rootIdx = bar % track.bass.length;
+        if (step % 2 === 0) beatvoice.bass(98 * Math.pow(2, track.bass[rootIdx] / 12));
+        else if (step === 7) beatvoice.bass(98 * Math.pow(2, ((track.bass[rootIdx] + track.bass[(rootIdx + 1) % track.bass.length]) / 2) / 12));   // passing note toward the next root
+        // chord stabs landing OFF-beat (the "and" of beats 2 and 4)
+        if ((step === 3 || step === 7) && track.chords) beatvoice.stab(track.chords[rootIdx]);
         backingStep++;
       }, beatMs / 2);
     }

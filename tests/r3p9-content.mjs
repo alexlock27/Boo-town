@@ -63,18 +63,24 @@ await setTier('full'); n = await pickerNames('feedboos');
 assert(n.length > 15, 'Full: lists every template (' + n.length + ' choices)');
 
 // ---- D19: Arcade — Light has no picker (auto), Medium/Full do ----
+// RUN9 C2: Boo Blocks is a pure score-chase puzzle now (its learning is the Boo Boost),
+// so the category-arcade exemplar here is Boo Bounce; Blocks shows its one-button
+// score-chase start card at EVERY tier.
 console.log('== D19: Arcade tiers ==');
 await setTier('light');
+await page.evaluate(() => window.BooTown.go('bounce'));
+await page.waitForSelector('.bounce-canvas, .start-card', { timeout: 5000 });
+const lightHasStart = await page.$('.start-card .acc-chip');
+assert(!lightHasStart, 'Light: arcade (Boo Bounce) has NO picker — it auto-starts Smart-Mix-driven');
 await page.evaluate(() => window.BooTown.go('blocks'));
-await page.waitForSelector('.blk-board, .start-card', { timeout: 3000 });
-const lightHasStart = await page.$('.start-card');
-assert(!lightHasStart, 'Light: arcade (Boo Blocks) has NO picker — it auto-starts Smart-Mix-driven');
-await setTier('medium'); n = await pickerNames('blocks');
-assert(n === null || true, 'medium blocks has a picker');
+await page.waitForSelector('.start-card', { timeout: 5000 });
+assert(!!(await page.$('.start-card .btn.big')), 'Light: Boo Blocks shows its score-chase start card (one Play button, RUN9 C2)');
+await setTier('medium');
+await page.evaluate(() => window.BooTown.go('bounce')); await page.waitForSelector('.start-card');
 const mediumCats = await page.$$eval('.acc-chip, .chip-row .acc-chip', ns => ns.map(x => x.textContent)).catch(() => []);
 assert(mediumCats.includes('Times tables') && mediumCats.includes('Number bonds') && mediumCats.includes('Spelling') && !mediumCats.includes('Doubles & halves'), 'Medium: Times tables + Number bonds + Words (' + mediumCats.join(',') + ')');
 await setTier('full');
-await page.evaluate(() => window.BooTown.go('blocks')); await page.waitForSelector('.start-card');
+await page.evaluate(() => window.BooTown.go('bounce')); await page.waitForSelector('.start-card');
 const fullCats = await page.$$eval('.acc-chip', ns => ns.map(x => x.textContent));
 assert(fullCats.includes('Doubles & halves') && fullCats.includes('Add & subtract'), 'Full: arcade offers everything');
 

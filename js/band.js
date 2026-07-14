@@ -120,7 +120,8 @@ export function mount(container, params, ctx) {
   // Each melody note maps to an on-screen key index; the guide sparkles the next key and
   // WAITS indefinitely for her press (only the correct key advances).
   const toddler = contentTier() === 'toddler';
-  const songToKeys = (song) => song.melody.map(m => KEY_SEMIS.indexOf(m.semi)).filter(i => i >= 0);
+  // rests (RUN9 C6 addendum) shape the written tune but aren't pressable — skip them here
+  const songToKeys = (song) => song.melody.filter(m => m.note !== 'rest').map(m => KEY_SEMIS.indexOf(m.semi)).filter(i => i >= 0);
   const PLAYALONG = [
     ...LITTLE_BOO_SONGS.map(s => ({ id: s.id, name: s.name, keys: songToKeys(s), little: true })),
     ...(toddler ? [] : BOO_POP_HITS.map(s => ({ id: s.id, name: s.name, keys: songToKeys(s), little: false })))
