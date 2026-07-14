@@ -13,6 +13,7 @@ const ASSETS = [
   'js/main.js',
   'js/state.js',
   'js/ui.js',
+  'js/drawer.js',
   'js/art.js',
   'js/guide.js',
   'js/sfx.js',

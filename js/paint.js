@@ -3,6 +3,7 @@
 // + rainbow, undo (10 steps). Save to the gallery; leaving mid-way keeps a draft.
 
 import { el, clear, backControl } from './ui.js';
+import { createDrawer } from './drawer.js';
 import { sfx, music } from './sfx.js';
 import { saveArtwork } from './studio.js';
 import { idbGet, idbPut, idbDelete, idbCount } from './idb.js';
@@ -274,38 +275,56 @@ export function mount(container, params, ctx) {
   PALETTE.forEach(cc => { const b = el('button', { class: 'paint-swatch' + (cc === colour && !rainbow ? ' sel' : ''), style: { background: cc }, 'aria-label': 'colour', onclick: () => { colour = cc; rainbow = false; refreshSwatches(); } }); swatches.appendChild(b); });
   const rainbowBtn = el('button', { class: 'paint-swatch rainbow', 'aria-label': 'rainbow', onclick: () => { rainbow = true; refreshSwatches(); } });
   if (!toddler) swatches.appendChild(rainbowBtn);   // rainbow waits until she's older
-  function refreshSwatches() { [...swatches.querySelectorAll('.paint-swatch')].forEach(b => b.classList.remove('sel')); if (rainbow) rainbowBtn.classList.add('sel'); else { const i = PALETTE.indexOf(colour); if (i >= 0) swatches.children[i].classList.add('sel'); } }
+  function refreshSwatches() { [...swatches.querySelectorAll('.paint-swatch')].forEach(b => b.classList.remove('sel')); if (rainbow) rainbowBtn.classList.add('sel'); else { const i = PALETTE.indexOf(colour); if (i >= 0) swatches.children[i].classList.add('sel'); } updateCurrent(); }
 
+  // ---- tools (RUN9 C1: relocated into the shared drawer's Tools tab) ----
+  const TOOL_LABEL = { brush: 'Brush', fill: 'Fill', sparkle: 'Sparkle', stamp: 'Stamp', pattern: 'Pattern', eraser: 'Eraser' };
   const toolBtns = {};
   const tools = el('div', { class: 'paint-tools' });
   const TOOL_LIST = toddler
     ? [['brush', '🖌️'], ['fill', '🪣'], ['stamp', '🐾']]
     : [['brush', '🖌️'], ['fill', '🪣'], ['sparkle', '✨'], ['stamp', '🐾'], ['pattern', '▦'], ['eraser', '🧽']];
+  const TOOL_ICON = Object.fromEntries(TOOL_LIST);
   TOOL_LIST.forEach(([t, ic]) => {
-    const b = el('button', { class: 'paint-tool' + (t === tool ? ' sel' : ''), text: ic, 'aria-label': t, onclick: () => { tool = t; Object.values(toolBtns).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); renderSubRow(); } });
+    const b = el('button', { class: 'paint-tool' + (t === tool ? ' sel' : ''), text: ic, 'aria-label': t, onclick: () => { chooseTool(t); } });
     toolBtns[t] = b; tools.appendChild(b);
   });
+  function selectTool(t) { tool = t; Object.values(toolBtns).forEach(x => x.classList.remove('sel')); if (toolBtns[t]) toolBtns[t].classList.add('sel'); }
+  function chooseTool(t) { selectTool(t); buildStampsTab(); updateCurrent(); }
 
-  // sub-choices for the new tools (RUN5 C6): stamp shapes / pattern kinds
-  const subRow = el('div', { class: 'paint-subrow' });
-  function renderSubRow() {
-    clear(subRow);
-    if (tool === 'stamp') {
-      [['star', '⭐'], ['heart', '💗'], ['flower', '🌸'], ['paw', '🐾'], ['sparkle', '✨']].forEach(([k, ic]) => {
-        subRow.appendChild(el('button', { class: 'acc-chip stamp-chip' + (stampShape === k ? ' sel' : ''), text: ic, 'aria-label': k,
-          onclick: () => { stampShape = k; sfx.tap(); renderSubRow(); } }));
-      });
-    } else if (tool === 'pattern') {
-      [['stripes', 'Stripes 🦓'], ['dots', 'Polka dots 🔴']].forEach(([k, label]) => {
-        subRow.appendChild(el('button', { class: 'acc-chip pattern-chip' + (patternKind === k ? ' sel' : ''), text: label,
-          onclick: () => { patternKind = k; sfx.tap(); renderSubRow(); } }));
-      });
-    }
-    subRow.style.display = (tool === 'stamp' || tool === 'pattern') ? '' : 'none';
-  }
-  renderSubRow();
+  // ---- brush sizes (in the Tools tab) ----
   const sizes = el('div', { class: 'paint-sizes' });
   BRUSHES.forEach((sz, i) => { const b = el('button', { class: 'paint-size' + (sz === brush ? ' sel' : ''), onclick: () => { brush = sz; [...sizes.children].forEach(x => x.classList.remove('sel')); b.classList.add('sel'); } }, [el('span', { class: 'ps-dot', style: { width: (8 + i * 7) + 'px', height: (8 + i * 7) + 'px' } })]); sizes.appendChild(b); });
+
+  // ---- Stamps tab: stamp shapes + (non-toddler) pattern kinds. Picking a chip also
+  // selects its tool, so everything is reachable in two taps (open drawer → tap chip). ----
+  const stampsContent = el('div', { class: 'paint-stamps-tab' });
+  function buildStampsTab() {
+    clear(stampsContent);
+    stampsContent.appendChild(el('div', { class: 'bd-sub-label', text: 'Stamps' }));
+    const stampSec = el('div', { class: 'paint-subrow' });
+    [['star', '⭐'], ['heart', '💗'], ['flower', '🌸'], ['paw', '🐾'], ['sparkle', '✨']].forEach(([k, ic]) => {
+      stampSec.appendChild(el('button', { class: 'acc-chip stamp-chip' + (tool === 'stamp' && stampShape === k ? ' sel' : ''), text: ic, 'aria-label': k,
+        onclick: () => { stampShape = k; selectTool('stamp'); sfx.tap(); buildStampsTab(); updateCurrent(); } }));
+    });
+    stampsContent.appendChild(stampSec);
+    if (!toddler) {
+      stampsContent.appendChild(el('div', { class: 'bd-sub-label', text: 'Patterns' }));
+      const patSec = el('div', { class: 'paint-subrow' });
+      [['stripes', 'Stripes 🦓'], ['dots', 'Polka dots 🔴']].forEach(([k, label]) => {
+        patSec.appendChild(el('button', { class: 'acc-chip pattern-chip' + (tool === 'pattern' && patternKind === k ? ' sel' : ''), text: label,
+          onclick: () => { patternKind = k; selectTool('pattern'); sfx.tap(); buildStampsTab(); updateCurrent(); } }));
+      });
+      stampsContent.appendChild(patSec);
+    }
+  }
+
+  // ---- collapsed preview: current colour + current tool, always visible ----
+  function updateCurrent() {
+    const rainbowSw = 'conic-gradient(#FF7AC6,#FFC93C,#35D0BA,#8FC7FF,#C6A9F0,#FF7AC6)';
+    const sw = `<span class="bd-cur-swatch" style="background:${rainbow ? rainbowSw : colour}"></span>`;
+    drawer.setCurrent(`${sw}<span class="bd-cur-ic">${TOOL_ICON[tool] || '🖌️'}</span><span class="bd-cur-label">${TOOL_LABEL[tool] || 'Brush'}</span>`);
+  }
 
   const undoBtn = el('button', { class: 'btn soft', text: '↩ Undo', onclick: () => { sfx.tap(); undo(); } });
   const saveBtn = el('button', { class: 'btn', text: '💾 Save to gallery', onclick: () => doSave() });
@@ -343,9 +362,20 @@ export function mount(container, params, ctx) {
     } catch {}
   }
 
-  root.append(header, tmplRow, el('div', { class: 'paint-stage' }, [canvas]), swatches,
-    el('div', { class: 'paint-controls' }, [tools, sizes]), subRow,
-    el('div', { class: 'paint-actions' }, [undoBtn, saveBtn, saveMsg]));
+  // ---- the shared bottom drawer (RUN9 C1): Tools | Colours | Stamps ----
+  const drawer = createDrawer({
+    ariaLabel: 'Paint tools',
+    initial: 1,   // open on Colours: the first thing she reaches for
+    tabs: [
+      { id: 'tools', label: 'Tools', node: el('div', { class: 'bd-tools-tab' }, [tools, el('div', { class: 'bd-sub-label', text: 'Brush size' }), sizes]) },
+      { id: 'colours', label: 'Colours', node: swatches },
+      { id: 'stamps', label: 'Stamps', node: stampsContent }
+    ]
+  });
+  buildStampsTab(); selectTool(tool); updateCurrent();
+
+  root.append(header, tmplRow, el('div', { class: 'paint-stage' }, [canvas]),
+    el('div', { class: 'paint-actions' }, [undoBtn, saveBtn, saveMsg]), drawer.root);
   container.appendChild(root);
 
   // test hook
@@ -359,7 +389,10 @@ export function mount(container, params, ctx) {
     draw: (id) => drawTemplate(id),
     isDirty: () => dirty,
     stashDraft, loadDraft, hasDraft: () => !!draftRec,
-    pixel: (x, y) => { const d = cx.getImageData(x, y, 1, 1).data; return [d[0], d[1], d[2]]; }
+    pixel: (x, y) => { const d = cx.getImageData(x, y, 1, 1).data; return [d[0], d[1], d[2]]; },
+    // RUN9 C1 drawer hooks
+    drawer: { open: drawer.open, close: drawer.close, toggle: drawer.toggle, showTab: drawer.showTab, isOpen: drawer.isOpen, activeTab: drawer.activeTab },
+    curTool: () => tool, curColour: () => rainbow ? 'rainbow' : colour
   };
   return { unmount() { stashDraft(); } };
 }
