@@ -2,6 +2,42 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 9: the depth run
+- **The tidy sweep**: Paint and Collage now use one shared bottom drawer with tabbed trays — Paint's
+  Tools / Colours / Stamps, Collage's Boos / Party / Seaside / Nature / Sparkle / Letters / Backgrounds
+  / Text. Collapsed, it shows the current selection large with a grab handle; tap or drag up to open.
+  Nothing was removed anywhere. A button-count audit brought the busiest game start cards under an
+  8-buttons-at-once rule (a collapsible tune reveal on Boo Beat, scrollable category strips on the
+  maths pickers); the rest is logged as a backlog.
+- **Boo Blocks, rebuilt** as a real score-chase puzzle: pieces flow freely into the tray (no question
+  needed), fill any line to pop it, simultaneous clears multiply, back-to-back clears build a cascade
+  streak, and clearing the whole board fires an all-clear firework. Learning is the power-up economy —
+  the chunky **Boo Boost** button (three a round) poses one quick question and wins a special piece
+  (Line Blaster clears a row/column, Sparkle Bomb clears a 3×3, Single Square fills a hole). Stars come
+  from score bands, her best score is saved, and beating it celebrates.
+- **Word Detective** — a kind Lingo. Guess the secret word in five tries on a tile grid with the classic
+  green / orange / grey clues and a colour-mirroring keyboard; 4-letter and 5-letter puzzles. Any letters
+  may be guessed (obvious mash gets a friendly giggle, never a "not a word" wall), and after three misses
+  the guide offers a peek at the first letter. Every round ends warmly.
+- **Boo Roll** — tilt the tablet to roll a Boo through six authored courses of rising trickiness (walls,
+  holes, a checkpoint flag, three pickup stars), earning bronze / silver / gold medals against par times
+  that show on the course map and in the Trophy Room. Calibration holds it flat, a re-centre button is in
+  the corner, and where the tilt sensor is absent or denied a finger thumb-stick appears automatically
+  (also the reduced-motion mode). Falling in a hole is a gentle boing, never a fail.
+- **Echo Boos** — a musical memory game: four colour Boos sing a growing tune and she echoes it back. A
+  slip replays the tune once more slowly; the pace quickens gently with length. Fully playable with the
+  sound off (the lights carry it), and available in Toddler mode too.
+- **Band 2.0** — multitrack jams: record one instrument, then "+ add a layer" to record another over your
+  own playback (up to three layers, each re-recordable), all on one shared clock so playback matches
+  exactly. A new **xylophone** (eight rainbow bars) joins the band with its own fourth Boo. New songs:
+  three nursery tunes for little ones (Twinkle, Row Your Boat, Old MacDonald) and four original pop
+  tracks (Golden Boo, Neon Star, Sparkle Rush, Midnight Dance) that also became Boo Beat's backing music.
+- **Sensor & haptic garnish** (Android, all optional): gentle vibrations — a tick on a correct answer, a
+  buzz when a box opens, bumps on Boo Roll walls, a pulse on Word Detective greens — with a Settings
+  toggle; and a firm shake of the tablet reshuffles the Boo Pop board.
+- **Voice picker**: the grown-ups corner now lists the device's installed English voices with a preview,
+  and the chosen voice applies to all speech and persists.
+
 ## Run 7: open the gates
 - **The funfair and band are open from day one**: the old 280-star gate is gone, so the fairground
   is there on every save from the start. A player's first visit plays a one-time grand opening — two
