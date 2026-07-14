@@ -1897,6 +1897,22 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .strum-strip.strummed { background: rgba(255,201,60,0.4); }
 .band-backing { text-align: center; }
 .band-record { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; }
+/* Band 2.0 (RUN9 C6): xylophone, multitrack layers, the 4th Boo, song picker */
+.bt-boo.bt-xylo { opacity: 0; transition: opacity 200ms; pointer-events: none; }
+.bt-boo.bt-xylo.present { opacity: 1; pointer-events: auto; }
+.xylo-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.xylo-bars { display: flex; gap: 6px; align-items: flex-start; }
+.xylo-bar { width: clamp(28px, 8vw, 48px); border-radius: 8px; border: 3px solid var(--ink); box-shadow: 0 4px 0 rgba(0,0,0,0.25); }
+.xylo-bar.struck { animation: xyloStruck 0.2s ease; }
+@keyframes xyloStruck { 0% { transform: translateY(0); } 40% { transform: translateY(5px) scaleY(0.96); } 100% { transform: translateY(0); } }
+.band-layers { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.band-layer { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.14); border-radius: 12px; padding: 5px 10px; color: var(--card); font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+.band-layer.pending { box-shadow: 0 0 0 2px var(--star); }
+.band-layer .bl-btn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--card); background: transparent; color: var(--card); font-size: 13px; padding: 0; }
+.playalong-picker { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+.playalong-chip { font-size: 14px; padding: 6px 12px; }
+.playalong-label { color: var(--star); font-family: var(--font-display); font-weight: 700; font-size: 15px; min-height: 18px; }
+@media (prefers-reduced-motion: reduce) { .xylo-bar.struck { animation: none; } .bt-boo.bt-xylo { transition: none; } }
 .rec-btn.recording { background: #FF5C5C; animation: recPulse 1s ease-in-out infinite; }
 @keyframes recPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 .rec-status { color: var(--card); font-family: var(--font-body); font-size: 15px; }

@@ -45,7 +45,7 @@ async function waitNotes(page) { await page.waitForFunction(() => { const s = wi
 
 // ==================== melody on hits across all three tracks ====================
 console.log('== correct hits play the melody, on all three tracks ==');
-for (const track of ['chill', 'pop', 'bounce']) {
+for (const track of ['golden', 'neon', 'sparkle']) {
   const { ctx, page } = await open(SAVE({ seen: { beatTrack: track, introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } }));
   assert(await page.evaluate(() => window.__beat.track()) === track, `track "${track}" selected`);
   const idx0 = await page.evaluate(() => window.__beat.melodyIdx());
@@ -129,7 +129,7 @@ for (const [w, h, tag] of [[768, 1024, 'portrait'], [390, 844, 'phone']]) {
 // ==================== steady mode intact ====================
 console.log('== steady mode intact ==');
 {
-  const { ctx, page } = await open(SAVE({ seen: { beatSteady: true, beatTrack: 'chill', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } }));
+  const { ctx, page } = await open(SAVE({ seen: { beatSteady: true, beatTrack: 'midnight', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } }));
   assert(await page.evaluate(() => window.__beat.steady()) === true, 'steady mode is on');
   assert(!!(await page.$('.beat-field.steady')), 'the field is in steady layout');
   const before = await page.evaluate(() => window.__beat.state().correct);

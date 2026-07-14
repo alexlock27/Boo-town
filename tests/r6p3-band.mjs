@@ -86,17 +86,17 @@ console.log('== drums multi-touch ==');
 console.log('== play-along ==');
 {
   const { ctx, page } = await open(SAVE());
-  await page.evaluate(() => window.__band.setPlayAlong(true));
+  await page.evaluate(() => window.__band.setPlayAlong('twinkle'));
   const wanted0 = await page.evaluate(() => window.__band.nextWantedKey());
   assert(wanted0 === 0, 'play-along starts on the first Twinkle note (key 0)');
   const sparkles = await page.$$eval('.key.sparkle', ns => ns.length);
   assert(sparkles === 1, 'exactly the next key sparkles');
   await sleep(1200);   // it must NOT auto-advance
-  assert(await page.evaluate(() => window.__band.twinkleIdx()) === 0, 'the sparkle waits indefinitely (no auto-advance)');
+  assert(await page.evaluate(() => window.__band.songPos()) === 0, 'the sparkle waits indefinitely (no auto-advance)');
   await page.evaluate(() => window.__band.pressKey(0));   // press the wanted key
-  assert(await page.evaluate(() => window.__band.twinkleIdx()) === 1, 'pressing the wanted key advances the sequence');
+  assert(await page.evaluate(() => window.__band.songPos()) === 1, 'pressing the wanted key advances the sequence');
   await page.evaluate(() => window.__band.pressKey(5));   // a wrong key
-  assert(await page.evaluate(() => window.__band.twinkleIdx()) === 1, 'a wrong key still sounds but does not advance (gentle)');
+  assert(await page.evaluate(() => window.__band.songPos()) === 1, 'a wrong key still sounds but does not advance (gentle)');
   await ctx.close();
 }
 
@@ -159,6 +159,7 @@ console.log('== 3-jam cap + hold-to-delete ==');
   // hold-to-delete: a real long press on a jam row → confirm → gone
   await page.waitForSelector('.jam-row');
   const row = await page.$('.jam-row');
+  await row.scrollIntoViewIfNeeded();   // RUN9 C6: Band 2.0 adds a layers strip, so the jams list can sit below the fold
   const box = await row.boundingBox();
   await page.mouse.move(box.x + 30, box.y + box.height / 2);
   await page.mouse.down();

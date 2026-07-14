@@ -248,10 +248,14 @@ export const DRUM_PADS = ['kick', 'snare', 'hihat', 'cymbal', 'tom1', 'tom2'];
 export const KEY_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];   // ten white keys C4→E5
 const CHORD = { C: [0, 4, 7, 12], G: [7, 11, 14, 19], Am: [9, 12, 16, 21], F: [5, 9, 12, 17] };
 export const GUITAR_CHORDS = ['C', 'G', 'Am', 'F'];
+// Xylophone (RUN9 C6): eight rainbow bars, a C-major scale, a bright bell-like tone.
+export const XYLO_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12];   // C D E F G A B C'
 export const band = {
   drum(pad) { play(t => { (DRUMS[pad] || DRUMS.kick)(t); logEvent({ kind: 'note', t, freq: 0, dur: 0.2, bus: 'sfx', tag: 'drum:' + pad }); }); },
   key(semi) { play(t => { const f = 261.63 * Math.pow(2, semi / 12); envTone(f, t, 0.9, 'triangle', 0.30, sfxGain, 'key'); envTone(f * 2, t, 0.5, 'sine', 0.09, sfxGain, 'key'); }); },
-  guitar(chord) { play(t => { (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), t + i * 0.06, 0.7, 'sawtooth', 0.13, sfxGain, 'guitar:' + chord)); }); }
+  guitar(chord) { play(t => { (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), t + i * 0.06, 0.7, 'sawtooth', 0.13, sfxGain, 'guitar:' + chord)); }); },
+  // bright bell-like mallet tone: a high sine fundamental + an octave shimmer, quick decay
+  xylo(idx) { play(t => { const semi = XYLO_SEMIS[idx % XYLO_SEMIS.length]; const f = 523.25 * Math.pow(2, semi / 12); envTone(f, t, 0.55, 'sine', 0.30, sfxGain, 'xylo'); envTone(f * 2, t + 0.005, 0.30, 'sine', 0.10, sfxGain, 'xylo'); envTone(f * 3, t + 0.005, 0.15, 'triangle', 0.05, sfxGain, 'xylo'); }); }
 };
 
 // ---- Boo Beat voices (RUN6 C3): the melody her correct hits perform, plus a soft ----

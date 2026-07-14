@@ -12,6 +12,7 @@ import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderItem } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music, beatvoice } from '../sfx.js';
+import { BOO_POP_HITS } from '../../data/songs.js';
 import { resolveItem } from '../customs.js';
 import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
@@ -26,14 +27,21 @@ const PHRASES = 10;
 const PERFECT_MS = 80, GOOD_MS = 160;
 const FEVER_COMBO = 6;                 // combo that lights the fever (C3)
 const FEVER_CROWD = 5;                 // max Boos bouncing along the bottom in fever (named cap)
-// Three selectable backing tracks (C3). Tempo stays kid-tuned (≤100 BPM, chill slower).
-// `melody` is the lead reserved for the player: every on-time correct tap plays the next note.
-const TRACKS = {
-  chill:  { name: 'Chill 🌙',  bpm: 84,  bass: [0, 0, -5, -3], melody: [0, 2, 4, 7, 4, 2, 0, -3, 0, 4, 7, 9, 7, 4, 2, 0] },
-  pop:    { name: 'Pop ✨',    bpm: 96,  bass: [0, -3, -5, -3], melody: [7, 7, 9, 7, 4, 2, 0, 2, 4, 4, 2, 0, -1, 0, 2, 4] },
-  bounce: { name: 'Bounce 🎈', bpm: 100, bass: [0, 0, 5, 3], melody: [0, 4, 7, 12, 7, 4, 0, 4, 9, 7, 4, 2, 4, 7, 4, 0] }
-};
-const TRACK_KEYS = ['chill', 'pop', 'bounce'];
+// Boo Beat's backing tracks ARE the Boo Pop Hits now (RUN9 C6): the same four originals the
+// band plays. Each Hit is adapted to Beat's needs — `bpm` drives scheduling; `melody` (the
+// Hit's tune, transposed into Beat's G4-relative frame) is the lead reserved for the player
+// (every on-time correct tap plays the next note); `bass` is a synth bass from the chord roots.
+const HIT_ROOT_OFFSET = { C: -7, G: 0, Am: 2, F: -2, Em: -3, Dm: -5 };   // chord root vs G (bass base ≈ G2)
+function hitToBeatTrack(hit) {
+  return {
+    id: hit.id, name: hit.name + ' 🎵', bpm: hit.bpm,
+    melody: hit.melody.map(m => m.semi - 7),               // C4-relative → G4-relative (beatvoice frame)
+    bass: hit.progression.map(ch => HIT_ROOT_OFFSET[ch] != null ? HIT_ROOT_OFFSET[ch] : 0)
+  };
+}
+const TRACKS = Object.fromEntries(BOO_POP_HITS.map(h => [h.id, hitToBeatTrack(h)]));
+const TRACK_KEYS = BOO_POP_HITS.map(h => h.id);
+const DEFAULT_TRACK = BOO_POP_HITS[0].id;   // "golden"
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -45,7 +53,7 @@ export function mount(container, params, ctx) {
   // Jump back in / level-up (RUN5 C0b).
   const rz = params && params.resume;
   const steadyDef = REDUCED || !!getState().seen.beatSteady;
-  const trackDef = (getState().seen.beatTrack && TRACKS[getState().seen.beatTrack]) ? getState().seen.beatTrack : 'pop';
+  const trackDef = (getState().seen.beatTrack && TRACKS[getState().seen.beatTrack]) ? getState().seen.beatTrack : DEFAULT_TRACK;
   if (rz) { rz.mix ? play(AUTO, 2, steadyDef, trackDef) : play(rz.cat, rz.level, steadyDef, trackDef); }
   else if (arcadeHasPicker()) startCard(); else play(AUTO, 2, steadyDef, trackDef);   // Light auto-starts (C9)
   maybeIntro('beat');   // first-ever open: the guided intro (RUN5 C5)
@@ -56,7 +64,7 @@ export function mount(container, params, ctx) {
     const s = getState();
     let category = s.seen.beatCat || 'tables';
     let steady = REDUCED || !!s.seen.beatSteady;   // reduced-motion defaults to steady
-    let track = (s.seen.beatTrack && TRACKS[s.seen.beatTrack]) ? s.seen.beatTrack : 'pop';
+    let track = (s.seen.beatTrack && TRACKS[s.seen.beatTrack]) ? s.seen.beatTrack : DEFAULT_TRACK;
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 104 }) }),
       el('h2', { text: 'Boo Beat' }),
@@ -107,9 +115,12 @@ export function mount(container, params, ctx) {
   function play(category, level, steady, trackKey) {
     clear(root);
     const auto = category === AUTO;
-    const track = TRACKS[trackKey] || TRACKS.pop;
-    const beatMs = 60000 / track.bpm;
-    mutate(s => { if (!auto) s.seen.beatCat = category; s.seen.beatSteady = steady; s.seen.beatTrack = TRACKS[trackKey] ? trackKey : 'pop'; });
+    const track = TRACKS[trackKey] || TRACKS[DEFAULT_TRACK];
+    // tempo choice (RUN9 C6): gentle (steady) plays the same Hit noticeably slower, so the
+    // scheduling — backing interval + note fall — is audibly different in the logs.
+    const STEADY_TEMPO = 1.28;
+    const beatMs = (60000 / track.bpm) * (steady ? STEADY_TEMPO : 1);
+    mutate(s => { if (!auto) s.seen.beatCat = category; s.seen.beatSteady = steady; s.seen.beatTrack = TRACKS[trackKey] ? trackKey : DEFAULT_TRACK; });
 
     let question = auto ? autoQuestion(null, 3, true) : makeBeatQuestion(category, level, null);
     let notes = [];              // active notes {lane, text, correct, spawnBeat, node, judged}
@@ -300,7 +311,7 @@ export function mount(container, params, ctx) {
     // Test hook (invisible): drive a headless round.
     if (typeof window !== 'undefined') window.__beat = {
       steady: () => steady,
-      track: () => TRACKS[trackKey] ? trackKey : 'pop',
+      track: () => TRACKS[trackKey] ? trackKey : DEFAULT_TRACK,
       tapCorrect: (grade = 'perfect') => { const n = notes.find(x => x.correct); if (n && !resolving) awardCorrect(n, grade); },
       tapWrong: () => { const n = notes.find(x => !x.correct); if (n && !resolving) wrongTap(); },
       missNow: () => { if (!resolving) missPhrase(); },

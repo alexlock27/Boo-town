@@ -254,7 +254,7 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
     ['dash',      async () => { await page.waitForSelector('.picker'); await page.click('.picker-levels .level-btn'); }],
     ['boopop',    async () => { await page.waitForSelector('.start-card'); await page.click('.level-btn:has-text("Make 10")'); }],
     ['clockshop', async () => { await page.waitForSelector('.start-card'); await page.click('.level-row .level-btn'); }],
-    ['blocks',    async () => { await page.waitForSelector('.start-card'); await page.click('.level-row .level-btn'); }],
+    ['blocks',    async () => { await page.waitForSelector('.start-card'); await page.click('.start-card .btn.big'); }],   // RUN9 C2: Play button
     ['bounce',    async () => { await page.waitForSelector('.start-card'); await page.click('.level-row .level-btn'); }],
     ['beat',      async () => { await page.waitForSelector('.start-card'); await page.click('.level-row .level-btn'); }]
   ];

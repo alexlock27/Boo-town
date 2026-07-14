@@ -8,8 +8,10 @@ import { el, clear, backControl, dialog, REDUCED, suppressContextMenu } from './
 import { getState, mutate, todayKey } from './state.js';
 import { resolveItem } from './customs.js';
 import { renderItem } from './art.js';
-import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS } from './sfx.js';
+import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, XYLO_SEMIS } from './sfx.js';
 import { idbPut, idbGetAll, idbDelete } from './idb.js';
+import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../data/songs.js';
+import { contentTier } from './content.js';
 
 export const BANDSTAND_X = 0.68;         // where the bandstand sits in the funfair zone
 export const MAX_JAMS = 3;               // up to three saved jams (named constant)
@@ -42,29 +44,30 @@ function ownedBooIds(s = getState()) {
   for (const id of Object.keys(s.inventory || {})) if ((s.inventory[id] || 0) > 0) { const it = resolveItem(id); if (it && it.kind === 'boo') ids.push(id); }
   return ids;
 }
-const DEFAULT_TRIO = ['boo_inky', 'boo_chomp', 'boo_curly'];
-// Today's band: three of her own Boos, rotating daily like Boo of the Day; a default
-// trio covers players with few Boos.
+const DEFAULT_TRIO = ['boo_inky', 'boo_chomp', 'boo_curly', 'boo_beam'];
+// Today's band: four of her own Boos, rotating daily like Boo of the Day; a default set
+// covers players with few Boos. The fourth (xylophonist) only appears when a jam uses the
+// xylophone (RUN9 C6) — but is picked deterministically here so it's stable across renders.
 export function bandTrio() {
   const s = getState();
   const pool = [...new Set([...ownedBooIds(s), ...DEFAULT_TRIO])];
   const day = todayKey();
   const avail = pool.slice(); const pick = []; let h = dayHash(day);
-  for (let k = 0; k < 3 && avail.length; k++) { const idx = h % avail.length; pick.push(avail.splice(idx, 1)[0]); h = dayHash(day + k + pick[k]); }
-  return { drummer: pick[0], keys: pick[1], guitarist: pick[2] };
+  for (let k = 0; k < 4 && avail.length; k++) { const idx = h % avail.length; pick.push(avail.splice(idx, 1)[0]); h = dayHash(day + k + (pick[k] || '')); }
+  return { drummer: pick[0], keys: pick[1], guitarist: pick[2], xylophonist: pick[3] || pick[0] };
 }
 
 export async function listJams() { try { return (await idbGetAll('jams')) || []; } catch { return []; } }
 export async function getBandSongEvents() {
   const s = getState();
-  if (s && s.bandSong) { try { const all = await idbGetAll('jams'); const j = (all || []).find(x => x.id === s.bandSong); if (j && j.events && j.events.length) return j; } catch {} }
+  if (s && s.bandSong) { try { const all = await idbGetAll('jams'); const j = (all || []).find(x => x.id === s.bandSong); if (j && jamEvents(j).length) return j; } catch {} }
   return DEFAULT_JAM;
 }
 
 // ---- watch-mode player: loop a jam's note events through the synths ----
 export function startBandWatch(jam, onNote) {
-  const events = (jam && jam.events) || [];
-  const dur = (jam && jam.dur) || 4000;
+  const events = jamEvents(jam);
+  const dur = (jam && jam.dur) || (events.reduce((m, e) => Math.max(m, e.t), 0) + 900) || 4000;
   let timers = [], alive = true, loopTimer = null;
   function runLoop() {
     if (!alive) return;
@@ -81,7 +84,16 @@ function playEvent(ev) {
   if (ev.i === 'drum') voices.drum(ev.v);
   else if (ev.i === 'key') voices.key(ev.v);
   else if (ev.i === 'guitar') voices.guitar(ev.v);
+  else if (ev.i === 'xylo') voices.xylo(ev.v);   // xylophone (RUN9 C6)
 }
+// A jam may be stored as a flat { events } (RUN6) or as multitrack { layers:[{instrument,
+// events}] } (RUN9 C6). Flatten to one time-sorted event list either way.
+export function jamEvents(jam) {
+  if (!jam) return [];
+  if (Array.isArray(jam.layers)) return jam.layers.flatMap(l => l.events || []).slice().sort((a, b) => a.t - b.t);
+  return (jam.events || []).slice();
+}
+export function jamUsesXylo(jam) { return jamEvents(jam).some(e => e.i === 'xylo'); }
 
 // ==================== the play-mode screen ====================
 export function mount(container, params, ctx) {
@@ -94,26 +106,45 @@ export function mount(container, params, ctx) {
   let instrument = 'drums';
   let recording = false, recStart = 0, events = [];
   let heldChord = 'C';
-  let playAlong = false, twinkleIdx = 0;
+  let playAlong = false, songPos = 0, songKeys = null, songName = '';
   let backing = false, backingCtl = null;
   let playCtl = null, recTimer = null;
+  // multitrack state (RUN9 C6) — declared up here so recordBar() (called in root.append) can see them
+  let layers = [];              // [{ instrument, events:[{t,i,v}] }]
+  let layerPlayCtl = null;      // playback of existing layers while recording over them
+  const MAX_LAYERS = 3;
+  const layersEl = el('div', { class: 'band-layers' });
+  const INST_ICON = { drum: '🥁', key: '🎹', guitar: '🎸', xylo: '🎼' };
+
+  // Play-along songs (RUN9 C6): Little Boo Songs (labelled "for little Boos") + Boo Pop Hits.
+  // Each melody note maps to an on-screen key index; the guide sparkles the next key and
+  // WAITS indefinitely for her press (only the correct key advances).
+  const toddler = contentTier() === 'toddler';
+  const songToKeys = (song) => song.melody.map(m => KEY_SEMIS.indexOf(m.semi)).filter(i => i >= 0);
+  const PLAYALONG = [
+    ...LITTLE_BOO_SONGS.map(s => ({ id: s.id, name: s.name, keys: songToKeys(s), little: true })),
+    ...(toddler ? [] : BOO_POP_HITS.map(s => ({ id: s.id, name: s.name, keys: songToKeys(s), little: false })))
+  ];
 
   const trioRow = el('div', { class: 'band-trio' });
   const trioEls = {};
-  for (const [roleKey, role] of [['drummer', '🥁'], ['keys', '🎹'], ['guitarist', '🎸']]) {
+  for (const [roleKey, role] of [['drummer', '🥁'], ['keys', '🎹'], ['guitarist', '🎸'], ['xylophonist', '🎼']]) {
     const id = trio[roleKey]; const item = resolveItem(id);
-    const a = el('div', { class: 'bt-boo', dataset: { role: roleKey } }, [
+    const a = el('div', { class: 'bt-boo' + (roleKey === 'xylophonist' ? ' bt-xylo' : ''), dataset: { role: roleKey } }, [
       el('div', { class: 'bt-art', html: item ? renderItem(item, { size: 60 }) : '' }),
       el('span', { class: 'bt-inst', text: role })
     ]);
     trioEls[roleKey] = a; trioRow.appendChild(a);
   }
+  // the xylophonist Boo only joins the stand when the xylophone is in play (RUN9 C6)
+  function showXyloBoo(on) { trioEls.xylophonist.classList.toggle('present', on); }
+  showXyloBoo(false);
 
   const header = el('header', { class: 'band-header' }, [backControl(() => leave()), el('h2', { text: 'Boo Band' })]);
   const area = el('div', { class: 'band-area' });
   const tabs = el('div', { class: 'band-tabs' });
-  for (const [key, label] of [['drums', '🥁 Drums'], ['keys', '🎹 Keys'], ['guitar', '🎸 Guitar']]) {
-    tabs.appendChild(el('button', { class: 'band-tab' + (instrument === key ? ' sel' : ''), dataset: { inst: key }, text: label, onclick: () => { instrument = key; sfx.tap(); renderTabs(); renderInstrument(); } }));
+  for (const [key, label] of [['drums', '🥁 Drums'], ['keys', '🎹 Keys'], ['guitar', '🎸 Guitar'], ['xylo', '🎼 Xylophone']]) {
+    tabs.appendChild(el('button', { class: 'band-tab' + (instrument === key ? ' sel' : ''), dataset: { inst: key }, text: label, onclick: () => { instrument = key; sfx.tap(); if (key === 'xylo') showXyloBoo(true); renderTabs(); renderInstrument(); } }));
   }
   function renderTabs() { [...tabs.children].forEach(b => b.classList.toggle('sel', b.dataset.inst === instrument)); }
 
@@ -124,6 +155,7 @@ export function mount(container, params, ctx) {
   root.append(header, trioRow, tabs, area, backingRow(), recordBar(), jamsPanel());
   renderInstrument();
   refreshJams();
+  renderLayers();
 
   // ---- the core hit: play + animate + (maybe) record ----
   function hit(i, v) {
@@ -132,7 +164,8 @@ export function mount(container, params, ctx) {
     if (recording) events.push({ t: Math.min(JAM_MAX_MS, Math.round(performance.now() - recStart)), i, v });
   }
   function mirror(i) {
-    const roleKey = i === 'drum' ? 'drummer' : i === 'key' ? 'keys' : 'guitarist';
+    const roleKey = i === 'drum' ? 'drummer' : i === 'key' ? 'keys' : i === 'xylo' ? 'xylophonist' : 'guitarist';
+    if (i === 'xylo') showXyloBoo(true);
     const a = trioEls[roleKey]; if (!a || REDUCED) return;
     a.classList.remove('play'); void a.offsetWidth; a.classList.add('play');
   }
@@ -142,7 +175,22 @@ export function mount(container, params, ctx) {
     clear(area);
     if (instrument === 'drums') area.appendChild(drumsUI());
     else if (instrument === 'keys') area.appendChild(keysUI());
+    else if (instrument === 'xylo') area.appendChild(xyloUI());
     else area.appendChild(guitarUI());
+  }
+  // Xylophone: eight rainbow bars (C-major), a bright mallet tone + mallet-bounce (RUN9 C6).
+  const XYLO_COLOURS = ['#EF476F', '#FF9F68', '#FFC93C', '#9CCC65', '#35D0BA', '#8FC7FF', '#8A6BF0', '#C6A9F0'];
+  function xyloUI() {
+    const wrap = el('div', { class: 'xylo-wrap' });
+    const bars = el('div', { class: 'xylo-bars' });
+    XYLO_SEMIS.forEach((semi, idx) => {
+      const bar = el('button', { class: 'xylo-bar', dataset: { idx: String(idx) }, style: { background: XYLO_COLOURS[idx], height: (150 - idx * 9) + 'px' } });
+      suppressContextMenu(bar);
+      bar.addEventListener('pointerdown', e => { e.preventDefault(); hit('xylo', idx); bar.classList.remove('struck'); void bar.offsetWidth; bar.classList.add('struck'); setTimeout(() => bar.classList.remove('struck'), 200); });
+      bars.appendChild(bar);
+    });
+    wrap.append(el('p', { class: 'guitar-hint', text: 'Tap the rainbow bars!' }), bars);
+    return wrap;
   }
   function drumsUI() {
     const grid = el('div', { class: 'drum-grid' });
@@ -157,20 +205,30 @@ export function mount(container, params, ctx) {
   }
   function keysUI() {
     const wrap = el('div', { class: 'keys-wrap' });
-    const toggle = el('label', { class: 'playalong-toggle' }, [
-      el('input', { type: 'checkbox', checked: playAlong ? 'checked' : undefined, onchange: (e) => { playAlong = e.target.checked; twinkleIdx = 0; renderKeys(); } }),
-      el('span', { text: '✨ Play-along: Twinkle Twinkle' })
-    ]);
+    // song picker: pick a play-along tune (or "Free play")
+    const picker = el('div', { class: 'playalong-picker' });
+    const mkChip = (label, onTap, sel) => el('button', { class: 'acc-chip playalong-chip' + (sel ? ' sel' : ''), text: label, onclick: onTap });
+    picker.appendChild(mkChip('🎹 Free play', () => { playAlong = false; songKeys = null; songName = ''; renderPicker(); renderKeys(); }, !playAlong));
+    for (const song of PLAYALONG) {
+      picker.appendChild(mkChip((song.little ? '👶 ' : '✨ ') + song.name, () => {
+        playAlong = true; songKeys = song.keys; songName = song.name; songPos = 0; renderPicker(); renderKeys();
+      }, playAlong && songName === song.name));
+    }
+    function renderPicker() { [...picker.children].forEach((c, i) => { const on = (i === 0 && !playAlong) || (i > 0 && playAlong && c.textContent.includes(songName)); c.classList.toggle('sel', on); }); }
+    const label = el('div', { class: 'playalong-label' });
     const row = el('div', { class: 'keys-row' });
-    wrap.append(toggle, row);
+    wrap.append(picker, label, row);
     function renderKeys() {
+      label.textContent = playAlong ? `✨ Follow the sparkle: ${songName}` : '';
       clear(row);
       KEY_SEMIS.forEach((semi, idx) => {
-        const wanted = playAlong && TWINKLE[twinkleIdx] === idx;
+        const wanted = playAlong && songKeys && songKeys[songPos] === idx;
         const k = el('button', { class: 'key' + (wanted ? ' sparkle' : ''), dataset: { idx: String(idx) } });
         suppressContextMenu(k);
-        k.addEventListener('pointerdown', e => { e.preventDefault(); hit('key', semi); k.classList.remove('down'); void k.offsetWidth; k.classList.add('down'); setTimeout(() => k.classList.remove('down'), 160);
-          if (playAlong && TWINKLE[twinkleIdx] === idx) { twinkleIdx = (twinkleIdx + 1) % TWINKLE.length; renderKeys(); }
+        k.addEventListener('pointerdown', e => {
+          e.preventDefault(); hit('key', semi); k.classList.remove('down'); void k.offsetWidth; k.classList.add('down'); setTimeout(() => k.classList.remove('down'), 160);
+          // sparkle-guidance WAITS: only the correct key advances (RUN9 C6). Never auto-advances.
+          if (playAlong && songKeys && songKeys[songPos] === idx) { songPos = (songPos + 1) % songKeys.length; renderKeys(); }
         });
         row.appendChild(k);
       });
@@ -210,48 +268,101 @@ export function mount(container, params, ctx) {
     if (on) backingCtl = startBandWatch({ events: BACKING.events, dur: BACKING.dur });
   }
 
-  // ---- record / stop / play / save ----
+  // ---- multitrack record / layer / play / save (RUN9 C6) ----
+  // `layers` are committed passes; `events` is the current (uncommitted) pass. Every layer
+  // and the current pass are timestamped from their own recStart (a shared 0-origin), so
+  // playing them all at their own `t` reproduces the captured timing exactly. Up to 3 layers.
+  function dominantInstrument(evs) { const c = {}; let best = 'drum', bn = 0; for (const e of evs) { c[e.i] = (c[e.i] || 0) + 1; if (c[e.i] > bn) { bn = c[e.i]; best = e.i; } } return best; }
+  function combinedEvents() { return [...layers.flatMap(l => l.events), ...events].slice().sort((a, b) => a.t - b.t); }
+  function totalLayers() { return layers.length + (events.length ? 1 : 0); }
+
   function recordBar() {
     const recBtn = el('button', { class: 'btn rec-btn', text: '● Record', onclick: () => toggleRecord() });
+    const addBtn = el('button', { class: 'btn soft rec-addlayer', text: '➕ Add a layer', onclick: () => addLayer() });
     const playBtn = el('button', { class: 'btn soft rec-play', text: '▶ Play', onclick: () => playRecording() });
     const saveBtn = el('button', { class: 'btn rec-save', text: '💾 Save', onclick: () => saveRecording() });
-    recordBar._recBtn = recBtn;
-    return el('div', { class: 'band-record' }, [recBtn, playBtn, saveBtn, recStatus]);
+    recordBar._recBtn = recBtn; recordBar._addBtn = addBtn;
+    return el('div', {}, [el('div', { class: 'band-record' }, [recBtn, addBtn, playBtn, saveBtn, recStatus]), layersEl]);
+  }
+  function renderLayers() {
+    clear(layersEl);
+    const all = [...layers.map((l, i) => ({ l, i, committed: true })), ...(events.length ? [{ l: { instrument: dominantInstrument(events), events }, i: layers.length, committed: false }] : [])];
+    all.forEach(({ l, i, committed }) => {
+      const chip = el('div', { class: 'band-layer' + (committed ? '' : ' pending') }, [
+        el('span', { class: 'bl-ic', text: INST_ICON[l.instrument] || '🎵' }),
+        el('span', { class: 'bl-name', text: 'Layer ' + (i + 1) + (committed ? '' : ' (new)') }),
+        committed ? el('button', { class: 'bl-btn', 'aria-label': 're-record', text: '↻', onclick: () => reRecord(i) }) : null,
+        committed ? el('button', { class: 'bl-btn', 'aria-label': 'remove', text: '✕', onclick: () => removeLayer(i) }) : null
+      ]);
+      layersEl.appendChild(chip);
+    });
+    recordBar._addBtn.disabled = totalLayers() >= MAX_LAYERS || recording;
+  }
+  function startPass() {
+    recording = true; recStart = performance.now();
+    recordBar._recBtn.textContent = '■ Stop'; recordBar._recBtn.classList.add('recording');
+    recStatus.textContent = layers.length ? `Recording layer ${layers.length + 1}…` : 'Recording…';
+    // play committed layers over the SAME clock so she layers in time
+    if (layers.length) { const evs = layers.flatMap(l => l.events); layerPlayCtl = scheduleEvents(evs); }
+    recTimer = setTimeout(stopRecord, JAM_MAX_MS);
+    renderLayers();
   }
   function toggleRecord() {
     if (recording) { stopRecord(); return; }
-    recording = true; events = []; recStart = performance.now();
-    recordBar._recBtn.textContent = '■ Stop'; recordBar._recBtn.classList.add('recording');
-    recStatus.textContent = 'Recording…';
-    recTimer = setTimeout(stopRecord, JAM_MAX_MS);
+    events = [];   // fresh pass
+    startPass();
   }
   function stopRecord() {
     if (!recording) return;
     recording = false; if (recTimer) { clearTimeout(recTimer); recTimer = null; }
+    if (layerPlayCtl) { layerPlayCtl.stop(); layerPlayCtl = null; }
     recordBar._recBtn.textContent = '● Record'; recordBar._recBtn.classList.remove('recording');
     recStatus.textContent = events.length ? `${events.length} notes captured` : 'Nothing recorded yet';
+    renderLayers();
+  }
+  function commitPending() { if (events.length) { layers.push({ instrument: dominantInstrument(events), events: events.slice() }); events = []; } }
+  function addLayer() {
+    if (recording) stopRecord();
+    if (totalLayers() >= MAX_LAYERS) { recStatus.textContent = `Up to ${MAX_LAYERS} layers per jam.`; return; }
+    commitPending();
+    startPass();   // record the next layer over the committed ones
+  }
+  function reRecord(idx) {
+    if (recording) stopRecord();
+    layers.splice(idx, 1);   // drop the old take; the new pass replaces it (plays the others)
+    events = [];
+    startPass();
+    recStatus.textContent = `Re-recording layer ${idx + 1}…`;
+  }
+  function removeLayer(idx) { if (recording) stopRecord(); layers.splice(idx, 1); renderLayers(); recStatus.textContent = 'Layer removed'; }
+  function scheduleEvents(list) {
+    let timers = [];
+    list.forEach(ev => timers.push(setTimeout(() => { playEvent(ev); mirror(ev.i); }, ev.t)));
+    return { stop() { timers.forEach(clearTimeout); } };
   }
   function playRecording(evs) {
-    const list = evs || events;
+    const list = evs || combinedEvents();
     if (!list.length) { recStatus.textContent = 'Record something first!'; return; }
     if (playCtl) { playCtl.stop(); playCtl = null; }
     const dur = list.reduce((m, e) => Math.max(m, e.t), 0) + 400;
-    let timers = [];
-    list.forEach(ev => timers.push(setTimeout(() => { playEvent(ev); mirror(ev.i); }, ev.t)));
-    playCtl = { stop() { timers.forEach(clearTimeout); } };
+    playCtl = scheduleEvents(list);
     recStatus.textContent = 'Playing…';
     setTimeout(() => { recStatus.textContent = ''; }, dur);
   }
   async function saveRecording() {
-    if (!events.length) { recStatus.textContent = 'Record something first!'; return; }
+    if (recording) stopRecord();
+    commitPending();
+    if (!layers.length) { recStatus.textContent = 'Record something first!'; return; }
     const jams = await listJams();
     if (jams.length >= MAX_JAMS) { recStatus.textContent = `You have ${MAX_JAMS} jams — hold one to delete it first.`; return; }
     const name = await promptName();
     if (name == null) return;
-    const id = 'jam_' + dayHash(name + events.length + Math.round(performance.now())) + '_' + jams.length;
-    const dur = events.reduce((m, e) => Math.max(m, e.t), 0) + 400;
-    await idbPut('jams', { id, name: name || ('Jam ' + (jams.length + 1)), events: events.slice(), dur, at: Date.now() });
+    const all = layers.flatMap(l => l.events);
+    const dur = all.reduce((m, e) => Math.max(m, e.t), 0) + 400;
+    const id = 'jam_' + dayHash(name + all.length + Math.round(performance.now())) + '_' + jams.length;
+    await idbPut('jams', { id, name: name || ('Jam ' + (jams.length + 1)), layers: layers.map(l => ({ instrument: l.instrument, events: l.events.slice() })), dur, at: Date.now() });
     recStatus.textContent = 'Saved! 🎉';
+    renderLayers();
     refreshJams();
   }
   function promptName() {
@@ -274,7 +385,7 @@ export function mount(container, params, ctx) {
       const setBtn = el('button', { class: 'btn soft jam-set' + (cur === j.id ? ' active' : ''), text: cur === j.id ? '★ Band song' : 'Set as band song', onclick: () => { mutate(st => { st.bandSong = j.id; }); sfx.star(); refreshJams(); } });
       const row = el('div', { class: 'jam-row', dataset: { id: j.id } }, [
         el('span', { class: 'jam-name', text: j.name }),
-        el('button', { class: 'btn soft jam-play', text: '▶', 'aria-label': 'Play ' + j.name, onclick: () => playRecording(j.events) }),
+        el('button', { class: 'btn soft jam-play', text: '▶', 'aria-label': 'Play ' + j.name, onclick: () => playRecording(jamEvents(j)) }),
         setBtn,
         el('span', { class: 'jam-hint', text: 'hold to delete' })
       ]);
@@ -311,26 +422,37 @@ export function mount(container, params, ctx) {
     hit: (i, v) => hit(i, v),
     record: () => toggleRecord(),
     stop: () => stopRecord(),
-    events: () => events.slice(),
+    events: () => combinedEvents(),                  // all layers + current pass, time-sorted
+    passEvents: () => events.slice(),                // just the current pass
     recording: () => recording,
     play: () => playRecording(),
-    save: (name) => { events._forceName = name; return doSave(name); },
-    setPlayAlong: (on) => { instrument = 'keys'; playAlong = on; twinkleIdx = 0; renderTabs(); renderInstrument(); },
-    twinkleIdx: () => twinkleIdx,
-    nextWantedKey: () => (playAlong ? TWINKLE[twinkleIdx] : -1),
-    pressKey: (idx) => { hit('key', KEY_SEMIS[idx]); if (playAlong && TWINKLE[twinkleIdx] === idx) { twinkleIdx = (twinkleIdx + 1) % TWINKLE.length; renderInstrument(); } },
+    save: (name) => doSave(name),
+    // multitrack (RUN9 C6)
+    addLayer: () => addLayer(), reRecordLayer: (i) => reRecord(i), removeLayer: (i) => removeLayer(i),
+    layerCount: () => totalLayers(), layers: () => layers.map(l => ({ instrument: l.instrument, n: l.events.length })),
+    commit: () => commitPending(),
+    setPlayAlong: (songId) => { instrument = 'keys'; const song = PLAYALONG.find(s => s.id === songId) || PLAYALONG[0]; playAlong = !!song; songKeys = song ? song.keys : null; songName = song ? song.name : ''; songPos = 0; renderTabs(); renderInstrument(); },
+    songPos: () => songPos,
+    songs: () => PLAYALONG.map(s => ({ id: s.id, name: s.name, little: s.little, len: s.keys.length })),
+    nextWantedKey: () => (playAlong && songKeys ? songKeys[songPos] : -1),
+    pressKey: (idx) => { hit('key', KEY_SEMIS[idx]); if (playAlong && songKeys && songKeys[songPos] === idx) { songPos = (songPos + 1) % songKeys.length; renderInstrument(); } },
+    hitXylo: (idx) => hit('xylo', idx),
+    usesXylo: () => events.some(e => e.i === 'xylo'),
     jams: () => listJams(),
     setBandSong: (id) => mutate(st => { st.bandSong = id; }),
     deleteJam: (id) => idbDelete('jams', id)
   };
-  // a direct save path for tests (skips the name dialog)
+  // a direct save path for tests (skips the name dialog) — commits the current pass first
   async function doSave(name) {
-    if (!events.length) return { ok: false, reason: 'empty' };
+    if (recording) stopRecord();
+    commitPending();
+    if (!layers.length) return { ok: false, reason: 'empty' };
     const jams = await listJams();
     if (jams.length >= MAX_JAMS) return { ok: false, reason: 'full' };
-    const id = 'jam_' + dayHash((name || '') + events.length) + '_' + jams.length + '_' + Math.round(performance.now());
-    const dur = events.reduce((m, e) => Math.max(m, e.t), 0) + 400;
-    await idbPut('jams', { id, name: name || ('Jam ' + (jams.length + 1)), events: events.slice(), dur, at: Date.now() });
+    const all = layers.flatMap(l => l.events);
+    const id = 'jam_' + dayHash((name || '') + all.length) + '_' + jams.length + '_' + Math.round(performance.now());
+    const dur = all.reduce((m, e) => Math.max(m, e.t), 0) + 400;
+    await idbPut('jams', { id, name: name || ('Jam ' + (jams.length + 1)), layers: layers.map(l => ({ instrument: l.instrument, events: l.events.slice() })), dur, at: Date.now() });
     refreshJams();
     return { ok: true, id };
   }
