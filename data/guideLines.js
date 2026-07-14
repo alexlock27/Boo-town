@@ -113,5 +113,9 @@ export const LINES = {
   zoneUnlock: ["{name}! Your stars opened a whole new place! Come see!"],
   nightTown: ["Shhh... the fireflies are out."],
   djRefuse: ["DJ Boo says one pair of headphones is plenty, thanks."],
-  speciesChange: ["A new look! Love it. Same me, same you, new us!"]
+  speciesChange: ["A new look! Love it. Same me, same you, new us!"],
+
+  // ---- Run 10 P1 additions (Town 4.0: the world map) ----
+  L_MAP_LOCKED: ["Not far now — {n} more stars!"],
+  L_PLAYGROUND_NEW: ["A new place to play!"]
 };

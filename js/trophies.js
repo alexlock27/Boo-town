@@ -11,10 +11,10 @@ import { WORDS } from '../data/spelling.js';
 import { TWIN_SETS } from '../data/soundTwins.js';
 import { LESSONS } from '../data/lessons.js';
 import { stampJournal } from './quests.js';
-import { ZONES } from './town.js';
+import { AREA_UNLOCK_STARS } from './areas.js';
 import { sfx } from './sfx.js';
 
-const ALL_ZONES_STARS = Math.max(...ZONES.map(z => z.unlock));   // highest gate = Beach (180); the Funfair opens day-one (RUN7 C1)
+const ALL_ZONES_STARS = Math.max(...Object.values(AREA_UNLOCK_STARS));   // highest gate = Beach (180); the Funfair opens day-one (RUN7 C1)
 
 // ---- named constants (C4) --------------------------------------------------
 export const MEDAL_TIERS = [['bronze', 5, '🥉'], ['silver', 15, '🥈'], ['gold', 30, '🥇']];

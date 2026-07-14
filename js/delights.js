@@ -5,6 +5,7 @@
 import { getState, mutate, todayKey } from './state.js';
 import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
+import { flattenTownItems } from './areas.js';
 
 export const HIDE_REWARD = 2;   // meter points for spotting the hider (C9)
 
@@ -18,8 +19,9 @@ export function ensureHide() {
   if (!s) return null;
   const d = s.delights || {};
   const day = todayKey();
-  const boos = (s.town || []).filter(t => isBooItem(t.item));
-  const scenery = (s.town || []).filter(t => !isBooItem(t.item));
+  const all = flattenTownItems(s);
+  const boos = all.filter(t => isBooItem(t.item));
+  const scenery = all.filter(t => !isBooItem(t.item));
   if (!boos.length || !scenery.length) return currentHide();   // needs a Boo and something to hide behind
   const hiderStillPlaced = d.hideBoo && boos.some(t => t.item === d.hideBoo);
   const spotStillPlaced = d.hideSpot && scenery.some(t => t.item === d.hideSpot.item && t.zone === d.hideSpot.zone);

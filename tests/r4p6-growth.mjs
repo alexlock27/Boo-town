@@ -13,15 +13,17 @@ const BOOS = ['boo_inky', 'boo_plum', 'boo_pippin', 'boo_lolly', 'boo_chomp', 'b
 const SAVE = (nBoos, over = {}) => {
   const inv = {};
   BOOS.slice(0, nBoos).forEach(b => { inv[b] = 1; });
+  const AREAS_EMPTY = { meadow: { items: [], paths: [] }, riverside: { items: [], paths: [] }, hilltop: { items: [], paths: [] }, beach: { items: [], paths: [] }, funfair: { items: [], paths: [] }, playground: { items: [], paths: [] }, boohouse: { items: [], paths: [] }, gallery: { items: [], paths: [] } };
   return Object.assign({
-    version: 5, name: 'Ada',
+    version: 6, name: 'Ada',
     guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
     inventory: inv, boxes: 0, meter: 0, opened: nBoos, pity: { commons: 0 },
     nicknames: {}, equips: {}, catBest: {},
-    town: [{ zone: 'meadow', x: 0.46, item: 'boo_inky' }],   // sits exactly at the fountain spot
+    // sits exactly at the fountain spot (RUN10 P1: area-scoped, no zone-width rescale)
+    town: { areas: Object.assign({}, AREAS_EMPTY, { meadow: { items: [{ zone: 'meadow', x: 0.46, row: 0, item: 'boo_inky' }], paths: [] } }) },
     stars: { total: 60, byGame: {} }, ledger: {},
     settings: { sound: false, music: false, voice: false, content: 'full' },
-    seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true, zonesUnlocked: ['meadow', 'riverside'] },
+    seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true, areasUnlocked: ['meadow', 'riverside'] },
     trophies: { medal_boos_10: '2026-07-01' },
     ageAsked: true, age: 8
   }, over);
@@ -92,7 +94,7 @@ console.log('== the Builders finish in 24h without a visit ==');
   assert(st.townGrowth.site && st.townGrowth.site.idx === 1, 'the queued site starts next (one at a time)');
   assert(!!(await page.$('.tg-wildflowers')), 'wildflowers now bloom along the paths');
   // upgrades never consume plots: her placed Boo at the fountain spot is untouched
-  const placed = await page.evaluate(() => window.BooTown.State.getState().town);
+  const placed = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
   assert(placed.length === 1 && placed[0].x === 0.46, 'placed items stay exactly where she put them');
   await ctx.close();
 }

@@ -48,7 +48,7 @@ await page.evaluate(async () => {
   const st = await import('./js/state.js');
   const m = await import('./js/studio.js');
   const arts = await m.listArtworks();
-  st.mutate(s => { s.inventory['deco_easel'] = 1; s.town = [{ zone: 'meadow', x: 0.5, item: 'deco_easel' }]; s.easelArt = arts[0].id; s.studioSeen = true; });
+  st.mutate(s => { s.inventory['deco_easel'] = 1; s.town.areas.meadow.items = [{ zone: 'meadow', x: 0.1, row: 1, item: 'deco_easel' }]; s.easelArt = arts[0].id; s.studioSeen = true; });
 });
 await page.evaluate(() => window.BooTown.go('town'));
 await page.waitForSelector('.town2');

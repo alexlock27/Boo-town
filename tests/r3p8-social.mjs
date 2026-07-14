@@ -5,7 +5,9 @@ const errors = []; let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const HOUR = 3600 * 1000;
-const SAVE = { version: 4, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 1, boo_plum: 1 }, boxes: 0, meter: 0, opened: 2, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: [{ zone: 'meadow', x: 0.5, item: 'deco_stage' }, { zone: 'meadow', x: 0.52, item: 'boo_inky' }, { zone: 'meadow', x: 0.55, item: 'boo_plum' }], stars: { total: 200, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden: null, goldenLastDouble: '', quests: { day: '', list: [], done: [], progress: {}, boxDay: '' }, journal: {}, customs: [], studioSeen: false, easelArt: '', request: { active: null, lastResolvedAt: 0 }, routines: {}, settings: { sound: false, music: false, voice: false, mic: true, requests: true }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } };
+// RUN10 P1: town is area-scoped (save.town.areas), and an area is 4 viewports wide, so x
+// is kept small to stay within the default-scroll visible/animated window (was 0.5/0.52/0.55).
+const SAVE = { version: 6, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: { boo_inky: 1, boo_plum: 1 }, boxes: 0, meter: 0, opened: 2, pity: { commons: 0 }, nicknames: {}, equips: {}, catBest: {}, town: { areas: { meadow: { items: [{ zone: 'meadow', x: 0.1, row: 1, item: 'deco_stage' }, { zone: 'meadow', x: 0.12, row: 1, item: 'boo_inky' }, { zone: 'meadow', x: 0.15, row: 1, item: 'boo_plum' }], paths: [] }, riverside: { items: [], paths: [] }, hilltop: { items: [], paths: [] }, beach: { items: [], paths: [] }, funfair: { items: [], paths: [] }, playground: { items: [], paths: [] }, boohouse: { items: [], paths: [] }, gallery: { items: [], paths: [] } } }, stars: { total: 200, byGame: {} }, spellingMastery: {}, ledger: {}, trickyPile: [], golden: null, goldenLastDouble: '', quests: { day: '', list: [], done: [], progress: {}, boxDay: '' }, journal: {}, customs: [], studioSeen: false, easelArt: '', request: { active: null, lastResolvedAt: 0 }, routines: {}, settings: { sound: false, music: false, voice: false, mic: true, requests: true }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true }, trophies: { medal_stars_100: '2026-07-01', trophy_zones: '2026-07-01' } };
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
@@ -72,17 +74,17 @@ await page.evaluate(() => import('./js/requests.js').then(m => m.setRequestsEnab
 
 // ---- D18: choreographer saves per stage + survives reload ----
 console.log('== D18: choreographer save/reload ==');
-await page.evaluate(() => import('./js/choreographer.js').then(m => { const r = m.openChoreographer({ zone: 'meadow', x: 0.5 }); }));
+await page.evaluate(() => import('./js/choreographer.js').then(m => { const r = m.openChoreographer({ zone: 'meadow', x: 0.1 }); }));
 await page.waitForSelector('.choreo-overlay');
 await page.evaluate(() => { window.__choreo.add('bounce'); window.__choreo.add('spin'); window.__choreo.add('jump'); window.__choreo.save(); window.__choreo.close(); });
-const saved = await page.evaluate(() => window.BooTown.State.getState().routines['meadow:0.5']);
+const saved = await page.evaluate(() => window.BooTown.State.getState().routines['meadow:0.1']);
 assert(Array.isArray(saved) && saved.length === 3 && saved[0] === 'bounce', 'a routine saves for that stage (' + JSON.stringify(saved) + ')');
 // per-stage: a different stage keeps its own (empty here)
 const otherStage = await page.evaluate(() => window.BooTown.State.getState().routines['meadow:0.9']);
 assert(!otherStage, 'routines are per stage (another stage has none)');
 // survives reload
 await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
-const afterReload = await page.evaluate(() => window.BooTown.State.getState().routines['meadow:0.5']);
+const afterReload = await page.evaluate(() => window.BooTown.State.getState().routines['meadow:0.1']);
 assert(Array.isArray(afterReload) && afterReload.length === 3, 'the routine survives a reload');
 
 // ---- D18: the routine loops (frame evidence — the move class cycles over time) ----

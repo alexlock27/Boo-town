@@ -48,19 +48,16 @@ assert(distinct >= 3 && monotonic && nums[0] < 58 && nums[nums.length - 1] === 5
 const synced = await page2.evaluate(() => window.BooTown.State.getState().seen.lastStarsShown);
 assert(synced === 58, 'the shown value is remembered so it only counts up when it grows');
 
-// ---- signposts: current / required + mini progress bar ----
-console.log('== zone signposts ==');
-await page2.evaluate(() => window.BooTown.go('town'));
-await page2.waitForSelector('.t-signpost');
-const signs = await page2.$$eval('.t-signpost', ns => ns.map(n => ({
-  req: n.querySelector('.t-sign-req').textContent,
-  bar: !!n.querySelector('.t-sign-bar'),
-  width: n.querySelector('.t-sign-bar i') ? n.querySelector('.t-sign-bar i').style.width : null
-})));
-assert(signs.length === 2, 'the still-locked zones show signposts (58 stars unlocks Riverside@40; Hilltop@100 + Beach@180 remain — the Boo Funfair opens day-one, RUN7 C1)');
-assert(signs.every(s => /^58 \/ \d+ ⭐$/.test(s.req)), 'signposts read current / required: ' + signs.map(s => s.req).join(' · '));
-assert(signs.every(s => s.bar && s.width), 'each signpost carries a mini progress bar');
-assert(parseInt(signs[0].width) === 58 && parseInt(signs[1].width) === 32, `bar widths match progress: 58/100 -> 58%, 58/180 -> 32% (${signs.map(s => s.width).join(', ')})`);
+// ---- world map badges: locked areas show a star-threshold chip (RUN10 P1) ----
+// (the old in-town "current / required + progress bar" signpost moved to the map as a
+// simple "{threshold}⭐" chip — see tests/r10p1-worldmap.mjs for full lock-state coverage)
+console.log('== world map locked-area chips ==');
+await page2.evaluate(() => window.BooTown.go('worldmap'));
+await page2.waitForSelector('.map-badge.locked');
+const locked = await page2.evaluate(() => window.__worldmap.badges().filter(b => b.locked).map(b => b.key));
+assert(locked.length === 2 && locked.includes('hilltop') && locked.includes('beach'), `58 stars unlocks Riverside@40; Hilltop@100 + Beach@180 remain locked (got ${locked.join(', ')})`);
+const chips = await page2.$$eval('.map-badge.locked .mb-chip', ns => ns.map(n => n.textContent));
+assert(chips.includes('100⭐') && chips.includes('180⭐'), `locked badges show their star threshold (${chips.join(', ')})`);
 
 // ---- screenshots at 3 sizes ----
 console.log('== screenshots ==');
@@ -73,11 +70,8 @@ for (const [tag, vp] of [['tab-land', { width: 1000, height: 625 }], ['tab-port'
   await p2.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE());   // 26 stars: Riverside still locked, no unlock ceremony
   await p2.reload({ waitUntil: 'load' }); await p2.waitForSelector('.stars-total'); await sleep(300);
   await p2.screenshot({ path: `screenshots/dashpatch/stars-hub-${tag}.png` });
-  await p2.evaluate(() => window.BooTown.go('town'));
-  await p2.waitForSelector('.t-signpost'); await sleep(400);
-  // scroll the first locked zone (riverside, 26/40) into view
-  await p2.evaluate(() => { const vpn = document.querySelector('.t-viewport'); if (vpn) vpn.dispatchEvent(new WheelEvent('wheel', { deltaY: vpn.clientWidth * 1.0, bubbles: true })); });
-  await sleep(300);
+  await p2.evaluate(() => window.BooTown.go('worldmap'));
+  await p2.waitForSelector('.map-badge.locked'); await sleep(400);
   await p2.screenshot({ path: `screenshots/dashpatch/stars-signpost-${tag}.png` });
   console.log('  wrote set', tag);
   await c2.close();

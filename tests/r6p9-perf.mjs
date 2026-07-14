@@ -138,53 +138,59 @@ console.log('== busiest funfair at NIGHT (01:00): all rides running + fully seat
   // fill every seat on every ride (17 riders) to hit the funfair emitter budget
   const seats = { carousel: [boos[0], boos[1], boos[2]], ferris: [boos[3], boos[4], boos[5], boos[6]], teacups: [boos[7], boos[8], boos[9], boos[10]], bouncy: [boos[11], boos[12], boos[13]], helter: [boos[14], boos[15], boos[0]] };
   const { ctx, page } = await open(SAVE({ inventory: inv, stars: { total: 520, byGame: {} }, funfair: { built: ALL_RIDES.slice(), build: null, pending: [], seats } }), { hour: 1 });
-  await page.evaluate(() => window.BooTown.go('town'));
+  await page.evaluate(() => window.BooTown.go('town', { area: 'funfair' }));   // RUN10 P1: the fair is its own area
   await page.waitForSelector('.town2');
   await page.waitForFunction(() => window.__townLife);
 
-  // robust scroll: scrollToFunfair, then confirm a ride is actually on-screen; retry a few frames
-  // if the first call fired before layout settled (a test-harness race, not a product issue).
-  const onScreen = await page.evaluate(async () => {
+  // RUN10 P1: the funfair area is 4 viewports wide and its 5 rides span x 0.18-0.92 — no
+  // single scroll position (not even "centred") shows more than ~2 at once, and
+  // stepFunfairRides only steps rides in the visible window (a named perf rule, like the
+  // wanderer/rarity caps above). So: confirm each ride individually while scrolled to it.
+  const RIDE_X = { carousel: 0.18, ferris: 0.40, teacups: 0.60, bouncy: 0.78, helter: 0.92 };
+  const onScreen = await page.evaluate(async (x) => {
     const frame = () => new Promise(r => requestAnimationFrame(() => r()));
     for (let tries = 0; tries < 30; tries++) {
-      window.__townLife.scrollToFunfair();
+      window.__townLife.scrollToFrac(x);
       await frame(); await new Promise(r => setTimeout(r, 60));
       const box = document.querySelector('.ff-ride');
       if (box) { const l = box.getBoundingClientRect().left; if (l > -260 && l < window.innerWidth + 260) return true; }
     }
     return false;
-  });
+  }, RIDE_X.carousel);
   assert(onScreen, 'the funfair scrolled on-screen at 01:00');
   await sleep(400);
 
   assert(await page.evaluate(() => !!document.querySelector('.ff-scenery.night')), 'night lighting is on at 01:00 (glowing string lights — .ff-scenery.night)');
   const rides = await page.evaluate(() => window.__townLife.ffRides());
-  assert(rides.length === 5, `all five rides built and on screen (${rides.join(', ')})`);
+  assert(rides.length === 5, `all five rides built (${rides.join(', ')})`);
   let seated = 0; for (const r of ALL_RIDES) seated += await page.evaluate(rd => window.__townLife.ffRideSeats(rd).filter(Boolean).length, r);
   assert(seated <= RIDE_SEAT_TOTAL, `seated riders within the seat budget: ${seated} ≤ sum(RIDE_SEATS)=${RIDE_SEAT_TOTAL}`);
   assert(seated >= 15, `the fair is genuinely busy at night: ${seated} riders aboard`);
 
-  // Collect IN-PAGE over ~0.5s of real rAF frames: BOTH the seated-rider orbits AND the ride
-  // STRUCTURE idle (.ffm) must animate — an empty OR full ride must never look "parked" at night.
-  const motion = await page.evaluate(async (RIDES) => {
-    window.__townLife.scrollToFunfair();
-    const frame = () => new Promise(r => requestAnimationFrame(() => r()));
-    await frame(); await new Promise(r => setTimeout(r, 200));
-    const seat = {}, struct = {}; RIDES.forEach(r => { seat[r] = new Set(); struct[r] = new Set(); });
-    for (let f = 0; f < 30; f++) {
-      for (const r of RIDES) {
+  // Collect IN-PAGE over ~0.5s of real rAF frames PER RIDE (scrolled into view): BOTH the
+  // seated-rider orbits AND the ride STRUCTURE idle (.ffm) must animate — an empty OR full
+  // ride must never look "parked" at night.
+  const seatDistinct = [], structDistinct = [];
+  for (const ride of ALL_RIDES) {
+    await page.evaluate(x => window.__townLife.scrollToFrac(x), RIDE_X[ride]);
+    const d = await page.evaluate(async (r) => {
+      const frame = () => new Promise(res => requestAnimationFrame(() => res()));
+      await frame(); await new Promise(res => setTimeout(res, 200));
+      const seat = new Set(), struct = new Set();
+      for (let f = 0; f < 20; f++) {
         const box = [...document.querySelectorAll('.ff-ride')].find(x => x.dataset.ride === r);
-        seat[r].add(window.__townLife.ffSeatTransforms(r).join('|'));
-        const g = box && box.querySelector('.ffm'); struct[r].add(g ? g.getAttribute('transform') : 'none');
+        seat.add(window.__townLife.ffSeatTransforms(r).join('|'));
+        const g = box && box.querySelector('.ffm'); struct.add(g ? g.getAttribute('transform') : 'none');
+        await frame();
       }
-      await frame();
-    }
-    return { seat: RIDES.map(r => seat[r].size), struct: RIDES.map(r => struct[r].size) };
-  }, ALL_RIDES);
-  const seatsMoving = motion.seat.filter(s => s >= 2).length;
-  const structMoving = motion.struct.filter(s => s >= 2).length;
-  assert(seatsMoving === 5, `frame evidence: all ${seatsMoving}/5 rides' riders orbit at night (per-ride distinct: ${motion.seat.join('/')})`);
-  assert(structMoving === 5, `frame evidence: all ${structMoving}/5 ride STRUCTURES idle-run at night — the fair never parks (per-ride distinct: ${motion.struct.join('/')})`);
+      return { seat: seat.size, struct: struct.size };
+    }, ride);
+    seatDistinct.push(d.seat); structDistinct.push(d.struct);
+  }
+  const seatsMoving = seatDistinct.filter(s => s >= 2).length;
+  const structMoving = structDistinct.filter(s => s >= 2).length;
+  assert(seatsMoving === 5, `frame evidence: all ${seatsMoving}/5 rides' riders orbit at night (per-ride distinct: ${seatDistinct.join('/')})`);
+  assert(structMoving === 5, `frame evidence: all ${structMoving}/5 ride STRUCTURES idle-run at night — the fair never parks (per-ride distinct: ${structDistinct.join('/')})`);
   await page.screenshot({ path: 'screenshots/r6p9/funfair-busiest-night-1000x640.png' });
 
   const c = await cadence(page);

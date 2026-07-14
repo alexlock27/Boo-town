@@ -1702,9 +1702,56 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .rename-card { gap: 14px; }
 
 /* ---- town 2.0: scrolling parallax world ---- */
-.town-header { display: flex; align-items: center; gap: 12px; padding: 10px 14px 6px; }
-.town-header h2 { color: var(--card); margin: 0; font-size: 24px; }
+/* RUN10 P1: area header strip, exactly 56px — back-to-map (left) / area name (centre) / hammer (right) */
+.town-header { display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 56px; box-sizing: border-box; flex: 0 0 auto; }
+.town-header h2 { color: var(--card); margin: 0; font-size: 22px; flex: 1; text-align: center; }
 .town-hint { flex: 1; color: var(--star); font-family: var(--font-display); font-size: 16px; text-align: right; }
+.town-hint-bar { min-height: 20px; padding: 0 14px 4px; color: var(--star); font-family: var(--font-display); font-size: 14px; text-align: center; }
+.town-hammer-btn { font-size: 20px; opacity: 0.55; cursor: default; }   /* P3 wires this up */
+.town-hammer-btn:active { transform: none; }
+/* entry/exit crossfade (P1): the map badge scales up into this scene, 300ms */
+.town2 { opacity: 1; transition: opacity 0.3s ease; }
+.town2.entering { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .town2 { transition: none; } }
+
+/* ---- world map (RUN10 P1) ---- */
+.worldmap { display: flex; flex-direction: column; height: 100%; }
+.map-stage {
+  flex: 1; position: relative; margin: 0 8px 8px; border-radius: 22px; overflow: hidden;
+  box-shadow: inset 0 6px 18px rgba(0,0,0,0.18);
+}
+.map-island { position: absolute; inset: 0; }
+.map-island svg { display: block; }
+.map-badge {
+  position: absolute; transform: translate(-50%, -50%); width: 88px; height: 88px;
+  border-radius: 50%; border: 3px solid var(--card); background: rgba(255,255,255,0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.22); padding: 4px; gap: 2px;
+  transition: transform 120ms ease-out;
+}
+.map-badge:active { transform: translate(-50%, -50%) scale(0.94); }
+.map-badge.locked { filter: grayscale(0.9) brightness(0.72); background: rgba(255,255,255,0.7); }
+.mb-dot { font-size: 26px; line-height: 1; }
+.mb-label {
+  position: absolute; top: 100%; margin-top: 4px; white-space: nowrap; font-family: var(--font-display);
+  font-weight: 700; font-size: 12px; color: var(--card); text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
+.mb-chip {
+  font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--ink);
+  background: var(--star); border-radius: 999px; padding: 1px 7px; margin-top: 1px;
+}
+.map-badge.wobble { animation: mapWobble 0.5s ease; }
+@keyframes mapWobble { 0%,100% { transform: translate(-50%, -50%) rotate(0); } 25% { transform: translate(-50%, -50%) rotate(-8deg); } 75% { transform: translate(-50%, -50%) rotate(8deg); } }
+.map-toast {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%) translateY(10px);
+  background: rgba(20,12,48,0.82); color: var(--card); font-family: var(--font-display); font-size: 15px;
+  padding: 8px 16px; border-radius: 14px; opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none; max-width: 80%; text-align: center;
+}
+.map-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .map-badge, .map-badge.wobble, .map-toast { animation: none; transition: none; }
+}
 
 .t-viewport {
   flex: 1; position: relative; overflow: hidden; margin: 0 8px; border-radius: 22px;
@@ -1727,6 +1774,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-band { position: absolute; z-index: 2; }
 .t-band.meadow, .t-band.riverside, .t-band.hilltop { background: linear-gradient(180deg, #7FC85F 0%, #52A04C 100%); }
 .t-band.beach { background: linear-gradient(180deg, #F2DDA6 0%, #E4C583 100%); }
+.t-band.playground { background: linear-gradient(180deg, #FFD9A0 0%, #F2C179 100%); }
 .t-band.locked { filter: grayscale(0.85) brightness(0.55); }
 .t-band.shake { animation: bandshake 0.4s ease; }
 @keyframes bandshake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
@@ -1821,12 +1869,12 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .rv-boat { position: absolute; left: -80px; animation: rvSail var(--boatdur, 34s) linear infinite; }
 @keyframes rvSail { from { transform: translateX(0) rotate(-2deg); } 50% { transform: translateX(calc(var(--d, 800px) * 0.5)) rotate(2deg); } to { transform: translateX(var(--d, 800px)) rotate(-2deg); } }
 /* Hilltop: turning windmill + faster clouds */
-.hl-blades { animation: hlSpin 7s linear infinite; transform-box: fill-box; transform-origin: center; }
+.hl-blades { animation: hlSpin 8s linear infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes hlSpin { to { transform: rotate(360deg); } }
 .hl-cloud { position: absolute; animation: hlCloud var(--t, 26s) linear infinite; animation-delay: var(--dl, 0s); }
 @keyframes hlCloud { from { transform: translateX(-40px); } to { transform: translateX(var(--d, 400px)); } }
 /* Beach: rolling foam edge + swaying palm + drifting swell */
-.bc-foam { animation: bcFoam 3.4s ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }
+.bc-foam { animation: bcFoam 3s ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }   /* 3s sine (RUN10 P1) */
 @keyframes bcFoam { from { transform: translateX(0); } to { transform: translateX(var(--d, 40px)); } }
 .bc-swell { animation: bcSwell 6s ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }
 @keyframes bcSwell { from { transform: translateX(-20px); } to { transform: translateX(20px); } }

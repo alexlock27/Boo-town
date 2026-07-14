@@ -128,7 +128,7 @@ console.log('== record / replay / save / set as band song / watch ==');
   assert(saved && saved.ok, 'the jam saves to IndexedDB');
   await page.evaluate(id => window.__band.setBandSong(id), saved.id);
   // watch mode: the band performs it on the bandstand
-  await page.evaluate(() => window.BooTown.go('town'));
+  await page.evaluate(() => window.BooTown.go('town', { area: 'funfair' }));   // RUN10 P1: bandstand lives in the funfair area
   await page.waitForFunction(() => window.__townLife && window.__townLife.hasBandstand());
   const watch = await page.evaluate(async () => {
     const sfx = await import('./js/sfx.js'); sfx.setSoundEnabled(true); sfx.setMusicEnabled(true); sfx.setAudioLog(true);

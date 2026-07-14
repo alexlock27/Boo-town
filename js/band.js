@@ -413,7 +413,7 @@ export function mount(container, params, ctx) {
     if (playCtl) playCtl.stop();
     if (backingCtl) backingCtl.stop();
     if (recTimer) clearTimeout(recTimer);
-    ctx.go('town');
+    ctx.go('town', { area: 'funfair' });   // RUN10 P1: the bandstand lives in the funfair area
   }
 
   // ---- QA hooks (invisible in play) ----

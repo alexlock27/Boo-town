@@ -32,7 +32,7 @@ await page.waitForSelector('.hub', { timeout: 5000 });
 
 console.log('== old v1 save migrates losslessly ==');
 let s = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
-assert(s.version === 5, 'save version bumped to 5 (' + s.version + ')');   // v5: RUN4 C3 comfort/brave (+trophies/chest/etc.)
+assert(s.version === 6, 'save version bumped to 6 (' + s.version + ')');   // v6: RUN10 P1 area-scoped town
 assert(s.guide.species === 'giraffe', 'guide.species defaults to giraffe');
 assert(s.guide.body === 'lilac', 'body preserved');
 assert(s.guide.patternColour === 'pink', 'old patch -> patternColour preserved (' + s.guide.patternColour + ')');
@@ -43,7 +43,7 @@ assert(s.name === 'Maya', 'player name preserved');
 assert(s.stars.total === 12 && s.stars.byGame.bubblepop.best === 3, 'stars preserved');
 assert(s.inventory.boo_inky === 2 && s.inventory.boo_beam === 1 && s.inventory.deco_tree === 1, 'inventory preserved');
 assert(s.meter === 4 && s.boxes === 1 && s.opened === 5, 'meter/boxes/opened preserved');
-assert(Array.isArray(s.town) && s.town.length === 1, 'town placement preserved');
+assert(s.town && s.town.areas && s.town.areas.meadow.items.length === 1, 'town placement preserved');
 assert(s.spellingMastery.believe === 2, 'spelling mastery preserved');
 assert(s.nicknames && s.equips, 'new nicknames/equips maps added');
 
@@ -70,7 +70,7 @@ assert(s.name === 'Maya' && s.guide.name === 'Twiggy', 'names intact');
 assert(s.stars.total === 12 && s.stars.byGame.bubblepop.best === 3, 'stars intact');
 assert(s.inventory.boo_inky === 2 && s.inventory.deco_tree === 1, 'inventory intact');
 assert(s.meter === 4 && s.boxes === 1, 'meter/boxes intact');
-assert(Array.isArray(s.town) && s.town.length === 1, 'town intact');
+assert(s.town && s.town.areas && s.town.areas.meadow.items.length === 1, 'town intact');
 
 // speech still works: reload to hub, guide greets by name
 await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });

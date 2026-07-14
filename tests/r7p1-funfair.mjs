@@ -25,7 +25,7 @@ const SAVE = (over = {}) => Object.assign({
 }, over);
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
-async function openTown(save, { hour = 13, w = 1000, h = 640 } = {}) {
+async function openTown(save, { hour = 13, w = 1000, h = 640, area = 'funfair' } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: 'no-preference' });
   const page = await ctx.newPage();
   page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
@@ -34,7 +34,7 @@ async function openTown(save, { hour = 13, w = 1000, h = 640 } = {}) {
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save);
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
-  await page.evaluate(() => window.BooTown.go('town'));
+  await page.evaluate((a) => window.BooTown.go('town', { area: a }), area);   // RUN10 P1: the fair is its own area
   await page.waitForSelector('.town2');
   await page.waitForFunction(() => window.__townLife, { timeout: 4000 });
   await sleep(300);
@@ -44,10 +44,14 @@ async function openTown(save, { hour = 13, w = 1000, h = 640 } = {}) {
 // ==================== grand opening fires exactly once, gates swing (frames) ====================
 console.log('== grand-opening ceremony: gates swing open, fires exactly once ==');
 {
-  const { ctx, page } = await openTown(SAVE());
+  // RUN10 P1: the fair is its own area now, so "before the first visit" means mounting
+  // in a DIFFERENT area first — entering the funfair area is itself the visit (there's no
+  // more "scrolled past it within the same world" pre-state).
+  const { ctx, page } = await openTown(SAVE(), { area: 'meadow' });
   assert(await page.evaluate(() => window.__townLife.ffOpened()) === false, 'a fresh save has not opened the fair yet');
   assert(await page.evaluate(() => window.__townLife.ffGrandShown()) === false, 'no grand-opening before the first visit');
-  await page.evaluate(() => window.__townLife.scrollToFunfair());
+  await page.evaluate(() => window.BooTown.go('town', { area: 'funfair' }));
+  await page.waitForSelector('.town2'); await page.waitForFunction(() => window.__townLife, { timeout: 4000 });
   await sleep(250);
   assert(await page.evaluate(() => window.__townLife.ffGrandShown()) === true, 'first funfair visit plays the grand opening');
   // gate-swing motion evidence: sample the left gate's transform across the swing window
@@ -79,13 +83,17 @@ console.log('== grand-opening ceremony: gates swing open, fires exactly once =='
 console.log('== every day-one element plays on a 0-star save ==');
 {
   const { ctx, page } = await openTown(SAVE({ seen: { funfairOpened: '2026-01-01', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true } }));
-  await page.evaluate(() => window.__townLife.scrollToFunfair());
+  await page.evaluate(() => window.__townLife.scrollToFunfairGate());   // gate view shows the ticket booth + bandstand entrance
   await sleep(400);
   assert(await page.$('.ff-ride[data-ride="carousel"]'), 'Carousel present day one');
   assert(await page.$('.ff-scenery'), 'fair scenery (bunting / booth / lights / popcorn) present day one');
   assert(await page.$eval('.ff-scenery', s => s.innerHTML.includes('TICKETS')), 'the ticket booth is present');
   assert(await page.evaluate(() => window.__townLife.hasBandstand()), 'the bandstand is present day one');
   // the Carousel RUNS day one even with empty seats (its structure idle-spins — RUN6 hotfix 1)
+  // scroll to the carousel itself (RUN10 P1: an area is 4 viewports wide, so the gate view
+  // above doesn't necessarily overlap the carousel at x 0.18 — scroll to it directly)
+  await page.evaluate(() => window.__townLife.scrollToFrac(0.18));
+  await sleep(300);
   const fr = [];
   for (let k = 0; k < 6; k++) { fr.push(await page.evaluate(() => { const m = document.querySelector('.ff-ride[data-ride="carousel"] .ffm'); return m ? m.getAttribute('transform') : ''; })); await sleep(420); }
   assert(distinct(fr) >= 3, `the Carousel runs day one (${distinct(fr)}/6 structure frames)`);

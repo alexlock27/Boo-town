@@ -903,6 +903,38 @@ export function renderItem(item, opts = {}) {
   return renderBoo(item, opts);
 }
 
+// ---- the world map island (RUN10 P1) ---------------------------------------
+// A full-bleed island in the house-sticker style: grass mass, a sand fringe at the
+// bottom-right, a river ribbon reaching to riverside, a hill bump upper-left, fair
+// tents at the right, and two little roofs for the interiors. Landmark badges are
+// positioned separately (worldmap.js, from MAP_POS) — this is background only.
+export function renderIslandMap({ w = 100, h = 100 } = {}) {
+  const grass = '#7FC85F', grass2 = '#66B052', sand = '#F2DDA6', sand2 = '#E4C583',
+    river = '#7FC7E8', riverDeep = '#5FA9D0', hill = '#6FBF77', hill2 = '#5AA664';
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${w}" height="${h}" fill="#8FC6EF"/>
+    <path d="M4 20 Q2 55 10 78 Q22 96 46 94 Q70 98 86 84 Q98 68 94 44 Q96 20 74 10 Q50 0 28 6 Q10 10 4 20 Z" fill="${grass}" stroke="${INK}" stroke-width="1.4"/>
+    <path d="M8 24 Q6 54 14 74 Q26 90 46 90 Q40 78 44 62 Q34 50 34 34 Q30 20 8 24 Z" fill="${grass2}" opacity="0.55"/>
+    <!-- hill bump, upper-left -->
+    <path d="M6 30 Q16 12 34 16 Q46 20 42 32 Q34 40 22 36 Q10 38 6 30 Z" fill="${hill}" stroke="${INK}" stroke-width="1.2"/>
+    <path d="M14 26 Q22 16 32 20" fill="none" stroke="${hill2}" stroke-width="1.4" opacity="0.7"/>
+    <!-- river ribbon, running toward riverside -->
+    <path d="M50 8 Q58 24 52 40 Q46 56 60 68 L64 70 Q52 58 56 40 Q60 24 54 8 Z" fill="${river}" stroke="${INK}" stroke-width="1.1"/>
+    <path d="M52 12 Q58 26 53 40" fill="none" stroke="${riverDeep}" stroke-width="1" opacity="0.6"/>
+    <!-- sand fringe, bottom-right, toward the beach -->
+    <path d="M62 74 Q78 72 88 82 Q94 90 84 94 Q68 98 58 90 Q54 82 62 74 Z" fill="${sand}" stroke="${INK}" stroke-width="1.2"/>
+    <path d="M66 80 Q76 78 82 86" fill="none" stroke="${sand2}" stroke-width="1" opacity="0.6"/>
+    <!-- fair tents, right -->
+    <g transform="translate(80,34)">
+      <path d="M0 10 L6 -6 L12 10 Z" fill="#FF5C8A" stroke="${INK}" stroke-width="1"/>
+      <path d="M10 12 L15 0 L20 12 Z" fill="#FFC93C" stroke="${INK}" stroke-width="1"/>
+    </g>
+    <!-- two little roofs for the interiors -->
+    <g transform="translate(26,66)"><path d="M-6 6 L0 -4 L6 6 Z" fill="#C6A9F0" stroke="${INK}" stroke-width="1"/><rect x="-5" y="6" width="10" height="6" fill="#FFF8F0" stroke="${INK}" stroke-width="1"/></g>
+    <g transform="translate(58,28)"><path d="M-6 6 L0 -4 L6 6 Z" fill="#35D0BA" stroke="${INK}" stroke-width="1"/><rect x="-5" y="6" width="10" height="6" fill="#FFF8F0" stroke="${INK}" stroke-width="1"/></g>
+  </svg>`;
+}
+
 // ---- Build-a-Boo custom renderer (RUN3 C6) ----
 // A parametric Boo from parts: body (4), ears (5), eyes (4), mouth (4), tail (3),
 // pattern + a colour. Cute rules: big low eyes, wide body, oversized ears, thick outlines.

@@ -1,9 +1,11 @@
-// js/town.js — Town 2.0: a living side-view world (spec RUN2 C3).
-// Horizontally scrolling scene with three parallax layers, four star-gated zones,
-// drag placement along the ground band, wandering Boos, and real-clock day/night.
+// js/town.js — Town 4.0: a single area scene, reached from the world map (RUN10 P1).
+// One area per mount (world width = AREA_W_VIEWPORTS viewports), three parallax layers,
+// drag placement along the ground band, wandering Boos, real-clock day/night. Multi-area
+// navigation lives in worldmap.js; this file only ever renders one already-unlocked area.
 
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
+import { AREAS, AREA_W_VIEWPORTS, areaByKey } from './areas.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
@@ -23,20 +25,14 @@ import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair,
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 
-// Zone unlock thresholds (named constants).
-export const RIVERSIDE_STARS = 40, HILLTOP_STARS = 100, BEACH_STARS = 180;
-export const ZONES = [
-  { key: 'meadow',    name: 'Meadow',    unlock: 0 },
-  { key: 'riverside', name: 'Riverside', unlock: RIVERSIDE_STARS },
-  { key: 'hilltop',   name: 'Hilltop',   unlock: HILLTOP_STARS },
-  { key: 'beach',     name: 'Beach',     unlock: BEACH_STARS },
-  { key: 'funfair',   name: 'Boo Funfair', unlock: FUNFAIR_UNLOCK }   // fifth zone (RUN6 C1b)
-];
-const ZONE_INDEX = Object.fromEntries(ZONES.map((z, i) => [z.key, i]));
+// Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
+// world map is the only place that knows about all 8 areas at once. town.js mounts ONE
+// already-unlocked area at a time; see mount() for the per-mount single-area ZONES shim
+// (kept as `ZONES`/`ZONE_INDEX` internally so the rest of this file's zone-comparison code
+// — written for the old 5-zone continuous world — needs no further changes: with exactly
+// one entry, every `ZONE_INDEX[...] === zi` comparison and `zi * zoneW` offset still holds).
 const MAX_WANDERERS = 30;
 
-// ---- town spaciousness (RUN5 C3): every zone is a place, not a corridor -------
-export const ZONE_W_VIEWPORTS = 1.7;   // each zone is 1.7 viewports wide (named constant)
 const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of viewport height
 const GROUND_FRAC = BAND_TOP;          // the grass band starts at the top of the placement band
 // three depth rows: feet-line (fraction of viewH), and a size scale (smaller toward the back)
@@ -79,7 +75,7 @@ const STAR_REWARD = 1;          // +1 meter, capped once per night
 // that NEVER occupies the placement band; behaviours are self-contained vignettes.
 const BRIDGE_X = 0.5;           // the little wooden bridge sits mid-zone (riverside)
 const WINDMILL_X = 0.7;         // the windmill turns on the hill crest (hilltop)
-const PALM_X = 0.24, HUT_X = 0.75;   // palm + beach hut bookend the beach (within the centred view)
+const PALM_X = 0.10, PALM2_X = 0.92, HUT_X = 0.75;   // two palms bookend the beach (RUN10 P1: palm×2)
 const KITE_MS = 6000;           // a Boo flies a kite for a spell (hilltop)
 const PADDLE_MS = 4200;         // paddling at the bank / in the shallows (riverside / beach)
 const SKIM_MS = 2600;           // a stone skim + plink (riverside)
@@ -121,7 +117,6 @@ const ACT_SIZE = {
 };
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
-export function unlockedZones(stars) { return ZONES.filter(z => stars >= z.unlock); }
 
 function currentHour() {
   if (typeof window !== 'undefined' && window.__bootownHour != null) return window.__bootownHour | 0;
@@ -131,13 +126,36 @@ const isNight = (h) => h >= 19 || h < 7;
 
 export function mount(container, params, ctx) {
   const s = getState();
+  // RUN10 P1: town.js renders ONE area per mount — the world map is what knows about
+  // all 8 areas and their unlock state. Defaults to the Meadow (always unlocked, always
+  // the natural "put a new item somewhere" destination for ceremony/onboarding callers
+  // that don't specify an area).
+  const areaKey = (params && params.area) || 'meadow';
+  const AREA = areaByKey(areaKey);
+  // Single-area "zones" shim: every zone-comparison helper below was written for the old
+  // 5-zone continuous world and reads ZONES/ZONE_INDEX from the enclosing closure. With
+  // exactly one entry here (index 0, unlock 0 — already-unlocked by construction, since
+  // the map is the only way in), all that code keeps working unchanged.
+  const ZONES = [{ key: AREA.key, name: AREA.name, unlock: 0 }];
+  const ZONE_INDEX = { [AREA.key]: 0 };
   music.play('calm');
   noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
-  ensureHide();             // hide-and-seek Boo, once per local day (RUN4 C9)
+  // Hide-and-seek Boo, once per local day (RUN4 C9): picks across ALL areas (delights.js),
+  // so renderHide() below only shows something on the area it actually landed in — graceful
+  // no-op elsewhere. A world-map "someone's hiding over here" chip is P5's job.
+  ensureHide();
   let voiceIds = new Set();  // Boo ids with a recorded voice (RUN3 C7)
   voiceBooIds().then(s => { voiceIds = s; }).catch(() => {});
   // Occasional Boo requests (RUN3 C8): check at app open (town is an "open").
-  checkRequestOpen((getState().town || []).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
+  checkRequestOpen(areaItems(getState()).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
+
+  // Area-scoped item storage (RUN10 P1): save.town.areas[AREA.key] = {items:[],paths:[]}.
+  // Every item carries a redundant `.zone` field (always === AREA.key) so the zone-
+  // comparison code throughout this file needs no further changes.
+  function areaItems(st) {
+    if (!st.town.areas[AREA.key]) st.town.areas[AREA.key] = { items: [], paths: [] };
+    return st.town.areas[AREA.key].items;
+  }
 
   let holding = (params && params.place) || null;   // item id being placed
   let placeMode = !!holding;
@@ -145,11 +163,12 @@ export function mount(container, params, ctx) {
   let raf = null, actors = [], fx = [];
   let currentSeasonName = '', starTimer = null;   // ambient life (RUN6 C1)
 
-  const root = el('div', { class: 'town2' });
-  const back = backControl(() => ctx.go('hub'));
-  const title = el('h2', { text: 'My Town' });
-  const hint = el('span', { class: 'town-hint' });
-  const header = el('header', { class: 'town-header' }, [back, title, hint]);
+  const root = el('div', { class: 'town2 area-' + AREA.key + ' entering' });
+  const back = backControl(() => ctx.go('worldmap'));
+  const title = el('h2', { text: AREA.name });
+  const hammerBtn = el('button', { class: 'icon-btn town-hammer-btn', 'aria-label': 'Build mode (coming soon)', disabled: '', html: '🔨' });
+  const header = el('header', { class: 'town-header' }, [back, title, hammerBtn]);
+  const hint = el('div', { class: 'town-hint-bar' });
 
   const sky = el('div', { class: 't-layer t-sky' });
   const hills = el('div', { class: 't-layer t-hills' });
@@ -158,15 +177,19 @@ export function mount(container, params, ctx) {
   const viewport = el('div', { class: 't-viewport' }, [sky, hills, ground, air]);
 
   const drawer = el('div', { class: 'town-drawer' });
-  root.append(header, viewport, drawer);
+  root.append(header, hint, viewport, drawer);
   container.appendChild(root);
 
   // Day / night tint.
   const night = isNight(currentHour());
   root.classList.toggle('night', night);
 
+  // Entry crossfade (P1): the map badge scales up into this scene, 300ms.
+  requestAnimationFrame(() => { requestAnimationFrame(() => root.classList.remove('entering')); });
+
   requestAnimationFrame(() => {
-    layout(); renderDrawer(); updateHint(); maybeCelebrateUnlock(); startLoop();
+    layout(); renderDrawer(); updateHint(); startLoop();
+    if (params && params.enterPan) setTimeout(() => panAcrossZone(0, 1600), REDUCED ? 0 : 200);
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
     // finished while she was away, the next town open plays the reveal.
     const gt = tickGrowth();
@@ -185,9 +208,9 @@ export function mount(container, params, ctx) {
   function layout() {
     viewH = viewport.clientHeight || 400;
     viewW = viewport.clientWidth || 600;
-    // Each zone is 1.7 viewports wide (C3), so a zone is a place to roam, not a corridor.
-    zoneW = viewW * ZONE_W_VIEWPORTS;
-    worldW = zoneW * ZONES.length;
+    // Each area is AREA_W_VIEWPORTS (4) viewports wide (RUN10 P1) — room to roam, not a corridor.
+    zoneW = viewW * AREA_W_VIEWPORTS;
+    worldW = zoneW * ZONES.length;   // ZONES.length is always 1 now: worldW === zoneW === the area
     groundY = viewH * GROUND_FRAC;
     for (const L of [sky, hills, ground, air]) { L.style.width = worldW + 'px'; L.style.height = viewH + 'px'; }
     renderScenery();
@@ -252,7 +275,7 @@ export function mount(container, params, ctx) {
     actors = [];
     const st = getState();
     let count = 0, fancyCount = 0;
-    for (const t of st.town) {
+    for (const t of areaItems(st)) {
       const item = resolveItem(t.item);
       if (!item) continue;
       const zi = ZONE_INDEX[t.zone] ?? 0;
@@ -380,6 +403,7 @@ export function mount(container, params, ctx) {
   function pxAt(zone, x) { return ((ZONE_INDEX[zone] ?? 0) * zoneW + x * zoneW); }
   function renderGrowth() {
     ground.querySelectorAll('.t-growth').forEach(n => n.remove());
+    if (AREA.key !== 'meadow') return;   // every growth milestone is zone:'meadow' (growth.js) — RUN10 P1 scoping
     const view = growthView();
     const night = isNight(currentHour());
     for (const m of view.upgrades) {
@@ -507,6 +531,7 @@ export function mount(container, params, ctx) {
 
   function renderFunfair() {
     ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap').forEach(n => n.remove());
+    if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
     const view = funfairView();
@@ -744,7 +769,7 @@ export function mount(container, params, ctx) {
       if ((a.role.kind === 'sleep' || a.role.kind === 'campfire') && !night) clearRole(a);
       if (a.role && a.role.kind === 'sleep' && a.wakeUntil && now < a.wakeUntil) clearRole(a);
     }
-    const decosOf = (id) => st.town.filter(t => t.item === id);
+    const decosOf = (id) => areaItems(st).filter(t => t.item === id);
     // 1) night: sleep near Boo Houses (skip recently woken — rule 1, no forced naps)
     if (night) for (const t of decosOf('deco_boohouse')) {
       for (const a of freeNear(t, ACT_RADIUS)) {
@@ -923,7 +948,7 @@ export function mount(container, params, ctx) {
   let routineTimer = null;
   function applyDance() {
     const st = getState();
-    const stages = st.town.filter(t => t.item === 'deco_stage');
+    const stages = areaItems(st).filter(t => t.item === 'deco_stage');
     for (const a of actors) {
       const stage = stages.find(sg => (ZONE_INDEX[sg.zone] === ZONE_INDEX[a.place.zone]) && Math.abs(sg.x - a.place.x) < 0.14);
       a.dancing = !!stage;
@@ -1072,7 +1097,7 @@ export function mount(container, params, ctx) {
   }
   // Minimum spacing (C3): no piling two items on top of each other in a zone+row.
   function spotTaken(zi, x, row, except) {
-    return getState().town.some(t => t !== except && (ZONE_INDEX[t.zone] ?? 0) === zi && rowOf(t) === row && Math.abs(t.x - x) < MIN_SPACING);
+    return areaItems(getState()).some(t => t !== except && (ZONE_INDEX[t.zone] ?? 0) === zi && rowOf(t) === row && Math.abs(t.x - x) < MIN_SPACING);
   }
   function spotWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
@@ -1087,7 +1112,7 @@ export function mount(container, params, ctx) {
     const row = rowAtClient(cy);
     if (spotTaken(zi, x, row)) { spotWobble(); return; }   // keep holding it, try again
     const id = holding;
-    mutate(st => { st.town.push({ zone: ZONES[zi].key, x: +x.toFixed(3), row, item: id }); });
+    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +x.toFixed(3), row, item: id }); });
     holding = null; placeMode = false;
     renderPlaced(); renderDrawer(); updateHint();
     sfx.pop();
@@ -1097,7 +1122,7 @@ export function mount(container, params, ctx) {
     clear(drawer);
     const st = getState();
     const placed = {};
-    for (const t of st.town) placed[t.item] = (placed[t.item] || 0) + 1;
+    for (const t of areaItems(st)) placed[t.item] = (placed[t.item] || 0) + 1;
     const free = {};
     for (const [id, n] of Object.entries(st.inventory)) {
       const rit = resolveItem(id); if (!rit || rit.kind === "accessory") continue; // accessories are worn
@@ -1163,9 +1188,9 @@ export function mount(container, params, ctx) {
       wrap.classList.remove('dragging');
       if (moved) {
         const zi = +wrap.dataset._zi, x = +wrap.dataset._x, row = +wrap.dataset._row;
-        const cur = getState().town.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+        const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
         if (canPlaceIn(zi) && !spotTaken(zi, x, row, cur)) {
-          mutate(st => { const t = st.town.find(t => t === cur) || st.town.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); t.row = row; } });
+          mutate(st => { const items = areaItems(st); const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); t.row = row; } });
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
         }
@@ -1241,7 +1266,7 @@ export function mount(container, params, ctx) {
   function closeMenu() { if (openPopover) { openPopover.remove(); openPopover = null; } ground.classList.remove('menu-open'); }
 
   function removePlacement(place) {
-    mutate(st => { const i = st.town.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) st.town.splice(i, 1); });
+    mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
   }
   function pickUp(place) { closeMenu(); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); }
   function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); }
@@ -1281,29 +1306,11 @@ export function mount(container, params, ctx) {
     hint.textContent = holding ? 'Tap the ground to place it! 🌱' : (placeMode ? 'Tap the ground to place it!' : 'Drag from the tray. Tap a Boo to say hi!');
   }
 
-  // ---- zone unlock ceremony ----------------------------------------------
-  function maybeCelebrateUnlock() {
-    const st = getState();
-    const seen = st.seen.zonesUnlocked || [];
-    const nowUnlocked = unlockedZones(st.stars.total).map(z => z.key);
-    // The funfair is OPEN from the start (RUN7 C1) and has its own grand-opening
-    // ceremony (maybeGrandOpening) — keep it out of the generic star-gate ceremony.
-    const fresh = nowUnlocked.filter(k => k !== 'meadow' && k !== 'funfair' && !seen.includes(k));
-    if (params && params.simulateUnlock) { /* tests can pass a zone to force */ }
-    if (!fresh.length) return;
-    const key = fresh[0];
-    fresh.forEach(k => stampJournal('zone_' + k));   // Journal: each zone unlock (RUN3 C4)
-    mutate(s2 => { s2.seen.zonesUnlocked = [...seen, ...fresh]; });
-    const z = ZONES[ZONE_INDEX[key]];
-    panAcrossZone(ZONE_INDEX[key]);   // pan across the new zone's distinct scenery (C2)
-    setTimeout(() => {
-      sfx.fanfare();
-      confetti({ count: 110, power: 1.1 });
-      const line = guideLine('zoneUnlock');
-      hint.textContent = `✨ ${z.name} is open! ✨`;
-      speakMaybe(line);
-    }, REDUCED ? 0 : 500);
-  }
+  // Zone-unlock ceremony (RUN10 P1): detecting a fresh star-threshold crossing and
+  // announcing it now happens on the world map (worldmap.js), which pans INTO the
+  // newly-unlocked area's scenery before you ever reach this screen. panAcrossZone
+  // stays here as the entrance-pan primitive worldmap.js's navigation calls into
+  // (params.enterPan, see mount() above) and as a QA hook (__town.panAcross).
 
   // ---- actors: gentle wandering (transform-only) -------------------------
   function makeActor(wrap, item, place) {
@@ -1401,14 +1408,14 @@ export function mount(container, params, ctx) {
   }
   function pickFreeActivity(a) {
     const st = getState(); const zi = ZONE_INDEX[a.place.zone]; const occ = occupiedDecoKeys();
-    const cands = st.town.filter(t => ACT_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi
+    const cands = areaItems(st).filter(t => ACT_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi
       && Math.abs(t.x - a.place.x) < 0.55 && !occ.has(t.zone + ':' + t.x + ':' + t.item));
     cands.sort((p, q) => Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x));
     return cands[0] || null;
   }
   function pickNapSpot(a) {
     const st = getState(); const zi = ZONE_INDEX[a.place.zone];
-    const cands = st.town.filter(t => NAP_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) < 0.6);
+    const cands = areaItems(st).filter(t => NAP_IDS.includes(t.item) && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) < 0.6);
     cands.sort((p, q) => Math.abs(p.x - a.place.x) - Math.abs(q.x - a.place.x));
     return cands[0] || null;
   }
@@ -1416,7 +1423,7 @@ export function mount(container, params, ctx) {
   // settles to sleep rather than wandering off chasing fireflies (keeps nights cosy).
   function nearBoohouse(a) {
     const st = getState(); const zi = ZONE_INDEX[a.place.zone];
-    return st.town.some(t => t.item === 'deco_boohouse' && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) <= ACT_RADIUS);
+    return areaItems(st).some(t => t.item === 'deco_boohouse' && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) <= ACT_RADIUS);
   }
   function startBehaviour(a, kind, now) {
     now = now || performance.now();
@@ -1810,7 +1817,7 @@ export function mount(container, params, ctx) {
       ffSeatTransforms: (ride) => { const b = [...ground.querySelectorAll('.ff-ride')].find(x => x.dataset.ride === ride); return b ? [...b.querySelectorAll('.ff-seat')].map(s => s.style.transform) : []; },
       ffOpenPicker: (ride) => openRidePicker(ride),
       ffReveal: (ride) => playFunfairReveal(ride),
-      scrollToFunfair: () => scrollToZone(ZONE_INDEX['funfair'], false),
+      scrollToFunfair: () => scrollToZone(ZONE_INDEX['funfair'] ?? 0, false),
       scrollToZone: (key) => scrollToZone(ZONE_INDEX[key] ?? 0, false),   // pan to any zone (C2 QA)
       zoneProps: (key) => { const n = ground.querySelector('.t-zone-props.' + key); return n ? { has: true, kids: n.querySelectorAll('*').length } : { has: false }; },
       panAcross: (key) => panAcrossZone(ZONE_INDEX[key] ?? 0),            // unlock-pan test hook (C2)
@@ -1818,9 +1825,14 @@ export function mount(container, params, ctx) {
       sceneryXf: (sel) => { const n = ground.querySelector(sel); return n ? (getComputedStyle(n).transform || '') : null; },
       sceneryAnimated: (sel) => { const n = ground.querySelector(sel); return n ? getComputedStyle(n).animationName !== 'none' : false; },
       hasBandstand: () => !!ground.querySelector('.ff-bandstand'),
-      scrollToBandstand: () => { scrollX = ZONE_INDEX['funfair'] * zoneW + BANDSTAND_X * zoneW - viewW / 2; clampScroll(); applyScroll(); },
-      scrollToFunfairGate: () => { scrollX = ZONE_INDEX['funfair'] * zoneW; clampScroll(); applyScroll(); },   // funfair centred but bandstand off-screen → jingle
-      zoneMusic: () => _zoneMusic
+      scrollToBandstand: () => { scrollX = (ZONE_INDEX['funfair'] ?? 0) * zoneW + BANDSTAND_X * zoneW - viewW / 2; clampScroll(); applyScroll(); },
+      scrollToFunfairGate: () => { scrollX = (ZONE_INDEX['funfair'] ?? 0) * zoneW; clampScroll(); applyScroll(); },   // funfair centred but bandstand off-screen → jingle
+      zoneMusic: () => _zoneMusic,
+      area: () => AREA.key,   // RUN10 P1 QA hook: which area this mount is rendering
+      // RUN10 P1: an area is 4 viewports wide, so a single "centred" scroll no longer
+      // shows the whole area (e.g. the funfair's 5 rides span x 0.18-0.92) — tests that
+      // need a specific spot in view should scroll to it directly.
+      scrollToFrac: (x) => { scrollX = Math.max(0, Math.min(x * zoneW - viewW / 2, worldW - viewW)); clampScroll(); applyScroll(); }
     };
   }
 
@@ -1894,9 +1906,10 @@ function svg(w, h, inner) {
 // thin decoration at the bank — the band itself (0.62→1.0) stays clear for placement.
 // Animation classes (.rv-*/.hl-*/.bc-*) are transform/opacity-only; reduced-motion stills them.
 function zoneScenery(key, w, h, night) {
-  if (key === 'riverside') return riversideScenery(w, h, night);
-  if (key === 'hilltop')   return hilltopScenery(w, h, night);
-  if (key === 'beach')     return beachScenery(w, h, night);
+  if (key === 'riverside')  return riversideScenery(w, h, night);
+  if (key === 'hilltop')    return hilltopScenery(w, h, night);
+  if (key === 'beach')      return beachScenery(w, h, night);
+  if (key === 'playground') return playgroundScenery(w, h, night);
   return '';
 }
 function rSVG(w, h, inner) {
@@ -1904,7 +1917,7 @@ function rSVG(w, h, inner) {
 }
 
 function riversideScenery(w, h, night) {
-  const top = h * 0.535, bot = h * 0.665, mid = (top + bot) / 2;
+  const top = h * 0.30, bot = h * 0.42, mid = (top + bot) / 2;   // river band y 30-42% (RUN10 P1)
   const water = night ? '#2C567A' : '#7FC7E8', deep = night ? '#20405E' : '#5FA9D0', foam = night ? '#B6D4E8' : '#EAF6FF';
   // drifting ripple lines (two staggered layers) + shimmer sparkles on the water
   const ripples = (cls, ys, dur, dist) => ys.map((yy, i) =>
@@ -1965,18 +1978,18 @@ function hilltopScenery(w, h, night) {
 }
 
 function beachScenery(w, h, night) {
-  const seaTop = h * 0.42, seaBot = h * 0.60;
+  const seaTop = h * 0.26, seaBot = h * 0.38;   // sea band y 26-38% (RUN10 P1)
   const sea = night ? '#2C567A' : '#4FB3D9', sea2 = night ? '#21415E' : '#3C97C2';
   // rolling foam edge: a wavy white band that rolls sideways at the shore line
   const foamPath = (dl, op) => `<path class="bc-foam" style="--d:${(w * 0.16).toFixed(0)}px;--dl:${dl}s" d="M-30 ${seaBot.toFixed(0)} q 26 -9 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="${op}"/>`;
-  const shells = [[0.28, 0.80, '#FF9AD5'], [0.4, 0.9, '#FFC93C'], [0.55, 0.83, '#8FC7FF'], [0.68, 0.92, '#FF9AD5'], [0.92, 0.86, '#FFC0A0']].map(([fx, fy, c]) =>
+  const shells = [[0.20, 0.80, '#FF9AD5'], [0.32, 0.90, '#FFC93C'], [0.48, 0.83, '#8FC7FF'], [0.60, 0.92, '#FF9AD5'], [0.76, 0.86, '#FFC0A0'], [0.85, 0.79, '#C6A9F0']].map(([fx, fy, c]) =>
     `<g transform="translate(${(fx * w).toFixed(0)} ${(fy * h).toFixed(0)})"><path d="M0 6 C-9 6 -9 -6 0 -6 C9 -6 9 6 0 6 Z" fill="${c}" stroke="#B06A8A" stroke-width="1.4"/><path d="M0 -6 V6 M-5 -3 L-4 5 M5 -3 L4 5" stroke="#B06A8A" stroke-width="1"/></g>`).join('');
-  const palmX = PALM_X * w, palmBase = h * 0.7;
-  const palm = `<g class="bc-palm">
-    <path d="M${palmX.toFixed(0)} ${palmBase.toFixed(0)} q -10 -60 -2 -110" fill="none" stroke="#9A6B3A" stroke-width="11" stroke-linecap="round"/>
-    ${[[-1, -8], [-1, 18], [1, -8], [1, 18], [0, -34]].map(([dir, ang]) => `<path d="M${(palmX - 4).toFixed(0)} ${(palmBase - 108).toFixed(0)} q ${dir * 44} ${ang < 0 ? -10 : 20} ${dir * 74} ${28 + Math.abs(ang)}" fill="none" stroke="${night ? '#3E7A54' : '#4FA85E'}" stroke-width="9" stroke-linecap="round"/>`).join('')}
-    <circle cx="${(palmX - 4).toFixed(0)}" cy="${(palmBase - 108).toFixed(0)}" r="7" fill="#8A5A32"/>
-    <circle cx="${(palmX + 6).toFixed(0)}" cy="${(palmBase - 98).toFixed(0)}" r="5" fill="#7A4A22"/><circle cx="${(palmX - 12).toFixed(0)}" cy="${(palmBase - 96).toFixed(0)}" r="5" fill="#7A4A22"/></g>`;
+  const onePalm = (px) => `<g class="bc-palm">
+    <path d="M${px.toFixed(0)} ${(h * 0.7).toFixed(0)} q -10 -60 -2 -110" fill="none" stroke="#9A6B3A" stroke-width="11" stroke-linecap="round"/>
+    ${[[-1, -8], [-1, 18], [1, -8], [1, 18], [0, -34]].map(([dir, ang]) => `<path d="M${(px - 4).toFixed(0)} ${(h * 0.7 - 108).toFixed(0)} q ${dir * 44} ${ang < 0 ? -10 : 20} ${dir * 74} ${28 + Math.abs(ang)}" fill="none" stroke="${night ? '#3E7A54' : '#4FA85E'}" stroke-width="9" stroke-linecap="round"/>`).join('')}
+    <circle cx="${(px - 4).toFixed(0)}" cy="${(h * 0.7 - 108).toFixed(0)}" r="7" fill="#8A5A32"/>
+    <circle cx="${(px + 6).toFixed(0)}" cy="${(h * 0.7 - 98).toFixed(0)}" r="5" fill="#7A4A22"/><circle cx="${(px - 12).toFixed(0)}" cy="${(h * 0.7 - 96).toFixed(0)}" r="5" fill="#7A4A22"/></g>`;
+  const palm = onePalm(PALM_X * w) + onePalm(PALM2_X * w);   // palm×2 (RUN10 P1)
   const hx = HUT_X * w, hy = h * 0.5;
   const hut = `<g>
     <rect x="${(hx - 34).toFixed(0)}" y="${(hy + 6).toFixed(0)}" width="68" height="54" rx="4" fill="#F2DDA6" stroke="#8A6B3A" stroke-width="3"/>
@@ -1988,6 +2001,26 @@ function beachScenery(w, h, night) {
     <rect x="0" y="${seaTop.toFixed(0)}" width="${w.toFixed(0)}" height="8" fill="${sea2}" opacity="0.7"/>
     ${Array.from({ length: 3 }, (_, i) => `<path class="bc-swell" style="--dl:${(-i * 1.4).toFixed(1)}s" d="M0 ${(seaTop + 22 + i * 30).toFixed(0)} q ${(w * 0.25).toFixed(0)} -8 ${(w * 0.5).toFixed(0)} 0 t ${(w * 0.5).toFixed(0)} 0" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.28"/>`).join('')}
     ${foamPath(0, 0.9)}${foamPath(-2.5, 0.5)}${palm}${hut}${shells}`);
+}
+
+// The Playground (RUN10 P1, new area): a soft-play tiled ground pattern, a low fence
+// backdrop, and cheerful bunting strung across the top — a distinct place, not a re-skin.
+function playgroundScenery(w, h, night) {
+  const tileColours = night ? ['#3E6E7A', '#3E5E7A'] : ['#7FD3D9', '#8FC7EF'];
+  const tileY = h * 0.60, tileH = h * 0.06, tileW = 46;
+  const tiles = Array.from({ length: Math.ceil(w / tileW) + 1 }, (_, i) =>
+    `<rect x="${(i * tileW).toFixed(0)}" y="${tileY.toFixed(0)}" width="${(tileW - 2).toFixed(0)}" height="${tileH.toFixed(0)}" rx="4" fill="${tileColours[i % 2]}" opacity="0.85"/>`).join('');
+  const fenceY = h * 0.50;
+  const fence = Array.from({ length: Math.ceil(w / 60) + 1 }, (_, i) =>
+    `<rect x="${(i * 60).toFixed(0)}" y="${(fenceY - 20).toFixed(0)}" width="8" height="34" rx="2" fill="#F4C96B" stroke="#8A6B3A" stroke-width="2"/>`).join('') +
+    `<rect x="0" y="${(fenceY - 8).toFixed(0)}" width="${w.toFixed(0)}" height="7" rx="3" fill="#EFA84C" opacity="0.9"/>`;
+  const buntingY = h * 0.16;
+  const flags = Array.from({ length: 10 }, (_, i) => {
+    const x = (i + 0.5) / 10 * w, y = buntingY + Math.sin(i / 9 * Math.PI) * 18;
+    return `<path d="M${x.toFixed(0)} ${y.toFixed(0)} l14 0 l-7 16 z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`;
+  }).join('');
+  const bunting = `<path d="M0 ${buntingY.toFixed(0)} Q ${(w / 2).toFixed(0)} ${(buntingY + 30).toFixed(0)} ${w.toFixed(0)} ${buntingY.toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2.5" opacity="0.7"/>${flags}`;
+  return rSVG(w, h, `${fence}${tiles}${bunting}`);
 }
 
 function signSVG() {

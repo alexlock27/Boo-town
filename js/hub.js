@@ -10,7 +10,7 @@ import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
 import { tierForAge, AGE_CHOICES, contentTier } from './content.js';
 import { renderGuide } from './art.js';
-import { ZONES } from './town.js';
+import { AREAS, AREA_UNLOCK_STARS, flattenTownItems } from './areas.js';
 import { retroAwardOnce } from './trophies.js';
 import { tickGrowth } from './growth.js';
 import { tickFunfair } from './funfair.js';
@@ -51,7 +51,7 @@ export function mount(container, params, ctx) {
   const s = getState();
   music.play('calm');
   // Occasional Boo requests appear only at app open (RUN3 C8).
-  checkRequestOpen((s.town || []).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
+  checkRequestOpen(flattenTownItems(s).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
 
   const root = el('div', { class: 'hub' });
   container.appendChild(root);
@@ -170,7 +170,7 @@ export function mount(container, params, ctx) {
   }
 
   // ---- bottom bar ----
-  const townBtn = el('button', { class: 'bar-btn', onclick: () => ctx.go('town') }, [
+  const townBtn = el('button', { class: 'bar-btn', onclick: () => ctx.go('worldmap') }, [
     el('span', { class: 'bar-ic', html: '🏡' }), el('span', { text: 'Town' })
   ]);
   const collBtn = el('button', { class: 'bar-btn', onclick: () => ctx.go('collection') }, [
@@ -328,7 +328,8 @@ export function mount(container, params, ctx) {
   // greeting — or the one-per-session near-unlock nudge (RUN4 C1). A ready box
   // wins: celebration first, and the nudge never stacks onto other prompts.
   const greetKey = params && params.greeting ? params.greeting : 'welcome';
-  const nearZone = ZONES.find(z => s.stars.total < z.unlock && z.unlock - s.stars.total <= NUDGE_WITHIN);
+  const nearZone = AREAS.map(a => ({ key: a.key, name: a.name, unlock: AREA_UNLOCK_STARS[a.key] || 0 }))
+    .find(z => z.unlock > 0 && s.stars.total < z.unlock && z.unlock - s.stars.total <= NUDGE_WITHIN);
   if (nearZone && !nudgedThisSession && !(s.boxes > 0)) {
     nudgedThisSession = true;
     gb.sayText(guideLine('nearUnlock')
@@ -443,7 +444,7 @@ function mountToddlerHub(container, params, ctx) {
   // bottom bar: Town, Collection, Studio + the cog behind its long-press, as ever
   const say = (word, fn) => () => { sfx.tap(); speakMaybe(word); fn(); };
   const bar = el('nav', { class: 'bottom-bar' }, [
-    el('button', { class: 'bar-btn', onclick: say('Town', () => ctx.go('town')) }, [el('span', { class: 'bar-ic', html: '🏡' }), el('span', { text: 'Town' })]),
+    el('button', { class: 'bar-btn', onclick: say('Town', () => ctx.go('worldmap')) }, [el('span', { class: 'bar-ic', html: '🏡' }), el('span', { text: 'Town' })]),
     el('button', { class: 'bar-btn', onclick: say('Collection', () => ctx.go('collection')) }, [el('span', { class: 'bar-ic', html: '📖' }), el('span', { text: 'Collection' })]),
     el('button', { class: 'bar-btn', onclick: say('Studio', () => ctx.go('studio')) }, [el('span', { class: 'bar-ic', html: '🎨' }), el('span', { text: 'Studio' })]),
     makeCog(() => ctx.go('grownups'))

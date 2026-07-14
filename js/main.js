@@ -41,6 +41,7 @@ const registry = {
   collection: () => import('./collection.js'),
   editguide:  () => import('./editguide.js'),
   town:       () => import('./town.js'),
+  worldmap:   () => import('./worldmap.js'),   // Town 4.0: the world map (RUN10 P1)
   band:       () => import('./band.js'),   // the Boo Band (RUN6 C1c)
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   grownups:   () => import('./grownups.js')

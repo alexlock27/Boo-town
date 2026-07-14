@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 5;   // v5 (RUN4): comfort levels + Brave claims, medal counters, trophies, town growth, shinies, the Star Chest, daily delights. Lossless via deepDefaults; chest anchor set in migrate().
+export const VERSION = 6;   // v6 (RUN10 P1): town becomes area-scoped (save.town.areas). v5 (RUN4): comfort levels + Brave claims, medal counters, trophies, town growth, shinies, the Star Chest, daily delights. Lossless via deepDefaults; chest anchor set in migrate().
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -47,7 +47,7 @@ function freshSave() {
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
     inventory: {},              // itemId -> count
-    town: [],                   // [{ zone, x, item }] (v3); old [{ plot, item }] migrated in phase 3
+    town: { areas: {} },         // { areas: { areaKey: { items:[{x,row,item}], paths:[{cx,cy,style}] } } } (v6, RUN10 P1); old flat [{zone,x,item,row}] (v3-5) / [{plot,item}] (pre-v3) migrated forward
     nicknames: {},              // itemId -> nickname (owned Boos)
     equips: {},                 // Boo itemId -> accessory itemId
     catBest: {},                // 'game:choice' -> best stars (per-picker badges, EXPANSION_1 §5)
@@ -113,13 +113,36 @@ export function load() {
 // Ensure a loaded object has every current field (forward-compatible defaults),
 // plus shape transforms for older schema versions. Shape-detected so it is safe to
 // re-run and robust to partial states. Old saves migrate losslessly.
-function migrate(obj) {
+export function migrate(obj) {
   const o = obj || {};
   // v1 giraffe guide { body, patch, acc, name } -> v3 guide object.
   if (o.guide && !o.guide.species) o.guide = migrateGuideShape(o.guide);
   // Town grid { plot, item } -> scrolling-world { zone, x, item } (Meadow, in order).
   if (Array.isArray(o.town) && o.town.some(t => t && t.plot !== undefined && t.zone === undefined)) {
     o.town = migrateTown(o.town);
+  }
+  // v6 (RUN10 P1): town becomes area-scoped. save.town.areas = {areaKey:{items:[],paths:[]}}.
+  // Legacy flat placements [{zone,x,item,row}] (v3-5) map 1:1 by old zone key (meadow/riverside/
+  // hilltop/beach/funfair only — those are the only keys the old ZONES list ever produced); x is
+  // rescaled from the old 1.7-viewport zone width to the new 4-viewport area width so an item keeps
+  // roughly its old ABSOLUTE position (an item near the old zone's left edge stays near the new
+  // area's left edge) instead of stretching to fill the wider space. Depth row is preserved (defaults
+  // to the middle row if absent, matching the old RUN5 C3 backfill). playground/boohouse/gallery have
+  // no legacy zone key, so they start empty (their first-run empty-state is a render-time guide line,
+  // not placed data).
+  if (Array.isArray(o.town)) {
+    const OLD_ZONE_W = 1.7, NEW_AREA_W = 4;   // historical constant, RUN5 C3 zone width
+    const ratio = OLD_ZONE_W / NEW_AREA_W;
+    const areas = {};
+    for (const key of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery']) areas[key] = { items: [], paths: [] };
+    o.town.forEach((t, i) => {
+      if (!t || !t.item) return;
+      const zone = areas[t.zone] ? t.zone : 'meadow';
+      const x = Math.max(0, Math.min(1, +((typeof t.x === 'number' ? t.x : 0) * ratio).toFixed(3)));
+      const row = t.row == null ? (i % 3) : t.row;
+      areas[zone].items.push({ zone, x, row, item: t.item });
+    });
+    o.town = { areas };
   }
   const base = freshSave();
   const merged = deepDefaults(o, base);
@@ -128,10 +151,17 @@ function migrate(obj) {
   if ((o.version || 0) < 5) {
     merged.chest = { anchor: (merged.stars && merged.stars.total) || 0, opened: 0, welcome: true };
   }
-  // RUN5 C3: town gains three depth rows. Existing placements keep their x (a zone
-  // fraction — they spread proportionally into the now-wider zones), and get a depth
-  // row spread across the three so nothing piles. Nothing is lost.
-  if (Array.isArray(merged.town)) merged.town.forEach((t, i) => { if (t && typeof t === 'object' && t.row == null) t.row = i % 3; });
+  // v6 area-scoping (above) guarantees merged.town.areas has all 8 area keys, each with
+  // {items:[],paths:[]} — deepDefaults alone can't add object keys it doesn't know about,
+  // so backfill any area key a pre-v6 or hand-edited save is missing.
+  if (merged.town && typeof merged.town === 'object') {
+    if (!merged.town.areas || typeof merged.town.areas !== 'object') merged.town.areas = {};
+    for (const key of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery']) {
+      const a = merged.town.areas[key];
+      if (!a || typeof a !== 'object') merged.town.areas[key] = { items: [], paths: [] };
+      else { if (!Array.isArray(a.items)) a.items = []; if (!Array.isArray(a.paths)) a.paths = []; }
+    }
+  }
   merged.version = VERSION;
   return merged;
 }

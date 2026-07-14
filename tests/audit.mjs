@@ -429,7 +429,7 @@ if (run(14)) try {
   const page = await freshPage();
   await page.evaluate(async () => {
     const st = await import('./js/state.js');
-    st.mutate(s => { s.town = [{ zone: 'meadow', x: 0.5, item: 'deco_stage' }, { zone: 'meadow', x: 0.52, item: 'boo_inky' }, { zone: 'meadow', x: 0.55, item: 'boo_plum' }]; s.routines = { 'meadow:0.5': ['bounce', 'spin', 'jump', 'wiggle'] }; });
+    st.mutate(s => { s.town.areas.meadow.items = [{ zone: 'meadow', x: 0.5, row: 1, item: 'deco_stage' }, { zone: 'meadow', x: 0.52, row: 1, item: 'boo_inky' }, { zone: 'meadow', x: 0.55, row: 1, item: 'boo_plum' }]; s.routines = { 'meadow:0.5': ['bounce', 'spin', 'jump', 'wiggle'] }; });
   });
   await page.evaluate(() => window.BooTown.go('town'));
   await page.waitForSelector('.town2'); await page.waitForTimeout(400);
@@ -447,11 +447,15 @@ if (run(15)) try {
     const st = await import('./js/state.js');
     st.mutate(s => {
       s.inventory.deco_trampoline = 1; s.inventory.deco_boohouse = 1;
-      s.town = [
-        { zone: 'meadow', x: 0.35, item: 'deco_trampoline' }, { zone: 'meadow', x: 0.32, item: 'boo_inky' },
-        { zone: 'meadow', x: 0.65, item: 'deco_boohouse' }, { zone: 'meadow', x: 0.62, item: 'boo_plum' }
+      // x kept small (RUN10 P1: an area is 4 viewports wide) so both pairs stay within the
+      // performance-culling window at the default scroll position (stepActors skips offscreen
+      // actors), and the two pairs are kept > ACT_RADIUS (0.12) apart so a Boo near the
+      // trampoline is never also in range of the boohouse's sleep-claim (and vice versa).
+      s.town.areas.meadow.items = [
+        { zone: 'meadow', x: 0.05, row: 1, item: 'deco_trampoline' }, { zone: 'meadow', x: 0.06, row: 1, item: 'boo_inky' },
+        { zone: 'meadow', x: 0.22, row: 1, item: 'deco_boohouse' }, { zone: 'meadow', x: 0.21, row: 1, item: 'boo_plum' }
       ];
-      s.seen.zonesUnlocked = ['meadow', 'riverside', 'hilltop', 'beach', 'funfair'];  // incl. funfair (RUN6 C1b) so no unlock ceremony auto-scrolls the meadow actors offscreen
+      s.seen.areasUnlocked = ['riverside', 'hilltop', 'beach'];  // RUN10 P1: unlock ceremony now lives on the world map, not town.js
     });
     window.__bootownHour = 13;
   });

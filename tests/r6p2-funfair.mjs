@@ -34,7 +34,7 @@ async function openTown(save, { hour = 13 } = {}) {
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save);
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
-  await page.evaluate(() => window.BooTown.go('town'));
+  await page.evaluate(() => window.BooTown.go('town', { area: 'funfair' }));   // RUN10 P1: the fair is its own area
   await page.waitForSelector('.town2');
   await page.waitForFunction(() => window.__townLife, { timeout: 4000 });
   await sleep(400);
@@ -62,9 +62,13 @@ console.log('== the funfair is open from the start (RUN7 C1) ==');
 console.log('== each ride animates with riders aboard ==');
 {
   const { ctx, page } = await openTown(SAVE({ stars: { total: 520, byGame: {} }, funfair: { built: ALL_RIDES.slice(), build: null, pending: [], seats: SEATS } }));
-  await page.evaluate(() => window.__townLife.scrollToFunfair());
-  await sleep(700);
+  // RUN10 P1: the funfair area is 4 viewports wide and its 5 rides span x 0.18-0.92, so no
+  // single scroll position shows them all — scroll to each ride before sampling its frames
+  // (stepFunfairRides only animates rides in the visible window, by design/perf rule).
+  const RIDE_X = { carousel: 0.18, ferris: 0.40, teacups: 0.60, bouncy: 0.78, helter: 0.92 };
   for (const ride of ALL_RIDES) {
+    await page.evaluate(x => window.__townLife.scrollToFrac(x), RIDE_X[ride]);
+    await sleep(400);
     const filled = await page.evaluate(r => window.__townLife.ffRideSeats(r).filter(Boolean).length, ride);
     assert(filled >= 2, `${ride}: multiple Boos aboard (${filled})`);
     const fr = [];
@@ -97,8 +101,10 @@ console.log('== who\'s-riding picker boards + removes ==');
 // ==================== autonomous boarding ====================
 console.log('== an autonomous Boo boards an empty seat ==');
 {
-  const { ctx, page } = await openTown(SAVE({ stars: { total: 300, byGame: {} }, funfair: { built: ['carousel'], build: null, pending: [], seats: {} }, town: [{ zone: 'funfair', x: 0.18, item: BOOS[0] }] }));
-  await page.evaluate(() => window.__townLife.scrollToFunfair());
+  const { ctx, page } = await openTown(SAVE({ stars: { total: 300, byGame: {} }, funfair: { built: ['carousel'], build: null, pending: [], seats: {} }, town: { areas: { meadow: { items: [], paths: [] }, riverside: { items: [], paths: [] }, hilltop: { items: [], paths: [] }, beach: { items: [], paths: [] }, funfair: { items: [{ zone: 'funfair', x: 0.18, row: 1, item: BOOS[0] }], paths: [] }, playground: { items: [], paths: [] }, boohouse: { items: [], paths: [] }, gallery: { items: [], paths: [] } } } }));
+  // scroll to the carousel itself (RUN10 P1: scrollToFunfair centres the 4-viewport area,
+  // which no longer overlaps x 0.18 — see scrollToFrac note above)
+  await page.evaluate(() => window.__townLife.scrollToFrac(0.18));
   await sleep(400);
   const started = await page.evaluate(() => window.__townLife.force(0, 'board'));
   assert(started === 'board', 'the funfair Boo heads for the ride');
