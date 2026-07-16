@@ -10,6 +10,10 @@ const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const BOOS = ['boo_inky', 'boo_plum', 'boo_pippin', 'boo_lolly', 'boo_chomp', 'boo_mallow', 'boo_curly', 'boo_wisp', 'boo_beam', 'boo_dot'];
+// RUN10 P5: hide-and-seek 2.0 always assigns a hider once any Boo is placed (a guaranteed
+// fallback spot exists even with no scenery) — suppress it here so boo_inky, this suite's
+// one fixed test subject, is never the one tucked away invisible.
+const TODAY = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date());
 const SAVE = (nBoos, over = {}) => {
   const inv = {};
   BOOS.slice(0, nBoos).forEach(b => { inv[b] = 1; });
@@ -25,6 +29,7 @@ const SAVE = (nBoos, over = {}) => {
     settings: { sound: false, music: false, voice: false, content: 'full' },
     seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true, areasUnlocked: ['meadow', 'riverside'] },
     trophies: { medal_boos_10: '2026-07-01' },
+    delights: { hideDay: TODAY, hideFound: true },
     ageAsked: true, age: 8
   }, over);
 };

@@ -48,38 +48,41 @@ console.log('== hide-and-seek Boo ==');
   await page.evaluate(() => window.BooTown.go('town'));
   await page.waitForSelector('.town2 .t-item');
   await sleep(600);
-  const ears = await page.$('.t-hide-ears');
+  const ears = await page.$('.t-hide-peek');
   assert(!!ears, 'one placed Boo hides behind scenery (peeking ears visible)');
   const hiddenId = await page.evaluate(() => window.BooTown.State.getState().delights.hideBoo);
   const hiddenShown = await page.$eval(`.t-item[data-item="${hiddenId}"]`, n => n.style.display).catch(() => 'gone');
   assert(hiddenShown === 'none' || hiddenShown === 'gone', 'the hider is tucked away, not standing in the open');
   const m0 = await page.evaluate(() => window.BooTown.State.getState().meter);
-  await page.click('.t-hide-ears', { force: true });
+  await page.click('.t-hide-peek', { force: true });
   await sleep(700);
   const st = await page.evaluate(() => ({ meter: window.BooTown.State.getState().meter, found: window.BooTown.State.getState().delights.hideFound }));
   assert(st.found, 'tapping the ears finds the Boo');
   assert(st.meter === m0 + 2, `spotting earns +2 meter (${m0} → ${st.meter})`);
-  assert(!(await page.$('.t-hide-ears')), 'the ears are gone once found');
+  assert(!(await page.$('.t-hide-peek')), 'the ears are gone once found');
   // once per day: revisit — no new hider today
   await page.evaluate(() => window.BooTown.go('hub'));
   await page.waitForSelector('.hub');
   await page.evaluate(() => window.BooTown.go('town'));
   await page.waitForSelector('.town2 .t-item');
   await sleep(600);
-  assert(!(await page.$('.t-hide-ears')), 'at most once per local day');
+  assert(!(await page.$('.t-hide-peek')), 'at most once per local day');
   await ctx.close();
 }
 console.log('== unfound carries to tomorrow (no reminder) ==');
 {
   const save = SAVE();
-  save.delights = { hideDay: '2026-07-04', hideFound: false, hideBoo: 'boo_inky', hideSpot: { zone: 'meadow', x: 0.3, item: 'deco_tree' } };
+  // RUN10 P5: hideSpot must be a real HIDE_POINTS-eligible item or the exact named
+  // fallback anchor (data/sockets.js HIDE_POINTS; delights.js MEADOW_OAK_FALLBACK) —
+  // this fixture has no such item placed, so it uses the fallback tuple exactly.
+  save.delights = { hideDay: '2026-07-04', hideFound: false, hideBoo: 'boo_inky', hideSpot: { zone: 'meadow', x: 0.15, item: 'deco_oak' } };
   const { ctx, page } = await fresh(save);   // today is the 5th
   await page.evaluate(() => window.BooTown.go('town'));
   await page.waitForSelector('.town2 .t-item');
   await sleep(600);
   const d = await page.evaluate(() => window.BooTown.State.getState().delights);
   assert(d.hideBoo === 'boo_inky' && !d.hideFound, 'yesterday\'s unfound hider simply carries over');
-  assert(!!(await page.$('.t-hide-ears')), 'still peeking today');
+  assert(!!(await page.$('.t-hide-peek')), 'still peeking today');
   // no reminder anywhere on the hub
   await page.evaluate(() => window.BooTown.go('hub'));
   await page.waitForSelector('.hub');
