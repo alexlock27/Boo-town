@@ -13,6 +13,7 @@ import { LESSONS } from '../data/lessons.js';
 import { stampJournal } from './quests.js';
 import { AREA_UNLOCK_STARS } from './areas.js';
 import { sfx } from './sfx.js';
+import { renderBloomCard } from './bloom.js';
 
 const ALL_ZONES_STARS = Math.max(...Object.values(AREA_UNLOCK_STARS));   // highest gate = Beach (180); the Funfair opens day-one (RUN7 C1)
 
@@ -128,6 +129,8 @@ export function buildCatalog() {
     { key: 'trophy_custom', type: 'trophy', group: 'collector', label: 'First Custom Boo Won', hint: 'Win a Boo you built yourself…', icon: '🏆', earned: (s) => (s.customs || []).some(c => c.won) },
     { key: 'trophy_golden', type: 'trophy', group: 'adventures', label: 'Golden Round Champion', hint: 'Three stars on a Golden Round…', icon: '🏆', earned: (s) => !!(s.journal && s.journal.golden3) },
     { key: 'trophy_sparkle_meadow', type: 'trophy', group: 'adventures', label: 'Sparkle Meadow Explorer', hint: 'Finish the first Boo Quest land…', icon: '🏆', earned: (s) => !!(s.quest && s.quest.lands && s.quest.lands.sparkle_meadow) },
+    { key: 'trophy_expedition_first', type: 'trophy', group: 'adventures', label: 'First Expedition', hint: 'Finish every stop on the Expedition trail…', icon: '🧭', earned: (s) => !!(s.expedition && s.expedition.full) },
+    { key: 'trophy_expedition_tier4', type: 'trophy', group: 'adventures', label: 'Tier 4 Master', hint: 'Reach Tier IV at every Expedition stop…', icon: '🏔️', earned: (s) => ['bridges', 'picnic', 'raft', 'hotel'].every(key => ((s.expedition && s.expedition.tiers && s.expedition.tiers[key]) || 1) >= 4) },
     // Boo Roll medals (RUN9 C4) — the six course ids are roll1..roll6
     { key: 'trophy_roll_first', type: 'trophy', group: 'adventures', label: 'First Medal!', hint: 'Win any medal in Boo Roll…', icon: '🏅', earned: (s) => Object.keys((s.booRoll && s.booRoll.medals) || {}).length > 0 },
     { key: 'trophy_roll_bronze', type: 'trophy', group: 'adventures', label: 'All Courses Rolled', hint: 'Earn a medal on every Boo Roll course…', icon: '🥉', earned: (s) => ROLL_COURSE_IDS.every(id => !!((s.booRoll && s.booRoll.medals) || {})[id]) },
@@ -235,6 +238,7 @@ export function renderTrophyRoom(container) {
   }
   renderShelves();
   room.append(chipRow, shelfWrap);
+  renderBloomCard(room);
   container.appendChild(room);
   return room;
 }

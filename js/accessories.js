@@ -34,10 +34,10 @@ export function equippedArt(booId) {
   const arts = Object.values(slots).map(id => BY_ID[id] && BY_ID[id].art).filter(Boolean);
   return arts.length ? arts : null;
 }
-export function equippedId(booId) {
+export function equippedId(booId, slot = 'hat') {
   const s = getState();
   const raw = (s && s.equips && s.equips[booId]) || null;
-  return typeof raw === 'string' ? raw : raw && raw.hat || null;
+  return typeof raw === 'string' ? (slot === 'hat' ? raw : null) : raw && raw[slot] || null;
 }
 
 // Render an owned Boo with whatever it currently wears (convenience).
@@ -60,8 +60,12 @@ export function equip(booId, accId) {
   noteQuest('dressUp');   // daily quest: dress up a Boo (RUN3 C4)
   noteRequest('dressUp'); // occasional request (RUN3 C8)
 }
-export function unequip(booId) {
-  mutate(s => { delete s.equips[booId]; });
+export function unequip(booId, slot = null) {
+  mutate(s => {
+    if (!slot) { delete s.equips[booId]; return; }
+    const raw = s.equips[booId]; const slots = typeof raw === 'string' ? { hat: raw } : { ...(raw || {}) };
+    delete slots[slot]; if (Object.keys(slots).length) s.equips[booId] = slots; else delete s.equips[booId];
+  });
 }
 
 // ---- generic chooser overlay --------------------------------------------
@@ -121,25 +125,22 @@ export function openDressUp(booItem, { onDone } = {}) {
   const owned = ACCESSORIES.filter(a => s.inventory[a.id] > 0);
   const { grid, note, dismiss } = overlay({ title: `Dress up ${getDisplayName(booItem.id)}`, subtitle: owned.length ? 'Pick something to wear' : 'Win accessories from boxes to dress up your Boos!' });
 
-  const current = equippedId(booItem.id);
   const shiny = ((s.shinies && s.shinies[booItem.id]) || 0) > 0;
-  // take-off option
-  const offArt = el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78 }) });
-  const off = el('button', { class: 'acc-target' + (current ? '' : ' sel'), onclick: () => {
-    sfx.tap(); unequip(booItem.id); dismiss(); onDone && onDone();
-  } }, [offArt, el('div', { class: 'acc-target-name', text: 'No accessory' })]);
-  grid.appendChild(off);
-  applyRarityFx(offArt, booItem, { context: 'calm', shiny });
-
-  for (const acc of owned) {
-    const sel = current === acc.id;
-    const art = el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78, equipArt: acc.art }) });
-    const tile = el('button', { class: 'acc-target' + (sel ? ' sel' : ''), onclick: () => {
-      if (refuses(booItem.id, acc.id)) { note.textContent = guideLine('djRefuse'); speakMaybe(note.textContent); return; }
-      sfx.tap(); equip(booItem.id, acc.id); afterEquip(acc, getDisplayName(booItem.id)); dismiss(); onDone && onDone();
-    } }, [art, el('div', { class: 'acc-target-name', text: acc.name })]);
-    grid.appendChild(tile);
-    applyRarityFx(art, booItem, { context: 'calm', shiny });
+  for (const slot of ['hat', 'face', 'feet']) {
+    const here = owned.filter(acc => (acc.slot || 'hat') === slot); if (!here.length) continue;
+    grid.appendChild(el('h4', { class: 'acc-slot-title', text: slot === 'hat' ? 'Hats' : slot === 'face' ? 'Face' : 'Feet' }));
+    const current = equippedId(booItem.id, slot);
+    const offArt = el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78 }) });
+    const off = el('button', { class: 'acc-target' + (current ? '' : ' sel'), onclick: () => { sfx.tap(); unequip(booItem.id, slot); dismiss(); onDone && onDone(); } }, [offArt, el('div', { class: 'acc-target-name', text: `No ${slot}` })]);
+    grid.appendChild(off); applyRarityFx(offArt, booItem, { context: 'calm', shiny });
+    for (const acc of here) {
+      const art = el('div', { class: 'acc-target-art', html: renderItem(booItem, { size: 78, equipArt: acc.art }) });
+      const tile = el('button', { class: 'acc-target' + (current === acc.id ? ' sel' : ''), onclick: () => {
+        if (refuses(booItem.id, acc.id)) { note.textContent = guideLine('djRefuse'); speakMaybe(note.textContent); return; }
+        sfx.tap(); equip(booItem.id, acc.id); afterEquip(acc, getDisplayName(booItem.id)); dismiss(); onDone && onDone();
+      } }, [art, el('div', { class: 'acc-target-name', text: acc.name })]);
+      grid.appendChild(tile); applyRarityFx(art, booItem, { context: 'calm', shiny });
+    }
   }
 }
 

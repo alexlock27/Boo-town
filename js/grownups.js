@@ -9,6 +9,7 @@ import { setRequestsEnabled } from './requests.js';
 import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
+import { renderBloomTable } from './bloom.js';
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -175,6 +176,7 @@ export function mount(container, params, ctx) {
     { id: 'settings', label: 'Settings',      cards: [toggles, contentCard, micCard, requestsCard] },
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
+    { id: 'bloom',    label: 'Bloom',         cards: [renderBloomTable()] },
     { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), reset] }
   ];
   const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });

@@ -5,6 +5,7 @@ import { getState, mutate } from '../state.js';
 import { NODES, BUDGETS, GUESTS, TOPPINGS } from '../../data/expedition.js';
 import { BY_ID } from '../../data/catalogue.js';
 import { genRule, genExclusiveRules, informativeNext, featuresOf } from '../attrengine.js';
+import { freshCaper } from '../caper/state.js';
 
 const BUDGET_KEY = { bridges: 'sneezes', picnic: 'huffs', raft: 'failedSails', hotel: 'wrongRooms' };
 const WONDER = {
@@ -60,6 +61,12 @@ export function mount(container, params, ctx) {
       save.expedition.progress = save.expedition.progress || {}; save.expedition.tiers = save.expedition.tiers || {};
       save.expedition.progress[node] = Math.max(save.expedition.progress[node] || 0, stars);
       if (stars === 3) save.expedition.tiers[node] = Math.min(4, (save.expedition.tiers[node] || 1) + 1);
+      const finishedTrail = NODES.every(entry => entry.key === node || (save.expedition.progress[entry.key] || 0) > 0);
+      if (finishedTrail && !save.expedition.full) {
+        save.expedition.full = true;
+        save.inventory = save.inventory || {}; save.inventory.boo_wander = Math.max(1, save.inventory.boo_wander || 0);
+        if (!save.caper || !save.caper.open) save.caper = freshCaper();
+      }
     });
     status.textContent = `Everyone made it! ${'★'.repeat(stars)}`;
     if (!REDUCED) confetti({ count: 32, power: .55 });

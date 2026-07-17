@@ -9,6 +9,7 @@ import { flattenTownItems } from './areas.js';
 import { HIDE_POINTS } from '../data/sockets.js';
 
 export const HIDE_REWARD = 2;   // meter points for spotting the hider (C9)
+export const VISITOR_GAP_H = 72;
 
 const isBooItem = (id) => id && (id.startsWith('boo_') || id.startsWith('custom:'));
 // A guaranteed anchor when nothing hide-capable is placed anywhere yet (RUN10 P5) — the
@@ -79,4 +80,21 @@ export function booOfTheDay() {
   const acc = accs.length ? accs[dayHash(day + id) % accs.length] : null;
   const item = resolveItem(id);
   return item ? { id, item, acc, accArt: acc && BY_ID[acc] ? BY_ID[acc].art : null } : null;
+}
+
+// A dusk visitor is scenery, not a reward or collectible.  The stored timestamp makes
+// its cadence deterministic across reloads and ensures one curious tap stays one sparkle.
+export function duskVisitor(area, hour, now = Date.now()) {
+  const s = getState(); if (!s || hour < 18 || hour > 21) return null;
+  const d = s.delights || {}, existing = d.visitor;
+  if (existing && existing.area === area && now - existing.at < 12000) return existing;
+  if (existing && now - existing.at < VISITOR_GAP_H * 3600000) return null;
+  const unowned = Object.values(BY_ID).filter(item => item.kind === 'boo' && !(s.inventory[item.id] || 0));
+  if (!unowned.length) return null;
+  const visitor = { area, id: unowned[Math.floor(now / 1000) % unowned.length].id, at: now, tapped: false };
+  mutate(save => { save.delights = save.delights || {}; save.delights.visitor = visitor; }); return visitor;
+}
+export function tapDuskVisitor() {
+  const visitor = getState()?.delights?.visitor; if (!visitor || visitor.tapped) return false;
+  mutate(save => { save.delights.visitor.tapped = true; }); return true;
 }

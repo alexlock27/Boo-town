@@ -19,7 +19,7 @@ import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
 import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
-import { ensureHide, currentHide, foundHide, HIDE_REWARD, MEADOW_OAK_FALLBACK } from './delights.js';
+import { ensureHide, currentHide, foundHide, HIDE_REWARD, MEADOW_OAK_FALLBACK, duskVisitor, tapDuskVisitor } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
@@ -27,6 +27,8 @@ import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
+import { CAPER_SIGNS } from './caper/state.js';
+import { openCare } from './care.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -526,6 +528,19 @@ export function mount(container, params, ctx) {
       }
     });
     renderPaths();   // ground layer, above grass, below row-0 items (RUN10 P3) — renderScenery wipes ground
+    const caperText = getState().caper?.open && CAPER_SIGNS[AREA.key];
+    if (caperText) {
+      const sign = el('div', { class: 'caper-town-sign', text: caperText });
+      sign.style.left = (zoneW * .5) + 'px'; sign.style.top = (groundY - 56) + 'px';
+      ground.appendChild(sign);
+    }
+    const visitor = duskVisitor(AREA.key, currentHour());
+    if (visitor && BY_ID[visitor.id]) {
+      const visitorNode = el('button', { class: 'dusk-visitor', html: renderItem(BY_ID[visitor.id], { size: 58 }), onclick: () => {
+        if (tapDuskVisitor()) { sfx.pop(); const spark = el('span', { text: '✨' }); visitorNode.appendChild(spark); setTimeout(() => spark.remove(), 700); }
+      } });
+      visitorNode.style.left = (zoneW * .9) + 'px'; visitorNode.style.top = (groundY - 82) + 'px'; ground.appendChild(visitorNode);
+    }
     renderFallbackHideOak();
   }
 
@@ -853,7 +868,7 @@ export function mount(container, params, ctx) {
   }
 
   function renderFunfair() {
-    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap').forEach(n => n.remove());
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door').forEach(n => n.remove());
     if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
@@ -863,6 +878,9 @@ export function mount(container, params, ctx) {
     const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour())) });
     sc.style.left = (zi * zoneW) + 'px'; sc.style.top = '0'; sc.style.width = zoneW + 'px'; sc.style.height = viewH + 'px'; sc.style.zIndex = '1';
     ground.insertBefore(sc, ground.firstChild);
+    const discoDoor = el('button', { class: 'ff-disco-door', text: '✨ DISCO', onclick: () => { sfx.tap(); ctx.go('discohall'); } });
+    discoDoor.style.left = (zi * zoneW + zoneW * .78) + 'px'; discoDoor.style.top = (groundY - 108) + 'px'; discoDoor.style.zIndex = String(Math.round(groundY) + 2);
+    ground.appendChild(discoDoor);
     for (const ride of view.built) {
       const box = renderRide(ride);
       const px = zi * zoneW + RIDE_X[ride] * zoneW;
@@ -1881,7 +1899,10 @@ export function mount(container, params, ctx) {
   function openMenu(wrap, place, item) {
     closeMenu();
     const btns = [];
-    if (item.kind === 'boo') btns.push(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => { e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderPlaced() }); } }));
+    if (item.kind === 'boo') {
+      btns.push(el('button', { class: 'btn soft', text: '💗 Care', onclick: (e) => { e.stopPropagation(); closeMenu(); openCare(item.id, getDisplayName(item.id), { onDone: () => renderPlaced() }); } }));
+      btns.push(el('button', { class: 'btn soft', text: 'Dress up', onclick: (e) => { e.stopPropagation(); closeMenu(); openDressUp(item, { onDone: () => renderPlaced() }); } }));
+    }
     if (item.deco === 'easel') btns.push(el('button', { class: 'btn soft', text: 'Choose art 🖼️', onclick: (e) => { e.stopPropagation(); closeMenu(); chooseEaselArt(); } }));
     if (item.deco === 'stage') {
       btns.push(el('button', { class: 'btn soft', text: 'Choreograph 💃', onclick: (e) => { e.stopPropagation(); closeMenu(); openChoreographer(place, { onDone: () => renderPlaced() }); } }));

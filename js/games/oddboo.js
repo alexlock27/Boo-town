@@ -1,6 +1,44 @@
-import { el, confetti, REDUCED } from '../ui.js';
-import { featuresOf } from '../attrengine.js';
-import { getState, mutate } from '../state.js';
-const species=['pip','nova','munch','bloop'], colours=['teal','lilac','gold','bubblegum'];
-export function makeRound(tier=1){const n=tier===1?4:tier===2?9:12, path=tier>=3?'colour':'species', value=path==='species'?species[Math.floor(Math.random()*species.length)]:colours[Math.floor(Math.random()*colours.length)], other=(path==='species'?species:colours).find(x=>x!==value);const odd=Math.floor(Math.random()*n);const items=Array.from({length:n},(_,i)=>({id:i,species:path==='species'&&i===odd?other:'pip',colors:{body:path==='colour'&&i===odd?other:value}}));if(path==='species')items.forEach((x,i)=>{x.colors.body='teal';if(i===odd)x.species=other;else x.species=value;});return{items,odd,path};}
-export function mount(container,params,ctx){const root=el('div',{class:'screen oddboo'});container.appendChild(root);let tier=1,correct=0,round;const status=el('p',{class:'odd-status'}),grid=el('div',{class:'odd-grid'});const next=()=>{round=makeRound(tier);grid.innerHTML='';status.textContent='Find the Odd Boo!';round.items.forEach((item,i)=>grid.appendChild(el('button',{class:'odd-boo',style:{'--boo':item.colors.body},text:'👻',onclick:()=>{if(i===round.odd){correct++;status.textContent='POP! You found it!';if(correct%3===0&&!REDUCED)confetti({count:20,power:.4});tier=Math.min(3,1+Math.floor(correct/3));setTimeout(next,450);}else status.textContent='Have another look — it is hiding in plain sight.';}})));};root.append(el('h2',{text:'Odd Boo Out'}),status,grid,el('button',{class:'btn soft',text:'?',onclick:()=>status.textContent='One Boo is a little different.'}),el('button',{class:'btn soft',text:'Back',onclick:()=>ctx.go('hub')}));next();return{unmount(){}};}
+import { el, confetti, REDUCED, backControl, wobble } from '../ui.js';
+
+const SPECIES = ['pip', 'nova', 'munch', 'bloop'];
+const COLOURS = ['teal', 'lilac', 'gold', 'bubblegum'];
+const pick = list => list[Math.floor(Math.random() * list.length)];
+
+// A generated grid has one, and only one, visible rule-breaker. The exported shape
+// stays intentionally small so its truth table can be tested without a browser.
+export function makeRound(tier = 1) {
+  const n = tier === 1 ? 4 : tier === 2 ? 9 : 12;
+  const path = tier === 1 ? 'species' : pick(['species', 'colour']);
+  const value = pick(path === 'species' ? SPECIES : COLOURS);
+  const other = (path === 'species' ? SPECIES : COLOURS).find(item => item !== value);
+  const odd = Math.floor(Math.random() * n);
+  const items = Array.from({ length: n }, (_, index) => ({
+    id: index, species: path === 'species' ? (index === odd ? other : value) : 'pip',
+    colors: { body: path === 'colour' ? (index === odd ? other : value) : 'teal' }
+  }));
+  return { items, odd, path, value };
+}
+
+export function mount(container, params, ctx) {
+  const root = el('div', { class: 'screen oddboo' }); container.appendChild(root);
+  let tier = 1, found = 0, streak = 0, round;
+  const status = el('p', { class: 'odd-status' }); const grid = el('div', { class: 'odd-grid' });
+  const next = () => {
+    round = makeRound(tier); grid.innerHTML = ''; status.textContent = `Find the Odd Boo! ${found}/10`;
+    round.items.forEach((item, index) => {
+      const button = el('button', { class: 'odd-boo', style: { '--boo': item.colors.body }, text: '👻', onclick: event => {
+        if (index !== round.odd) { streak = 0; status.textContent = 'Have another look — it is hiding in plain sight.'; wobble(event.currentTarget); return; }
+        found++; streak++; status.textContent = streak >= 3 ? `POP! A ${streak}-in-a-row sparkle!` : 'POP! You found it!';
+        if (streak >= 3 && !REDUCED) confetti({ count: 20, power: .4 });
+        tier = Math.min(3, 1 + Math.floor(found / 3));
+        if (found >= 10) { setTimeout(() => ctx.go('results', { game: 'oddboo', gameName: 'Odd Boo Out', stars: 3, replay: () => ctx.go('oddboo') }), 500); return; }
+        setTimeout(next, 450);
+      } });
+      grid.appendChild(button);
+    });
+  };
+  root.append(el('h2', { text: 'Odd Boo Out' }), status, grid,
+    el('button', { class: 'btn soft', text: '?', onclick: () => status.textContent = 'Most Boos share something. One is different.' }),
+    backControl(() => ctx.go('hub'), { floating: true }));
+  next(); return { unmount() {} };
+}

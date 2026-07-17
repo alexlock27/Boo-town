@@ -147,6 +147,7 @@ export const CATALOGUE = [
 
   // --- Boo Quest exclusives (RUN6 C6): earned only by finishing a land, never in boxes ---
   { id: 'boo_scout', kind: 'boo', name: 'Scout', rarity: 'ultra', species: 'pip', colors: { body: 'teal' }, acc: 'explorerhat', questOnly: true, blurb: 'Map in paw, hat on head, always first to the horizon.' },
+  { id: 'boo_wander', kind: 'boo', name: 'Wander', rarity: 'ultra', species: 'nova', colors: { body: 'teal' }, acc: 'explorerhat', questOnly: true, blurb: 'A tiny explorer who only joins a party that finishes the whole trail.' },
   { id: 'deco_questflag', kind: 'deco', name: 'Quest Flag', rarity: 'rare', deco: 'questflag', questOnly: true, blurb: 'Planted at the end of the Sparkle Meadow. You were here!' }
 ];
 
