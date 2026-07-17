@@ -34,6 +34,7 @@ const GAMES = [
   { id: 'expedition',name: 'Boo Expedition', tag: 'Story trail', accent: 'var(--star)', icon: () => '🧭', group: 'Learn' },
   { id: 'oddboo', name: 'Odd Boo Out', tag: 'Spot the difference', accent:'var(--pop)', icon: () => '🔍', group:'Learn' },
   { id: 'flashboos', name: 'Flash Boos', tag: 'Look and remember', accent:'var(--zing)', icon: () => '🎭', group:'Learn' },
+  { id: 'wishwell', name: 'Wish Well', tag: 'Spell a little magic', accent:'var(--star)', icon: () => '🫧', group:'Play' },
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon, group: 'Learn' },
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon, group: 'Learn' },
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },

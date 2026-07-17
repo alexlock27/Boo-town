@@ -77,6 +77,7 @@ function freshSave() {
     care: { bonds: {}, treats: 0, rewards: {} }, // P12: affection only rises; no needs or timers
     expedition: { party: [], tiers: {}, progress: {} },
     caper: { open: false, culprit: '', clues: 0, cluesToday: 0, clueDay: '', guesses: 0, marked: [] },
+    wishes: {},
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
