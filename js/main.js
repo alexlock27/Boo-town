@@ -55,6 +55,8 @@ const registry = {
   expedition: () => import('./expedition/trail.js'),
   expeditionpuzzle: () => import('./expedition/puzzle.js'),
   caper: () => import('./caper/notebook.js'),
+  oddboo: () => import('./games/oddboo.js'),
+  flashboos: () => import('./games/flashboos.js'),
   grownups:   () => import('./grownups.js')
 };
 

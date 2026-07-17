@@ -24,6 +24,8 @@ const ASSETS = [
   'js/expedition/trail.js',
   'js/expedition/puzzle.js',
   'js/caper/notebook.js',
+  'js/games/oddboo.js',
+  'js/games/flashboos.js',
   'js/onboarding.js',
   'js/creator.js',
   'js/rewards.js',
