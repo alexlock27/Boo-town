@@ -23,6 +23,7 @@ import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './
 import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
+import { BY_ID } from '../data/catalogue.js';
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -35,6 +36,7 @@ const GAMES = [
   { id: 'oddboo', name: 'Odd Boo Out', tag: 'Spot the difference', accent:'var(--pop)', icon: () => '🔍', group:'Learn' },
   { id: 'flashboos', name: 'Flash Boos', tag: 'Look and remember', accent:'var(--zing)', icon: () => '🎭', group:'Learn' },
   { id: 'wishwell', name: 'Wish Well', tag: 'Spell a little magic', accent:'var(--star)', icon: () => '🫧', group:'Play' },
+  { id: 'discohall', name: 'Disco Hall', tag: 'Dance on the beat', accent:'var(--pop)', icon: () => '🪩', group:'Play' },
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon, group: 'Learn' },
   { id: 'feedboos',  name: 'Feed the Boos', tag: 'Number sense',  accent: 'var(--zing)', icon: feedIcon, group: 'Learn' },
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
@@ -105,6 +107,7 @@ export function mount(container, params, ctx) {
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
+  try { const care = careState(); const bff = Object.keys(care.bonds || {}).find(id => (care.bonds[id] || 0) >= 70 && BY_ID[id]); if (bff) gb.root.appendChild(el('span', { class: 'hub-bff', text: '👻♥', title: getDisplayName(bff) })); } catch {}
   const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
 
   // Boo of the Day (RUN4 C9): rotates at local midnight; now a Today-rail chip (C3).

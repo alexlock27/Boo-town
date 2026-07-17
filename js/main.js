@@ -58,6 +58,7 @@ const registry = {
   oddboo: () => import('./games/oddboo.js'),
   flashboos: () => import('./games/flashboos.js'),
   wishwell: () => import('./wishwell.js'),
+  discohall: () => import('./discohall.js'),
   grownups:   () => import('./grownups.js')
 };
 

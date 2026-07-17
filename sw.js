@@ -27,6 +27,7 @@ const ASSETS = [
   'js/games/oddboo.js',
   'js/games/flashboos.js',
   'js/wishwell.js',
+  'js/discohall.js',
   'js/onboarding.js',
   'js/creator.js',
   'js/rewards.js',
