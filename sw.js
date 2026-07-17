@@ -22,6 +22,7 @@ const ASSETS = [
   'js/care.js',
   'js/attrengine.js',
   'js/expedition/trail.js',
+  'js/expedition/puzzle.js',
   'js/onboarding.js',
   'js/creator.js',
   'js/rewards.js',

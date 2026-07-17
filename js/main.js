@@ -53,6 +53,7 @@ const registry = {
   bandjams:   () => import('./band/jams.js'),
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   expedition: () => import('./expedition/trail.js'),
+  expeditionpuzzle: () => import('./expedition/puzzle.js'),
   grownups:   () => import('./grownups.js')
 };
 
