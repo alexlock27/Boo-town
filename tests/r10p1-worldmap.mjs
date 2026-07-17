@@ -136,7 +136,7 @@ console.log('== legacy flat-array save migrates every item into its mapped area 
   }
   assert(ok, 'all 12 legacy items land in their mapped area at the exact proportional x (ratio 1.7/4)');
   assert(migrated.town.areas.playground.items.length === 0 && migrated.town.areas.boohouse.items.length === 0 && migrated.town.areas.gallery.items.length === 0, 'playground/boohouse/gallery start empty (no legacy zone key)');
-  assert(migrated.version === 6, 'save version bumped to 6');
+  assert(migrated.version === 7, 'save version bumped through the current RUN10 schema (v7)');
 }
 
 // ==================== entry crossfade ====================

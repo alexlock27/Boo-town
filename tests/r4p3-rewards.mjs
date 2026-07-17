@@ -68,7 +68,7 @@ console.log('== v5 migration ==');
 {
   const { ctx, page } = await fresh(SAVE({ stars: { total: 137, byGame: {} }, inventory: { boo_inky: 2, deco_pond: 1 } }));
   const s = await page.evaluate(() => window.BooTown.State.getState());
-  assert(s.version === 6, 'save migrates to the current version (' + s.version + ')');   // RUN10 P1 bumped VERSION 5->6
+  assert(s.version === 7, 'save migrates to the current version (' + s.version + ')');
   assert(s.stars.total === 137 && s.inventory.boo_inky === 2 && s.inventory.deco_pond === 1, 'migration is lossless (stars + inventory intact)');
   assert(s.threeStars && typeof s.threeStars === 'object', 'threeStars field present');
   assert(s.brave && 'day' in s.brave && 'cats' in s.brave, 'brave claims field present');
@@ -102,7 +102,7 @@ console.log('== v5 migration ==');
   await page.click('.creator-btns .btn.big');
   await page.waitForSelector('.intro-block');
   const s = await page.evaluate(() => window.BooTown.State.getState());
-  assert(s.version === 6 && s.chest && s.chest.welcome === false, 'a brand-new save gets no welcome chest (anchor 0)');
+  assert(s.version === 7 && s.chest && s.chest.welcome === false, 'a brand-new save gets no welcome chest (anchor 0)');
   await ctx.close();
 }
 
