@@ -125,16 +125,22 @@ export const CATALOGUE = [
 
   // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
   // Wearable on any Boo (one slot each) and on the player's own character.
-  { id: 'acc_bow',          kind: 'accessory', name: 'Purple Bow',     rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
-  { id: 'acc_sunhat',       kind: 'accessory', name: 'Sun Hat',        rarity: 'common', art: 'sunhat',       blurb: 'Wide brim, tiny flower, maximum holiday energy.' },
-  { id: 'acc_shades',       kind: 'accessory', name: 'Star Sunglasses',rarity: 'common', art: 'shades',       blurb: 'Star-shaped shades for a Boo who is going places.' },
-  { id: 'acc_scarf',        kind: 'accessory', name: 'Cosy Scarf',     rarity: 'common', art: 'scarf',        blurb: 'Knitted with love and just a little bit of magic.' },
-  { id: 'acc_flowercrown',  kind: 'accessory', name: 'Flower Crown',   rarity: 'rare',   art: 'flowercrown',  blurb: 'A ring of little blooms for a woodland royal.' },
-  { id: 'acc_heartglasses', kind: 'accessory', name: 'Heart Glasses',  rarity: 'rare',   art: 'heartglasses', blurb: 'Everything looks lovelier through heart-shaped lenses.' },
-  { id: 'acc_wizardhat',    kind: 'accessory', name: 'Wizard Hat',     rarity: 'rare',   art: 'wizardhat',    blurb: 'Pointy, starry, and possibly a bit enchanted.' },
-  { id: 'acc_goldcrown',    kind: 'accessory', name: 'Golden Crown',   rarity: 'ultra',  art: 'goldcrown',    blurb: 'Solid gold, extremely shiny, absolutely deserved.' },
-  { id: 'acc_cape',         kind: 'accessory', name: 'Sparkle Cape',   rarity: 'ultra',  art: 'cape',    fx: 'shimmer', blurb: 'Swishes dramatically even when there is no wind.' },
-  { id: 'acc_djheadphones', kind: 'accessory', name: 'DJ Headphones',  rarity: 'rare',   art: 'djheadphones', blurb: 'Drop the beat! (DJ Boo already has a pair, thanks.)' },
+  { id: 'acc_bow',          kind: 'accessory', slot:'hat', name: 'Purple Bow',     rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
+  { id: 'acc_sunhat',       kind: 'accessory', slot:'hat', name: 'Sun Hat',        rarity: 'common', art: 'sunhat',       blurb: 'Wide brim, tiny flower, maximum holiday energy.' },
+  { id: 'acc_shades',       kind: 'accessory', slot:'face',name: 'Star Sunglasses',rarity: 'common', art: 'shades',       blurb: 'Star-shaped shades for a Boo who is going places.' },
+  { id: 'acc_scarf',        kind: 'accessory', slot:'hat', name: 'Cosy Scarf',     rarity: 'common', art: 'scarf',        blurb: 'Knitted with love and just a little bit of magic.' },
+  { id: 'acc_flowercrown',  kind: 'accessory', slot:'hat', name: 'Flower Crown',   rarity: 'rare',   art: 'flowercrown',  blurb: 'A ring of little blooms for a woodland royal.' },
+  { id: 'acc_heartglasses', kind: 'accessory', slot:'face',name: 'Heart Glasses',  rarity: 'rare',   art: 'heartglasses', blurb: 'Everything looks lovelier through heart-shaped lenses.' },
+  { id: 'acc_wizardhat',    kind: 'accessory', slot:'hat', name: 'Wizard Hat',     rarity: 'rare',   art: 'wizardhat',    blurb: 'Pointy, starry, and possibly a bit enchanted.' },
+  { id: 'acc_goldcrown',    kind: 'accessory', slot:'hat', name: 'Golden Crown',   rarity: 'ultra',  art: 'goldcrown',    blurb: 'Solid gold, extremely shiny, absolutely deserved.' },
+  { id: 'acc_cape',         kind: 'accessory', slot:'hat', name: 'Sparkle Cape',   rarity: 'ultra',  art: 'cape',    fx: 'shimmer', blurb: 'Swishes dramatically even when there is no wind.' },
+  { id: 'acc_djheadphones', kind: 'accessory', slot:'hat', name: 'DJ Headphones',  rarity: 'rare',   art: 'djheadphones', blurb: 'Drop the beat! (DJ Boo already has a pair, thanks.)' },
+  { id: 'acc_starcheek', kind:'accessory', slot:'face', name:'Star Cheek', rarity:'rare', art:'starcheek', blurb:'A tiny painted star that catches every smile.' },
+  { id: 'acc_rainbowstripe', kind:'accessory', slot:'face', name:'Rainbow Stripe', rarity:'rare', art:'rainbowstripe', blurb:'A bright cheek stripe for every adventure.' },
+  { id: 'acc_whiskers', kind:'accessory', slot:'face', name:'Whiskers', rarity:'rare', art:'whiskers', blurb:'Three little whiskers, maximum curiosity.' },
+  { id: 'acc_heartcheek', kind:'accessory', slot:'face', name:'Heart Cheek', rarity:'rare', art:'heartcheek', blurb:'A heart painted right where giggles live.' },
+  { id: 'acc_rollerskates', kind:'accessory', slot:'feet', name:'Roller Skates', rarity:'ultra', art:'rollerskates', blurb:'Glidey wheels for Boos who cannot queue.' },
+  { id: 'acc_wellies', kind:'accessory', slot:'feet', name:'Rainbow Wellies', rarity:'rare', art:'wellies', blurb:'Rainy-day boots for excellent splashing.' },
 
   // --- Free Easel (RUN3 C6): granted with the Studio, never drops from boxes ---
   { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' },

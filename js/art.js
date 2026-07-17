@@ -303,7 +303,7 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
 
   const booAnchor = { cx: 60, topY: 30, eyeY: 80, earY: 70, R: 45 };
   let accSvg = '';
-  if (equipArt) accSvg = accessoryArt(equipArt, booAnchor);
+  if (equipArt) accSvg = (Array.isArray(equipArt) ? equipArt : [equipArt]).map(a => accessoryArt(a, booAnchor)).join('');
   else if (item.acc && item.acc !== 'none') accSvg = accessory(item.acc) || accessoryArt(item.acc, booAnchor);
 
   const fxCls = item.fx ? ` fx-${item.fx}` : '';
@@ -623,6 +623,12 @@ export function accessoryArt(key, a) {
              path(starPath(cx + R * 0.42, y, r, r * 0.42), INK, `stroke="${COLORS.gold}" stroke-width="2.4"`) +
              `<line x1="${cx-R*0.1}" y1="${y}" x2="${cx+R*0.1}" y2="${y}" stroke="${COLORS.gold}" stroke-width="3"/>`;
     }
+    case 'starcheek': return path(starPath(cx - R * .54, eyeY + R * .42, R * .19, R * .08), COLORS.gold, ink(1.5));
+    case 'rainbowstripe': return `<path d="M${cx-R*.72} ${eyeY+R*.28} L${cx-R*.24} ${eyeY+R*.48}" stroke="#FF7AC6" stroke-width="4"/><path d="M${cx-R*.72} ${eyeY+R*.36} L${cx-R*.24} ${eyeY+R*.56}" stroke="#35D0BA" stroke-width="4"/><path d="M${cx-R*.72} ${eyeY+R*.44} L${cx-R*.24} ${eyeY+R*.64}" stroke="#FFC93C" stroke-width="4"/>`;
+    case 'whiskers': return `<path d="M${cx-R*.2} ${eyeY+R*.35} L${cx-R*.95} ${eyeY+R*.2}M${cx-R*.2} ${eyeY+R*.43} L${cx-R*.98} ${eyeY+R*.48}M${cx-R*.2} ${eyeY+R*.5} L${cx-R*.9} ${eyeY+R*.75}" fill="none" ${ink(1.8)}/>`;
+    case 'heartcheek': return heartShape(cx + R * .48, eyeY + R * .45, R * .18, COLORS.pink);
+    case 'rollerskates': return `<g ${ink(2)} fill="#8FC7FF"><rect x="${cx-R*.72}" y="${eyeY+R*.92}" width="${R*.55}" height="${R*.18}" rx="3"/><rect x="${cx+R*.17}" y="${eyeY+R*.92}" width="${R*.55}" height="${R*.18}" rx="3"/><circle cx="${cx-R*.5}" cy="${eyeY+R*1.17}" r="${R*.12}"/><circle cx="${cx+R*.45}" cy="${eyeY+R*1.17}" r="${R*.12}"/></g>`;
+    case 'wellies': return `<g ${ink(2)} fill="#FF7AC6"><path d="M${cx-R*.62} ${eyeY+R*.7}v${R*.42}h${R*.5}v-${R*.17}h-${R*.18}v-${R*.25}z"/><path d="M${cx+R*.12} ${eyeY+R*.7}v${R*.42}h${R*.5}v-${R*.17}h-${R*.18}v-${R*.25}z"/></g>`;
     case 'scarf': {
       const y = eyeY + R * 0.58;
       return path(`M${cx-R*0.8} ${y} Q${cx} ${y+R*0.28} ${cx+R*0.8} ${y} L${cx+R*0.72} ${y+R*0.22} Q${cx} ${y+R*0.5} ${cx-R*0.72} ${y+R*0.22} Z`, cosy, ink()) +

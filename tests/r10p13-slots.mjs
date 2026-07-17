@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const BASE = process.env.BASE || 'http://127.0.0.1:8000'; let failed = false;
+const assert = (ok, msg) => { console.log((ok ? '✓' : 'FAIL:'), msg); if (!ok) failed = true; };
+const browser = await chromium.launch(); const page = await browser.newPage();
+await page.goto(BASE + '/index.html');
+await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 7, name: 'Ada', guide: {}, inventory: { boo_inky: 1, acc_bow: 1, acc_goldcrown: 1, acc_heartcheek: 1, acc_wellies: 1 }, stars: { total: 100, byGame: {} }, town: { areas: {} }, seen: { trophyRetro: true }, settings: {} })));
+await page.reload(); await page.waitForSelector('.hub');
+const result = await page.evaluate(async () => { const a = await import('./js/accessories.js'); a.equip('boo_inky', 'acc_bow'); a.equip('boo_inky', 'acc_heartcheek'); a.equip('boo_inky', 'acc_wellies'); a.equip('boo_inky', 'acc_goldcrown'); return { slots: window.BooTown.State.getState().equips.boo_inky, arts: a.equippedArt('boo_inky') }; });
+assert(result.slots.hat === 'acc_goldcrown' && result.slots.face === 'acc_heartcheek' && result.slots.feet === 'acc_wellies', 'one item is kept per accessory slot');
+assert(result.arts.length === 3, 'hat, face and feet art render together');
+await browser.close(); console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS')); process.exit(failed ? 1 : 0);

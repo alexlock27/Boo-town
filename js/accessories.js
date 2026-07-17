@@ -29,12 +29,15 @@ export function officialName(id) { return baseName(id); }
 // The art key of the accessory equipped on a Boo (or null).
 export function equippedArt(booId) {
   const s = getState();
-  const accId = s && s.equips && s.equips[booId];
-  return accId && BY_ID[accId] ? BY_ID[accId].art : null;
+  const raw = s && s.equips && s.equips[booId];
+  const slots = typeof raw === 'string' ? { hat: raw } : (raw || {});
+  const arts = Object.values(slots).map(id => BY_ID[id] && BY_ID[id].art).filter(Boolean);
+  return arts.length ? arts : null;
 }
 export function equippedId(booId) {
   const s = getState();
-  return (s && s.equips && s.equips[booId]) || null;
+  const raw = (s && s.equips && s.equips[booId]) || null;
+  return typeof raw === 'string' ? raw : raw && raw.hat || null;
 }
 
 // Render an owned Boo with whatever it currently wears (convenience).
@@ -53,7 +56,7 @@ function refuses(booId, accId) {
 }
 
 export function equip(booId, accId) {
-  mutate(s => { s.equips[booId] = accId; });
+  mutate(s => { const current = s.equips[booId]; const slots = typeof current === 'string' ? { hat: current } : { ...(current || {}) }; const slot = (BY_ID[accId] || {}).slot || 'hat'; slots[slot] = accId; s.equips[booId] = slots; });
   noteQuest('dressUp');   // daily quest: dress up a Boo (RUN3 C4)
   noteRequest('dressUp'); // occasional request (RUN3 C8)
 }
