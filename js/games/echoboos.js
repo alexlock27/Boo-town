@@ -24,7 +24,8 @@ const BOOS = [
 ];
 
 // Pace: the gap between sung notes shrinks as the sequence grows, capped kid-friendly.
-const BASE_GAP = 640, MIN_GAP = 360, GAP_STEP = 26, LIT_MS = 400;
+export const BASE_GAP = 440, MIN_GAP = 250, GAP_STEP = 32, LIT_MS = 400;
+export const LIGHTNING_BASE_GAP = 330, LIGHTNING_MIN_GAP = 200, LIGHTNING_EVERY = 3, LIGHTNING_CURVE = .94;
 const TOD_BASE_GAP = 820, TOD_MIN_GAP = 560, TOD_CAP = 6;   // Toddler: slower + a gentle length cap
 const rand = (n) => (Math.random() * n) | 0;
 
@@ -48,18 +49,19 @@ export function mount(container, params, ctx) {
   else startCard();
   if (!introSeen('echoboos')) runIntro('echoboos', { steps: ECHO_INTRO });
 
-  function echoBest() { return (getState().seen && getState().seen.echoBest) || 0; }
+  function echoBest(lightning = false) { return (getState().seen && getState().seen[lightning ? 'echoBestLightning' : 'echoBest']) || 0; }
 
   function startCard() {
     clearTimers(); clear(root);
     music.play('game');
     const s = getState();
-    const best = echoBest();
+    const best = echoBest(), lightningBest = echoBest(true);
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 104 }) }),
       el('h2', { text: '🎵 Echo Boos' }),
       el('p', { class: 'sc-intro', text: 'Listen to the tune, then echo it back!' }),
-      el('div', { class: 'echo-best', text: best > 0 ? `Your best echo: ${best} notes` : 'Play to set your best echo!' }),
+      el('div', { class: 'echo-best', text: best > 0 ? `Your best echo: ${best} notes` : 'Play to set your first best echo!' }),
+      el('div', { class: 'echo-best echo-lightning-best', text: lightningBest ? `⚡ Lightning best: ${lightningBest} notes` : '⚡ Lightning: a speedy separate best' }),
       el('button', { class: 'btn big', text: '▶ Play', onclick: () => { sfx.tap(); play(); } })
     ]);
     card.appendChild(el('div', { class: 'star-rule' }, [
@@ -70,7 +72,7 @@ export function mount(container, params, ctx) {
     root.appendChild(backControl(() => ctx.go(toddler ? 'hub' : 'hub'), { floating: true }));
   }
 
-  function play() {
+  function play(lightning = false) {
     clearTimers(); clear(root);
     music.play('game');
     let sequence = [rand(4)];
@@ -89,26 +91,28 @@ export function mount(container, params, ctx) {
 
     const status = el('div', { class: 'echo-status', text: 'Listen…' });
     const lenChip = el('div', { class: 'echo-len', text: 'Tune: 1' });
-    root.append(el('div', { class: 'echo-top' }, [lenChip, status]), board);
+    const lightningToggle = toddler ? null : el('button', { class: 'echo-lightning-toggle' + (lightning ? ' on' : ''), text: lightning ? '⚡ Lightning on' : '⚡ Lightning', onclick: () => { clearTimers(); play(!lightning); } });
+    root.append(el('div', { class: 'echo-top' }, [lenChip, status, ...(lightningToggle ? [lightningToggle] : [])]), board);
     root.appendChild(backControl(() => { clearTimers(); ctx.go('hub'); }, { floating: true }));
 
     startPlayback();
 
     if (typeof window !== 'undefined') window.__echo = {
       sequence: () => sequence.slice(), tap: onTap, play: () => startPlayback(),
-      state: () => ({ len: sequence.length, pos, bestLen, mercyUsed, inputPhase, ended, awaiting, toddler }),
+      state: () => ({ len: sequence.length, pos, bestLen, mercyUsed, inputPhase, ended, awaiting, toddler, lightning }),
       notes: () => BOOS.map(b => b.semi), cap: () => (toddler ? TOD_CAP : Infinity),
       // drive a full correct echo of the current sequence (QA)
       echoAll: () => { if (!inputPhase) return false; const seq = sequence.slice(); seq.forEach(i => onTap(i)); return true; },
       isLit: (i) => podiums[i].boo.classList.contains('lit'),
       anyLit: () => podiums.some(p => p.boo.classList.contains('lit')),
-      gap: (len) => gapFor(len), minGap: () => (toddler ? TOD_MIN_GAP : MIN_GAP),
+      gap: (len) => gapFor(len), minGap: () => (toddler ? TOD_MIN_GAP : lightning ? LIGHTNING_MIN_GAP : MIN_GAP),
       stars: () => starsFor(bestLen)
     };
 
     function gapFor(len) {
       if (toddler) return Math.max(TOD_MIN_GAP, TOD_BASE_GAP - len * GAP_STEP);
-      return Math.max(MIN_GAP, BASE_GAP - len * GAP_STEP);
+      const base = lightning ? LIGHTNING_BASE_GAP : BASE_GAP, floor = lightning ? LIGHTNING_MIN_GAP : MIN_GAP;
+      return Math.max(floor, (base - len * GAP_STEP) * Math.pow(LIGHTNING_CURVE, Math.floor((len - 1) / LIGHTNING_EVERY)));
     }
     function light(i, dur) {
       const boo = podiums[i].boo;
@@ -160,7 +164,7 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true; inputPhase = false; clearTimers();
       status.textContent = msg;
       const stars = starsFor(bestLen);
-      if (bestLen > echoBest()) mutate(s => { s.seen.echoBest = bestLen; });
+      if (bestLen > echoBest(lightning)) mutate(s => { s.seen[lightning ? 'echoBestLightning' : 'echoBest'] = bestLen; });
       if (!REDUCED && bestLen >= 5) confetti({ count: 50, power: 1 });
       after(1600, () => ctx.go('results', { game: 'echoboos', gameName: 'Echo Boos', stars, level: null, cat: null, mix: false, replay: () => ctx.go('echoboos', { resume: true }) }));
     }

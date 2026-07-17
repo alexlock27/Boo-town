@@ -39,7 +39,11 @@ export function mount(container, params, ctx) {
     function render() {
       wrap.innerHTML = '';
       const voices = tts.available() ? tts.listVoices() : [];
-      if (!voices.length) { wrap.style.display = 'none'; return; }   // hide gracefully where absent
+      if (!voices.length) {
+        wrap.style.display = '';
+        wrap.appendChild(el('p', { class: 'gu-note', text: "Install the English (UK) voice in the tablet's text-to-speech settings for a nicer voice." }));
+        return;
+      }
       wrap.style.display = '';
       const chosen = (getState().settings.voiceName) || tts.getVoiceName();
       wrap.appendChild(el('div', { class: 'gu-voice-label', text: 'Choose a voice' }));

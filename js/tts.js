@@ -29,13 +29,13 @@ function pickVoice() {
 }
 
 // ---- voice picker support (RUN9 C6b) ----
-// List the device's installed English voices, local voices first. Empty when the API
-// or voices are absent (the Settings section then hides gracefully).
+// List only English (UK) voices, local voices first. A child hears the same regional
+// pronunciation throughout; the grown-ups screen supplies a useful install tip if none
+// are installed instead of quietly falling back to an unrelated English voice.
 export function listVoices() {
   if (!available()) return [];
   const voices = window.speechSynthesis.getVoices() || [];
-  const en = voices.filter(v => /^en[-_]/i.test(v.lang) || /english/i.test(v.name || ''));
-  return en
+  return voices.filter(v => /^en[-_]GB$/i.test(v.lang))
     .map(v => ({ name: v.name, lang: v.lang, local: !!v.localService }))
     .sort((a, b) => (b.local ? 1 : 0) - (a.local ? 1 : 0));   // prefer local voices in the listing
 }
