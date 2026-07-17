@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 6;   // v6 (RUN10 P1): town becomes area-scoped (save.town.areas). v5 (RUN4): comfort levels + Brave claims, medal counters, trophies, town growth, shinies, the Star Chest, daily delights. Lossless via deepDefaults; chest anchor set in migrate().
+export const VERSION = 7;   // v7 (RUN10 P8): side-view Boo Roll courses; RUN9 records are retained under booRoll.legacy.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -73,7 +73,7 @@ function freshSave() {
     funfair: { built: [], build: null, pending: [], seats: {} },  // Boo Funfair rides + seat riders (RUN6 C1b)
     bandSong: null,             // id of the saved jam set as the bandstand's watch-mode song (RUN6 C1c)
     quest: { node: 0, lands: {} },  // Boo Quest progress: current node in the active land + completed lands (RUN6 C6)
-    booRoll: { best: {}, medals: {} },  // Boo Roll per-course best times (ms) + best medal (RUN9 C4)
+    booRoll: { best: {}, medals: {}, legacy: { best: {}, medals: {} } },  // P8 keeps RUN9 records separately
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
@@ -160,6 +160,19 @@ export function migrate(obj) {
       const a = merged.town.areas[key];
       if (!a || typeof a !== 'object') merged.town.areas[key] = { items: [], paths: [] };
       else { if (!Array.isArray(a.items)) a.items = []; if (!Array.isArray(a.paths)) a.paths = []; }
+    }
+  }
+  // v7 (RUN10 P8): the old top-down courses were roll1…roll6.  Their personal bests
+  // and medals remain part of the child's history, but must not be shown as progress
+  // against the three new side-view courses.  Copy (rather than erase) so a hand-edited
+  // or interrupted save is lossless and repeat migration remains harmless.
+  if (!merged.booRoll || typeof merged.booRoll !== 'object') merged.booRoll = { best: {}, medals: {}, legacy: { best: {}, medals: {} } };
+  if (!merged.booRoll.legacy || typeof merged.booRoll.legacy !== 'object') merged.booRoll.legacy = { best: {}, medals: {} };
+  for (const field of ['best', 'medals']) {
+    if (!merged.booRoll[field] || typeof merged.booRoll[field] !== 'object') merged.booRoll[field] = {};
+    if (!merged.booRoll.legacy[field] || typeof merged.booRoll.legacy[field] !== 'object') merged.booRoll.legacy[field] = {};
+    for (const [key, value] of Object.entries(merged.booRoll[field])) {
+      if (/^roll[1-6]$/.test(key) && merged.booRoll.legacy[field][key] == null) merged.booRoll.legacy[field][key] = value;
     }
   }
   merged.version = VERSION;

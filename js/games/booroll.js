@@ -1,408 +1,166 @@
-// js/games/booroll.js — Boo Roll (RUN9 C4): tilt the tablet to roll a Boo through a course,
-// in the Crash-Course tradition, gentled. Six authored single-screen courses of rising
-// trickiness (walls, gentle slopes, holes, a midway checkpoint flag, 3 pickup stars each).
-// Input: deviceorientation tilt with a hold-flat calibration + a re-centre button, low-pass
-// smoothing + a sensitivity constant; iOS shows a one-tap permission button first play; the
-// always-available fallback is a virtual thumb-stick (drag to lean), offered automatically
-// wherever sensors are absent/denied and doubling as the reduced-motion mode. Rolling into a
-// hole respawns at the last flag with a boing + a small time cost — never a fail. Friendly
-// clock; authored par times award bronze/silver/gold medals (Trophy Room + course-map).
-
+// js/games/booroll.js — RUN10 P7/P8 Boo Roll: a side-on, segment-authored course.
 import { el, clear, backControl, REDUCED, confetti, sparkleAt } from '../ui.js';
 import { getState, mutate } from '../state.js';
 import { renderGuide } from '../art.js';
-import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
-import { haptic } from '../haptics.js';
-import { runIntro, introSeen } from '../intro.js';
 import { checkAndCelebrate } from '../trophies.js';
+import { COURSES } from '../../data/courses.js';
+import { GRAV, FRICTION, MAX_SPEED, BOUNCE, slopeStep, shouldBonk, buildGround } from './boorollphysics.js';
 
-const FW = 1000, FH = 640;           // virtual field (landscape-first, letterboxed to fit)
-const BALL_R = 18;
-const SENS = 0.85;                    // tilt → acceleration
-const FRICTION = 0.945;              // per-frame velocity damping (rolling resistance)
-const BOUNCE = 0.55;                 // wall restitution (damped)
-const MAX_SPEED = 13;
-const LOWPASS = 0.18;               // orientation smoothing
-const HOLE_TIME_COST = 2000;        // ms added when you fall in a hole
-const SENSOR_WAIT_MS = 1600;        // no orientation event by now → offer the finger fallback
-// RUN10 P7 side-view engine constants (P8 supplies the segment courses).
-export const GRAV = 0.55, TILT_ACC = SENS, DEADZONE = 1.5, BONK_IMPACT = 11, FALL_LIMIT = 260;
-export const BONK_MS = 700, CHUTE_MS = 1400, CLOCK_PENALTY = 2500, CAM_LERP = 0.12, GLOW_DIST = 180;
-
-// Guide body colour → the rolled ball colour (matches the creator options).
+export { COURSES };
+export const COURSE_IDS = COURSES.map(c => c.key);
+export const SENS = .85, LOWPASS = .18, DEADZONE = 1.5, BONK_IMPACT = 11, FALL_LIMIT = 260;
+export const BONK_MS = 700, CHUTE_MS = 1400, CLOCK_PENALTY = 2500, CAM_LERP = .12, GLOW_DIST = 180;
+const W = 1000, H = 580, BASE_Y = 420, BALL_R = 18, SENSOR_WAIT_MS = 1600;
 const BODY_HEX = { sunshine: '#FFD166', lilac: '#C6A9F0', sky: '#8FC7FF' };
-
-// ---- the six authored courses (RUN9 C4), rising trickiness. Coordinates in the 1000×640
-// field; the border is a wall. Par times in seconds (gold < silver < bronze). ----
-export const COURSES = [
-  { id: 'roll1', name: 'First Roll', tip: 'Lean gently — roll to the flag, then the ring!',
-    start: { x: 90, y: 90 }, flag: { x: 500, y: 330 }, goal: { x: 910, y: 550 },
-    walls: [{ x: 250, y: 0, w: 40, h: 400 }, { x: 620, y: 240, w: 40, h: 400 }],
-    holes: [{ x: 500, y: 120, r: 44 }],
-    stars: [{ x: 160, y: 500 }, { x: 780, y: 120 }, { x: 500, y: 560 }],
-    par: { gold: 15, silver: 24, bronze: 38 } },
-  { id: 'roll2', name: 'Zig Zag', tip: 'Weave through the zigzag walls.',
-    start: { x: 90, y: 90 }, flag: { x: 500, y: 320 }, goal: { x: 910, y: 90 },
-    walls: [{ x: 200, y: 0, w: 40, h: 460 }, { x: 420, y: 180, w: 40, h: 460 }, { x: 640, y: 0, w: 40, h: 460 }, { x: 0, y: 300, w: 200, h: 36 }],
-    holes: [{ x: 320, y: 540, r: 42 }, { x: 560, y: 90, r: 42 }],
-    stars: [{ x: 120, y: 560 }, { x: 540, y: 560 }, { x: 900, y: 540 }],
-    par: { gold: 18, silver: 28, bronze: 44 } },
-  { id: 'roll3', name: 'Hole in One', tip: 'Mind the holes — go around!',
-    start: { x: 90, y: 550 }, flag: { x: 500, y: 320 }, goal: { x: 910, y: 90 },
-    walls: [{ x: 300, y: 200, w: 400, h: 40 }, { x: 300, y: 400, w: 400, h: 40 }],
-    holes: [{ x: 200, y: 320, r: 44 }, { x: 500, y: 120, r: 44 }, { x: 500, y: 520, r: 44 }, { x: 800, y: 320, r: 44 }],
-    stars: [{ x: 120, y: 90 }, { x: 500, y: 320 }, { x: 900, y: 550 }],
-    par: { gold: 20, silver: 32, bronze: 50 } },
-  { id: 'roll4', name: 'The Narrows', tip: 'Steady now — thread the narrow gaps.',
-    start: { x: 90, y: 90 }, flag: { x: 520, y: 320 }, goal: { x: 910, y: 550 },
-    walls: [{ x: 0, y: 200, w: 380, h: 36 }, { x: 480, y: 200, w: 520, h: 36 }, { x: 0, y: 420, w: 620, h: 36 }, { x: 720, y: 420, w: 280, h: 36 }, { x: 300, y: 236, w: 36, h: 184 }],
-    holes: [{ x: 430, y: 120, r: 40 }, { x: 660, y: 320, r: 40 }, { x: 180, y: 540, r: 40 }],
-    stars: [{ x: 430, y: 320 }, { x: 900, y: 120 }, { x: 120, y: 320 }],
-    par: { gold: 22, silver: 34, bronze: 54 } },
-  { id: 'roll5', name: 'Round the Bend', tip: 'Curl around the spiral.',
-    start: { x: 500, y: 320 }, flag: { x: 500, y: 90 }, goal: { x: 90, y: 90 },
-    walls: [{ x: 200, y: 160, w: 600, h: 36 }, { x: 764, y: 160, w: 36, h: 340 }, { x: 200, y: 464, w: 600, h: 36 }, { x: 200, y: 300, w: 36, h: 200 }, { x: 340, y: 300, w: 320, h: 36 }],
-    holes: [{ x: 620, y: 400, r: 40 }, { x: 300, y: 400, r: 40 }, { x: 880, y: 320, r: 44 }],
-    stars: [{ x: 500, y: 400 }, { x: 620, y: 90 }, { x: 90, y: 550 }],
-    par: { gold: 24, silver: 38, bronze: 58 } },
-  { id: 'roll6', name: 'Grand Roll', tip: 'The big one — everything at once!',
-    start: { x: 90, y: 90 }, flag: { x: 500, y: 320 }, goal: { x: 910, y: 550 },
-    walls: [{ x: 220, y: 0, w: 36, h: 360 }, { x: 220, y: 460, w: 36, h: 180 }, { x: 420, y: 140, w: 36, h: 500 }, { x: 620, y: 0, w: 36, h: 360 }, { x: 620, y: 460, w: 36, h: 180 }, { x: 800, y: 140, w: 36, h: 500 }, { x: 256, y: 324, w: 164, h: 36 }],
-    holes: [{ x: 330, y: 120, r: 40 }, { x: 330, y: 540, r: 40 }, { x: 530, y: 90, r: 40 }, { x: 720, y: 320, r: 40 }, { x: 720, y: 560, r: 40 }],
-    stars: [{ x: 120, y: 560 }, { x: 530, y: 540 }, { x: 900, y: 90 }],
-    par: { gold: 28, silver: 44, bronze: 66 } }
-];
-export const COURSE_IDS = COURSES.map(c => c.id);
-
-const ROLL_INTRO = [
-  { text: 'Tilt the tablet to roll your Boo around the course!' },
-  { text: 'Touch the flag, grab the stars, reach the ring to finish.' },
-  { text: 'No tilt? Drag the finger stick instead. Fall in a hole? Just a little boing!' }
-];
-
-export function medalFor(course, seconds) {
-  const p = course.par;
-  if (seconds <= p.gold) return 'gold';
-  if (seconds <= p.silver) return 'silver';
-  if (seconds <= p.bronze) return 'bronze';
-  return null;   // finished but over bronze par → still a finish, no medal
-}
 const MEDAL_ICON = { gold: '🥇', silver: '🥈', bronze: '🥉' };
 
+export function medalFor(course, seconds) {
+  if (seconds <= course.parGold) return 'gold';
+  if (seconds <= course.parSilver) return 'silver';
+  if (seconds <= course.parBronze) return 'bronze';
+  return null;
+}
+
 export function mount(container, params, ctx) {
-  const root = el('div', { class: 'screen booroll' });
+  const root = el('div', { class: 'screen booroll roll10' });
   container.appendChild(root);
-  let raf = null, orientHandler = null, cleanupFns = [];
-  const s0 = getState();
-  s0.booRoll = s0.booRoll || { best: {}, medals: {} };
-
-  const rz = params && params.resume;
-  if (rz && rz.course) { const c = COURSES.find(x => x.id === rz.course); if (c) startCalibrate(c); else mapScreen(); }
-  else mapScreen();
-  if (!introSeen('booroll')) runIntro('booroll', { steps: ROLL_INTRO });
-
-  function cleanup() {
-    if (raf) cancelAnimationFrame(raf); raf = null;
-    if (orientHandler) { window.removeEventListener('deviceorientation', orientHandler); orientHandler = null; }
-    cleanupFns.forEach(f => { try { f(); } catch {} }); cleanupFns = [];
-  }
-
-  function bodyColour() { const g = getState().guide || {}; return BODY_HEX[g.body] || '#FF7AC6'; }
-
-  // ---------------- course-select map ----------------
-  function mapScreen() {
-    cleanup(); clear(root);
-    music.play('game');
-    const s = getState();
-    const wrap = el('div', { class: 'roll-map card' }, [
-      el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 88 }) }),
-      el('h2', { text: '🎢 Boo Roll' }),
-      el('p', { class: 'sc-intro', text: 'Pick a course — earn bronze, silver and gold!' })
-    ]);
-    const grid = el('div', { class: 'roll-course-grid' });
-    COURSES.forEach((c, i) => {
-      const medal = s.booRoll.medals[c.id];
-      const best = s.booRoll.best[c.id];
-      const card = el('button', { class: 'roll-course-card' + (medal ? ' won' : ''), onclick: () => { sfx.tap(); startCalibrate(c); } }, [
-        el('span', { class: 'rcc-num', text: String(i + 1) }),
-        el('span', { class: 'rcc-name', text: c.name }),
+  let raf = 0, orientHandler = null, cleanups = [];
+  const cleanup = () => {
+    if (raf) cancelAnimationFrame(raf); raf = 0;
+    if (orientHandler) window.removeEventListener('deviceorientation', orientHandler);
+    orientHandler = null; cleanups.splice(0).forEach(fn => { try { fn(); } catch {} });
+  };
+  const bodyColour = () => BODY_HEX[(getState().guide || {}).body] || '#FF7AC6';
+  const goMap = () => {
+    cleanup(); clear(root); music.play('game');
+    const save = getState(); save.booRoll = save.booRoll || { best: {}, medals: {} };
+    const map = el('div', { class: 'roll-map card' }, [
+      el('div', { class: 'sc-guide', html: renderGuide(save.guide, { view: 'head', size: 88 }) }),
+      el('h2', { text: '🎢 Boo Roll' }), el('p', { class: 'sc-intro', text: 'Three big side-roll courses — find the flags and the finish!' })
+    ]), grid = el('div', { class: 'roll-course-grid' });
+    COURSES.forEach((course, i) => {
+      const medal = save.booRoll.medals[course.key], best = save.booRoll.best[course.key];
+      grid.appendChild(el('button', { class: 'roll-course-card' + (medal ? ' won' : ''), onclick: () => calibrate(course) }, [
+        el('span', { class: 'rcc-num', text: String(i + 1) }), el('span', { class: 'rcc-name', text: course.name }),
         el('span', { class: 'rcc-medal', text: medal ? MEDAL_ICON[medal] : '⚪' }),
-        el('span', { class: 'rcc-best', text: best ? (best / 1000).toFixed(1) + 's' : '—' })
-      ]);
-      grid.appendChild(card);
+        el('span', { class: 'rcc-best', text: best ? (best / 1000).toFixed(1) + 's' : `${course.parGold}s gold` })
+      ]));
     });
-    wrap.appendChild(grid);
-    root.appendChild(wrap);
-    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
-    if (typeof window !== 'undefined') window.__booroll = Object.assign(window.__booroll || {}, {
-      courses: () => COURSES.map(c => c.id), openCourse: (id) => { const c = COURSES.find(x => x.id === id); if (c) startCalibrate(c); },
-      medals: () => ({ ...getState().booRoll.medals }), onMap: () => true
-    });
-  }
-
-  // ---------------- calibration ----------------
-  function startCalibrate(course) {
+    map.appendChild(grid); root.append(map, backControl(() => ctx.go('hub'), { floating: true }));
+    hook({ courses: () => COURSE_IDS, openCourse: id => { const c = COURSES.find(x => x.key === id); if (c) calibrate(c); }, onMap: () => true });
+  };
+  const calibrate = course => {
     cleanup(); clear(root);
-    const s = getState();
-    let mode = REDUCED ? 'virtual' : 'sensor';   // reduced-motion → finger stick by default
-    const needsPerm = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
-    let permGranted = !needsPerm;
-
-    const panel = el('div', { class: 'roll-calibrate card' }, [
-      el('h2', { text: course.name }),
-      el('p', { class: 'roll-tip', text: course.tip })
-    ]);
-    const btns = el('div', { class: 'roll-cal-btns' });
-    // iOS permission button (first play): a friendly tap to enable tilt
-    const permBtn = el('button', { class: 'btn', text: '📲 Tap to enable tilt!', onclick: async () => {
-      try { const res = await DeviceOrientationEvent.requestPermission(); permGranted = (res === 'granted'); }
-      catch { permGranted = false; }
-      if (permGranted) { permBtn.style.display = 'none'; goBtn.style.display = ''; }
-      else { mode = 'virtual'; permBtn.style.display = 'none'; goBtn.textContent = '▶ GO (finger tilt)'; goBtn.style.display = ''; }
-    } });
-    const goBtn = el('button', { class: 'btn big', text: '✋ Hold flat, then tap GO', onclick: () => beginPlay(course, mode) });
-    const fingerBtn = el('button', { class: 'btn soft', text: '👆 Use finger tilt instead', onclick: () => beginPlay(course, 'virtual') });
-    if (needsPerm && !permGranted) { goBtn.style.display = 'none'; btns.append(permBtn, fingerBtn); }
-    else btns.append(goBtn, fingerBtn);
-    panel.appendChild(btns);
-    root.appendChild(panel);
-    root.appendChild(backControl(() => mapScreen(), { floating: true }));
-
-    if (typeof window !== 'undefined') window.__booroll = Object.assign(window.__booroll || {}, {
-      onMap: () => false, calibrating: () => true,
-      go: (m) => beginPlay(course, m || mode),
-      tapPermission: async () => { await permBtn.onclick(); }, permNeeded: () => needsPerm && !permGranted,
-      useFinger: () => beginPlay(course, 'virtual')
-    });
-  }
-
-  // ---------------- play a course ----------------
-  function beginPlay(course, mode) {
-    cleanup(); clear(root);
-    music.play('game');
-
-    // physics state
-    let bx = course.start.x, by = course.start.y, vx = 0, vy = 0, spin = 0;
-    let tiltX = 0, tiltY = 0;          // smoothed, calibrated tilt (-1..1-ish)
-    let zeroG = null, zeroB = null;    // orientation calibration (captured on first reading)
-    let startMs = null, elapsed = 0, holeCost = 0, finished = false, respawns = 0;
-    let lastFlag = { x: course.start.x, y: course.start.y }, flagHit = false;
-    const starsGot = course.stars.map(() => false);
-    let sawOrientation = false;
-    let usingVirtual = (mode === 'virtual');
-
-    const cvs = el('canvas', { class: 'roll-canvas', width: FW, height: FH });
-    const cx = cvs.getContext('2d');
-    const hud = el('div', { class: 'roll-hud' }, [
-      el('span', { class: 'roll-clock', text: '0.0s' }),
-      el('span', { class: 'roll-stars-hud', text: '⭐ 0/3' })
-    ]);
-    const recentreBtn = el('button', { class: 'roll-recentre', 'aria-label': 'Re-centre tilt', text: '🎯' });
-    recentreBtn.addEventListener('click', () => { zeroG = null; zeroB = null; sfx.tap(); });
-    // finger thumb-stick (virtual tilt), shown when needed
-    const stick = el('div', { class: 'roll-stick' + (usingVirtual ? ' on' : '') }, [el('div', { class: 'roll-stick-nub' })]);
-    const stage = el('div', { class: 'roll-stage' }, [cvs, hud, recentreBtn, stick]);
-    root.appendChild(stage);
-    root.appendChild(backControl(() => { cleanup(); mapScreen(); }, { floating: true }));
-
-    // orientation input
-    orientHandler = (e) => {
-      if (e.gamma == null && e.beta == null) return;
-      sawOrientation = true;
-      if (zeroG == null) { zeroG = e.gamma || 0; zeroB = e.beta || 0; }
-      const gx = ((e.gamma || 0) - zeroG) / 35;   // ~35° = full lean
-      const gy = ((e.beta || 0) - zeroB) / 35;
-      tiltX += (clamp(gx, -1.3, 1.3) - tiltX) * LOWPASS;
-      tiltY += (clamp(gy, -1.3, 1.3) - tiltY) * LOWPASS;
-      usingVirtual = false; stick.classList.remove('on');
+    const needsPermission = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+    let permission = !needsPermission;
+    const panel = el('div', { class: 'roll-calibrate card' }, [el('h2', { text: course.name }), el('p', { class: 'roll-tip', text: 'Hold flat, then lean to roll. The finger puck is always ready too.' })]);
+    const go = el('button', { class: 'btn big', text: '✋ Hold flat, then tap GO', onclick: () => play(course, 'sensor') });
+    const finger = el('button', { class: 'btn soft', text: '👆 Use finger tilt instead', onclick: () => play(course, 'virtual') });
+    if (needsPermission) panel.appendChild(el('button', { class: 'btn', text: '📲 Tap to enable tilt!', onclick: async e => {
+      try { permission = await DeviceOrientationEvent.requestPermission() === 'granted'; } catch {}
+      e.currentTarget.remove(); panel.append(permission ? go : finger);
+    } })); else panel.append(go, finger);
+    root.append(panel, backControl(goMap, { floating: true }));
+    hook({ onMap: () => false, calibrating: () => true, go: mode => play(course, mode || 'sensor'), useFinger: () => play(course, 'virtual'), permNeeded: () => needsPermission && !permission });
+  };
+  const play = (course, requestedMode) => {
+    cleanup(); clear(root); music.play('game');
+    const ground = buildGround(course.segments, BASE_Y);
+    let x = 76, y = BASE_Y - BALL_R, vx = 0, vy = 0, spin = 0, camera = 0, rawTilt = 0, tilt = 0;
+    let startAt = performance.now(), elapsed = 0, lastAt = startAt, mode = REDUCED ? 'virtual' : requestedMode;
+    let zero = null, sawOrientation = false, grounded = true, finished = false, bonking = false, chuteUntil = 0, lastFlag = 76, flagIndex = 0;
+    let squash = 0, held = 0, fallStart = y, stars = course.stars.map(() => false), mechanisms = course.mechanisms.map(m => ({ ...m, value: 0 }));
+    const canvas = el('canvas', { class: 'roll-canvas', width: W, height: H }), cx = canvas.getContext('2d');
+    const strip = el('div', { class: 'roll-progress', 'aria-label': 'Course progress' });
+    const clock = el('span', { class: 'roll-clock', text: '0.0s' }), starChip = el('span', { class: 'roll-stars-hud', text: '⭐ 0/3' });
+    const hud = el('div', { class: 'roll-hud' }, [clock, starChip]);
+    const recenter = el('button', { class: 'roll-recentre', text: '🎯', onclick: () => { zero = null; } });
+    const paddleL = el('button', { class: 'roll-paddle left', text: '◀' }), paddleR = el('button', { class: 'roll-paddle right', text: '▶' });
+    const stick = el('div', { class: 'roll-stick' + (mode === 'virtual' ? ' on' : '') }, [el('div', { class: 'roll-stick-nub' })]);
+    const stage = el('div', { class: 'roll-stage' }, [canvas, strip, hud, recenter, paddleL, paddleR, stick]);
+    root.append(stage, backControl(() => { cleanup(); goMap(); }, { floating: true }));
+    course.flags.forEach(f => strip.appendChild(el('i', { class: 'roll-progress-flag', style: { left: (f.x / course.world * 100) + '%' } })));
+    strip.appendChild(el('i', { class: 'roll-progress-finish', style: { left: (course.finish.x / course.world * 100) + '%' }, text: '🏁' }));
+    const dot = el('i', { class: 'roll-progress-dot' }); strip.appendChild(dot);
+    const hold = value => e => { held = value; e.preventDefault(); };
+    ['pointerdown', 'pointermove'].forEach(type => { paddleL.addEventListener(type, hold(-1)); paddleR.addEventListener(type, hold(1)); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(type => { paddleL.addEventListener(type, () => { if (held < 0) held = 0; }); paddleR.addEventListener(type, () => { if (held > 0) held = 0; }); });
+    let drag = false, sx = 0;
+    const setStick = px => { rawTilt = clamp((px - sx) / 46, -1.25, 1.25) * 22; stick.querySelector('.roll-stick-nub').style.transform = `translate(${clamp((px - sx), -46, 46)}px,0)`; };
+    stick.addEventListener('pointerdown', e => { drag = true; mode = 'virtual'; stick.classList.add('on'); const r = stick.getBoundingClientRect(); sx = r.left + r.width / 2; stick.setPointerCapture(e.pointerId); setStick(e.clientX); });
+    stick.addEventListener('pointermove', e => { if (drag) setStick(e.clientX); });
+    ['pointerup', 'pointercancel'].forEach(type => stick.addEventListener(type, () => { drag = false; rawTilt = 0; stick.querySelector('.roll-stick-nub').style.transform = 'translate(0,0)'; }));
+    orientHandler = e => {
+      const orientation = Number(window.orientation || 0); const source = Math.abs(orientation) === 90 ? e.gamma : e.beta;
+      if (source == null || mode === 'virtual') return;
+      sawOrientation = true; if (zero == null) zero = source;
+      rawTilt = (source - zero) * (orientation === 90 ? -1 : 1);
     };
-    if (!usingVirtual) window.addEventListener('deviceorientation', orientHandler);
-
-    // virtual thumb-stick drag
-    let stickDrag = false, scx = 0, scy = 0;
-    function stickTilt(dx, dy) { const R = 46; tiltX = clamp(dx / R, -1.2, 1.2); tiltY = clamp(dy / R, -1.2, 1.2); const nub = stick.querySelector('.roll-stick-nub'); nub.style.transform = `translate(${clamp(dx, -R, R)}px, ${clamp(dy, -R, R)}px)`; }
-    stick.addEventListener('pointerdown', e => { stickDrag = true; usingVirtual = true; stick.classList.add('on'); const r = stick.getBoundingClientRect(); scx = r.left + r.width / 2; scy = r.top + r.height / 2; stick.setPointerCapture(e.pointerId); stickTilt(e.clientX - scx, e.clientY - scy); });
-    stick.addEventListener('pointermove', e => { if (stickDrag) stickTilt(e.clientX - scx, e.clientY - scy); });
-    const stickUp = () => { stickDrag = false; tiltX = 0; tiltY = 0; const nub = stick.querySelector('.roll-stick-nub'); nub.style.transform = 'translate(0,0)'; };
-    stick.addEventListener('pointerup', stickUp); stick.addEventListener('pointercancel', stickUp);
-
-    // if no sensor reading soon, offer/auto-enable the finger stick
-    if (!usingVirtual) { const t = setTimeout(() => { if (!sawOrientation) { usingVirtual = true; stick.classList.add('on'); } }, SENSOR_WAIT_MS); cleanupFns.push(() => clearTimeout(t)); }
-
-    startMs = performance.now();
-    let last = startMs;
-    function frame(now) {
-      if (document.hidden) { raf = requestAnimationFrame(frame); last = now; return; }
-      const dt = Math.min(2.4, (now - last) / 16.67); last = now;
-      if (!finished) elapsed = (now - startMs);
-      step(dt);
-      draw();
-      raf = requestAnimationFrame(frame);
-    }
-    raf = requestAnimationFrame(frame);
-
-    function step(dt) {
-      if (finished) return;
-      // acceleration from tilt
-      vx += tiltX * SENS * dt;
-      vy += tiltY * SENS * dt;
-      vx *= Math.pow(FRICTION, dt); vy *= Math.pow(FRICTION, dt);
-      const sp = Math.hypot(vx, vy); if (sp > MAX_SPEED) { vx = vx / sp * MAX_SPEED; vy = vy / sp * MAX_SPEED; }
-      bx += vx * dt; by += vy * dt;
-      // field borders (walls)
-      if (bx < BALL_R) { bx = BALL_R; vx = -vx * BOUNCE; bump(); }
-      if (bx > FW - BALL_R) { bx = FW - BALL_R; vx = -vx * BOUNCE; bump(); }
-      if (by < BALL_R) { by = BALL_R; vy = -vy * BOUNCE; bump(); }
-      if (by > FH - BALL_R) { by = FH - BALL_R; vy = -vy * BOUNCE; bump(); }
-      // interior walls (AABB vs circle, resolve on the smaller overlap axis)
-      for (const w of course.walls) resolveWall(w);
-      spin += sp * 0.06 * dt;
-      // holes
-      for (const h of course.holes) { if (Math.hypot(bx - h.x, by - h.y) < h.r * 0.7) return fallInHole(); }
-      // stars
-      course.stars.forEach((st, i) => { if (!starsGot[i] && Math.hypot(bx - st.x, by - st.y) < BALL_R + 18) { starsGot[i] = true; sfx.pop(); const p = toScreen(st.x, st.y); if (!REDUCED) sparkleAt(p.x, p.y); } });
-      // flag (checkpoint)
-      if (!flagHit && Math.hypot(bx - course.flag.x, by - course.flag.y) < BALL_R + 26) { flagHit = true; lastFlag = { x: course.flag.x, y: course.flag.y }; sfx.correct(); }
-      // goal
-      if (flagHit && Math.hypot(bx - course.goal.x, by - course.goal.y) < BALL_R + 28) return win();
-    }
-    function bump() { sfx.tap(); try { haptic('bump'); } catch {} }   // a gentle bump on a wall hit (RUN9 C7)
-    function resolveWall(w) {
-      const nx = clamp(bx, w.x, w.x + w.w), ny = clamp(by, w.y, w.y + w.h);
-      const dx = bx - nx, dy = by - ny, d2 = dx * dx + dy * dy;
-      if (d2 > BALL_R * BALL_R) return;
-      const d = Math.sqrt(d2) || 0.001;
-      if (dx === 0 && dy === 0) {  // centre inside the wall — push out on the nearest edge
-        const left = bx - w.x, right = w.x + w.w - bx, top = by - w.y, bot = w.y + w.h - by;
-        const m = Math.min(left, right, top, bot);
-        if (m === left) { bx = w.x - BALL_R; vx = -Math.abs(vx) * BOUNCE; }
-        else if (m === right) { bx = w.x + w.w + BALL_R; vx = Math.abs(vx) * BOUNCE; }
-        else if (m === top) { by = w.y - BALL_R; vy = -Math.abs(vy) * BOUNCE; }
-        else { by = w.y + w.h + BALL_R; vy = Math.abs(vy) * BOUNCE; }
-        bump(); return;
+    if (mode !== 'virtual') window.addEventListener('deviceorientation', orientHandler);
+    if (mode !== 'virtual') { const wait = setTimeout(() => { if (!sawOrientation) { mode = 'virtual'; stick.classList.add('on'); } }, SENSOR_WAIT_MS); cleanups.push(() => clearTimeout(wait)); }
+    const nearbyMechanism = () => mechanisms.find(m => Math.abs(m.x - x) < GLOW_DIST);
+    const startBonk = () => {
+      if (bonking || finished) return; bonking = true; vx = vy = 0; sfx.oops();
+      stage.classList.add('roll-bonk');
+      setTimeout(() => { x = lastFlag; y = BASE_Y - 120; fallStart = y; grounded = false; chuteUntil = performance.now() + CHUTE_MS; startAt += CLOCK_PENALTY; stage.classList.remove('roll-bonk'); stage.classList.add('roll-chute'); }, BONK_MS);
+      setTimeout(() => { bonking = false; stage.classList.remove('roll-chute'); }, BONK_MS + CHUTE_MS);
+    };
+    const surfaceAt = px => ground.find(s => s.solid && px >= s.x && px <= s.endX);
+    const groundY = seg => seg.y + (seg.endY - seg.y) * ((x - seg.x) / Math.max(1, seg.endX - seg.x));
+    const step = dt => {
+      elapsed = performance.now() - startAt;
+      tilt += ((Math.abs(rawTilt) < DEADZONE ? 0 : rawTilt) - tilt) * LOWPASS;
+      const nearby = nearbyMechanism();
+      mechanisms.forEach(m => { const active = m === nearby && held; if (m.t === 'seesawPlank') m.value += ((active ? held * 22 : 0) - m.value) * .14; else if (m.t === 'lift') m.value += ((active ? (m.params?.rise || 140) : 0) - m.value) * .08; else if (m.t === 'quarterGirder' && active) m.value = Math.round((m.value + held * 90) / 90) * 90; else if (m.t === 'gateFlap') m.value += ((active ? 1 : 0) - m.value) * .15; });
+      if (!bonking) {
+        const seg = surfaceAt(x);
+        if (grounded && seg) {
+          const deg = seg.t === 'slope' ? seg.deg || 0 : 0;
+          vx = slopeStep({ vx, tilt: tilt / 22 * SENS, deg, dt });
+          x += vx * dt; y = groundY(seg) - BALL_R; vy = 0;
+        } else {
+          grounded = false; vy += GRAV * dt; x += vx * dt; y += vy * dt;
+          const landing = surfaceAt(x);
+          if (landing && vy >= 0 && y >= groundY(landing) - BALL_R) { const impact = vy; y = groundY(landing) - BALL_R; grounded = true; squash = 1; vy = 0; if (shouldBonk(impact, y - fallStart)) startBonk(); }
+          if (y > BASE_Y + FALL_LIMIT) startBonk();
+        }
+        if (x < BALL_R || x > course.world - BALL_R) { x = clamp(x, BALL_R, course.world - BALL_R); vx *= -BOUNCE; if (Math.abs(vx) > BONK_IMPACT) startBonk(); }
+        const current = surfaceAt(x); if (grounded && !current) { grounded = false; fallStart = y; }
+        course.flags.forEach((f, i) => { if (i === flagIndex && x >= f.x) { lastFlag = f.x; flagIndex++; sfx.correct(); } });
+        course.stars.forEach((st, i) => { if (!stars[i] && Math.hypot(x - st.x, y - (BASE_Y + st.y)) < 42) { stars[i] = true; sfx.pop(); if (!REDUCED) sparkleAt(canvas.getBoundingClientRect().left + W / 2, canvas.getBoundingClientRect().top + H / 2); } });
+        if (x >= course.finish.x) finish();
       }
-      const ux = dx / d, uy = dy / d, push = BALL_R - d;
-      bx += ux * push; by += uy * push;
-      const vn = vx * ux + vy * uy;
-      vx -= (1 + BOUNCE) * vn * ux; vy -= (1 + BOUNCE) * vn * uy;
-      bump();
-    }
-    function fallInHole() {
-      respawns++; holeCost += HOLE_TIME_COST; startMs += HOLE_TIME_COST;   // add the time cost
-      bx = lastFlag.x; by = lastFlag.y; vx = 0; vy = 0;
-      sfx.oops();
-      // a little boing pop
-      const p = toScreen(bx, by); if (!REDUCED) sparkleAt(p.x, p.y);
-      stage.classList.remove('boing'); void stage.offsetWidth; if (!REDUCED) stage.classList.add('boing');
-    }
-    function win() {
-      if (finished) return; finished = true;
-      const seconds = elapsed / 1000;
-      const medal = medalFor(course, seconds);
-      const starCount = starsGot.filter(Boolean).length;
-      sfx.star();
-      if (!REDUCED) confetti({ count: 70, power: 1.1 });
-      // persist best + medal (best time and best medal only improve)
-      mutate(s => {
-        s.booRoll = s.booRoll || { best: {}, medals: {} };
-        const prevBest = s.booRoll.best[course.id];
-        if (prevBest == null || elapsed < prevBest) s.booRoll.best[course.id] = Math.round(elapsed);
-        const order = { bronze: 1, silver: 2, gold: 3 };
-        if (medal && (!s.booRoll.medals[course.id] || order[medal] > order[s.booRoll.medals[course.id]])) s.booRoll.medals[course.id] = medal;
-      });
-      // stars for the meter: 3 = gold, 2 = silver/bronze, 1 = finished (medal drives it, plus pickups nudge)
-      const stars = medal === 'gold' ? 3 : (medal ? 2 : 1);
-      checkAndCelebrate();   // Trophy Room medal entries (first medal / all bronze / all gold)
-      // a short results overlay then the shared results screen
-      const card = el('div', { class: 'roll-finish card' }, [
-        el('div', { class: 'roll-finish-medal', text: medal ? MEDAL_ICON[medal] : '🎉' }),
-        el('h2', { text: medal ? `${medal[0].toUpperCase() + medal.slice(1)} medal!` : 'You finished!' }),
-        el('p', { text: `${seconds.toFixed(1)}s · ⭐ ${starCount}/3` })
-      ]);
-      root.appendChild(el('div', { class: 'roll-finish-overlay' }, [card]));
-      setTimeout(() => { cleanup(); ctx.go('results', { game: 'booroll', gameName: 'Boo Roll', stars, level: null, cat: null, mix: false, replay: () => ctx.go('booroll', { resume: { course: course.id } }) }); }, 2000);
-    }
-
-    // ---- render ----
-    let scale = 1, offX = 0, offY = 0;
-    function fit() {
-      const r = stage.getBoundingClientRect();
-      scale = Math.min(r.width / FW, r.height / FH);
-      offX = (r.width - FW * scale) / 2; offY = (r.height - FH * scale) / 2;
-      cvs.style.width = (FW * scale) + 'px'; cvs.style.height = (FH * scale) + 'px';
-    }
-    function toScreen(x, y) { const r = cvs.getBoundingClientRect(); return { x: r.left + x * (r.width / FW), y: r.top + y * (r.height / FH) }; }
-    const ro = new ResizeObserver(fit); ro.observe(stage); cleanupFns.push(() => ro.disconnect());
-    fit();
-
-    const col = bodyColour();
+      spin += Math.abs(vx) * .07 * dt; squash *= .82; camera += (clamp(x - W * .38, 0, course.world - W) - camera) * CAM_LERP;
+    };
+    const finish = () => {
+      if (finished) return; finished = true; sfx.star(); if (!REDUCED) confetti({ count: 70, power: 1.1 });
+      const medal = medalFor(course, elapsed / 1000), pickupCount = stars.filter(Boolean).length;
+      mutate(s => { s.booRoll = s.booRoll || { best: {}, medals: {}, legacy: {} }; s.booRoll.best = s.booRoll.best || {}; s.booRoll.medals = s.booRoll.medals || {}; const old = s.booRoll.best[course.key]; if (!old || elapsed < old) s.booRoll.best[course.key] = Math.round(elapsed); const rank = { bronze: 1, silver: 2, gold: 3 }; if (medal && (!s.booRoll.medals[course.key] || rank[medal] > rank[s.booRoll.medals[course.key]])) s.booRoll.medals[course.key] = medal; });
+      checkAndCelebrate();
+      root.appendChild(el('div', { class: 'roll-finish-overlay' }, [el('div', { class: 'roll-finish card' }, [el('div', { class: 'roll-finish-medal', text: medal ? MEDAL_ICON[medal] : '🎉' }), el('h2', { text: medal ? `${medal[0].toUpperCase() + medal.slice(1)} medal!` : 'Course complete!' }), el('p', { text: `${(elapsed / 1000).toFixed(1)}s · ⭐ ${pickupCount}/3` })]) ]));
+      setTimeout(() => { cleanup(); ctx.go('results', { game: 'booroll', gameName: 'Boo Roll', stars: medal === 'gold' ? 3 : medal ? 2 : 1, replay: () => ctx.go('booroll', { resume: { course: course.key } }) }); }, 1800);
+    };
     function draw() {
-      cx.clearRect(0, 0, FW, FH);
-      // floor
-      cx.fillStyle = '#2E2660'; cx.fillRect(0, 0, FW, FH);
-      // holes
-      for (const h of course.holes) { cx.beginPath(); cx.arc(h.x, h.y, h.r, 0, Math.PI * 2); cx.fillStyle = '#120b2e'; cx.fill(); cx.lineWidth = 4; cx.strokeStyle = '#0a0620'; cx.stroke(); }
-      // walls
-      cx.fillStyle = '#6B4BA8'; cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 4;
-      for (const w of course.walls) { roundRect(cx, w.x, w.y, w.w, w.h, 8); cx.fill(); cx.stroke(); }
-      // border
-      cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 10; cx.strokeRect(5, 5, FW - 10, FH - 10);
-      // stars
-      course.stars.forEach((st, i) => { if (starsGot[i]) return; drawStar(cx, st.x, st.y, 16); });
-      // flag
-      drawFlag(cx, course.flag.x, course.flag.y, flagHit);
-      // goal ring
-      cx.beginPath(); cx.arc(course.goal.x, course.goal.y, 30, 0, Math.PI * 2); cx.lineWidth = 7; cx.strokeStyle = flagHit ? '#35D0BA' : '#8d84b0'; cx.stroke();
-      cx.beginPath(); cx.arc(course.goal.x, course.goal.y, 18, 0, Math.PI * 2); cx.strokeStyle = flagHit ? '#FFC93C' : '#8d84b0'; cx.lineWidth = 5; cx.stroke();
-      // ball (a curled Boo)
-      drawBall(cx, bx, by, spin, col);
-      // HUD
-      hud.querySelector('.roll-clock').textContent = (elapsed / 1000).toFixed(1) + 's';
-      hud.querySelector('.roll-stars-hud').textContent = '⭐ ' + starsGot.filter(Boolean).length + '/3';
+      cx.fillStyle = '#7fd8f3'; cx.fillRect(0, 0, W, H); cx.fillStyle = '#b8edff'; cx.fillRect(0, 315, W, 120);
+      cx.save(); cx.translate(-camera, 0);
+      ground.forEach(seg => { if (!seg.solid) return; cx.beginPath(); cx.moveTo(seg.x, seg.y); cx.lineTo(seg.endX, seg.endY); cx.lineTo(seg.endX, H); cx.lineTo(seg.x, H); cx.closePath(); cx.fillStyle = seg.t === 'platform' ? '#8b61b5' : '#69b64a'; cx.fill(); cx.strokeStyle = '#355d36'; cx.lineWidth = 5; cx.stroke(); });
+      mechanisms.forEach(m => drawMechanism(cx, m, x, nearbyMechanism() === m));
+      course.flags.forEach((f, i) => drawFlag(cx, f.x, BASE_Y - 20, i < flagIndex));
+      course.stars.forEach((st, i) => { if (!stars[i]) drawStar(cx, st.x, BASE_Y + st.y, 15); });
+      drawFlag(cx, course.finish.x, BASE_Y - 22, true, true); drawBall(cx, x, y, spin, bodyColour(), squash); cx.restore();
+      dot.style.left = (x / course.world * 100) + '%'; clock.textContent = (elapsed / 1000).toFixed(1) + 's'; starChip.textContent = '⭐ ' + stars.filter(Boolean).length + '/3';
     }
-
-    if (typeof window !== 'undefined') window.__booroll = Object.assign(window.__booroll || {}, {
-      onMap: () => false, playing: () => true, courseId: () => course.id,
-      ball: () => ({ x: bx, y: by, vx, vy }),
-      state: () => ({ course: course.id, ms: Math.round(elapsed), seconds: elapsed / 1000, stars: starsGot.filter(Boolean).length, flagHit, finished, respawns, mode: usingVirtual ? 'virtual' : 'sensor', sawOrientation, calibrated: zeroG != null }),
-      field: () => ({ FW, FH, course }),
-      setTilt: (tx, ty) => { tiltX = clamp(tx, -1.3, 1.3); tiltY = clamp(ty, -1.3, 1.3); },
-      orient: (gamma, beta) => { const e = { gamma, beta }; orientHandler && orientHandler(e); },
-      stick: (dx, dy) => { usingVirtual = true; stick.classList.add('on'); stickTilt(dx, dy); },
-      teleport: (x, y) => { bx = x; by = y; vx = 0; vy = 0; },
-      recentre: () => { zeroG = null; zeroB = null; },
-      fallHole: () => fallInHole(),
-      grabFlag: () => { flagHit = true; lastFlag = { x: course.flag.x, y: course.flag.y }; },
-      forceFinish: () => { flagHit = true; bx = course.goal.x; by = course.goal.y; },
-      medal: () => medalFor(course, elapsed / 1000)
-    });
-  }
-
-  return { unmount() { cleanup(); } };
+    const frame = now => { const dt = Math.min(2, (now - lastAt) / 16.67); lastAt = now; step(dt); draw(); raf = requestAnimationFrame(frame); }; raf = requestAnimationFrame(frame);
+    const ro = new ResizeObserver(() => { const r = stage.getBoundingClientRect(), scale = Math.min(r.width / W, r.height / H); canvas.style.width = W * scale + 'px'; canvas.style.height = H * scale + 'px'; }); ro.observe(stage); cleanups.push(() => ro.disconnect());
+    hook({ onMap: () => false, playing: () => true, courseId: () => course.key, ball: () => ({ x, y, vx, vy }), state: () => ({ course: course.key, ms: Math.round(elapsed), stars: stars.filter(Boolean).length, flagHit: flagIndex > 0, finished, mode, sawOrientation, grounded, bonking }), field: () => ({ FW: course.world, FH: H, course }), setTilt: tx => { rawTilt = tx * 22; }, orient: (gamma, beta) => orientHandler && orientHandler({ gamma, beta }), stick: dx => { mode = 'virtual'; stick.classList.add('on'); rawTilt = dx / 46 * 22; }, teleport: (px, py = BASE_Y - BALL_R) => { x = px; y = py; vx = vy = 0; }, grabFlag: () => { lastFlag = course.flags[Math.min(flagIndex, course.flags.length - 1)].x; flagIndex = course.flags.length; }, forceFinish: () => { x = course.finish.x; }, paddle: side => { held = side; }, medal: () => medalFor(course, elapsed / 1000) });
+  };
+  const hook = values => { if (typeof window !== 'undefined') window.__booroll = Object.assign(window.__booroll || {}, values); };
+  const resume = params?.resume?.course, initial = COURSES.find(c => c.key === resume); if (initial) calibrate(initial); else goMap();
+  return { unmount: cleanup };
 }
-
-// ---- canvas helpers ----
-function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-function roundRect(cx, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
-function drawStar(cx, x, y, r) {
-  cx.save(); cx.translate(x, y); cx.beginPath();
-  for (let i = 0; i < 5; i++) { const a = (i * 72 - 90) * Math.PI / 180, a2 = a + Math.PI / 5; cx.lineTo(Math.cos(a) * r, Math.sin(a) * r); cx.lineTo(Math.cos(a2) * r * 0.45, Math.sin(a2) * r * 0.45); }
-  cx.closePath(); cx.fillStyle = '#FFC93C'; cx.fill(); cx.lineWidth = 2; cx.strokeStyle = '#2A1B4E'; cx.stroke(); cx.restore();
-}
-function drawFlag(cx, x, y, hit) {
-  cx.save(); cx.translate(x, y); cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 4; cx.beginPath(); cx.moveTo(0, 22); cx.lineTo(0, -26); cx.stroke();
-  cx.beginPath(); cx.moveTo(0, -26); cx.lineTo(28, -18); cx.lineTo(0, -10); cx.closePath(); cx.fillStyle = hit ? '#35D0BA' : '#FF7AC6'; cx.fill(); cx.stroke(); cx.restore();
-}
-function drawBall(cx, x, y, spin, col) {
-  cx.save(); cx.translate(x, y);
-  cx.beginPath(); cx.arc(0, 0, BALL_R, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.lineWidth = 3.5; cx.strokeStyle = '#2A1B4E'; cx.stroke();
-  // spinning shine arc
-  cx.save(); cx.rotate(spin); cx.beginPath(); cx.arc(0, 0, BALL_R - 5, -0.4, 0.7); cx.lineWidth = 3; cx.strokeStyle = 'rgba(255,255,255,0.55)'; cx.stroke(); cx.restore();
-  // happy face
-  cx.fillStyle = '#2A1B4E';
-  cx.beginPath(); cx.arc(-6, -3, 2.6, 0, Math.PI * 2); cx.fill();
-  cx.beginPath(); cx.arc(6, -3, 2.6, 0, Math.PI * 2); cx.fill();
-  cx.beginPath(); cx.arc(0, 3, 5, 0.15 * Math.PI, 0.85 * Math.PI); cx.lineWidth = 2; cx.strokeStyle = '#2A1B4E'; cx.stroke();
-  cx.restore();
-}
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function drawStar(cx, x, y, r) { cx.save(); cx.translate(x, y); cx.beginPath(); for (let i = 0; i < 5; i++) { const a = i * Math.PI * .4 - Math.PI / 2; cx.lineTo(Math.cos(a) * r, Math.sin(a) * r); cx.lineTo(Math.cos(a + Math.PI / 5) * r * .45, Math.sin(a + Math.PI / 5) * r * .45); } cx.closePath(); cx.fillStyle = '#ffc93c'; cx.fill(); cx.strokeStyle = '#5a3e20'; cx.stroke(); cx.restore(); }
+function drawFlag(cx, x, y, hit, finish = false) { cx.save(); cx.translate(x, y); cx.strokeStyle = '#34254d'; cx.lineWidth = 4; cx.beginPath(); cx.moveTo(0, 25); cx.lineTo(0, -28); cx.stroke(); cx.fillStyle = finish ? '#fff' : hit ? '#35d0ba' : '#ff7ac6'; cx.fillRect(0, -28, 28, 17); if (finish) { cx.fillStyle = '#34254d'; cx.fillRect(0, -28, 14, 8); cx.fillRect(14, -20, 14, 8); } cx.restore(); }
+function drawBall(cx, x, y, spin, col, squash) { cx.save(); cx.translate(x, y); cx.scale(1 + squash * .16, 1 - squash * .14); cx.beginPath(); cx.arc(0, 0, BALL_R, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.lineWidth = 3; cx.strokeStyle = '#34254d'; cx.stroke(); cx.save(); cx.rotate(spin); cx.beginPath(); cx.arc(0, 0, 11, -.5, .8); cx.strokeStyle = 'rgba(255,255,255,.7)'; cx.lineWidth = 3; cx.stroke(); cx.restore(); cx.fillStyle = '#34254d'; cx.beginPath(); cx.arc(-6, -3, 2.5, 0, Math.PI * 2); cx.arc(6, -3, 2.5, 0, Math.PI * 2); cx.fill(); cx.beginPath(); cx.arc(0, 3, 5, .15 * Math.PI, .85 * Math.PI); cx.stroke(); cx.restore(); }
+function drawMechanism(cx, m, ballX, nearby) { const y = BASE_Y; cx.save(); cx.translate(m.x, y); if (nearby) { cx.beginPath(); cx.arc(0, -26, 56, 0, Math.PI * 2); cx.fillStyle = 'rgba(255,209,102,.3)'; cx.fill(); } cx.strokeStyle = '#34254d'; cx.lineWidth = 6; cx.fillStyle = '#ffab63'; if (m.t === 'seesawPlank') { cx.rotate(m.value * Math.PI / 180); cx.fillRect(-65, -8, 130, 16); cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(-15, 28); cx.lineTo(15, 28); cx.closePath(); cx.fill(); } else if (m.t === 'lift') { cx.fillRect(-45, -m.value - 10, 90, 18); cx.strokeRect(-45, -m.value - 10, 90, 18); } else if (m.t === 'quarterGirder') { cx.rotate(m.value * Math.PI / 180); cx.fillRect(-10, -70, 20, 70); } else { cx.fillStyle = m.value > .5 ? '#78d35f' : '#ef6d6d'; cx.fillRect(-14, -54, 28, 54); } cx.restore(); }

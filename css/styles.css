@@ -603,6 +603,20 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .roll-finish-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(20,12,48,0.6); z-index: 9700; }
 .roll-finish { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 300px; }
 .roll-finish-medal { font-size: 64px; }
+.roll10 .roll-stage { background: #7fd8f3; border-radius: 14px; }
+.roll-progress { position: absolute; left: 18px; right: 18px; top: 9px; height: 24px; background: rgba(255,255,255,.76); border: 2px solid rgba(52,37,77,.45); border-radius: 16px; z-index: 3; overflow: visible; }
+.roll-progress::after { content: ''; position: absolute; left: 9px; right: 9px; top: 10px; height: 3px; background: #8ec875; border-radius: 4px; }
+.roll-progress-dot { position: absolute; top: 4px; width: 14px; height: 14px; margin-left: -7px; background: var(--pop); border: 2px solid var(--ink); border-radius: 50%; z-index: 2; transition: left .08s linear; }
+.roll-progress-flag, .roll-progress-finish { position: absolute; top: 1px; width: 2px; height: 21px; background: var(--ink); z-index: 1; font-style: normal; font-size: 15px; line-height: 20px; }
+.roll-progress-finish { width: 22px; background: none; margin-left: -10px; }
+.roll10 .roll-hud { top: 42px; z-index: 4; }
+.roll-paddle { position: absolute; bottom: 24px; z-index: 7; width: 96px; height: 96px; border-radius: 50%; border: 4px solid var(--ink); color: var(--ink); background: var(--card); font-size: 38px; font-family: var(--font-display); box-shadow: 0 4px 0 rgba(52,37,77,.25); touch-action: none; }
+.roll-paddle.left { left: 24px; }.roll-paddle.right { right: 24px; }
+.roll10 .roll-stick { left: 50%; bottom: 18px; z-index: 8; }
+.roll-bonk .roll-canvas { animation: rollBonk .16s linear 5; }.roll-chute .roll-canvas { animation: rollChute .42s ease-in-out 3; }
+@keyframes rollBonk { 50% { transform: translateX(5px) rotate(1deg); } }
+@keyframes rollChute { 50% { transform: translateX(12px) rotate(1deg); } }
+@media (max-width: 560px) { .roll-paddle { width: 72px; height: 72px; bottom: 16px; font-size: 28px; }.roll-paddle.left { left: 12px; }.roll-paddle.right { right: 12px; }.roll10 .roll-stick { width: 88px; height: 88px; bottom: 10px; }.roll10 .roll-stick-nub { width: 42px; height: 42px; } }
 @media (prefers-reduced-motion: reduce) { .roll-stage.boing { animation: none; } }
 
 /* Echo Boos (RUN9 C5) */
