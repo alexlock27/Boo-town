@@ -281,6 +281,12 @@ export function mount(container, params, ctx) {
       ]));
     }
 
+    // An open Snaffle notebook is a small, optional Today thread.
+    if (s.caper && s.caper.open) railInner.appendChild(el('button', { class: 'trail-chip caper', onclick: () => { sfx.tap(); ctx.go('caper'); } }, [
+      el('span', { class: 'tc-ic', text: '🕵️' }),
+      el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: "Snaffle's Caper" }), el('span', { class: 'tc-sub', text: `${s.caper.clues || 0} clue${(s.caper.clues || 0) === 1 ? '' : 's'} in your notebook` })])
+    ]));
+
     // Boo of the Day chip (mini portrait) — only when she owns Boos
     if (botd) {
       const chip = el('button', { class: 'trail-chip botd', onclick: () => { sfx.tap(); ctx.go('collection'); } }, [

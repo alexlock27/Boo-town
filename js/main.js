@@ -54,6 +54,7 @@ const registry = {
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   expedition: () => import('./expedition/trail.js'),
   expeditionpuzzle: () => import('./expedition/puzzle.js'),
+  caper: () => import('./caper/notebook.js'),
   grownups:   () => import('./grownups.js')
 };
 
