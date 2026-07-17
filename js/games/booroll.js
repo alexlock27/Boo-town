@@ -26,6 +26,9 @@ const MAX_SPEED = 13;
 const LOWPASS = 0.18;               // orientation smoothing
 const HOLE_TIME_COST = 2000;        // ms added when you fall in a hole
 const SENSOR_WAIT_MS = 1600;        // no orientation event by now → offer the finger fallback
+// RUN10 P7 side-view engine constants (P8 supplies the segment courses).
+export const GRAV = 0.55, TILT_ACC = SENS, DEADZONE = 1.5, BONK_IMPACT = 11, FALL_LIMIT = 260;
+export const BONK_MS = 700, CHUTE_MS = 1400, CLOCK_PENALTY = 2500, CAM_LERP = 0.12, GLOW_DIST = 180;
 
 // Guide body colour → the rolled ball colour (matches the creator options).
 const BODY_HEX = { sunshine: '#FFD166', lilac: '#C6A9F0', sky: '#8FC7FF' };
