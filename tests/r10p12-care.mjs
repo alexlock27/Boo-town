@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+const BASE = process.env.BASE || 'http://127.0.0.1:8000'; let failed = false;
+const assert = (ok, msg) => { console.log((ok ? '✓' : 'FAIL:'), msg); if (!ok) failed = true; };
+const browser = await chromium.launch(); const page = await browser.newPage({ viewport: { width: 900, height: 760 } });
+await page.goto(BASE + '/index.html');
+await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 7, name: 'Ada', guide: {}, inventory: { boo_inky: 1 }, stars: { total: 100, byGame: {} }, town: { areas: {} }, care: { bonds: {}, treats: 1, rewards: {} }, seen: { introSeen: { blocks: 1 }, trophyRetro: true }, settings: { sound: false, music: false, voice: false } })));
+await page.reload(); await page.waitForSelector('.hub');
+const before = await page.evaluate(async () => { const m = await import('./js/care.js'); return { hearts: m.heartsFor(70), care: structuredClone(window.BooTown.State.getState().care) }; });
+assert(before.hearts === 5, 'bond thresholds expose five hearts');
+await page.evaluate(async () => { const m = await import('./js/care.js'); for (let i = 0; i < 5; i++) m.grantTreat(); });
+assert(await page.evaluate(() => window.BooTown.State.getState().care.treats) === 5, 'treat pocket caps at five');
+await page.evaluate(() => window.BooTown.go('collection')); await page.waitForSelector('.coll-tile.owned'); await page.locator('.coll-tile.owned').first().click(); await page.waitForSelector('.dialog, .overlay');
+const careButton = page.getByText('💗 Care'); await careButton.click(); await page.waitForSelector('.care-overlay');
+await page.locator('[data-care="feed"]').click(); await page.waitForTimeout(700);
+assert((await page.locator('.care-hearts').textContent()).includes('♥'), 'feed action awards a permanent heart bond');
+await browser.close(); console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS')); process.exit(failed ? 1 : 0);

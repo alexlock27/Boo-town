@@ -12,6 +12,7 @@ import { renderTrophyRoom } from './trophies.js';
 import { ownedCustomItems } from './customs.js';
 import { micEnabled, openVoiceRecorder } from './voices.js';
 import { contentTier } from './content.js';
+import { bondFor, heartsFor, openCare } from './care.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -177,8 +178,11 @@ export function mount(container, params, ctx) {
     ]);
     // shared rarity VFX (C2): the FULL effect on the focused card
     applyRarityFx(detailArt, item, { context: 'full', shiny: ((s.shinies && s.shinies[item.id]) || 0) > 0 });
+    const careRow = isBoo ? el('div', { class: 'care-card-row', text: `♥ ${heartsFor(bondFor(item.id))}/5 best-friend hearts` }) : null;
+    if (careRow) body.appendChild(careRow);
     const buttons = isBoo
       ? [
+          { label: '💗 Care', value: 'care' },
           { label: '👒 Dress up', value: 'dress' },
           ...(micEnabled() ? [{ label: '🎤 Give a voice', value: 'voice', kind: 'soft' }] : []),
           { label: '✏️ Nickname', value: 'rename', kind: 'soft' },
@@ -186,7 +190,8 @@ export function mount(container, params, ctx) {
         ]
       : [{ label: 'Close', value: 'close', kind: 'soft' }];
     dialog({ title: nick, body, buttons, dismissable: true }).then(v => {
-      if (v === 'dress') openDressUp(item, { onDone: () => ctx.go('collection') });
+      if (v === 'care') openCare(item.id, nick, { onDone: () => ctx.go('collection') });
+      else if (v === 'dress') openDressUp(item, { onDone: () => ctx.go('collection') });
       else if (v === 'rename') openRename(item.id, { onDone: () => ctx.go('collection') });
       else if (v === 'voice') openVoiceRecorder(item.id, nick);
     });
@@ -201,4 +206,3 @@ export function mount(container, params, ctx) {
 
   return { unmount() {} };
 }
-

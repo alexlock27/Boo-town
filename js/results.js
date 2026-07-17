@@ -11,6 +11,7 @@ import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
+import { grantTreat } from './care.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
@@ -33,6 +34,8 @@ export function mount(container, params, ctx) {
   // Dev-only runtime assertion (RUN5 C0): a finished round increments the total by
   // exactly its stars. Silent no-op on the live build; fails loudly on localhost.
   assertCredit(beforeTotal, getState().stars.total, stars);
+  // Every completed round brings one small treat home, capped silently in the pocket.
+  const earnedTreat = grantTreat();
 
   // Jump back in (RUN5 C0b): remember her last game and mode so the hub can replay
   // it in one tap. The Golden Round is a special daily card, not a repeatable mode.
@@ -80,7 +83,8 @@ export function mount(container, params, ctx) {
     bubble,
     starSlots,
     meterBox,
-    buttons
+    buttons,
+    earnedTreat ? el('div', { class: 'result-treat', text: '🍪 +1 treat for your Boo pocket!' }) : null
   ]);
   root.appendChild(card);
 

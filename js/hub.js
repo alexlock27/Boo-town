@@ -5,6 +5,7 @@ import { getState, mutate, todayKey } from './state.js';
 import { createGuideBubble, guideLine } from './guide.js';
 import { music, sfx } from './sfx.js';
 import { meterState, METER_CAP } from './rewards.js';
+import { careState } from './care.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
@@ -95,7 +96,8 @@ export function mount(container, params, ctx) {
   // The Star Chest (RUN4 C8) now lives as a Today-rail chip (RUN7 C3), decluttering
   // the header down to the core star economy: speaker + total + meter + gift.
   const meterWrap = el('div', { class: 'meter-wrap' });
-  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap]);
+  const treatChip = el('span', { class: 'hub-treat-chip', text: `🍪 ${careState().treats}` });
+  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap, treatChip]);
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
