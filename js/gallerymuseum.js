@@ -12,6 +12,7 @@ import { applyRarityFx } from './rarityfx.js';
 import { CATALOG as TROPHY_CATALOG } from './trophies.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx, music } from './sfx.js';
+import { LEVELS } from '../data/care.js';
 
 const EMPTY_THRESHOLD = 6;   // fewer than this owned → the seed room, not species wings
 const SPECIES_LABELS = {
@@ -71,8 +72,8 @@ export function mount(container, params, ctx) {
   // built yet; `s.bond` safely reads as empty until it lands, no special-casing needed).
   function renderWall() {
     const earned = TROPHY_CATALOG.filter(c => s.trophies && s.trophies[c.key]);
-    const bonds = s.bond || {};
-    const framed = Object.keys(bonds).filter(id => (bonds[id] || 0) >= 5);
+    const bonds = (s.care && s.care.bonds) || s.bond || {};
+    const framed = Object.keys(bonds).filter(id => (bonds[id] || 0) >= LEVELS[1]);
     if (!earned.length && !framed.length) return null;
     const wall = el('div', { class: 'gm-wall' });
     earned.forEach(c => wall.appendChild(el('div', { class: 'gm-trophy', dataset: { key: c.key }, title: c.label, text: c.icon })));
@@ -85,6 +86,8 @@ export function mount(container, params, ctx) {
 
   function render() {
     clear(stage);
+    const wall = renderWall();
+    if (wall) stage.appendChild(wall);
     if (allOwned.length < EMPTY_THRESHOLD) {
       const seedWrap = el('div', { class: 'gm-seed-room' });
       allOwned.forEach(item => seedWrap.appendChild(plinth(item, isShiny(item))));
@@ -95,8 +98,6 @@ export function mount(container, params, ctx) {
       speakMaybe(line);
       return;
     }
-    const wall = renderWall();
-    if (wall) stage.appendChild(wall);
     const wings = el('div', { class: 'gm-wings' });
     for (const g of speciesGroups()) {
       wings.appendChild(el('div', { class: 'gm-wing' }, [

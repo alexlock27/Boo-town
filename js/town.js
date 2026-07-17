@@ -29,6 +29,7 @@ import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
 import { CAPER_SIGNS } from './caper/state.js';
 import { openCare } from './care.js';
+import { wishId } from '../data/wishes.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -280,7 +281,8 @@ export function mount(container, params, ctx) {
     { id: 'rides', label: 'Rides & fun', test: (it) => it.kind === 'deco' && !!it.act },
     { id: 'deco', label: 'Decorations', test: (it) => it.kind === 'deco' && !it.act && it.rarity !== 'ultra' },
     { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' },
-    { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' }
+    { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' },
+    { id: 'wishes', label: 'Wishes', test: (it) => it.kind === 'wish' }
   ];
   const drawerStrips = {};
   const drawerTabsNodes = DRAWER_TABS_SPEC.map(spec => {
@@ -313,6 +315,16 @@ export function mount(container, params, ctx) {
       const items = areaItems(st);
       items.push({ zone: 'boohouse', x: 0.3, row: 1, item: 'deco_rug' });
       items.push({ zone: 'boohouse', x: 0.62, row: 1, item: 'deco_tablelamp' });
+    });
+  }
+  // The Wish Well is a real Meadow placement, not a painted backdrop. It is seeded once
+  // and then behaves like every other town item (including its tap-to-open interaction).
+  if (AREA.key === 'meadow' && !((getState().seen || {}).wishWellSeeded)) {
+    mutate(st => {
+      st.seen = st.seen || {};
+      st.seen.wishWellSeeded = true;
+      const items = areaItems(st);
+      if (!items.some(t => t.item === 'deco_wishwell')) items.push({ zone: 'meadow', x: 0.20, row: 1, item: 'deco_wishwell' });
     });
   }
 
@@ -474,9 +486,14 @@ export function mount(container, params, ctx) {
     // Landscape is a Build-only, outdoor-only toybox (RUN10 P3/P4) — hidden whenever
     // either condition isn't met (e.g. build mode toggled on inside the Boo House).
     const landscapeVisible = buildMode && AREA.kind === 'outdoor';
-    const landscapeTabBtn = drawer.querySelectorAll('.bd-tabs .bd-tab')[4];
+    const tabIndex = (id) => DRAWER_TABS_SPEC.findIndex(spec => spec.id === id);
+    const landscapeTabBtn = drawer.querySelectorAll('.bd-tabs .bd-tab')[tabIndex('landscape')];
+    const wishesTabBtn = drawer.querySelectorAll('.bd-tabs .bd-tab')[tabIndex('wishes')];
     if (landscapeTabBtn) landscapeTabBtn.style.display = landscapeVisible ? '' : 'none';
+    const hasWishes = Object.keys((getState() && getState().wishes) || {}).length > 0;
+    if (wishesTabBtn) wishesTabBtn.style.display = (landscapeVisible && hasWishes) ? '' : 'none';
     if (!landscapeVisible && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
+    if ((!landscapeVisible || !hasWishes) && drawerApi.activeTab() === 'wishes') drawerApi.showTab('deco');
   }
 
   function renderScenery() {
@@ -535,7 +552,7 @@ export function mount(container, params, ctx) {
       ground.appendChild(sign);
     }
     const visitor = duskVisitor(AREA.key, currentHour());
-    if (visitor && BY_ID[visitor.id]) {
+    if (visitor && visitor.area === AREA.key && BY_ID[visitor.id]) {
       const visitorNode = el('button', { class: 'dusk-visitor', html: renderItem(BY_ID[visitor.id], { size: 58 }), onclick: () => {
         if (tapDuskVisitor()) { sfx.pop(); const spark = el('span', { text: '✨' }); visitorNode.appendChild(spark); setTimeout(() => spark.remove(), 700); }
       } });
@@ -1653,7 +1670,7 @@ export function mount(container, params, ctx) {
     if (heldItem) {
       // Outdoor-only: landscape (Build toybox) and rides (any activity item, `act`) —
       // furniture is indoor-only (RUN10 P4). Both directions, both ways.
-      const outdoorOnly = heldItem.kind === 'landscape' || !!heldItem.act;
+      const outdoorOnly = heldItem.kind === 'landscape' || heldItem.kind === 'wish' || !!heldItem.act;
       const indoorOnly = heldItem.kind === 'furniture';
       if (outdoorOnly && AREA.kind !== 'outdoor') { notIndoorsWobble(); return; }
       if (indoorOnly && AREA.kind !== 'interior') { notOutdoorsWobble(); return; }
@@ -1691,6 +1708,14 @@ export function mount(container, params, ctx) {
     // Landscape items live in the Build toybox, not `inventory` (RUN10 P3) — always
     // available, independent of what she's actually won.
     for (const id of LANDSCAPE_IDS) free[id] = LANDSCAPE_STOCK - (placed[id] || 0);
+    // Wishes are unlocked by the Well, not inventory. One cast word makes one real
+    // placeable item available in the Build drawer's Wishes tab.
+    for (const [word, unlocked] of Object.entries(st.wishes || {})) {
+      if (!unlocked) continue;
+      const id = wishId(word);
+      const remaining = 1 - (placed[id] || 0);
+      if (remaining > 0) free[id] = remaining;
+    }
     const ids = Object.keys(free);
     if (holding && !ids.includes(holding)) ids.unshift(holding);
     const tabButtons = drawer.querySelectorAll('.bd-tabs .bd-tab');
@@ -1841,6 +1866,7 @@ export function mount(container, params, ctx) {
   }
 
   function onTap(wrap, place, item) {
+    if (item.id === 'deco_wishwell') { sfx.tap(); ctx.go('wishwell'); return; }
     if (item.kind === 'boo') squeak(wrap, item);
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);

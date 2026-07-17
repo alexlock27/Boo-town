@@ -109,6 +109,7 @@ export const CATALOGUE = [
   { id: 'deco_bush',       kind: 'landscape', name: 'Bush',       rarity: 'common', deco: 'bush',       free: true, blurb: 'A friendly green puff, perfect for hide-and-seek.' },
   { id: 'deco_rock',       kind: 'landscape', name: 'Rock',       rarity: 'common', deco: 'rock',       free: true, blurb: 'Solid, mossy, an excellent place to sit and think.' },
   { id: 'deco_flowerbed',  kind: 'landscape', name: 'Flowerbed',  rarity: 'common', deco: 'flowerbed',  free: true, blurb: 'A tidy row of blooms, strictly not for eating.' },
+  { id: 'deco_wishwell',   kind: 'landscape', name: 'Wish Well',  rarity: 'common', deco: 'wishwell',   free: true, blurb: 'Tap it, spell a wish, and see what sparkles out.' },
 
   // --- Furniture (8, RUN10 P4): kind:'furniture', indoor-only, joins box pools at
   // decoration odds (bucketed under 'deco' in BY_TYPE_RARITY below, not a separate type

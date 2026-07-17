@@ -781,6 +781,26 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         [[30, 88, 'bubblegum'], [48, 84, 'gold'], [66, 88, 'lilac'], [84, 84, 'teal'], [96, 90, 'pink']]
           .map(([x, y, col]) => `<circle cx="${x}" cy="${y}" r="6" fill="${c(col)}" ${ink}/><circle cx="${x}" cy="${y}" r="2.5" fill="${COLORS.gold}"/>`).join('');
       break;
+    case 'wishwell':
+      inner =
+        ell(60, 108, 43, 12, COLORS.sky, halo) + ell(60, 108, 43, 12, COLORS.sky, ink) +
+        path('M30 42 Q60 14 90 42 L82 51 Q60 34 38 51 Z', COLORS.cocoa, halo) +
+        path('M30 42 Q60 14 90 42 L82 51 Q60 34 38 51 Z', COLORS.cocoa, ink) +
+        rrect(36, 48, 48, 50, 7, '#B8C6E8', halo) + rrect(36, 48, 48, 50, 7, '#B8C6E8', ink) +
+        ell(60, 57, 25, 8, '#24345C', ink) +
+        `<path d="M45 68 Q60 76 75 68 M46 86 Q60 94 74 86" fill="none" stroke="#fff" stroke-width="3" opacity=".72"/>` +
+        path(starPath(94, 40, 6, 2.5), COLORS.star, `stroke="${INK}" stroke-width="1.5"`) +
+        path(starPath(25, 70, 4.5, 2), COLORS.pink, '');
+      break;
+    case 'wish': {
+      const hue = [...String(item.word || item.name || 'wish')].reduce((n, ch) => (n + ch.charCodeAt(0) * 13) % 360, 0);
+      inner =
+        ell(60, 106, 39, 10, `hsl(${hue} 66% 74%)`, halo) + ell(60, 106, 39, 10, `hsl(${hue} 66% 74%)`, ink) +
+        `<circle cx="60" cy="64" r="30" fill="hsl(${hue} 72% 88%)" ${halo}/><circle cx="60" cy="64" r="30" fill="hsl(${hue} 72% 88%)" ${ink}/>` +
+        `<text x="60" y="78" text-anchor="middle" font-size="31">${item.icon || '✨'}</text>` +
+        path(starPath(88, 36, 5, 2), COLORS.star, '') + path(starPath(31, 85, 4, 1.6), COLORS.pink, '');
+      break;
+    }
     case 'lamp':
       inner =
         rrect(56, 60, 8, 52, 4, COLORS.cocoa, halo) +
@@ -1024,7 +1044,7 @@ export function renderItem(item, opts = {}) {
   // landscape (RUN10 P3) and furniture (RUN10 P4) draw exactly like a deco — both are
   // game-logic tags (box exclusion/odds, indoor-vs-outdoor placement, their own drawer
   // tab), not a different art path.
-  if (item.kind === 'deco' || item.kind === 'landscape' || item.kind === 'furniture') return renderDeco(item, opts);
+  if (item.kind === 'deco' || item.kind === 'landscape' || item.kind === 'furniture' || item.kind === 'wish') return renderDeco(item, opts);
   if (item.kind === 'accessory') return renderAccessory(item, opts);
   return renderBoo(item, opts);
 }

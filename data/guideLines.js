@@ -131,4 +131,8 @@ export const LINES = {
   L_NOT_INDOORS: ["That belongs outside!"],
   L_NOT_OUTDOORS: ["Cosy things like a roof!"],
   L_GALLERY_SEED: ["Every Boo you meet earns a spot in here!"]
+  ,
+  // ---- Run 10 P20 additions (Wish Well) ----
+  L_WISH_OPEN: ["Spell what you wish for!"],
+  L_WISH_NEARLY: ["Ooh, nearly! The well is listening..."]
 };

@@ -1,0 +1,48 @@
+// RUN10 P20 — real tile/key interaction, tier-specific hints, first-unlock state,
+// meadow seed and the Build → Wishes placement hand-off.
+import { chromium } from 'playwright';
+const BASE = process.env.BASE || 'http://127.0.0.1:8000';
+let failed = false;
+const assert = (ok, msg) => { console.log((ok ? '✓' : 'FAIL:'), msg); if (!ok) failed = true; };
+const AREAS = () => Object.fromEntries(['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery'].map(k => [k, { items: [], paths: [] }]));
+const save = (tier = 'light') => ({ version: 7, name: 'Ada', guide: {}, inventory: {}, stars: { total: 300, byGame: {} }, town: { areas: AREAS() }, wishes: {}, seen: { introSeen: {}, trophyRetro: true }, delights: {}, settings: { sound: false, music: false, voice: false, requests: false, content: tier } });
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 900, height: 760 } });
+const page = await ctx.newPage();
+page.on('pageerror', e => { failed = true; console.log('FAIL: PAGE ERROR', e.message); });
+await page.goto(BASE + '/index.html');
+await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save('light'));
+await page.reload(); await page.waitForSelector('.hub');
+await page.evaluate(() => window.BooTown.go('wishwell'));
+await page.waitForSelector('.wishwell');
+assert(await page.locator('.wish-tile').count() === 8, 'Wish Well renders eight detective tiles');
+assert(await page.locator('.wish-key').count() === 26, 'Wish Well renders a full alphabet of letter keys');
+assert(await page.locator('.wish-hint').count() > 0, 'Light tier receives short-word suggestion chips');
+for (const letter of 'fish') await page.getByRole('button', { name: `Letter ${letter.toUpperCase()}` }).click();
+await page.getByRole('button', { name: /make a wish/i }).click();
+await page.waitForFunction(() => window.BooTown.State.getState().wishes.fish === true);
+await page.waitForSelector('.wish-living-fish');
+assert(await page.locator('.wish-living-fish').count() === 1, 'fish success has its living animation class');
+assert(await page.evaluate(() => window.BooTown.State.getState().wishes.fish === true), 'a valid word is persisted as unlocked');
+await page.evaluate(() => { window.__wishwell.cast('zzzz'); window.__wishwell.cast('zzzz'); });
+assert((await page.locator('.wish-ghost').textContent()).trim().length > 0, 'a second gentle miss shows a ghosted word to copy');
+await page.evaluate(() => window.BooTown.go('town', { area: 'meadow' }));
+await page.waitForSelector('.town2');
+await page.waitForSelector('.t-item[data-item="deco_wishwell"]');
+assert(await page.locator('.t-item[data-item="deco_wishwell"]').count() === 1, 'Meadow receives exactly one seeded, real Wish Well placement');
+await page.locator('.town-hammer-btn').click();
+await page.waitForFunction(() => [...document.querySelectorAll('.bd-tab')].some(b => b.textContent.startsWith('Wishes')));
+await page.locator('.town-drawer .bd-collapsed').click();
+const wishTab = page.locator('.bd-tab', { hasText: 'Wishes' }); await wishTab.click();
+assert(await page.locator('.drawer-item[data-item="wish:fish"]').count() === 1, 'unlocked fish appears as a real item in Build → Wishes');
+await ctx.close();
+
+const mediumCtx = await browser.newContext({ viewport: { width: 900, height: 760 } });
+const medium = await mediumCtx.newPage();
+await medium.goto(BASE + '/index.html');
+await medium.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save('medium'));
+await medium.reload(); await medium.waitForSelector('.hub'); await medium.evaluate(() => window.BooTown.go('wishwell')); await medium.waitForSelector('.wishwell');
+assert(await medium.locator('.wish-hint').count() === 0, 'Medium tier does not receive suggestion chips');
+await mediumCtx.close(); await browser.close();
+console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS'));
+process.exit(failed ? 1 : 0);

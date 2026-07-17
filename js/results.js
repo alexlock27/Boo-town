@@ -27,7 +27,7 @@ export function mount(container, params, ctx) {
   const beforeTotal = s.stars.total;
   mutate(st => {
     const g = st.stars.byGame[game];
-    if (g) { g.plays += 1; g.best = Math.max(g.best, stars); g.earned = (g.earned || 0) + stars; }  // C0 Star Ledger tally
+    if (g) { g.plays += 1; g.best = Math.max(g.best, stars); g.earned = (g.earned || 0) + stars; g.lastPlayed = Date.now(); }  // C0 Star Ledger tally
     st.stars.total += stars;
     if (stars >= 3) { st.gameThrees = st.gameThrees || {}; st.gameThrees[game] = (st.gameThrees[game] || 0) + 1; }  // C4 medal tally
     // P17: a learning round posts one clue to an open notebook, maximum three today.

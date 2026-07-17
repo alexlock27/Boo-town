@@ -6,6 +6,7 @@ import { NODES, BUDGETS, GUESTS, TOPPINGS } from '../../data/expedition.js';
 import { BY_ID } from '../../data/catalogue.js';
 import { genRule, genExclusiveRules, informativeNext, featuresOf } from '../attrengine.js';
 import { freshCaper } from '../caper/state.js';
+import { saveExpeditionPostcard } from './postcard.js';
 
 const BUDGET_KEY = { bridges: 'sneezes', picnic: 'huffs', raft: 'failedSails', hotel: 'wrongRooms' };
 const WONDER = {
@@ -56,6 +57,7 @@ export function mount(container, params, ctx) {
   const finish = () => {
     if (finished) return; finished = true;
     const stars = starCount(wrong, budget, hintUsed);
+    let firstFullTrail = false;
     mutate(save => {
       save.expedition = save.expedition || { party: [], tiers: {}, progress: {} };
       save.expedition.progress = save.expedition.progress || {}; save.expedition.tiers = save.expedition.tiers || {};
@@ -64,10 +66,14 @@ export function mount(container, params, ctx) {
       const finishedTrail = NODES.every(entry => entry.key === node || (save.expedition.progress[entry.key] || 0) > 0);
       if (finishedTrail && !save.expedition.full) {
         save.expedition.full = true;
+        firstFullTrail = true;
         save.inventory = save.inventory || {}; save.inventory.boo_wander = Math.max(1, save.inventory.boo_wander || 0);
         if (!save.caper || !save.caper.open) save.caper = freshCaper();
       }
     });
+    // A full trail is remembered as a Gallery postcard. It is deliberately best-effort:
+    // reaching the gallery cap never interrupts the celebration or any earned progress.
+    if (firstFullTrail) saveExpeditionPostcard(people, node).catch(() => {});
     status.textContent = `Everyone made it! ${'★'.repeat(stars)}`;
     if (!REDUCED) confetti({ count: 32, power: .55 });
     setTimeout(() => ctx.go('expedition', { trail: true }), 850);

@@ -13,4 +13,7 @@ await page.evaluate(() => window.BooTown.go('collection')); await page.waitForSe
 const careButton = page.getByText('💗 Care'); await careButton.click(); await page.waitForSelector('.care-overlay');
 await page.locator('[data-care="feed"]').click(); await page.waitForTimeout(700);
 assert((await page.locator('.care-hearts').textContent()).includes('♥'), 'feed action awards a permanent heart bond');
+await page.evaluate(async () => { const { mutate } = await import('./js/state.js'); mutate(s => { s.care.bonds.boo_inky = 10; }); window.BooTown.go('gallerymuseum'); });
+await page.waitForSelector('.gallerymuseum');
+assert(await page.locator('.gm-portrait[data-boo="boo_inky"]').count() === 1, 'level-two care reward appears as a Gallery portrait, even in the seed room');
 await browser.close(); console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS')); process.exit(failed ? 1 : 0);

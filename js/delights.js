@@ -10,6 +10,7 @@ import { HIDE_POINTS } from '../data/sockets.js';
 
 export const HIDE_REWARD = 2;   // meter points for spotting the hider (C9)
 export const VISITOR_GAP_H = 72;
+export const VISITOR_AREAS = ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground'];
 
 const isBooItem = (id) => id && (id.startsWith('boo_') || id.startsWith('custom:'));
 // A guaranteed anchor when nothing hide-capable is placed anywhere yet (RUN10 P5) — the
@@ -91,7 +92,13 @@ export function duskVisitor(area, hour, now = Date.now()) {
   if (existing && now - existing.at < VISITOR_GAP_H * 3600000) return null;
   const unowned = Object.values(BY_ID).filter(item => item.kind === 'boo' && !(s.inventory[item.id] || 0));
   if (!unowned.length) return null;
-  const visitor = { area, id: unowned[Math.floor(now / 1000) % unowned.length].id, at: now, tapped: false };
+  // The visitor chooses an outdoor place first; opening a different place never moves it
+  // under the child's finger. The timestamp gives a varied, deterministic 72-hour cadence.
+  const slot = Math.floor(now / (VISITOR_GAP_H * 3600000));
+  const visitor = {
+    area: VISITOR_AREAS[Math.abs(slot * 17 + 5) % VISITOR_AREAS.length],
+    id: unowned[Math.abs(slot * 31 + 7) % unowned.length].id, at: now, tapped: false
+  };
   mutate(save => { save.delights = save.delights || {}; save.delights.visitor = visitor; }); return visitor;
 }
 export function tapDuskVisitor() {

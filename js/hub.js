@@ -107,7 +107,12 @@ export function mount(container, params, ctx) {
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
-  try { const care = careState(); const bff = Object.keys(care.bonds || {}).find(id => (care.bonds[id] || 0) >= 70 && BY_ID[id]); if (bff) gb.root.appendChild(el('span', { class: 'hub-bff', text: '👻♥', title: getDisplayName(bff) })); } catch {}
+  try {
+    const care = careState();
+    const bff = Object.keys(care.bonds || {}).filter(id => BY_ID[id] && (care.bonds[id] || 0) >= 70)
+      .sort((a, b) => (care.bonds[b] || 0) - (care.bonds[a] || 0))[0];
+    if (bff) gb.root.appendChild(el('span', { class: 'hub-bff', text: '👻♥', title: getDisplayName(bff) }));
+  } catch {}
   const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
 
   // Boo of the Day (RUN4 C9): rotates at local midnight; now a Today-rail chip (C3).
