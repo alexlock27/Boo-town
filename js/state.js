@@ -75,6 +75,7 @@ function freshSave() {
     quest: { node: 0, lands: {} },  // Boo Quest progress: current node in the active land + completed lands (RUN6 C6)
     booRoll: { best: {}, medals: {}, legacy: { best: {}, medals: {} } },  // P8 keeps RUN9 records separately
     care: { bonds: {}, treats: 0, rewards: {} }, // P12: affection only rises; no needs or timers
+    expedition: { party: [], tiers: {}, progress: {} },
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)

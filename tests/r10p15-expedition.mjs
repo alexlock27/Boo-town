@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const BASE = process.env.BASE || 'http://127.0.0.1:8000'; let failed = false; const assert = (ok, m) => { console.log((ok ? '✓' : 'FAIL:'), m); if (!ok) failed = true; };
+const browser = await chromium.launch(); const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+await page.goto(BASE + '/index.html');
+await page.evaluate(() => localStorage.setItem('bootown.save.v1', JSON.stringify({ version: 7, name:'Ada', guide:{}, inventory:{ boo_inky:1, boo_plum:1, boo_pippin:1, boo_lolly:1, boo_chomp:1, boo_mallow:1, boo_curly:1, boo_wisp:1 }, stars:{total:50,byGame:{}}, town:{areas:{}}, seen:{trophyRetro:true}, settings:{sound:false,music:false} })));
+await page.reload(); await page.waitForSelector('.hub'); await page.evaluate(() => window.BooTown.go('expedition')); await page.waitForSelector('.exp-picker');
+assert(await page.locator('.exp-chip').count() === 8, 'picker shows owned Boo chips');
+await page.locator('.exp-chip').evaluateAll(nodes => nodes.forEach(n => n.click())); await page.waitForTimeout(50);
+assert(!(await page.locator('.exp-picker .btn.big').isDisabled()), 'trail start enables at eight explorers');
+await page.locator('.exp-picker .btn.big').click(); await page.waitForSelector('.exp-trail');
+assert(await page.locator('.exp-node').count() === 4, 'trail contains four story nodes');
+await browser.close(); console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS')); process.exit(failed ? 1 : 0);
