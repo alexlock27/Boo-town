@@ -1,0 +1,10 @@
+import { features, partition, genRule, genExclusiveRules, cluesFor, informativeNext } from '../js/attrengine.js';
+let failed = false; const ok = (v, m) => { console.log((v ? '✓' : 'FAIL:'), m); if (!v) failed = true; };
+const pool = Array.from({ length: 12 }, (_, i) => ({ id: i, species: i % 2 ? 'pip' : 'nova', colors: { body: i % 3 ? 'teal' : 'lilac' }, acc: i % 4 === 0 ? 'bow' : null, shiny: i % 5 === 0 }));
+ok(features(pool[0]).colour === 'lilac', 'features normalises catalogue colour');
+ok(!genRule(pool.map(x => ({ ...x, species: 'pip' })), { tier: 1, exclude: ['colour', 'accessory', 'shiny'] }), 'uniform species never creates a species rule');
+const rule = genRule(pool, { tier: 1 }); const split = partition(pool, rule.pred); ok(split.yes.length >= 3 && split.no.length >= 3, 'generated rule has both valid branches');
+const exclusivePool = Array.from({ length: 6 }, (_, i) => ({ id: i, species: i < 3 ? 'pip' : 'nova', colors: { body: 'teal' } })); const rules = genExclusiveRules(exclusivePool, 2, { tier: 1 }); ok(rules && rules.every(r => partition(exclusivePool, r.pred).yes.length === 3), 'exclusive rules cover disjoint groups');
+const clues = cluesFor(pool[0], pool, 4); ok(clues.length === 4 && clues.every(c => c.pred(pool[0])), 'all clues are true for culprit');
+ok(informativeNext(pool, [pool[0]]) !== pool[0], 'informative next never repeats history');
+console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS')); process.exit(failed ? 1 : 0);

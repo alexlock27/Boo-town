@@ -20,6 +20,7 @@ const ASSETS = [
   'js/sfx.js',
   'js/tts.js',
   'js/care.js',
+  'js/attrengine.js',
   'js/onboarding.js',
   'js/creator.js',
   'js/rewards.js',
