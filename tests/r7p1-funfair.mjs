@@ -111,11 +111,13 @@ console.log('== every day-one element plays on a 0-star save ==');
 console.log('== the band has NO star gate: all three instruments + record work at 0 stars ==');
 {
   const { ctx, page } = await openTown(SAVE({ seen: { funfairOpened: 'x', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true } }));
-  // tap the bandstand → the band screen (proves it is reachable at 0 stars)
+  // RUN10 P6: bandstand → Band Room → Drums (two taps to first sound, no star gate).
   await page.evaluate(() => window.__townLife.scrollToBandstand());
   await sleep(300);
   await page.click('.ff-bandstand');
-  await page.waitForSelector('.band-screen, .screen.band, [class*="band"]', { timeout: 3000 }).catch(() => {});
+  await page.waitForSelector('.bandroom', { timeout: 3000 });
+  assert(await page.locator('.bandroom-card[data-scene="drums"]').count() === 1, 'Band Room is reachable at 0 stars');
+  await page.click('.bandroom-card[data-scene="drums"]');
   await page.waitForFunction(() => window.__band, { timeout: 3000 });
   const res = await page.evaluate(async () => {
     const sfx = await import('./js/sfx.js');

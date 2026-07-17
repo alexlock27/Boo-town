@@ -103,14 +103,16 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen band' });
   container.appendChild(root);
 
-  let instrument = 'drums';
+  const sceneMode = !!params.instrument;
+  let instrument = params.instrument || 'drums';
   let recording = false, recStart = 0, events = [];
   let heldChord = 'C';
   let playAlong = false, songPos = 0, songKeys = null, songName = '';
   let backing = false, backingCtl = null;
   let playCtl = null, recTimer = null;
+  let sceneRecordBtn = null;
   // multitrack state (RUN9 C6) — declared up here so recordBar() (called in root.append) can see them
-  let layers = [];              // [{ instrument, events:[{t,i,v}] }]
+  let layers = ((params.editJam && params.editJam.layers) || []).map(layer => ({ instrument: layer.instrument, events: (layer.events || []).slice() }));
   let layerPlayCtl = null;      // playback of existing layers while recording over them
   const MAX_LAYERS = 3;
   const layersEl = el('div', { class: 'band-layers' });
@@ -126,6 +128,10 @@ export function mount(container, params, ctx) {
     ...LITTLE_BOO_SONGS.map(s => ({ id: s.id, name: s.name, keys: songToKeys(s), little: true })),
     ...(toddler ? [] : BOO_POP_HITS.map(s => ({ id: s.id, name: s.name, keys: songToKeys(s), little: false })))
   ];
+  if (params.songId) {
+    const selected = PLAYALONG.find(song => song.id === params.songId);
+    if (selected) { instrument = 'keys'; playAlong = true; songKeys = selected.keys; songName = selected.name; }
+  }
 
   const trioRow = el('div', { class: 'band-trio' });
   const trioEls = {};
@@ -141,7 +147,13 @@ export function mount(container, params, ctx) {
   function showXyloBoo(on) { trioEls.xylophonist.classList.toggle('present', on); }
   showXyloBoo(false);
 
-  const header = el('header', { class: 'band-header' }, [backControl(() => leave()), el('h2', { text: 'Boo Band' })]);
+  sceneRecordBtn = sceneMode ? el('button', { class: 'band-scene-record', 'aria-label': 'Record a jam', text: '●', onclick: () => toggleRecord() }) : null;
+  const panelMode = params.panel;
+  const header = el('header', { class: 'band-header' }, [
+    backControl(() => (sceneMode || panelMode) ? ctx.go('bandroom') : leave()),
+    el('h2', { text: sceneMode ? ({ drums: 'Drums', keys: 'Keys', guitar: 'Guitar', xylo: 'Xylophone' }[instrument] || 'Boo Band') : 'Boo Band' }),
+    sceneRecordBtn
+  ]);
   const area = el('div', { class: 'band-area' });
   const tabs = el('div', { class: 'band-tabs' });
   for (const [key, label] of [['drums', '🥁 Drums'], ['keys', '🎹 Keys'], ['guitar', '🎸 Guitar'], ['xylo', '🎼 Xylophone']]) {
@@ -153,8 +165,8 @@ export function mount(container, params, ctx) {
   const recStatus = el('span', { class: 'rec-status' });
   const jamsList = el('div', { class: 'jams-list' });
 
-  root.append(header, trioRow, tabs, area, backingRow(), recordBar(), jamsPanel());
-  renderInstrument();
+  root.append(header, trioRow, (sceneMode || panelMode) ? null : tabs, panelMode === 'songs' ? songsUI() : panelMode === 'jams' ? jamsPanel() : area, panelMode ? null : backingRow(), panelMode ? null : recordBar(), (sceneMode || panelMode) ? null : jamsPanel());
+  if (!panelMode) renderInstrument();
   refreshJams();
   renderLayers();
 
@@ -178,6 +190,14 @@ export function mount(container, params, ctx) {
     else if (instrument === 'keys') area.appendChild(keysUI());
     else if (instrument === 'xylo') area.appendChild(xyloUI());
     else area.appendChild(guitarUI());
+  }
+  function songsUI() {
+    const list = el('div', { class: 'band-songs' });
+    list.appendChild(el('h3', { text: 'Pick a song to play' }));
+    PLAYALONG.forEach(song => list.appendChild(el('button', { class: 'band-song-card', onclick: () => ctx.go('bandkeys', { songId: song.id }) }, [
+      el('strong', { text: song.name }), el('span', { text: song.little ? 'For little Boos' : 'Boo Pop Hit' }), el('span', { text: '▶ Play along' })
+    ])));
+    return list;
   }
   // Xylophone: eight rainbow bars (C-major), a bright mallet tone + mallet-bounce (RUN9 C6).
   const XYLO_COLOURS = ['#EF476F', '#FF9F68', '#FFC93C', '#9CCC65', '#35D0BA', '#8FC7FF', '#8A6BF0', '#C6A9F0'];
@@ -216,15 +236,16 @@ export function mount(container, params, ctx) {
       }, playAlong && songName === song.name));
     }
     function renderPicker() { [...picker.children].forEach((c, i) => { const on = (i === 0 && !playAlong) || (i > 0 && playAlong && c.textContent.includes(songName)); c.classList.toggle('sel', on); }); }
-    const label = el('div', { class: 'playalong-label' });
+    const label = el('div', { class: 'playalong-label sparkle-lane' });
     const row = el('div', { class: 'keys-row' });
     wrap.append(picker, label, row);
     function renderKeys() {
-      label.textContent = playAlong ? `✨ Follow the sparkle: ${songName}` : '';
+      label.textContent = playAlong ? `✨ Follow the sparkle: ${songName}` : 'Free play — pick any key!';
       clear(row);
       KEY_SEMIS.forEach((semi, idx) => {
         const wanted = playAlong && songKeys && songKeys[songPos] === idx;
-        const k = el('button', { class: 'key' + (wanted ? ' sparkle' : ''), dataset: { idx: String(idx) } });
+        const note = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5'][idx] || String(idx);
+        const k = el('button', { class: 'key' + (wanted ? ' sparkle' : ''), dataset: { idx: String(idx) }, text: note });
         suppressContextMenu(k);
         k.addEventListener('pointerdown', e => {
           e.preventDefault(); hit('key', semi); k.classList.remove('down'); void k.offsetWidth; k.classList.add('down'); setTimeout(() => k.classList.remove('down'), 160);
@@ -301,6 +322,7 @@ export function mount(container, params, ctx) {
   }
   function startPass() {
     recording = true; recStart = performance.now();
+    if (sceneRecordBtn) sceneRecordBtn.classList.add('recording');
     recordBar._recBtn.textContent = '■ Stop'; recordBar._recBtn.classList.add('recording');
     recStatus.textContent = layers.length ? `Recording layer ${layers.length + 1}…` : 'Recording…';
     // play committed layers over the SAME clock so she layers in time
@@ -316,6 +338,7 @@ export function mount(container, params, ctx) {
   function stopRecord() {
     if (!recording) return;
     recording = false; if (recTimer) { clearTimeout(recTimer); recTimer = null; }
+    if (sceneRecordBtn) sceneRecordBtn.classList.remove('recording');
     if (layerPlayCtl) { layerPlayCtl.stop(); layerPlayCtl = null; }
     recordBar._recBtn.textContent = '● Record'; recordBar._recBtn.classList.remove('recording');
     recStatus.textContent = events.length ? `${events.length} notes captured` : 'Nothing recorded yet';
@@ -380,19 +403,26 @@ export function mount(container, params, ctx) {
   async function refreshJams() {
     const jams = await listJams();
     clear(jamsList);
-    if (!jams.length) { jamsList.appendChild(el('p', { class: 'jams-empty', text: 'Record a jam and save it — up to three live here.' })); return; }
+    if (!jams.length) { jamsList.appendChild(el('button', { class: 'jams-empty jam-first', text: '🥁 Record your first jam!', onclick: () => ctx.go('banddrums') })); return; }
     const cur = getState().bandSong;
     for (const j of jams) {
       const setBtn = el('button', { class: 'btn soft jam-set' + (cur === j.id ? ' active' : ''), text: cur === j.id ? '★ Band song' : 'Set as band song', onclick: () => { mutate(st => { st.bandSong = j.id; }); sfx.star(); refreshJams(); } });
       const row = el('div', { class: 'jam-row', dataset: { id: j.id } }, [
+        el('span', { class: 'jam-sparkline', text: sparkline(jamEvents(j)) }),
         el('span', { class: 'jam-name', text: j.name }),
         el('button', { class: 'btn soft jam-play', text: '▶', 'aria-label': 'Play ' + j.name, onclick: () => playRecording(jamEvents(j)) }),
+        el('button', { class: 'btn soft jam-layer', text: '+ Layer', onclick: () => ctx.go('banddrums', { editJam: j }) }),
         setBtn,
         el('span', { class: 'jam-hint', text: 'hold to delete' })
       ]);
       attachHoldDelete(row, j);
       jamsList.appendChild(row);
     }
+  }
+  function sparkline(events) {
+    const bins = Array(12).fill(0); const end = Math.max(1, ...events.map(e => e.t || 0));
+    events.forEach(e => bins[Math.min(11, Math.floor((e.t || 0) / end * 12))]++);
+    return bins.map(n => n ? '•' : '·').join('');
   }
   function attachHoldDelete(row, jam) {
     let timer = null;

@@ -910,7 +910,7 @@ export function mount(container, params, ctx) {
     let down = false, moved = false, sx = 0, sy = 0;
     box.addEventListener('pointerdown', e => { e.stopPropagation(); down = true; moved = false; sx = e.clientX; sy = e.clientY; box.setPointerCapture(e.pointerId); });
     box.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) moved = true; });
-    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) { sfx.tap(); ctx.go('band'); } down = false; });
+    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) { sfx.tap(); ctx.go('bandroom'); } down = false; });
     box.addEventListener('pointercancel', () => { down = false; });
   }
   function onBandNote(ev) {
