@@ -121,10 +121,11 @@ export function mount(container, params, ctx) {
       grid.appendChild(rowEl); tileEls.push(rowEls);
     }
     const kb = el('div', { class: 'det-kb' });
+    let goKey = null, goTaught = false;
     const keyEls = {};
     KEYROWS.forEach((krow, ri) => {
       const rowEl = el('div', { class: 'det-kb-row' });
-      if (ri === 2) rowEl.appendChild(el('button', { class: 'det-key wide', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }));
+      if (ri === 2) { goKey = el('button', { class: 'det-key wide det-go', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }); rowEl.appendChild(goKey); }
       for (const ch of krow) { const k = el('button', { class: 'det-key', text: ch.toUpperCase(), dataset: { key: ch }, onclick: () => typeCh(ch) }); rowEl.appendChild(k); keyEls[ch] = k; }
       if (ri === 2) rowEl.appendChild(el('button', { class: 'det-key wide', text: '⌫', 'aria-label': 'Backspace', onclick: () => backspace() }));
       kb.appendChild(rowEl);
@@ -158,6 +159,9 @@ export function mount(container, params, ctx) {
         t.textContent = (cur[c] || '').toUpperCase();
         t.classList.toggle('filled', !!cur[c]);
       }
+      const ready = cur.length === mode && !locked && !ended;
+      if (goKey) { goKey.classList.toggle('go-ready', ready); goKey.textContent = ready ? 'GO!' : '⏎'; }
+      if (ready && !goTaught) { goTaught = true; shell.react('Tap GO when you’re ready!', { voice: false, hold: 1800 }); }
     }
 
     function submit() {
