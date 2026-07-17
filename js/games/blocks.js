@@ -21,6 +21,9 @@ const N = 8;                 // 8×8 board (RUN9 C2)
 const TRAY = 3;              // three-slot tray
 const PIECE_BUDGET = 60;     // a generous piece budget; a round also ends when no move fits
 const BOOST_USES = 3;        // Boo Boost uses per round (C2)
+// RUN10 P10: difficulty rises as a score chase, never as a surprise wall.
+export const BAG_TIERS = [{ at: 0, awkward: .25 }, { at: 250, awkward: .45 }, { at: 600, awkward: .62 }];
+export const SQUEEZE_ON = .70, SQUEEZE_OFF = .62;
 const LIFT = 70;             // px the dragged piece floats ABOVE the fingertip so the hand never hides it
 const SPIN_MS = 220;         // snappy quarter-turn animation length
 const rand = (n) => (Math.random() * n) | 0;
@@ -82,9 +85,20 @@ const SHAPES = {
   block23:  [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]]
 };
 const BAG_KEYS = Object.keys(SHAPES);
-const SPICY_KEYS = ['tetS', 'tetL', 'tetT', 'block23'];
-const SPICY_EXTRA = 1;
+const AWKWARD_KEYS = ['tetS', 'tetL', 'tetT', 'corner', 'tetI'];
+const FRIENDLY_KEYS = ['single', 'domino', 'tetO'];
 const PIECE_COLORS = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#C6A9F0', '#FFC93C', '#7FD8C3'];
+
+export function bagTierFor(score) { return BAG_TIERS.filter(t => score >= t.at).at(-1); }
+// Pure, injectable random source for the P10 balance simulation and no-repeat audit.
+export function buildBag(score, random = Math.random) {
+  const tier = bagTierFor(score), count = 16, awkward = Math.round(count * tier.awkward);
+  const bag = [];
+  for (let i = 0; i < awkward; i++) bag.push(AWKWARD_KEYS[i % AWKWARD_KEYS.length]);
+  for (let i = awkward; i < count; i++) bag.push(FRIENDLY_KEYS[(i - awkward) % FRIENDLY_KEYS.length]);
+  for (let i = bag.length - 1; i > 0; i--) { const j = (random() * (i + 1)) | 0; [bag[i], bag[j]] = [bag[j], bag[i]]; }
+  return bag;
+}
 
 function normShape(cells) {
   const minR = Math.min(...cells.map(c => c[0])), minC = Math.min(...cells.map(c => c[1]));
@@ -139,7 +153,7 @@ export function mount(container, params, ctx) {
     const bag = [];
     let score = 0, lines = 0, placed = 0, cascade = 0, ended = false;
     let boostsLeft = BOOST_USES, boostAwardIdx = 0, boostRetryUsed = false, boostOpen = false;
-    let hintsUsed = 0;
+    let hintsUsed = 0, squeezeActive = false, squeezeTaught = false;
     let selected = -1, spinNext = -1;
     const best0 = bestScore();
 
@@ -192,14 +206,15 @@ export function mount(container, params, ctx) {
       cascade: () => cascade,
       placed: () => placed,
       ended: () => ended,
-      stats: () => ({ score, lines, placed, cascade, boostsLeft, hintsUsed }),
+      stats: () => ({ score, lines, placed, cascade, boostsLeft, hintsUsed, fill: boardFill(), squeezeActive }),
       // rig a known piece into a slot (deterministic QA)
       rig: (slot, cellsArr, opts) => { tray[slot] = Object.assign({ key: 'test', cells: normShape(cellsArr), color: '#FF7AC6' }, opts || {}); renderTray(); },
       rigSpecial: (slot, special) => { tray[slot] = makeSpecial(special); renderTray(); },
       fillRowExceptLast: (r) => { for (let c = 0; c < N - 1; c++) board[r][c] = '#FF7AC6'; renderBoard(); },
       fillBoardExcept: (skip) => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = (skip && skip.some(([rr, cc]) => rr === r && cc === c)) ? 0 : '#8FC7FF'; renderBoard(); },
-      clearBoard: () => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = 0; renderBoard(); },
-      resetForTest: () => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = 0; score = 0; lines = 0; cascade = 0; placed = 0; renderBoard(); updateScore(); renderCascade(); },
+      clearBoard: () => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = 0; renderBoard(); updatePressure(); },
+      resetForTest: () => { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = 0; score = 0; lines = 0; cascade = 0; placed = 0; squeezeActive = false; squeezeTaught = false; renderBoard(); updateScore(); renderCascade(); updatePressure(); },
+      setFillForTest: n => { let left = n; for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = left-- > 0 ? '#FF7AC6' : 0; renderBoard(); updatePressure(); },
       select: (i) => selectPiece(i),
       rotate: () => rotateSelected(),
       rotateSlot: (i) => { selected = i; rotateSelected(); },
@@ -218,9 +233,7 @@ export function mount(container, params, ctx) {
     // ---- the bag / tray ----
     function drawKey() {
       if (!bag.length) {
-        bag.push(...BAG_KEYS);
-        for (const k of SPICY_KEYS) for (let i = 0; i < SPICY_EXTRA; i++) bag.push(k);
-        shuffle(bag);
+        bag.push(...buildBag(score));
       }
       return bag.pop();
     }
@@ -354,12 +367,15 @@ export function mount(container, params, ctx) {
     function consumeSpecial(slotIdx) { tray[slotIdx] = null; selected = -1; placed++; clearPreview(); }
     function noteBlast(cellList, label) {
       sfx.star();
+      // A special should read at a glance: beam for the Line Blaster, ka-pop for Bomb.
+      boardEl.classList.remove('blk-beam', 'blk-ka-pop'); void boardEl.offsetWidth;
+      boardEl.classList.add(label.includes('ZAP') ? 'blk-beam' : 'blk-ka-pop');
       let delay = 0; const STEP = REDUCED ? 0 : 24;
       cellList.forEach(([r, c]) => { sparkleCell(r, c, delay); delay += STEP; board[r][c] = 0; });
       score += cellList.length * SPECIAL_CELL_POINTS;
       updateScore();
       lineFlourish(0, label);
-      setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 40 : Math.max(200, delay + 100));
+      setTimeout(() => { boardEl.classList.remove('blk-beam', 'blk-ka-pop'); renderBoard(); updatePressure(); checkAllClear(); }, REDUCED ? 40 : Math.max(200, delay + 100));
       shell.react(label, { voice: false, hold: 1300 });
     }
 
@@ -367,6 +383,7 @@ export function mount(container, params, ctx) {
       fillTray();
       renderTray();
       updateScore();
+      updatePressure();
       if (checkEnd()) return;
     }
 
@@ -375,7 +392,7 @@ export function mount(container, params, ctx) {
       for (let r = 0; r < N; r++) if (board[r].every(v => v)) fullRows.push(r);
       for (let c = 0; c < N; c++) { let f = true; for (let r = 0; r < N; r++) if (!board[r][c]) { f = false; break; } if (f) fullCols.push(c); }
       const total = fullRows.length + fullCols.length;
-      if (!total) { cascade = 0; renderCascade(); return; }
+      if (!total) { cascade = 0; renderCascade(); updatePressure(); return; }
       lines += total;
       cascade++;   // back-to-back clears build the streak
       // score: base per line, multiplied by simultaneous count and the cascade streak
@@ -393,7 +410,7 @@ export function mount(container, params, ctx) {
       renderCascade();
       fullRows.forEach(r => { for (let c = 0; c < N; c++) board[r][c] = 0; });
       fullCols.forEach(c => { for (let r = 0; r < N; r++) board[r][c] = 0; });
-      setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 60 : Math.max(240, delay + 120));
+      setTimeout(() => { renderBoard(); updatePressure(); checkAllClear(); }, REDUCED ? 60 : Math.max(240, delay + 120));
     }
     function checkAllClear() {
       let empty = true;
@@ -425,6 +442,14 @@ export function mount(container, params, ctx) {
     function updateScore() {
       scoreEl.querySelector('.blk-score-num').textContent = String(score);
       if (score > best0) bestEl.textContent = `NEW BEST ${score}! ⭐`;
+    }
+    function boardFill() { let filled = 0; for (const row of board) for (const cell of row) if (cell) filled++; return filled / (N * N); }
+    function updatePressure() {
+      const fill = boardFill();
+      if (!squeezeActive && fill >= SQUEEZE_ON) {
+        squeezeActive = true; boostBtn.classList.add('squeeze');
+        if (!squeezeTaught) { squeezeTaught = true; shell.react('Squeezy! Want a quick question for a Line Blaster?', { voice: false, hold: 2600 }); }
+      } else if (squeezeActive && fill < SQUEEZE_OFF) { squeezeActive = false; boostBtn.classList.remove('squeeze'); }
     }
     function renderCascade() {
       cascadeEl.textContent = cascade > 1 ? `🔥 Streak ×${cascade}` : '';
