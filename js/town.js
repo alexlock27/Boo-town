@@ -43,6 +43,9 @@ const INTERIOR_W_VIEWPORTS = 1.5;
 const INTERIOR_WALL_FRAC = 0.55;   // room backdrop: wall band = top 55%, floor band = the rest
 const WALL_ROW = 3;                // sentinel row value for wall-hung items (floor uses 0-2)
 const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no depth variation
+const ITEM_SCALE_MIN = 0.70, ITEM_SCALE_MAX = 1.60, ITEM_SCALE_STEP = 0.15;
+const itemScaleOf = (t) => Math.max(ITEM_SCALE_MIN, Math.min(ITEM_SCALE_MAX, Number(t && t.scale) || 1));
+const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
 
 const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of viewport height
 const GROUND_FRAC = BAND_TOP;          // the grass band starts at the top of the placement band
@@ -83,22 +86,6 @@ const ACT_MULT_KEY = { deco_trampoline: 'trampoline', deco_bench: 'bench', deco_
 // Hide-and-seek 2.0 (RUN10 P5): a giggle + wiggle every 8-14s so the hider reads as
 // alive, not just a static sticker peeking out.
 const HIDE_WIGGLE_MIN_MS = 8000, HIDE_WIGGLE_MAX_MS = 14000;
-const PEEK_SVG = {
-  ears: `<svg viewBox="0 0 60 26" width="52" height="23" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="16" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-    <ellipse cx="44" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-    <ellipse cx="16" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
-    <ellipse cx="44" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
-  </svg>`,
-  tail: `<svg viewBox="0 0 40 40" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="16" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-    <circle cx="14" cy="14" r="5" fill="#FF9AD5" opacity="0.7"/>
-  </svg>`,
-  feet: `<svg viewBox="0 0 60 24" width="52" height="21" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="18" cy="12" rx="10" ry="10" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-    <ellipse cx="42" cy="12" rx="10" ry="10" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-  </svg>`
-};
 const SETTLE_MS = 180;           // arrival settle: drop + squash (RUN10 P2)
 const SHRUG_MS = 300;            // no free socket → a small shrug, then wander off (RUN10 P2)
 const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
@@ -172,7 +159,8 @@ const ACT_SIZE = {
   deco_slide: 150, deco_swings: 150, deco_seesaw: 160, deco_trampoline: 140,
   deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120,
   // furniture (RUN10 P4)
-  deco_bed: 140, deco_sofa: 150, deco_wardrobe: 130, deco_bookshelf: 130, deco_bathtub: 130
+  deco_bed: 150, deco_sofa: 165, deco_rug: 210, deco_table: 120, deco_tablelamp: 105,
+  deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145
 };
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
@@ -220,6 +208,7 @@ export function mount(container, params, ctx) {
   }
 
   let holding = (params && params.place) || null;   // item id being placed
+  let holdingScale = 1;
   let placeMode = !!holding;
   let scrollX = 0, worldW = 0, zoneW = 0, viewW = 0, viewH = 0, groundY = 0;
   let raf = null, actors = [], fx = [];
@@ -277,6 +266,7 @@ export function mount(container, params, ctx) {
     { id: 'boos', label: 'Boos', test: (it) => it.kind === 'boo' },
     { id: 'rides', label: 'Rides & fun', test: (it) => it.kind === 'deco' && !!it.act },
     { id: 'deco', label: 'Decorations', test: (it) => it.kind === 'deco' && !it.act && it.rarity !== 'ultra' },
+    { id: 'furniture', label: 'Furniture', test: (it) => it.kind === 'furniture' },
     { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' },
     { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' }
   ];
@@ -309,8 +299,8 @@ export function mount(container, params, ctx) {
       st.seen = st.seen || {};
       st.seen.boohouseSeeded = true;
       const items = areaItems(st);
-      items.push({ zone: 'boohouse', x: 0.3, row: 1, item: 'deco_rug' });
-      items.push({ zone: 'boohouse', x: 0.62, row: 1, item: 'deco_tablelamp' });
+      items.push({ zone: 'boohouse', x: 0.36, row: 1, item: 'deco_rug', scale: 1.2 });
+      items.push({ zone: 'boohouse', x: 0.64, row: 1, item: 'deco_tablelamp', scale: 1 });
     });
   }
 
@@ -443,6 +433,8 @@ export function mount(container, params, ctx) {
       pathCommitTimer = setInterval(commitPaths, 10000);   // "commit on exit or every 10s" (spec)
       buildTool = 'place';
       toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === buildTool));
+      drawerApi.showTab(isInterior ? 'furniture' : 'boos');
+      drawerApi.open();
     } else {
       if (pathCommitTimer) { clearInterval(pathCommitTimer); pathCommitTimer = null; }
       commitPaths();
@@ -452,6 +444,7 @@ export function mount(container, params, ctx) {
     }
     updateBuildUI();
     renderPlaced();
+    updateHint();
   }
   function selectBuildTool(id) {
     sfx.tap();
@@ -471,10 +464,15 @@ export function mount(container, params, ctx) {
     pathStyleRow.style.display = (buildMode && buildTool === 'paths') ? '' : 'none';
     // Landscape is a Build-only, outdoor-only toybox (RUN10 P3/P4) — hidden whenever
     // either condition isn't met (e.g. build mode toggled on inside the Boo House).
+    const tabs = [...drawer.querySelectorAll('.bd-tabs .bd-tab')];
     const landscapeVisible = buildMode && AREA.kind === 'outdoor';
-    const landscapeTabBtn = drawer.querySelectorAll('.bd-tabs .bd-tab')[4];
+    const landscapeTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'landscape')];
     if (landscapeTabBtn) landscapeTabBtn.style.display = landscapeVisible ? '' : 'none';
     if (!landscapeVisible && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
+    const furnitureVisible = AREA.kind === 'interior';
+    const furnitureTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'furniture')];
+    if (furnitureTabBtn) furnitureTabBtn.style.display = furnitureVisible ? '' : 'none';
+    if (!furnitureVisible && drawerApi.activeTab() === 'furniture') drawerApi.showTab('deco');
   }
 
   function renderScenery() {
@@ -535,9 +533,26 @@ export function mount(container, params, ctx) {
     const wall = el('div', { class: 't-interior-wall' });
     wall.style.width = worldW + 'px'; wall.style.height = wallH + 'px';
     hills.appendChild(wall);
+    const bunting = el('div', { class: 't-interior-bunting', 'aria-hidden': 'true', html: '<i></i><i></i><i></i><i></i><i></i><i></i><i></i>' });
+    bunting.style.left = (worldW * 0.08) + 'px';
+    bunting.style.width = (worldW * 0.46) + 'px';
+    hills.appendChild(bunting);
     const windowEl = el('div', { class: 't-interior-window' });
     windowEl.style.left = (worldW * 0.5 - 46) + 'px'; windowEl.style.top = (wallH * 0.28) + 'px';
+    windowEl.append(el('i', { class: 't-window-cross' }), el('i', { class: 't-window-curtain left' }), el('i', { class: 't-window-curtain right' }));
     hills.appendChild(windowEl);
+    const shelf = el('div', { class: 't-interior-shelf', 'aria-hidden': 'true', html: '<i></i><i></i><i></i><i></i>' });
+    shelf.style.left = (worldW * 0.72) + 'px';
+    shelf.style.top = (wallH * 0.28) + 'px';
+    hills.appendChild(shelf);
+    const door = el('div', { class: 't-interior-door', 'aria-hidden': 'true' });
+    door.style.left = (worldW * 0.08) + 'px';
+    door.style.top = (wallH * 0.22) + 'px';
+    hills.appendChild(door);
+    const skirting = el('div', { class: 't-interior-skirting', 'aria-hidden': 'true' });
+    skirting.style.top = (wallH - 7) + 'px';
+    skirting.style.width = worldW + 'px';
+    hills.appendChild(skirting);
     const floor = el('div', { class: 't-interior-floor' });
     floor.style.left = '0'; floor.style.top = wallH + 'px';
     floor.style.width = worldW + 'px'; floor.style.height = (viewH - wallH) + 'px';
@@ -568,8 +583,10 @@ export function mount(container, params, ctx) {
       const onWall = t.row === WALL_ROW;
       const row = onWall ? WALL_ROW : rowOf(t);
       const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
-      const size = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
+      const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
+      const size = baseSize * itemScaleOf(t);
       const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
+      wrap.dataset.scale = String(itemScaleOf(t));
       wrap.style.left = (px - size / 2) + 'px';
       wrap.style.top = (rowGroundPx - size + 8) + 'px';
       wrap.style.zIndex = onWall ? '1' : String(Math.round(rowGroundPx));
@@ -621,14 +638,26 @@ export function mount(container, params, ctx) {
     const itemPx = zi * zoneW + clamp01(h.spot.x) * zoneW;
     const rowGroundPx = viewH * ROW_GROUND[row];
     const itemH = (ACT_SIZE[h.spot.item] || 92) * ROW_SCALE[row] * 130 / 120;
-    const peek = el('button', { class: 't-hide-peek', 'aria-label': 'Someone is hiding here!', html: PEEK_SVG[hp.peek] || PEEK_SVG.ears });
-    const peekW = 52, peekH = 26;
+    const hiderItem = resolveItem(h.boo);
+    if (!hiderItem) { hiderWrap.style.display = ''; return; }
+    const peekKind = ['ears', 'tail', 'feet'].includes(hp.peek) ? hp.peek : 'ears';
+    const peek = el('button', {
+      class: `t-hide-peek peek-${peekKind}`,
+      'aria-label': `${getDisplayName(h.boo)} is hiding here`,
+      html: `<span class="t-hide-peek-art">${renderItem(hiderItem, { size: 64, equipArt: equippedArt(h.boo) })}</span>`
+    });
+    const peekW = 64, peekH = 64;
     const offX = (hp.x || 0) * itemH;
     peek.style.left = (itemPx + offX - peekW / 2) + 'px';
-    // 40% occluded: the sprite tucks partway down behind the item's own top edge, and the
-    // item (drawn later, same z-order rules as everything else) sits above it.
-    peek.style.top = (rowGroundPx - itemH - peekH * 0.6) + 'px';
-    peek.style.zIndex = String(Math.max(0, Math.round(rowGroundPx) - 1));
+    const hostTop = rowGroundPx - itemH + 8;
+    peek.style.top = (peekKind === 'feet'
+      ? rowGroundPx - 44
+      : peekKind === 'tail'
+        ? hostTop + itemH * 0.42 - peekH / 2
+        : hostTop - 18) + 'px';
+    // The artwork is clipped so it still LOOKS tucked behind the host, while the generous
+    // 64px touch target sits above it and remains reliably tappable on a phone.
+    peek.style.zIndex = String(Math.max(2, Math.round(rowGroundPx) + 1));
     // pointer pattern mirrors attachItemPointer: stop the pan from swallowing taps
     peek.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
     peek.addEventListener('pointerup', (e) => {
@@ -1592,6 +1621,17 @@ export function mount(container, params, ctx) {
     }
     return null;
   }
+  function nearestLegalWallSpot(x, except) {
+    if (areaFull(except)) return null;
+    const STEP = MIN_SPACING * 0.6;
+    for (let d = 0; d <= 0.5; d += STEP) {
+      const cands = d === 0 ? [x] : [x - d, x + d];
+      for (const cand of cands) {
+        if (cand >= 0.05 && cand <= 0.95 && !wallSpotTaken(cand, except)) return cand;
+      }
+    }
+    return null;
+  }
   const dropGhost = el('div', { class: 'drop-ghost' });
   air.appendChild(dropGhost);   // the air layer is never cleared by renderScenery/renderPlaced
   function showDropPreview(dragEl, zi, x, row, except) {
@@ -1622,20 +1662,25 @@ export function mount(container, params, ctx) {
     if (areaFull()) { areaFullWobble(); return; }
     // Wall-hung furniture (RUN10 P4): its own single-row lane, no depth-row Y choice.
     if (heldItem && heldItem.wall) {
-      if (wallSpotTaken(x)) { spotWobble(); return; }
+      const wallX = wallSpotTaken(x) ? nearestLegalWallSpot(x) : x;
+      if (wallX == null) { spotWobble(); return; }
       const id = holding;
-      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +x.toFixed(3), row: WALL_ROW, item: id }); });
+      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id, scale: holdingScale }); });
+      holdingScale = 1;
       holding = null; placeMode = false;
       renderPlaced(); renderDrawer(); updateHint();
       sfx.pop();
       return;
     }
     const row = rowAtClient(cy);
-    if (spotTaken(zi, x, row)) { spotWobble(); return; }   // keep holding it, try again
+    const landing = spotTaken(zi, x, row) ? nearestLegalSpot(zi, x, row) : { x, row };
+    if (!landing) { spotWobble(); return; }
     const id = holding;
-    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +x.toFixed(3), row, item: id }); });
+    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id, scale: holdingScale }); });
+    holdingScale = 1;
     holding = null; placeMode = false;
     renderPlaced(); renderDrawer(); updateHint();
+    if (landing.x !== x || landing.row !== row) hint.textContent = 'Tucked into the nearest free spot!';
     sfx.pop();
   }
 
@@ -1646,8 +1691,17 @@ export function mount(container, params, ctx) {
     const free = {};
     for (const [id, n] of Object.entries(st.inventory)) {
       const rit = resolveItem(id); if (!rit || rit.kind === "accessory") continue; // accessories are worn
+      if (rit.kind === 'furniture' && !isInterior) continue;
       const f = n - (placed[id] || 0);
       if (f > 0) free[id] = f;
+    }
+    if (isInterior) {
+      for (const item of Object.values(BY_ID).filter(it => it.kind === 'furniture')) {
+        const total = (st.inventory[item.id] || 0) + (HOUSE_STARTER_STOCK[item.id] || 0);
+        const available = total - (placed[item.id] || 0);
+        if (available > 0) free[item.id] = available;
+        else delete free[item.id];
+      }
     }
     // Landscape items live in the Build toybox, not `inventory` (RUN10 P3) — always
     // available, independent of what she's actually won.
@@ -1689,6 +1743,7 @@ export function mount(container, params, ctx) {
   function selectHold(id) {
     sfx.tap();
     holding = (holding === id) ? null : id;
+    holdingScale = 1;
     placeMode = !!holding;
     renderDrawer(); updateHint();
     // close the tray so it stops covering the ground once she's picked something (RUN10 P2)
@@ -1788,8 +1843,12 @@ export function mount(container, params, ctx) {
           ? areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === WALL_ROW)
           : areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
         const taken = onWall ? wallSpotTaken(x, cur) : spotTaken(zi, x, row, cur);
-        if (canPlaceIn(zi) && !taken) {
-          mutate(st => { const items = areaItems(st); const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +x.toFixed(3); t.row = row; } });
+        const landing = onWall
+          ? { x: taken ? nearestLegalWallSpot(x, cur) : x, row: WALL_ROW }
+          : (taken ? nearestLegalSpot(zi, x, row, cur) : { x, row });
+        if (canPlaceIn(zi) && landing && landing.x != null) {
+          mutate(st => { const items = areaItems(st); const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +landing.x.toFixed(3); t.row = landing.row; } });
+          if (taken) hint.textContent = 'Tucked into the nearest free spot!';
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
         }
@@ -1857,6 +1916,21 @@ export function mount(container, params, ctx) {
   }
 
   let openPopover = null;
+  function setPlacementScale(place, mode) {
+    const current = itemScaleOf(place);
+    const next = mode === 'reset'
+      ? 1
+      : Math.max(ITEM_SCALE_MIN, Math.min(ITEM_SCALE_MAX, current + mode * ITEM_SCALE_STEP));
+    mutate(st => {
+      const items = areaItems(st);
+      const target = items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === place.row);
+      if (target) target.scale = +next.toFixed(2);
+    });
+    closeMenu();
+    renderPlaced();
+    hint.textContent = `${resolveItem(place.item)?.name || getDisplayName(place.item)} size: ${Math.round(next * 100)}%`;
+    sfx.tap();
+  }
   function openMenu(wrap, place, item) {
     closeMenu();
     const btns = [];
@@ -1866,6 +1940,11 @@ export function mount(container, params, ctx) {
       btns.push(el('button', { class: 'btn soft', text: 'Choreograph 💃', onclick: (e) => { e.stopPropagation(); closeMenu(); openChoreographer(place, { onDone: () => renderPlaced() }); } }));
       // the Parade (RUN4 C9): hidden while no Boos are placed; no reward — it exists to be shown off
       if (actors.length) btns.push(el('button', { class: 'btn soft', text: 'Parade 🎺', onclick: (e) => { e.stopPropagation(); closeMenu(); sfx.fanfare(); startParade(); } }));
+    }
+    if (buildMode) {
+      btns.push(el('button', { class: 'btn soft size-btn', 'aria-label': 'Make smaller', text: '− Size', disabled: itemScaleOf(place) <= ITEM_SCALE_MIN, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, -1); } }));
+      btns.push(el('button', { class: 'btn soft size-reset', 'aria-label': 'Reset size', text: `${Math.round(itemScaleOf(place) * 100)}%`, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, 'reset'); } }));
+      btns.push(el('button', { class: 'btn soft size-btn', 'aria-label': 'Make bigger', text: 'Size +', disabled: itemScaleOf(place) >= ITEM_SCALE_MAX, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, 1); } }));
     }
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
     btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
@@ -1890,7 +1969,7 @@ export function mount(container, params, ctx) {
   function removePlacement(place) {
     mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
   }
-  function pickUp(place) { closeMenu(); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); }
+  function pickUp(place) { closeMenu(); holdingScale = itemScaleOf(place); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); }
   function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); }
 
   // ---- drawer drag to place (delegated from attachStripMomentum, RUN10 P2) ----------
@@ -1898,6 +1977,7 @@ export function mount(container, params, ctx) {
   let liftGhost = null;
   function beginChipLift(chip, id) {
     holding = id; placeMode = true;
+    holdingScale = 1;
     const rit = resolveItem(id);
     liftGhost = el('div', { class: 'drag-ghost', html: renderItem(rit, { size: 80, equipArt: rit.kind === 'boo' ? equippedArt(id) : null }) });
     document.body.appendChild(liftGhost);
@@ -1930,7 +2010,11 @@ export function mount(container, params, ctx) {
   }
 
   function updateHint() {
-    hint.textContent = holding ? 'Tap the ground to place it! 🌱' : (placeMode ? 'Tap the ground to place it!' : 'Drag from the tray. Tap a Boo to say hi!');
+    hint.textContent = holding
+      ? 'Tap the ground — I’ll find the nearest free spot!'
+      : buildMode
+        ? 'Drag to move. Tap an item for size controls.'
+        : (placeMode ? 'Tap the ground to place it!' : 'Drag from the tray. Tap a Boo to say hi!');
   }
 
   // Zone-unlock ceremony (RUN10 P1): detecting a fresh star-threshold crossing and

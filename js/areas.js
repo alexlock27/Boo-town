@@ -22,13 +22,13 @@ export const AREA_UNLOCK_STARS = { meadow: 0, riverside: RIVERSIDE_STARS, hillto
 // Landmark badge positions on the island map, {key: {x%, y%}} — authored constants.
 export const MAP_POS = {
   meadow:     { x: 38, y: 58 },
-  riverside:  { x: 58, y: 66 },
-  hilltop:    { x: 22, y: 26 },
-  beach:      { x: 78, y: 80 },
-  funfair:    { x: 82, y: 38 },
-  playground: { x: 46, y: 34 },
-  boohouse:   { x: 30, y: 74 },
-  gallery:    { x: 62, y: 30 }
+  riverside:  { x: 58, y: 68 },
+  hilltop:    { x: 22, y: 23 },
+  beach:      { x: 80, y: 82 },
+  funfair:    { x: 82, y: 44 },
+  playground: { x: 43, y: 39 },
+  boohouse:   { x: 29, y: 76 },
+  gallery:    { x: 60, y: 25 }
 };
 
 export function areaByKey(key) { return AREAS.find(a => a.key === key) || AREAS[0]; }

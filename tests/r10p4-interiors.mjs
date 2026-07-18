@@ -79,6 +79,7 @@ console.log('== Boo House: starts with rug + lamp pre-placed (first-ever visit) 
   await sleep(400);
   const floorItems = await page.evaluate(() => window.__townLife.floorItems());
   assert(floorItems.includes('deco_rug') && floorItems.includes('deco_tablelamp'), `rug + lamp are pre-placed (${floorItems.join(',')})`);
+  await page.screenshot({ path: 'screenshots/r10p4/boohouse-starter-1024x700.png' });
   await ctx0.close();
 }
 
@@ -132,6 +133,38 @@ console.log('== placement: outdoor-only refused indoors, indoor-only refused out
   const wallItems = await page.evaluate(() => window.__townLife.wallItems());
   assert(wallItems.includes('deco_bookshelf'), `a bookshelf lands in the wall row (${wallItems.join(',')})`);
   await page.screenshot({ path: 'screenshots/r10p4/furniture-placed-1024x700.png' });
+  await ctx.close();
+}
+
+// ==================== furniture organisation: dedicated tray + resize controls ====================
+console.log('== Boo House: furniture tray and useful resize controls ==');
+{
+  const items = [{ zone: 'boohouse', x: 0.5, row: 1, item: 'deco_bed', scale: 1 }];
+  const { ctx, page } = await openArea('boohouse', items);
+  await page.evaluate(() => window.__townLife.toggleBuild());
+  await sleep(150);
+  const tabs = await page.evaluate(() => Object.fromEntries(
+    [...document.querySelectorAll('.bd-tabs .bd-tab')].map(tab => [
+      tab.textContent.replace(/\s*\(\d+\)\s*$/, '').trim(),
+      getComputedStyle(tab).display !== 'none'
+    ])
+  ));
+  assert(tabs.Furniture === true, 'Furniture has its own visible tray indoors');
+  assert(tabs.Landscape === false, 'outdoor Landscape tools stay hidden indoors');
+
+  await page.click('.t-item[data-item="deco_bed"]');
+  await page.waitForSelector('.plot-menu [aria-label="Make bigger"]');
+  const before = await page.$eval('.t-item[data-item="deco_bed"]', n => n.getBoundingClientRect().width);
+  await page.screenshot({ path: 'screenshots/r10p4/build-furniture-controls-1024x700.png' });
+  await page.click('.plot-menu [aria-label="Make bigger"]');
+  await sleep(550); // state.js deliberately debounces persistence by 400ms
+  const resized = await page.evaluate(() => {
+    const item = JSON.parse(localStorage.getItem('bootown.save.v1')).town.areas.boohouse.items.find(t => t.item === 'deco_bed');
+    const width = document.querySelector('.t-item[data-item="deco_bed"]').getBoundingClientRect().width;
+    return { scale: item.scale, width };
+  });
+  assert(resized.scale === 1.15, `the larger size is saved (${Math.round(resized.scale * 100)}%)`);
+  assert(resized.width > before * 1.1, `the furniture visibly grows (${before.toFixed(1)}px → ${resized.width.toFixed(1)}px)`);
   await ctx.close();
 }
 

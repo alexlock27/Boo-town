@@ -70,6 +70,30 @@ console.log('== personalities: stable per Boo id, spans real catalogue ids ==');
 }
 function pick(temperament) { return idByTemperament[temperament][0]; }
 
+// ==================== individual Boo artwork, not a repeated placeholder ====================
+console.log('== personalities: six temperaments render as six individual Boos ==');
+{
+  const ids = ['bouncy', 'sleepy', 'cheeky', 'shy', 'musical', 'sporty'].map(pick);
+  const items = ids.map((item, i) => ({
+    zone: 'meadow',
+    x: 0.035 + i * 0.038,
+    row: i % 3,
+    item
+  }));
+  const { ctx, page } = await openArea('meadow', items);
+  const rendered = await page.evaluate(() => {
+    const boos = [...document.querySelectorAll('.t-item.boo')];
+    return {
+      ids: boos.map(el => el.dataset.item),
+      uniqueArtwork: new Set(boos.map(el => el.querySelector('svg')?.outerHTML)).size
+    };
+  });
+  assert(new Set(rendered.ids).size === 6, `six different Boo characters are present (${rendered.ids.join(', ')})`);
+  assert(rendered.uniqueArtwork === 6, 'all six use distinct character artwork, not one repeated ghost');
+  await page.screenshot({ path: 'screenshots/r10p5/individual-boos-1024x700.png' });
+  await ctx.close();
+}
+
 // ==================== act distribution: chi-square vs uniform per temperament ====================
 console.log('== act distribution: 500 choices/temperament, chi-square vs uniform ==');
 async function chiSquareCase(areaItems, actorIdx, label, hour = 13) {

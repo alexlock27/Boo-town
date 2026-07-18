@@ -179,7 +179,10 @@ console.log('== landscape items: outdoor areas only ==');
   // same; see tests/r10p4-interiors.mjs), and additionally prove the tab really is hidden.
   const { ctx, page } = await openArea('boohouse', []);
   await page.evaluate(() => window.__townLife.toggleBuild());
-  const tabHiddenIndoors = await page.evaluate(() => getComputedStyle(document.querySelectorAll('.bd-tabs .bd-tab')[4]).display === 'none');
+  const tabHiddenIndoors = await page.evaluate(() => {
+    const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes('Landscape'));
+    return !!tab && getComputedStyle(tab).display === 'none';
+  });
   assert(tabHiddenIndoors, 'the Landscape tab is hidden indoors, even in build mode');
   await page.evaluate(() => { window.__townLife.forceHold('deco_palm'); window.__townLife.placeAt(0.5, 0.75); });
   await sleep(150);
@@ -194,7 +197,9 @@ console.log('== landscape items: outdoor areas only ==');
   const { ctx, page } = await openArea('meadow', []);
   await page.evaluate(() => window.__townLife.toggleBuild());
   await page.click('.bd-collapsed');
-  await page.click('.bd-tabs .bd-tab:nth-child(5)');
+  await page.evaluate(() => {
+    [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes('Landscape'))?.click();
+  });
   await page.$eval('.bd-panel:not([hidden]) .drawer-item', n => n.click());
   const vp = await page.$eval('.t-viewport', n => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.75 }; });
   await page.mouse.click(vp.x, vp.y);
@@ -204,7 +209,10 @@ console.log('== landscape items: outdoor areas only ==');
   // the Landscape tab is Build-only: hidden the moment build mode is off
   await page.evaluate(() => window.__townLife.toggleBuild());
   await sleep(100);
-  const tabHidden = await page.evaluate(() => getComputedStyle(document.querySelectorAll('.bd-tabs .bd-tab')[4]).display === 'none');
+  const tabHidden = await page.evaluate(() => {
+    const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes('Landscape'));
+    return !!tab && getComputedStyle(tab).display === 'none';
+  });
   assert(tabHidden, 'the Landscape tab hides outside build mode');
   await page.screenshot({ path: 'screenshots/r10p3/landscape-1024x700.png' });
   await ctx.close();
