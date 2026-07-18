@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 6;   // v6 (RUN10 P1): town becomes area-scoped (save.town.areas). v5 (RUN4): comfort levels + Brave claims, medal counters, trophies, town growth, shinies, the Star Chest, daily delights. Lossless via deepDefaults; chest anchor set in migrate().
+export const VERSION = 7;   // v7 (RUN10 P12): upward-only Boo Care bonds + treat pocket. v6 (RUN10 P1): area-scoped town.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -74,6 +74,7 @@ function freshSave() {
     bandSong: null,             // id of the saved jam set as the bandstand's watch-mode song (RUN6 C1c)
     quest: { node: 0, lands: {} },  // Boo Quest progress: current node in the active land + completed lands (RUN6 C6)
     booRoll: { best: {}, medals: {} },  // Boo Roll per-course best times (ms) + best medal (RUN9 C4)
+    care: { bonds: {}, treats: 0 },  // RUN10 P12: friendship only rises; treats cap at five
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)

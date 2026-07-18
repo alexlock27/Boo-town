@@ -122,6 +122,7 @@ export const CATALOGUE = [
   { id: 'deco_wardrobe',  kind: 'furniture', name: 'Tall Wardrobe', rarity: 'rare',   deco: 'wardrobe',  blurb: 'Every accessory lives in here, in theory.' },
   { id: 'deco_bathtub',   kind: 'furniture', name: 'Bubble Bath',   rarity: 'rare',   deco: 'bathtub',   blurb: 'Bubbles optional. A Boo will find them anyway.' },
   { id: 'deco_bookshelf', kind: 'furniture', name: 'Bookshelf',     rarity: 'ultra',  deco: 'bookshelf', wall: true, blurb: 'Every shelf a different colour, none of them alphabetised.' },
+  { id: 'deco_bffportrait', kind: 'furniture', name: 'Best-Friend Portrait', rarity: 'ultra', deco: 'bffportrait', wall: true, free: true, blurb: 'A friendship milestone, framed forever.' },
 
   // --- Accessories (10, RUN2 part D): kind 'accessory', art key + rarity ---
   // Wearable on any Boo (one slot each) and on the player's own character.

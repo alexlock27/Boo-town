@@ -996,6 +996,13 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         [26, 40, 54, 68, 82].map((x, i) => rrect(x, 30, 10, 30, 2, c(['bubblegum', 'teal', 'gold', 'lilac', 'pink'][i % 5]), ink)).join('') +
         [26, 44, 62, 80].map((x, i) => rrect(x, 72, 14, 30, 2, c(['teal', 'bubblegum', 'pink', 'gold'][i % 4]), ink)).join('');
       break;
+    case 'bffportrait':
+      inner =
+        rrect(22, 18, 76, 96, 8, COLORS.gold, halo) +
+        rrect(22, 18, 76, 96, 8, COLORS.gold, ink) +
+        rrect(30, 26, 60, 80, 5, COLORS.cream, ink) +
+        path('M60 86 C42 72 35 59 35 48 C35 35 51 32 60 44 C69 32 85 35 85 48 C85 59 78 72 60 86 Z', COLORS.bubblegum, ink);
+      break;
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);
   }

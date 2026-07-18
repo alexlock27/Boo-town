@@ -12,6 +12,7 @@ import { renderTrophyRoom } from './trophies.js';
 import { ownedCustomItems } from './customs.js';
 import { micEnabled, openVoiceRecorder } from './voices.js';
 import { contentTier } from './content.js';
+import { openCare, renderCareSummary, heartBadge, isBestFriend } from './care.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -56,7 +57,7 @@ export function mount(container, params, ctx) {
       onclick: () => { sfx.tap(); if (has) showItem(item, count); }
     }, [
       collArt,
-      el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) : (seas ? seas.hint : '???') }),
+      el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) + (item.kind === 'boo' ? heartBadge(item.id) : '') : (seas ? seas.hint : '???') }),
       count > 1 ? el('div', { class: 'coll-badge', text: 'x' + count }) : null,
       has && shinyCopies > 0 ? el('div', { class: 'shiny-badge', text: shinyCopies > 1 ? `✨x${shinyCopies}` : '✨' }) : null,
       seas ? el('div', { class: 'coll-season', text: seas.icon }) : null
@@ -168,12 +169,18 @@ export function mount(container, params, ctx) {
     const isBoo = item.kind === 'boo';
     const nick = getDisplayName(item.id);
     const showsNick = isBoo && nick !== officialName(item.id);
-    const detailArt = el('div', { class: 'item-detail-art', html: renderItem(item, { size: 150, equipArt: isBoo ? equippedArt(item.id) : null, cls: item.fx ? '' : 'art-idle' }) });
+    const detailArt = el('div', { class: 'item-detail-art' + (isBoo && isBestFriend(item.id) ? ' care-bff' : ''), html: renderItem(item, { size: 150, equipArt: isBoo ? equippedArt(item.id) : null, cls: item.fx ? '' : 'art-idle' }) });
+    const careBox = isBoo ? el('div', { class: 'collection-care-box' }) : null;
+    if (careBox) {
+      const refreshCare = () => renderCareSummary(careBox, item, action => openCare(item, { startAction: action, onDone: refreshCare }));
+      refreshCare();
+    }
     const body = el('div', { class: 'item-detail' }, [
       detailArt,
       showsNick ? el('div', { class: 'item-detail-official', text: officialName(item.id) }) : null,
       el('div', { class: 'item-detail-rarity', text: (RARITY[item.rarity] || { label: 'Your very own Boo!' }).label + (count > 1 ? ` · you have ${count}` : '') }),
-      el('p', { class: 'item-detail-blurb', text: item.blurb })
+      el('p', { class: 'item-detail-blurb', text: item.blurb }),
+      careBox
     ]);
     // shared rarity VFX (C2): the FULL effect on the focused card
     applyRarityFx(detailArt, item, { context: 'full', shiny: ((s.shinies && s.shinies[item.id]) || 0) > 0 });
@@ -185,7 +192,7 @@ export function mount(container, params, ctx) {
           { label: 'Close', value: 'close', kind: 'soft' }
         ]
       : [{ label: 'Close', value: 'close', kind: 'soft' }];
-    dialog({ title: nick, body, buttons, dismissable: true }).then(v => {
+    dialog({ title: nick + (isBoo ? heartBadge(item.id) : ''), body, buttons, dismissable: true }).then(v => {
       if (v === 'dress') openDressUp(item, { onDone: () => ctx.go('collection') });
       else if (v === 'rename') openRename(item.id, { onDone: () => ctx.go('collection') });
       else if (v === 'voice') openVoiceRecorder(item.id, nick);
@@ -201,4 +208,3 @@ export function mount(container, params, ctx) {
 
   return { unmount() {} };
 }
-

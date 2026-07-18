@@ -11,6 +11,7 @@ import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
+import { grantRoundTreat } from './care.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
@@ -33,6 +34,7 @@ export function mount(container, params, ctx) {
   // Dev-only runtime assertion (RUN5 C0): a finished round increments the total by
   // exactly its stars. Silent no-op on the live build; fails loudly on localhost.
   assertCredit(beforeTotal, getState().stars.total, stars);
+  const treatGrant = grantRoundTreat();
 
   // Jump back in (RUN5 C0b): remember her last game and mode so the hub can replay
   // it in one tap. The Golden Round is a special daily card, not a repeatable mode.
@@ -71,7 +73,10 @@ export function mount(container, params, ctx) {
   const meterBox = el('div', { class: 'result-meter' });
   const meterTrack = el('div', { class: 'meter-track big' });
   for (let i = 0; i < METER_CAP; i++) meterTrack.appendChild(el('span', { class: 'meter-seg' }));
-  meterBox.append(el('div', { class: 'rm-label', text: 'Star meter' }), meterTrack);
+  const carePocket = el('div', { class: 'result-care-pocket', text: `🍪 ${getState().care.treats}` }, [
+    treatGrant.added ? el('span', { class: 'result-care-plus', text: '+1' }) : null
+  ]);
+  meterBox.append(el('div', { class: 'rm-label', text: 'Star meter' }), meterTrack, carePocket);
 
   const buttons = el('div', { class: 'result-btns' });
 

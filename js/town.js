@@ -27,6 +27,7 @@ import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
+import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait } from './care.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -160,7 +161,7 @@ const ACT_SIZE = {
   deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120,
   // furniture (RUN10 P4)
   deco_bed: 150, deco_sofa: 165, deco_rug: 210, deco_table: 120, deco_tablelamp: 105,
-  deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145
+  deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145, deco_bffportrait: 120
 };
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
@@ -585,7 +586,7 @@ export function mount(container, params, ctx) {
       const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
       const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
       const size = baseSize * itemScaleOf(t);
-      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
+      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '') + (item.kind === 'boo' && isBestFriend(item.id, st) ? ' care-bff' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
       wrap.dataset.scale = String(itemScaleOf(t));
       wrap.style.left = (px - size / 2) + 'px';
       wrap.style.top = (rowGroundPx - size + 8) + 'px';
@@ -593,7 +594,9 @@ export function mount(container, params, ctx) {
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
       if (t.item === 'deco_tablelamp' && isNight(currentHour())) wrap.classList.add('lit');
-      wrap.innerHTML = renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
+      wrap.innerHTML = t.item === 'deco_bffportrait' && t.portraitBoo
+        ? renderBffPortrait(t.portraitBoo, size)
+        : renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
       attachItemPointer(wrap, t, item);
       ground.appendChild(wrap);
       // Shared rarity VFX (C2): full effect for the first RARITY_TOWN_CAP fancy items,
@@ -1861,9 +1864,60 @@ export function mount(container, params, ctx) {
   }
 
   function onTap(wrap, place, item) {
-    if (item.kind === 'boo') squeak(wrap, item);
+    if (item.kind === 'boo') {
+      squeak(wrap, item);
+      showCareArc(wrap, place, item);
+      return;
+    }
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);
+  }
+
+  let careArcTimer = null;
+  function clearCareArc() {
+    ground.querySelectorAll('.town-care-arc').forEach(n => n.remove());
+    if (careArcTimer) clearTimeout(careArcTimer);
+    careArcTimer = null;
+    ground.classList.remove('care-open');
+  }
+  function showCareArc(wrap, place, item) {
+    clearCareArc();
+    ground.classList.add('care-open');
+    const actions = [
+      ['feed', '🍪', 'Treat'],
+      ['brush', '🪮', 'Brush'],
+      ['teeth', '🪥', 'Teeth'],
+      ['play', '🙈', 'Play']
+    ];
+    const arc = el('div', { class: 'town-care-arc', 'aria-label': `Care for ${getDisplayName(item.id)}` });
+    actions.forEach(([id, icon, label], i) => {
+      const button = el('button', {
+        class: `town-care-action action-${id}`,
+        'aria-label': `${label} ${getDisplayName(item.id)}`,
+        style: { '--i': i },
+        onclick: e => {
+          e.stopPropagation();
+          const hasHideSpot = [...ground.querySelectorAll('.t-item:not(.boo)')].some(other => {
+            const a = wrap.getBoundingClientRect(), b = other.getBoundingClientRect();
+            return Math.hypot((a.left + a.width / 2) - (b.left + b.width / 2), (a.top + a.height / 2) - (b.top + b.height / 2)) <= 200;
+          });
+          clearCareArc();
+          openCare(item, { startAction: id, hasHideSpot, onDone: () => renderPlaced() });
+        }
+      }, [el('span', { text: icon }), el('small', { text: label })]);
+      button.addEventListener('pointerdown', e => e.stopPropagation());
+      arc.appendChild(button);
+    });
+    const manage = el('button', {
+      class: 'town-care-manage',
+      text: '•••',
+      'aria-label': `Move or dress ${getDisplayName(item.id)}`,
+      onclick: e => { e.stopPropagation(); clearCareArc(); openMenu(wrap, place, item); }
+    });
+    manage.addEventListener('pointerdown', e => e.stopPropagation());
+    arc.appendChild(manage);
+    wrap.appendChild(arc);
+    careArcTimer = setTimeout(clearCareArc, 4000);
   }
 
   // Three ripple rings, 900ms, tappable any time — not tied to fishing (RUN10 P3).
@@ -1898,10 +1952,17 @@ export function mount(container, params, ctx) {
     if (voiceIds.has(item.id)) playVoice(item.id); else sfx.pop();
     noteQuest('sayHello', { count: 1 });   // daily quest: say hello to Boos (RUN3 C4)
     const svg = wrap.querySelector('svg');
-    if (svg && !REDUCED) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
+    const careLevel = bondLevel(item.id);
+    const doesTrick = careLevel >= 2 && Math.random() < 0.3;
+    if (svg && !REDUCED) {
+      const anim = doesTrick ? `care-trick-${trickFor(item.id)}` : 'squeak';
+      svg.classList.remove('squeak', 'care-trick-spin', 'care-trick-backflip', 'care-trick-moonwalk', 'care-trick-star-jump');
+      void svg.offsetWidth;
+      svg.classList.add(anim);
+    }
     const heart = el('div', { class: 'pop-heart', text: '❤' }); wrap.appendChild(heart);
     setTimeout(() => heart.remove(), 900);
-    const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) }); wrap.appendChild(tag);
+    const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) + heartBadge(item.id) }); wrap.appendChild(tag);
     setTimeout(() => tag.remove(), 1100);
     // Personality catchphrase (RUN10 P5): 20% of taps, spoken via a guide-style bubble on
     // the Boo herself, not the guide's own avatar — it's HER line, not the guide's.
@@ -1947,7 +2008,7 @@ export function mount(container, params, ctx) {
       btns.push(el('button', { class: 'btn soft size-btn', 'aria-label': 'Make bigger', text: 'Size +', disabled: itemScaleOf(place) >= ITEM_SCALE_MAX, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, 1); } }));
     }
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
-    btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
+    if (item.id !== 'deco_bffportrait') btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
     wrap.appendChild(menu);
     openPopover = menu;
@@ -2659,6 +2720,13 @@ export function mount(container, params, ctx) {
         const text = bubble ? bubble.textContent : null;
         a.wrap.querySelectorAll('.catchphrase-bubble, .pop-heart, .squeak-name').forEach(n => n.remove());
         return text;
+      },
+      careArcCount: () => ground.querySelectorAll('.town-care-arc').length,
+      openCareFor: (i, action) => {
+        const actor = actors[i];
+        if (!actor) return false;
+        openCare(actor.item, { startAction: action, onDone: () => renderPlaced() });
+        return true;
       },
       hidePeekEl: () => ground.querySelector('.t-hide-peek'),
       hidePeekBBox: () => { const n = ground.querySelector('.t-hide-peek'); return n ? n.getBoundingClientRect() : null; },
