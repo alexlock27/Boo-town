@@ -79,7 +79,7 @@ function freshSave() {
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
     delights: {},               // daily-delight flags: hide-and-seek / Boo of the Day (RUN4 C9)
     seen: {},                   // one-time flags (game intros, town first, etc.)
-    settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light', haptics: true, voiceName: null }, // content: Light/Medium/Full picker filter (C9); haptics + chosen voice (RUN9 C7/C6b)
+    settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light', haptics: true, voiceName: null, rollSensitivity: 1, rollInvert: false }, // content: Light/Medium/Full picker filter (C9); haptics + chosen voice (RUN9 C7/C6b); Boo Roll input tuning (RUN10 P7)
     created: 0,
     lastPlayed: 0
   };

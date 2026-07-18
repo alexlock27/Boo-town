@@ -600,6 +600,210 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .roll-finish-medal { font-size: 64px; }
 @media (prefers-reduced-motion: reduce) { .roll-stage.boing { animation: none; } }
 
+/* RUN10 P7 — Boo Roll 2.0 side-view review course. */
+.screen.booroll2 { width: 100%; height: 100%; display: flex; flex-direction: column; }
+.roll2-start {
+  width: min(92%, 720px);
+  margin: auto;
+  display: grid;
+  grid-template-columns: 150px minmax(0,1fr);
+  gap: 12px 22px;
+  align-items: center;
+  color: var(--ink);
+}
+.roll2-start-copy h2 { margin: 0 0 8px; font-size: clamp(25px, 5vw, 38px); }
+.roll2-start-copy p { margin: 0; line-height: 1.45; }
+.roll2-settings {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  background: #F0E9FF;
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+.roll2-settings label:first-child { display: grid; grid-template-columns: auto 48px 1fr; align-items: center; gap: 8px; }
+.roll2-settings input[type="range"] { width: 100%; accent-color: var(--pop); }
+.roll2-invert { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.roll2-invert input { width: 24px; height: 24px; accent-color: var(--pop); }
+.roll2-start-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.roll2-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #78C9F2;
+  touch-action: none;
+}
+.roll2-canvas { width: 100%; height: 100%; display: block; }
+.roll2-progress {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(54%, 540px);
+  height: 24px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: rgba(255,255,255,.82);
+  overflow: visible;
+  z-index: 4;
+}
+.roll2-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #35D0BA, #8FC7FF);
+}
+.roll2-flag-tick {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 27px;
+  background: var(--ink);
+}
+.roll2-finish-tick { position: absolute; right: -15px; top: -19px; font-style: normal; font-size: 28px; }
+.roll2-ball-dot {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--pop);
+  border: 3px solid var(--ink);
+}
+.roll2-clock,
+.roll2-star-chip {
+  position: absolute;
+  top: 8px;
+  z-index: 5;
+  border: 3px solid var(--ink);
+  border-radius: 15px;
+  background: rgba(255,248,240,.92);
+  color: var(--ink);
+  padding: 5px 10px;
+  font: 800 15px var(--font-display);
+}
+.roll2-clock { left: 72px; font-variant-numeric: tabular-nums; }
+.roll2-star-chip { right: 72px; }
+.roll2-recentre {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  z-index: 6;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: #fff;
+  font-size: 22px;
+}
+.roll2-paddle {
+  position: absolute;
+  bottom: 24px;
+  z-index: 6;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 4px solid var(--ink);
+  background: rgba(255,248,240,.92);
+  color: var(--ink);
+  font: 800 40px var(--font-display);
+  box-shadow: 0 7px 0 rgba(42,27,78,.35);
+  touch-action: none;
+}
+.roll2-paddle.left { left: 24px; }
+.roll2-paddle.right { right: 24px; }
+.roll2-paddle.held { transform: translateY(6px); box-shadow: 0 1px 0 rgba(42,27,78,.35); background: var(--star); }
+.roll2-stick {
+  position: absolute;
+  left: 24px;
+  bottom: 136px;
+  z-index: 7;
+  width: 120px;
+  height: 58px;
+  border-radius: 29px;
+  border: 3px solid rgba(255,255,255,.8);
+  background: rgba(42,27,78,.42);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.roll2-stick.on { display: flex; }
+.roll2-stick-nub {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--pop);
+  border: 3px solid var(--ink);
+  pointer-events: none;
+}
+.roll2-debug {
+  position: absolute;
+  left: 12px;
+  top: 64px;
+  z-index: 8;
+  margin: 0;
+  padding: 7px;
+  border-radius: 8px;
+  background: rgba(20,12,48,.82);
+  color: #9FF;
+  font: 12px/1.3 monospace;
+}
+.roll2-toast {
+  position: absolute;
+  top: 58px;
+  left: 50%;
+  transform: translate(-50%, -16px);
+  opacity: 0;
+  z-index: 10;
+  background: #D63B5C;
+  color: #fff;
+  border: 3px solid #fff;
+  border-radius: 16px;
+  padding: 8px 14px;
+  font: 800 15px var(--font-display);
+  pointer-events: none;
+}
+.roll2-toast.show { animation: roll2Toast 2s ease both; }
+@keyframes roll2Toast { 15%,75% { opacity: 1; transform: translate(-50%,0); } }
+.roll2-stage.landed .roll2-canvas { animation: roll2Land .18s ease; }
+@keyframes roll2Land { 50% { transform: scaleY(.985); transform-origin: bottom; } }
+.roll2-finish-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  background: rgba(20,12,48,.65);
+}
+.roll2-finish-card { text-align: center; min-width: min(86vw, 340px); }
+.roll2-ribbon { font-size: 44px; }
+.roll2-finish-time { display: block; color: var(--pop); font: 800 44px/1 var(--font-display); margin: 8px; }
+@media (max-width: 600px) {
+  .roll2-start { grid-template-columns: 96px 1fr; padding: 16px; }
+  .roll2-guide svg { max-width: 96px; }
+  .roll2-settings { grid-template-columns: 1fr; }
+  .roll2-settings label:first-child { grid-template-columns: auto 44px; }
+  .roll2-settings input[type="range"] { grid-column: 1 / -1; }
+  .roll2-progress { width: 48%; }
+  .roll2-clock, .roll2-star-chip { top: 43px; }
+  .roll2-clock { left: 66px; }
+  .roll2-star-chip { right: 14px; }
+  .roll2-toast { top: 84px; }
+  .roll2-paddle { width: 82px; height: 82px; bottom: 18px; }
+  .roll2-paddle.left { left: 14px; }
+  .roll2-paddle.right { right: 14px; }
+  .roll2-stick { left: 12px; bottom: 112px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .roll2-toast.show, .roll2-stage.landed .roll2-canvas { animation: none; opacity: 1; transform: none; }
+}
+
 /* Echo Boos (RUN9 C5) */
 .screen.echoboos { display: flex; flex-direction: column; height: 100%; align-items: center; justify-content: center; gap: 18px; }
 .echo-top { display: flex; flex-direction: column; align-items: center; gap: 6px; }
