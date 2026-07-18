@@ -34,6 +34,20 @@ const SPECIAL_CELL_POINTS = 2;                // per cell a power-up clears
 // tests/sim-blocks.mjs and the PROGRESS.md report. 1★ is always earned for playing.
 const THREE_STAR_SCORE = 320, TWO_STAR_SCORE = 150;
 
+// RUN10 P10: the piece bag deliberately tightens as the score rises.
+export const BAG_TIERS = [
+  { at: 0, awkward: 0.25 },
+  { at: 250, awkward: 0.45 },
+  { at: 600, awkward: 0.62 }
+];
+const FRIENDLY_KEYS = ['single', 'domino', 'tetO'];
+const AWKWARD_KEYS = ['tetS', 'tetS', 'tetT', 'corner', 'tetI'];
+export function awkwardChance(score) {
+  let tier = BAG_TIERS[0];
+  for (const candidate of BAG_TIERS) if (score >= candidate.at) tier = candidate;
+  return tier.awkward;
+}
+
 // Special power-up pieces, awarded by Boo Boost in this rotating order (C2).
 const SPECIAL_ORDER = ['lineblast', 'bomb', 'single'];
 const SPECIAL_NAME = { lineblast: 'Line Blaster', bomb: 'Sparkle Bomb', single: 'Single Square' };
@@ -42,7 +56,7 @@ const SPECIAL_NAME = { lineblast: 'Line Blaster', bomb: 'Sparkle Bomb', single: 
 const BLOCKS_INTRO = [
   { text: 'Drop blocks to fill lines. Complete a line and it POPS for points!', demo: blocksDemoLine },
   { text: 'Clear lines back-to-back for a streak — clear it ALL for a firework!' },
-  { text: 'Tap Boo Boost, answer a question, win a power-up piece!' }
+  { text: 'When it gets squeezy, Boo Boost wins a rescue piece!', demo: blocksSqueezeDemo }
 ];
 
 // A little self-completing demo line for intro step 1: fills cell by cell, then pops.
@@ -67,6 +81,39 @@ function blocksDemoLine(area) {
   return () => { alive = false; timers.forEach(clearTimeout); };
 }
 
+// Deterministic miniature of the mid-round squeeze and its rescue loop.
+function blocksSqueezeDemo(area) {
+  const demo = el('div', { class: 'blk-squeeze-demo' });
+  const grid = el('div', { class: 'blk-demo-grid' });
+  const cells = [];
+  for (let i = 0; i < 25; i++) {
+    const cell = el('i', { class: 'blk-demo-square' });
+    cells.push(cell);
+    grid.appendChild(cell);
+  }
+  const boost = el('div', { class: 'blk-demo-boost', text: '⚡ Boo Boost' });
+  const question = el('div', { class: 'blk-demo-question', text: '3 + 2 = 5  ✓' });
+  demo.append(grid, boost, question);
+  area.appendChild(demo);
+  let timers = [], alive = true;
+  const later = (fn, ms) => timers.push(setTimeout(() => alive && fn(), ms));
+  function run() {
+    cells.forEach(c => c.className = 'blk-demo-square');
+    boost.classList.remove('squeeze');
+    question.classList.remove('show');
+    cells.slice(0, 18).forEach((cell, i) => later(() => cell.classList.add('on'), i * 35));
+    later(() => boost.classList.add('squeeze'), 720);
+    later(() => question.classList.add('show'), 1250);
+    later(() => {
+      cells.slice(10, 15).forEach(cell => cell.classList.add('beam'));
+      cells.slice(10, 15).forEach(cell => cell.classList.remove('on'));
+    }, 1950);
+    later(run, 3200);
+  }
+  run();
+  return () => { alive = false; timers.forEach(clearTimeout); };
+}
+
 // Fair bag of piece shapes (cells as [row, col] offsets). Pieces spin a quarter-turn.
 const SHAPES = {
   single:   [[0,0]],
@@ -81,9 +128,6 @@ const SHAPES = {
   tetO:     [[0,0],[0,1],[1,0],[1,1]],
   block23:  [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]]
 };
-const BAG_KEYS = Object.keys(SHAPES);
-const SPICY_KEYS = ['tetS', 'tetL', 'tetT', 'block23'];
-const SPICY_EXTRA = 1;
 const PIECE_COLORS = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#C6A9F0', '#FFC93C', '#7FD8C3'];
 
 function normShape(cells) {
@@ -136,11 +180,12 @@ export function mount(container, params, ctx) {
 
     const board = Array.from({ length: N }, () => Array(N).fill(0));
     let tray = [null, null, null];
-    const bag = [];
+    const recentKeys = [];
     let score = 0, lines = 0, placed = 0, cascade = 0, ended = false;
     let boostsLeft = BOOST_USES, boostAwardIdx = 0, boostRetryUsed = false, boostOpen = false;
     let hintsUsed = 0;
     let selected = -1, spinNext = -1;
+    let squeezeActive = false, squeezeTaught = false, previousFill = 0;
     const best0 = bestScore();
 
     shell = createGameShell({
@@ -212,17 +257,35 @@ export function mount(container, params, ctx) {
       boostQuestion: () => boostQuestion,
       boostsLeft: () => boostsLeft,
       nextSpecial: () => SPECIAL_ORDER[boostAwardIdx % SPECIAL_ORDER.length],
+      fill: () => board.flat().filter(Boolean).length / (N * N),
+      squeeze: () => squeezeActive,
+      forceFill: (count) => {
+        let left = Math.max(0, Math.min(N * N, count));
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) board[r][c] = left-- > 0 ? '#8FC7FF' : 0;
+        renderBoard();
+      },
+      drawSamples: (count, forcedScore = score) => {
+        const before = score;
+        score = forcedScore;
+        const out = Array.from({ length: count }, () => drawKey());
+        score = before;
+        return out;
+      },
+      bagTiers: () => BAG_TIERS.map(x => ({ ...x })),
       LIFT, N
     };
 
     // ---- the bag / tray ----
     function drawKey() {
-      if (!bag.length) {
-        bag.push(...BAG_KEYS);
-        for (const k of SPICY_KEYS) for (let i = 0; i < SPICY_EXTRA; i++) bag.push(k);
-        shuffle(bag);
+      const source = Math.random() < awkwardChance(score) ? AWKWARD_KEYS : FRIENDLY_KEYS;
+      let key = source[rand(source.length)];
+      if (recentKeys.length >= 2 && recentKeys.at(-1) === key && recentKeys.at(-2) === key) {
+        const alternatives = source.filter(candidate => candidate !== key);
+        key = alternatives[rand(alternatives.length)] || (key === 'single' ? 'domino' : 'single');
       }
-      return bag.pop();
+      recentKeys.push(key);
+      if (recentKeys.length > 2) recentKeys.shift();
+      return key;
     }
     function newPiece() {
       const key = drawKey();
@@ -293,6 +356,22 @@ export function mount(container, params, ctx) {
         let cnt = 0; for (let r = 0; r < N; r++) if (board[r][c]) cnt++;
         if (cnt === N - 1) for (let r = 0; r < N; r++) cells[r * N + c].classList.add(board[r][c] ? 'blk-near' : 'blk-gap');
       }
+      updatePressure();
+    }
+    function updatePressure() {
+      const fill = board.flat().filter(Boolean).length / (N * N);
+      if (!squeezeActive && previousFill < 0.70 && fill >= 0.70) {
+        squeezeActive = true;
+        if (!squeezeTaught) {
+          squeezeTaught = true;
+          const line = guideLine('L_BLOCKS_SQUEEZE') || 'Squeezy! Want a quick question for a Line Blaster?';
+          shell.react(line, { voice: true, hold: 3200 });
+        }
+      } else if (squeezeActive && fill < 0.62) {
+        squeezeActive = false;
+      }
+      previousFill = fill;
+      boostBtn.classList.toggle('squeeze', squeezeActive);
     }
     function fits(p, r, c) {
       if (p.special === 'lineblast' || p.special === 'bomb') return r >= 0 && r < N && c >= 0 && c < N;   // blasts drop on any cell
@@ -336,9 +415,11 @@ export function mount(container, params, ctx) {
     }
     function placeLineBlast(slotIdx, r, c) {
       const cellsToClear = [];
-      if (tray[slotIdx].orient === 'row') { for (let cc = 0; cc < N; cc++) if (board[r][cc]) cellsToClear.push([r, cc]); }
+      const orient = tray[slotIdx].orient;
+      if (orient === 'row') { for (let cc = 0; cc < N; cc++) if (board[r][cc]) cellsToClear.push([r, cc]); }
       else { for (let rr = 0; rr < N; rr++) if (board[rr][c]) cellsToClear.push([rr, c]); }
       consumeSpecial(slotIdx);
+      fireBeam(orient, r, c);
       lines += 1; noteBlast(cellsToClear, '⚡ ZAP!');
       afterPlace();
       return true;
@@ -347,6 +428,7 @@ export function mount(container, params, ctx) {
       const cellsToClear = [];
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (rr >= 0 && rr < N && cc >= 0 && cc < N && board[rr][cc]) cellsToClear.push([rr, cc]); }
       consumeSpecial(slotIdx);
+      fireBomb(r, c);
       noteBlast(cellsToClear, '💥 BOOM!');
       afterPlace();
       return true;
@@ -361,6 +443,24 @@ export function mount(container, params, ctx) {
       lineFlourish(0, label);
       setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 40 : Math.max(200, delay + 100));
       shell.react(label, { voice: false, hold: 1300 });
+    }
+    function fireBeam(orient, r, c) {
+      const beam = el('div', { class: `blk-beam ${orient}` });
+      if (orient === 'row') beam.style.top = `${(r + .5) * 12.5}%`;
+      else beam.style.left = `${(c + .5) * 12.5}%`;
+      boardEl.appendChild(beam);
+      setTimeout(() => beam.remove(), REDUCED ? 120 : 280);
+    }
+    function fireBomb(r, c) {
+      const burst = el('div', { class: 'blk-kapow', text: 'KA-POP!' });
+      burst.style.left = `${(c + .5) * 12.5}%`;
+      burst.style.top = `${(r + .5) * 12.5}%`;
+      boardEl.appendChild(burst);
+      boardEl.classList.add(REDUCED ? 'blast-flash' : 'blast-shake');
+      setTimeout(() => {
+        burst.remove();
+        boardEl.classList.remove('blast-shake', 'blast-flash');
+      }, REDUCED ? 180 : 360);
     }
 
     function afterPlace() {
@@ -451,7 +551,7 @@ export function mount(container, params, ctx) {
       boostQuestion.options.forEach((o, i) => opts.appendChild(el('button', { class: 'btn blk-boost-opt', text: o, onclick: () => onBoostAnswer(i, opts.children[i]) })));
       card.appendChild(opts);
       card.appendChild(el('button', { class: 'btn soft blk-boost-skip', text: 'Not now', onclick: () => closeBoost(false) }));
-      boostOverlay = el('div', { class: 'blk-boost-overlay' }, [card]);
+      boostOverlay = el('div', { class: 'blk-boost-overlay tray-card' }, [card]);
       root.appendChild(boostOverlay);
       if (boostQuestion.speak) speakMaybe(boostQuestion.speak);
     }
@@ -479,11 +579,17 @@ export function mount(container, params, ctx) {
       if (idx < 0) idx = 0;
       tray[idx] = makeSpecial(special);
       renderTray();
+      sfx.fanfare();
       shell.react(`You won a ${SPECIAL_NAME[special]}! ✨`, { voice: false, hold: 1800 });
     }
     function closeBoost(won) {
       boostOpen = false; boostQuestion = null;
-      if (boostOverlay) { boostOverlay.remove(); boostOverlay = null; }
+      if (boostOverlay) {
+        const old = boostOverlay;
+        old.classList.add('away');
+        setTimeout(() => old.remove(), REDUCED ? 0 : 200);
+        boostOverlay = null;
+      }
       refreshBoost();
     }
 

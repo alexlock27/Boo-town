@@ -39,10 +39,16 @@ export function mount(container, params, ctx) {
     function render() {
       wrap.innerHTML = '';
       const voices = tts.available() ? tts.listVoices() : [];
-      if (!voices.length) { wrap.style.display = 'none'; return; }   // hide gracefully where absent
       wrap.style.display = '';
       const chosen = (getState().settings.voiceName) || tts.getVoiceName();
       wrap.appendChild(el('div', { class: 'gu-voice-label', text: 'Choose a voice' }));
+      if (!voices.length) {
+        wrap.appendChild(el('p', {
+          class: 'gu-note gu-voice-tip',
+          text: 'Install the English (UK) voice in the tablet\'s text-to-speech settings for a nicer voice.'
+        }));
+        return;
+      }
       const list = el('div', { class: 'gu-voice-list' });
       voices.forEach(v => {
         const sel = v.name === chosen;
@@ -56,7 +62,6 @@ export function mount(container, params, ctx) {
         list.appendChild(row);
       });
       wrap.appendChild(list);
-      wrap.appendChild(el('p', { class: 'gu-note', text: 'Tip: install the “enhanced” English (UK) voice in your device’s text-to-speech settings for a nicer voice everywhere.' }));
     }
     render();
     return wrap;

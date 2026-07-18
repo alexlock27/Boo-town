@@ -5,6 +5,7 @@
 export const LINES = {
   L_CARE_NOTREATS: ["Win a round to earn a treat!"],
   L_CARE_BFF: ["{name} and {booName}... best friends FOREVER!"],
+  L_BLOCKS_SQUEEZE: ["Squeezy! Want a quick question for a Line Blaster?"],
   firstHello: [
     "Hi {name}! I'm {guide}, your guide to Boo Town.",
     "The Boos are shy little things. Win stars and they'll come and live here!",
