@@ -2081,6 +2081,375 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .jam-name { flex: 1; font-weight: 700; color: var(--ink); }
 .jam-set.active { background: var(--star); color: var(--ink); }
 .jam-hint, .jams-empty { font-size: 12px; color: #6a5c94; }
+
+/* RUN10 P6 — scene-based Boo Band. Every playfield owns the lower screen; navigation,
+   recording and play-along guidance stay in normal document flow above it. */
+.band-room,
+.band-scene,
+.band-library {
+  min-height: 100%;
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 10px clamp(10px, 2vw, 22px) 22px;
+  overflow-y: auto;
+}
+.band-room-header,
+.band-scene-header {
+  height: 56px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+.band-room-header { grid-template-columns: 52px 1fr 52px; }
+.band-room-header h2,
+.band-scene-header h2 {
+  color: var(--card);
+  margin: 0;
+  text-align: center;
+  font-size: clamp(22px, 4vw, 30px);
+}
+.band-header-spacer { min-width: 44px; }
+.band-room-trio {
+  height: clamp(96px, 18vh, 150px);
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  gap: clamp(18px, 6vw, 70px);
+}
+.band-room-bopper {
+  position: relative;
+  animation: bandRoomBop 1.5s ease-in-out infinite;
+}
+.band-room-bopper:nth-child(2) { animation-delay: -.45s; }
+.band-room-bopper:nth-child(3) { animation-delay: -.9s; }
+.band-room-bopper > span {
+  position: absolute;
+  right: -16px;
+  bottom: 4px;
+  font-size: 26px;
+}
+@keyframes bandRoomBop { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
+.band-room-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 2vw, 18px);
+  width: min(100%, 760px);
+  margin: 10px auto 0;
+}
+.band-room-card {
+  min-height: clamp(118px, 20vh, 168px);
+  border: 4px solid var(--ink);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #FFF8F0, #F0E9FF);
+  box-shadow: 0 7px 0 rgba(20,12,48,.35);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  font: 800 clamp(20px, 3.5vw, 28px)/1 var(--font-display);
+}
+.band-room-card:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(20,12,48,.35); }
+.band-room-card-art { font-size: clamp(46px, 9vw, 76px); filter: drop-shadow(0 4px 0 rgba(42,27,78,.18)); }
+
+.band-instrument-scene {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.band-playalong-toggle {
+  min-height: 42px;
+  border: 2px solid var(--star);
+  border-radius: 14px;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  padding: 7px 10px;
+  font: 700 13px var(--font-display);
+}
+.band-record-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: #E24666;
+  color: #fff;
+  font-size: 25px;
+  line-height: 1;
+  box-shadow: 0 0 0 3px rgba(226,70,102,.25);
+}
+.band-record-circle.recording { animation: bandRecordPulse 1.2s ease-in-out infinite; }
+@keyframes bandRecordPulse { 50% { transform: scale(1.13); box-shadow: 0 0 0 9px rgba(226,70,102,.16); } }
+.band-scene-performer {
+  height: clamp(88px, 16vh, 130px);
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.band-scene-performer.played { animation: bandPerformerHit .15s ease; }
+@keyframes bandPerformerHit { 50% { transform: translateY(-8px) scale(1.08) rotate(3deg); } }
+.band-scene-instrument {
+  font-size: 34px;
+  transform: translate(-12px, 20px);
+}
+.band-sparkle-lane {
+  flex: 0 0 64px;
+  height: 64px;
+  width: min(100%, 780px);
+  margin: 0 auto 8px;
+  border: 3px solid rgba(255,255,255,.34);
+  border-radius: 18px;
+  background: rgba(20,12,48,.42);
+  position: relative;
+  overflow: hidden;
+}
+.band-lane-empty,
+.band-lane-song {
+  position: absolute;
+  left: 12px;
+  top: 7px;
+  color: rgba(255,255,255,.78);
+  font: 700 12px var(--font-display);
+}
+.band-lane-marker {
+  position: absolute;
+  bottom: 5px;
+  transform: translateX(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255,201,60,.22);
+  box-shadow: 0 0 0 2px var(--star), 0 0 16px rgba(255,201,60,.65);
+  font-size: 24px;
+  animation: bandLaneFall .9s ease-out both;
+}
+@keyframes bandLaneFall { from { bottom: 46px; opacity: .3; } to { bottom: 4px; opacity: 1; } }
+.band-playfield {
+  flex: 1 1 auto;
+  min-height: 260px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: min(100%, 820px);
+  margin: 0 auto;
+  overflow: hidden;
+}
+.band-scene-status {
+  flex: 0 0 auto;
+  min-height: 30px;
+  text-align: center;
+  padding: 6px 8px;
+  color: #fff;
+  font: 700 14px var(--font-display);
+}
+.p6-drum-kit {
+  width: min(100%, 680px);
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(70px, 1fr));
+  gap: clamp(7px, 1.4vw, 13px);
+  grid-template-areas:
+    "tom1 tom1 tom2 cymbal"
+    "snare kick kick hihat"
+    "snare kick kick hihat";
+}
+.p6-drum-pad {
+  min-width: 0;
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  color: var(--ink);
+  font: 800 clamp(13px, 2.4vw, 20px) var(--font-display);
+  touch-action: none;
+  box-shadow: inset 0 -8px 0 rgba(42,27,78,.14), 0 5px 0 rgba(0,0,0,.24);
+}
+.p6-drum-pad.hit { animation: p6PadHit .14s ease; }
+@keyframes p6PadHit { 50% { transform: scale(.88); } }
+.p6-drum-pad.pad-kick { grid-area: kick; background: #FF7AC6; }
+.p6-drum-pad.pad-snare { grid-area: snare; background: #8FC7FF; }
+.p6-drum-pad.pad-hihat { grid-area: hihat; background: #FFC93C; }
+.p6-drum-pad.pad-cymbal { grid-area: cymbal; background: #FFE89A; }
+.p6-drum-pad.pad-tom1 { grid-area: tom1; background: #35D0BA; }
+.p6-drum-pad.pad-tom2 { grid-area: tom2; background: #C6A9F0; }
+.p6-keys-row {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+}
+.p6-key {
+  min-width: 0;
+  border: 3px solid var(--ink);
+  border-radius: 0 0 13px 13px;
+  background: linear-gradient(#fff, #EEE8F8);
+  box-shadow: inset 0 -10px 0 #D9D1E8;
+  position: relative;
+  touch-action: none;
+}
+.p6-key.down { background: #FFF0A8; transform: translateY(5px); }
+.p6-key-note {
+  position: absolute;
+  bottom: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink);
+  font: 800 clamp(12px, 2.1vw, 20px) var(--font-display);
+}
+.p6-guitar { width: min(100%, 720px); display: grid; grid-template-columns: minmax(110px, 30%) 1fr; gap: 18px; }
+.p6-chord-column { display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; }
+.p6-chord {
+  border: 3px solid var(--ink);
+  border-radius: 15px;
+  background: #FFF8F0;
+  color: var(--ink);
+  font: 800 22px var(--font-display);
+}
+.p6-chord.sel { background: var(--star); box-shadow: 0 0 0 3px #fff; }
+.p6-strum-zone {
+  border: 4px solid var(--ink);
+  border-radius: 28px;
+  background: linear-gradient(100deg, #C06CEB, #FF7AC6);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  font: 800 clamp(22px, 5vw, 44px) var(--font-display);
+}
+.p6-strum-arrow { font-size: clamp(70px, 15vh, 130px); line-height: .8; }
+.p6-strum-zone.strummed { animation: p6Strum .18s ease; }
+@keyframes p6Strum { 50% { filter: brightness(1.35); transform: scale(.98); } }
+.p6-xylo-bars {
+  width: min(100%, 780px);
+  height: 100%;
+  display: flex;
+  gap: clamp(4px, 1vw, 10px);
+  align-items: flex-start;
+  justify-content: center;
+}
+.p6-xylo-bar {
+  flex: 1;
+  min-width: 0;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 7px 0 rgba(0,0,0,.24);
+  color: var(--ink);
+  font: 800 clamp(12px, 2vw, 18px) var(--font-display);
+  touch-action: none;
+}
+.p6-xylo-bar.struck { animation: xyloStruck .2s ease; }
+
+.band-library-intro { color: #fff; text-align: center; margin: 4px auto 14px; max-width: 600px; }
+.band-song-list,
+.band-jam-list { display: grid; gap: 12px; width: min(100%, 760px); margin: 0 auto; }
+.band-song-card,
+.band-jam-card {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  padding: 14px;
+  color: var(--ink);
+}
+.band-song-card { display: grid; grid-template-columns: minmax(150px, 1fr) auto; gap: 12px; align-items: center; }
+.band-song-copy h3,
+.band-jam-title h3 { margin: 0; }
+.band-song-kind { color: #6A5C94; font-size: 13px; }
+.band-song-actions,
+.band-jam-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.band-tempo-toggle {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #F0E9FF;
+  color: var(--ink);
+  padding: 8px 10px;
+  font-weight: 700;
+}
+.band-song-card.previewing { box-shadow: 0 0 0 4px var(--star); }
+.band-first-jam {
+  min-height: 260px;
+  border: 4px dashed var(--star);
+  border-radius: 26px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-display);
+}
+.band-first-jam span { font-size: 76px; }
+.band-first-jam strong { font-size: 26px; }
+.band-jam-title { display: grid; grid-template-columns: 1fr 150px; gap: 12px; align-items: center; }
+.band-jam-sparkline { height: 40px; }
+.band-jam-sparkline svg { width: 100%; height: 100%; }
+.band-jam-layers { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.band-jam-layer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 12px;
+  background: #F0E9FF;
+  font-weight: 700;
+}
+.band-jam-layer button {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ink); background: #fff; color: var(--ink);
+}
+.band-add-layer-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.band-instrument-choice {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 8px;
+  background: #fff;
+  font-weight: 700;
+}
+.band-jam-delete {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: #8B657F;
+  font-weight: 700;
+}
+.band-jam-delete.holding { color: #D63B5C; animation: bandDeleteHold .6s linear; }
+@keyframes bandDeleteHold { to { letter-spacing: 3px; } }
+
+@media (max-width: 600px) {
+  .band-room-grid { grid-template-columns: 1fr; }
+  .band-room-card { min-height: 92px; justify-content: flex-start; padding: 10px 26px; }
+  .band-room-card-art { font-size: 48px; }
+  .band-room-trio { height: 90px; }
+  .band-scene-header { grid-template-columns: 48px minmax(0,1fr) auto; gap: 5px; }
+  .band-scene-header .band-header-spacer { display: none; }
+  .band-scene-header h2 { font-size: 20px; }
+  .inst-keys .band-scene-header {
+    height: 98px;
+    flex: 0 0 98px;
+    grid-template-rows: 52px 38px;
+  }
+  .band-playalong-toggle { grid-row: 2; grid-column: 2 / 4; min-height: 34px; }
+  .band-instrument-scene { overflow-y: auto; }
+  .band-scene-performer { height: 82px; }
+  .band-playfield { min-height: 280px; }
+  .p6-drum-kit { grid-template-rows: repeat(3, minmax(78px, 1fr)); }
+  .band-song-card { grid-template-columns: 1fr; }
+  .band-song-actions, .band-jam-actions { justify-content: flex-start; }
+  .band-jam-title { grid-template-columns: 1fr; }
+  .band-jam-sparkline { width: 180px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .band-room-bopper, .band-record-circle.recording, .band-lane-marker,
+  .band-scene-performer.played, .p6-drum-pad.hit, .p6-strum-zone.strummed,
+  .band-jam-delete.holding { animation: none; }
+}
 .jams-empty { text-align: center; }
 
 /* Boo Quest (RUN6 C6) */

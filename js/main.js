@@ -43,7 +43,14 @@ const registry = {
   town:       () => import('./town.js'),
   worldmap:   () => import('./worldmap.js'),   // Town 4.0: the world map (RUN10 P1)
   gallerymuseum: () => import('./gallerymuseum.js'),   // the museum Gallery (RUN10 P4; distinct from studio gallery.js)
-  band:       () => import('./band.js'),   // the Boo Band (RUN6 C1c)
+  band:       () => import('./band/bandroom.js'),   // RUN10 P6: Band Room
+  'band-legacy': () => import('./band.js'),          // preserved RUN9 harness + watch/record compatibility
+  'band-drums': () => import('./band/drums.js'),
+  'band-keys': () => import('./band/keys.js'),
+  'band-guitar': () => import('./band/guitar.js'),
+  'band-xylophone': () => import('./band/xylophone.js'),
+  'band-songs': () => import('./band/songs.js'),
+  'band-jams': () => import('./band/jams.js'),
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   grownups:   () => import('./grownups.js')
 };

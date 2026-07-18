@@ -22,7 +22,7 @@ async function openBand(save) {
   await page.evaluate(v => localStorage.setItem('bootown.save.v1', JSON.stringify(v)), save || SAVE());
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
-  await page.evaluate(() => window.BooTown.go('band'));
+  await page.evaluate(() => window.BooTown.go('band-legacy'));
   await page.waitForSelector('.band-area');
   await page.waitForFunction(() => window.__band);
   return { ctx, page };
