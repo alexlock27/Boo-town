@@ -1324,7 +1324,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .customs-grid, .my-boos { width: 100%; }
 
 /* ---- Boo requests + Dance Choreographer (RUN3 C8) ---- */
-.request-bubble {
+.request-bubble, .catchphrase-bubble {
   position: absolute; left: 50%; top: -34px; transform: translateX(-50%);
   background: var(--card); border: 2px solid var(--ink); border-radius: 14px; padding: 5px 10px;
   font-size: 13px; color: var(--ink); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;
@@ -1332,7 +1332,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   /* decorative: it must never steal taps from menus/items beneath it (RUN4 hotfix 2) */
   pointer-events: none;
 }
-.request-bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--card); }
+.request-bubble::after, .catchphrase-bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--card); }
+.catchphrase-bubble { background: #FFF3D6; border-color: var(--star); }
 @keyframes reqpop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 .request-treat { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; color: var(--pop); font-size: 16px; animation: flyup 2.2s ease-out forwards; z-index: 7; pointer-events: none; }
 /* bubbles step aside while an item menu is open (they could visually cover it) */
@@ -1354,7 +1355,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .move-starpose { animation: mv-star 0.6s ease-out; transform-origin: 50% 60%; }
 @keyframes mv-star { 0% { transform: scale(1) rotate(0); } 50% { transform: scale(1.18) rotate(8deg); } 100% { transform: scale(1) rotate(0); } }
 .move-freeze { animation: none; }
-@media (prefers-reduced-motion: reduce) { .move-bounce,.move-spin,.move-wiggle,.move-jump,.move-clap,.move-slide,.move-starpose { animation: none !important; } .request-bubble,.request-treat { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .move-bounce,.move-spin,.move-wiggle,.move-jump,.move-clap,.move-slide,.move-starpose { animation: none !important; } .request-bubble,.request-treat,.catchphrase-bubble { animation: none !important; } }
 
 .choreo-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 70; }
 .choreo-card { max-width: 460px; width: 92%; padding: 20px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; }
@@ -1751,6 +1752,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 .map-badge.wobble { animation: mapWobble 0.5s ease; }
 @keyframes mapWobble { 0%,100% { transform: translate(-50%, -50%) rotate(0); } 25% { transform: translate(-50%, -50%) rotate(-8deg); } 75% { transform: translate(-50%, -50%) rotate(8deg); } }
+/* hide-and-seek 2.0 (RUN10 P5): a tiny peek chip on whichever area is hiding someone today */
+.mb-hide-chip {
+  position: absolute; top: -4px; right: -2px; font-size: 15px; line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); animation: mbPeek 2.4s ease-in-out infinite;
+}
+@keyframes mbPeek { 0%, 82%, 100% { transform: translateY(0); } 90% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .mb-hide-chip { animation: none; } }
 .map-toast {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%) translateY(10px);
   background: rgba(20,12,48,0.82); color: var(--card); font-family: var(--font-display); font-size: 15px;
@@ -2662,18 +2670,16 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 
 /* ============================================================
-   Daily delights (RUN4 C9): hide-and-seek ears, Boo of the Day.
+   Daily delights (RUN4 C9, hide-and-seek 2.0 RUN10 P5), Boo of the Day.
    ============================================================ */
-.t-hide-ears {
-  position: absolute; z-index: 0; background: none; border: none; cursor: pointer;
-  padding: 6px; min-width: 44px; min-height: 34px;
-  animation: ears-wiggle 3.4s ease-in-out infinite; transform-origin: 50% 100%;
+.t-hide-peek {
+  position: absolute; background: none; border: none; cursor: pointer;
+  padding: 6px; min-width: 44px; min-height: 34px; transform-origin: 50% 100%;
 }
-@keyframes ears-wiggle {
-  0%, 78%, 100% { transform: rotate(0); }
-  84% { transform: rotate(-5deg) translateY(-2px); }
-  92% { transform: rotate(4deg); }
-}
+/* a one-shot giggle+wiggle every 8-14s (JS-timed, not a continuous loop — she should
+   have to actually look for a moment of stillness, not just follow constant motion) */
+.t-hide-peek.hide-wiggle { animation: hidewiggle 300ms ease; }
+@keyframes hidewiggle { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 .booday {
   display: flex; flex-direction: column; align-items: center; gap: 0;
   margin-left: 8px; align-self: flex-end;
@@ -2692,7 +2698,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media (max-width: 550px) {
   .hub .booday { display: none; }   /* phones: the hero row is already snug (C10 revisits) */
 }
-@media (prefers-reduced-motion: reduce) { .t-hide-ears { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .t-hide-peek.hide-wiggle { animation: none; } }
 
 /* ============================================================
    Phone comfort pass (RUN4 C10). Strictly CSS inside a 600px

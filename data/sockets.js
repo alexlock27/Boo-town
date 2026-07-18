@@ -20,3 +20,18 @@ export const SOCKETS = {
   deco_pond:       [{ x: 0, row: 2, role: 'fish', yFrac: -0.074 }],
   deco_bumper:     [{ x: 0, row: 2 }]
 };
+
+// Hide-and-seek 2.0 (RUN10 P5): where the daily hider peeks from on each hide-capable
+// item. x = fraction of the item's rendered width from its centre (same convention as
+// SOCKETS); row = which depth row the peek sits at (usually the item's own); peek picks
+// which partial-sprite reads best for that item's silhouette (a tall trunk hides ears
+// best, a low bush hides feet, a rounded trunk/rock reads as a tail poking out).
+export const HIDE_POINTS = {
+  deco_palm:     { x: 0.18, row: 1, peek: 'tail' },
+  deco_oak:      { x: 0, row: 1, peek: 'ears' },
+  deco_pine:     { x: 0, row: 1, peek: 'ears' },
+  deco_bush:     { x: 0, row: 1, peek: 'feet' },
+  deco_bench:    { x: 0.28, row: 2, peek: 'feet' },
+  deco_rock:     { x: -0.15, row: 1, peek: 'tail' },
+  deco_boohouse: { x: 0, row: 1, peek: 'ears' }
+};

@@ -79,6 +79,7 @@ const ASSETS = [
   'js/games/clockshop.js',
   'data/catalogue.js',
   'data/sockets.js',
+  'data/personalities.js',
   'data/lessons.js',
   'data/guideLines.js',
   'data/tablesConfig.js',

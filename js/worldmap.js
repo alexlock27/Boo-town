@@ -10,6 +10,7 @@ import { renderIslandMap } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { stampJournal } from './quests.js';
 import { sfx, music } from './sfx.js';
+import { ensureHide, currentHide } from './delights.js';
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'worldmap' });
@@ -30,18 +31,24 @@ export function mount(container, params, ctx) {
   function render() {
     stage.querySelectorAll('.map-badge').forEach(n => n.remove());
     const s = getState();
+    ensureHide();   // idempotent: keeps the daily hider (and its area) current even before entering town
+    const hide = currentHide();
     for (const a of AREAS) {
       const unlocked = a.unlocked(s);
       const pos = MAP_POS[a.key] || { x: 50, y: 50 };
       const threshold = AREA_UNLOCK_STARS[a.key] || 0;
+      const hiding = unlocked && hide && hide.spot && hide.spot.zone === a.key;
       const badge = el('button', {
         class: 'map-badge' + (unlocked ? '' : ' locked'),
         style: { left: pos.x + '%', top: pos.y + '%' },
-        'aria-label': a.name
+        'aria-label': a.name + (hiding ? ' — someone is hiding here' : '')
       }, [
         el('div', { class: 'mb-dot', html: unlocked ? areaIcon(a.key) : '🔒' }),
         el('div', { class: 'mb-label', text: a.name }),
-        unlocked ? null : el('div', { class: 'mb-chip', text: `${threshold}⭐` })
+        unlocked ? null : el('div', { class: 'mb-chip', text: `${threshold}⭐` }),
+        // hide-and-seek 2.0 (RUN10 P5): a tiny peek chip so the hunt spans the world
+        // without turning into a chore — only the area actually hiding someone gets one.
+        hiding ? el('div', { class: 'mb-hide-chip', text: '👀' }) : null
       ]);
       badge.addEventListener('click', () => {
         if (unlocked) enterArea(a.key);
@@ -105,7 +112,10 @@ export function mount(container, params, ctx) {
       wobbling: (key) => badgeEls[key] && badgeEls[key].classList.contains('wobble'),
       toastText: () => toast.textContent,
       recheckUnlock: () => maybeCelebrateUnlock(),
-      justUnlocked: () => [...justUnlocked]
+      justUnlocked: () => [...justUnlocked],
+      // RUN10 P5 QA hook: which area (if any) shows the hide-and-seek 👀 chip
+      hidingArea: () => { const h = currentHide(); return h && h.spot ? h.spot.zone : null; },
+      hideChipShown: (key) => !!(badgeEls[key] && badgeEls[key].querySelector('.mb-hide-chip'))
     };
   }
 

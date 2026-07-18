@@ -24,8 +24,9 @@ import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
-import { SOCKETS } from '../data/sockets.js';
+import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
+import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -76,6 +77,28 @@ const NAP_IDS = ['deco_boohouse', 'deco_tree', 'deco_bed'];   // a Boo naps by a
 const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond'];
 // role kind per activity item — generic socket loop below (RUN10 P2)
 const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'fish' };
+// Personality weight keys (RUN10 P5) for the generic 'approach' goal — keyed by WHICH
+// activity item was actually found, since 'approach' itself covers every ACT_IDS member.
+const ACT_MULT_KEY = { deco_trampoline: 'trampoline', deco_bench: 'bench', deco_slide: 'slide', deco_swings: 'swings', deco_seesaw: 'seesaw' };
+// Hide-and-seek 2.0 (RUN10 P5): a giggle + wiggle every 8-14s so the hider reads as
+// alive, not just a static sticker peeking out.
+const HIDE_WIGGLE_MIN_MS = 8000, HIDE_WIGGLE_MAX_MS = 14000;
+const PEEK_SVG = {
+  ears: `<svg viewBox="0 0 60 26" width="52" height="23" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="16" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+    <ellipse cx="44" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+    <ellipse cx="16" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
+    <ellipse cx="44" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
+  </svg>`,
+  tail: `<svg viewBox="0 0 40 40" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="20" cy="20" r="16" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+    <circle cx="14" cy="14" r="5" fill="#FF9AD5" opacity="0.7"/>
+  </svg>`,
+  feet: `<svg viewBox="0 0 60 24" width="52" height="21" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="18" cy="12" rx="10" ry="10" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+    <ellipse cx="42" cy="12" rx="10" ry="10" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
+  </svg>`
+};
 const SETTLE_MS = 180;           // arrival settle: drop + squash (RUN10 P2)
 const SHRUG_MS = 300;            // no free socket → a small shrug, then wander off (RUN10 P2)
 const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
@@ -581,31 +604,34 @@ export function mount(container, params, ctx) {
     renderRequestBubble();
   }
 
-  // ---- hide-and-seek Boo (RUN4 C9): once per local day, carries if unfound ----
+  // ---- hide-and-seek Boo 2.0 (RUN10 P5): a specific hidePoint, giggle+wiggle alive ----
+  let hideWiggleTimer = null;
   function renderHide() {
-    ground.querySelectorAll('.t-hide-ears').forEach(n => n.remove());
+    ground.querySelectorAll('.t-hide-peek').forEach(n => n.remove());
+    if (hideWiggleTimer) { clearTimeout(hideWiggleTimer); hideWiggleTimer = null; }
     const h = currentHide();
     if (!h) return;
-    // tuck the hider away and peek its ears from behind the scenery
+    if ((ZONE_INDEX[h.spot.zone] ?? -1) < 0) return;   // hiding in a different area than this mount (graceful no-op)
     const hiderWrap = [...ground.querySelectorAll('.t-item.boo')].find(w => w.dataset.item === h.boo);
     if (!hiderWrap) return;
     hiderWrap.style.display = 'none';
-    const item = resolveItem(h.boo);
-    const ears = el('button', { class: 't-hide-ears', 'aria-label': 'Someone is hiding here!' });
-    ears.innerHTML = `<svg viewBox="0 0 60 26" width="52" height="23" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="16" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-      <ellipse cx="44" cy="18" rx="11" ry="14" fill="#5F4FC4" stroke="#2A1B4E" stroke-width="3"/>
-      <ellipse cx="16" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
-      <ellipse cx="44" cy="20" rx="5" ry="8" fill="#FF9AD5" opacity="0.8"/>
-    </svg>`;
-    // peek just above the scenery so the ears stay visible AND tappable
-    const px = pxAt(h.spot.zone, h.spot.x);
-    const decoH = (ACT_SIZE[h.spot.item] || 92) * 130 / 120;
-    ears.style.left = (px - 26) + 'px';
-    ears.style.top = (groundY - decoH - 12) + 'px';
+    const hp = HIDE_POINTS[h.spot.item] || { x: 0, row: 1, peek: 'ears' };
+    const zi = ZONE_INDEX[h.spot.zone] ?? 0;
+    const row = hp.row != null ? hp.row : 1;
+    const itemPx = zi * zoneW + clamp01(h.spot.x) * zoneW;
+    const rowGroundPx = viewH * ROW_GROUND[row];
+    const itemH = (ACT_SIZE[h.spot.item] || 92) * ROW_SCALE[row] * 130 / 120;
+    const peek = el('button', { class: 't-hide-peek', 'aria-label': 'Someone is hiding here!', html: PEEK_SVG[hp.peek] || PEEK_SVG.ears });
+    const peekW = 52, peekH = 26;
+    const offX = (hp.x || 0) * itemH;
+    peek.style.left = (itemPx + offX - peekW / 2) + 'px';
+    // 40% occluded: the sprite tucks partway down behind the item's own top edge, and the
+    // item (drawn later, same z-order rules as everything else) sits above it.
+    peek.style.top = (rowGroundPx - itemH - peekH * 0.6) + 'px';
+    peek.style.zIndex = String(Math.max(0, Math.round(rowGroundPx) - 1));
     // pointer pattern mirrors attachItemPointer: stop the pan from swallowing taps
-    ears.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
-    ears.addEventListener('pointerup', (e) => {
+    peek.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+    peek.addEventListener('pointerup', (e) => {
       e.stopPropagation();
       if (!foundHide()) return;
       addMeterPoints(HIDE_REWARD);   // +2 meter for spotting (C9)
@@ -614,13 +640,26 @@ export function mount(container, params, ctx) {
       const svg = hiderWrap.querySelector('svg');
       if (svg && !REDUCED) { svg.classList.remove('squeak'); void svg.offsetWidth; svg.classList.add('squeak'); }
       if (!REDUCED) confetti({ count: 30, power: 0.7, origin: pointFor(hiderWrap) });
-      ears.remove();
+      if (hideWiggleTimer) { clearTimeout(hideWiggleTimer); hideWiggleTimer = null; }
+      peek.remove();
       const line = 'Found you! Hee hee! 💜';
       const treat = el('div', { class: 'request-treat', text: line });
       hiderWrap.appendChild(treat);
       setTimeout(() => treat.remove(), 2200);
     });
-    ground.appendChild(ears);
+    ground.appendChild(peek);
+    if (!REDUCED) scheduleHideWiggle(peek);
+  }
+  let hideWiggleDelay = 0;
+  function scheduleHideWiggle(peek) {
+    hideWiggleDelay = HIDE_WIGGLE_MIN_MS + Math.random() * (HIDE_WIGGLE_MAX_MS - HIDE_WIGGLE_MIN_MS);
+    hideWiggleTimer = setTimeout(() => fireHideWiggle(peek), hideWiggleDelay);
+  }
+  function fireHideWiggle(peek) {
+    if (!peek.isConnected) return;
+    sfx.giggle();
+    peek.classList.remove('hide-wiggle'); void peek.offsetWidth; peek.classList.add('hide-wiggle');
+    scheduleHideWiggle(peek);
   }
 
   // ---- the Parade (RUN4 C9): every placed Boo marches across the town -------
@@ -1805,6 +1844,16 @@ export function mount(container, params, ctx) {
     setTimeout(() => heart.remove(), 900);
     const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) }); wrap.appendChild(tag);
     setTimeout(() => tag.remove(), 1100);
+    // Personality catchphrase (RUN10 P5): 20% of taps, spoken via a guide-style bubble on
+    // the Boo herself, not the guide's own avatar — it's HER line, not the guide's.
+    if (item.kind === 'boo' && Math.random() < CATCHPHRASE_RATE) {
+      const phrase = CATCHPHRASES[personalityOf(item.id)];
+      if (phrase) {
+        const bubble = el('div', { class: 'catchphrase-bubble', text: phrase }); wrap.appendChild(bubble);
+        speakMaybe(phrase);
+        setTimeout(() => bubble.remove(), 2200);
+      }
+    }
   }
 
   let openPopover = null;
@@ -1960,20 +2009,41 @@ export function mount(container, params, ctx) {
     startBehaviour(a, kind, now);
     return !!a.goal;
   }
+  // Every free Boo has a stable temperament (RUN10 P5: data/personalities.js, hashed from
+  // her own id) that multiplies the base weight of the acts she leans toward — the SAME
+  // choice table, just tilted, so two Boos placed side by side genuinely behave differently.
   function chooseBehaviourKind(a) {
     const cands = [];
     const night = isSleepTime(currentHour());
-    if (pickFriend(a)) cands.push(['visit', 2.2]);
-    if (pickFreeActivity(a)) cands.push(['approach', 2.6]);
-    cands.push(['chase', 1.6]);
-    cands.push(['watch', 1.3]);
+    const booId = a.item && a.item.id;
+    if (pickFriend(a)) cands.push(['visit', 2.2 * personalityMult(booId, 'visit')]);
+    const freeAct = pickFreeActivity(a);
+    if (freeAct) {
+      const key = ACT_MULT_KEY[freeAct.item];
+      cands.push(['approach', 2.6 * (key ? personalityMult(booId, key) : 1)]);
+    }
+    cands.push(['chase', 1.6 * personalityMult(booId, 'chase')]);
+    cands.push(['watch', 1.3 * personalityMult(booId, 'watch')]);
     // a just-woken Boo stays up (no instant re-nap); mirrors the sleep-role wake rule
     const recentlyWoken = a.wakeUntil && performance.now() < a.wakeUntil;
-    if (night && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6]);
+    if (night && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6 * personalityMult(booId, 'nap')]);
     if (!a.riding && pickBoardableRide(a)) cands.push(['board', 3.2]);   // funfair: hop on a ride (C1b)
+    // musical (RUN10 P5): drawn to a placed Dance Stage, or the funfair bandstand while
+    // already standing in the funfair — a genuine walk-there-and-watch goal, not a label.
+    const music = pickMusicTarget(a);
+    if (music) cands.push(['musicwatch', 1.2 * personalityMult(booId, music.kind)]);
     // zone-only behaviours (RUN7 C2): daytime acts tied to the zone she's standing in
     if (!night) { const zb = ZONE_BEHAVIOURS[a.place.zone]; if (zb) for (const [k, wt] of zb) cands.push([k, wt]); }
     return cands.length ? weightedPick(cands) : null;
+  }
+  // The nearest thing worth dancing near: a placed Dance Stage anywhere in the area, else
+  // (only while standing in the funfair, once it's open) the bandstand itself.
+  function pickMusicTarget(a) {
+    const zi = ZONE_INDEX[a.place.zone];
+    const stage = areaItems(getState()).find(t => t.item === 'deco_stage' && (ZONE_INDEX[t.zone] ?? 0) === zi);
+    if (stage) return { x: stage.x, kind: 'danceStage' };
+    if (AREA.key === 'funfair' && funfairUnlocked()) return { x: BANDSTAND_X, kind: 'fairBand' };
+    return null;
   }
   function pickFriend(a) {
     const zi = ZONE_INDEX[a.place.zone];
@@ -2016,11 +2086,18 @@ export function mount(container, params, ctx) {
     if (kind === 'visit') {
       const f = pickFriend(a); if (!f) return;
       const fFrac = f.place.x + (f.dx || 0) / (zoneW || 1);
-      const side = fFrac >= a.place.x ? -0.02 : 0.02;   // stand just beside, not on top of, the friend
+      // shy (RUN10 P5): stands SHY_GREET_DIST_PX further BACK than everyone else — the
+      // standoff point moves AWAY from the friend, whichever side the friend is on.
+      const shyPad = personalityOf(a.item && a.item.id) === 'shy' ? SHY_GREET_DIST_PX / (zoneW || 1) : 0;
+      const baseSide = fFrac >= a.place.x ? -0.02 : 0.02;
+      const side = baseSide + (fFrac >= a.place.x ? -shyPad : shyPad);
       a.goal = { kind, friend: f, targetDx: (fFrac + side - a.place.x) * zoneW, start: now, greeted: false };
     } else if (kind === 'approach') {
       const d = pickFreeActivity(a); if (!d) return;
       a.goal = { kind, deco: d, targetDx: (d.x - a.place.x) * zoneW, start: now };
+    } else if (kind === 'musicwatch') {
+      const m = pickMusicTarget(a); if (!m) return;
+      a.goal = { kind, start: now, targetDx: (m.x - a.place.x) * zoneW };
     } else if (kind === 'nap') {
       const d = pickNapSpot(a); if (!d) return;
       a.goal = { kind, spot: d, targetDx: (d.x - a.place.x) * zoneW, start: now, curled: false };
@@ -2219,6 +2296,18 @@ export function mount(container, params, ctx) {
       } else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
       return;
     }
+    if (g.kind === 'musicwatch') {
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) {
+        if (!g.arrived) { g.arrived = true; g.arriveStart = now; }
+        const sway = Math.sin((now - g.arriveStart) / 500) * 4;
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${sway.toFixed(1)}px) rotate(${(sway * 0.6).toFixed(1)}deg)`;
+        if (now - g.arriveStart > WATCH_MS) endGoal(a);
+      } else {
+        svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+        if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      }
+      return;
+    }
     if (g.kind === 'nap') {
       if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) {
         if (!g.curled) { g.curled = true; g.curlStart = now; if (!a.wrap.querySelector('.t-zzz')) a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' })); }
@@ -2380,6 +2469,7 @@ export function mount(container, params, ctx) {
       force: (i, kind) => { const a = actors[i]; if (!a) return null; clearRole(a); a.goal = null; a.depthLock = false; startBehaviour(a, kind, performance.now()); return a.goal ? a.goal.kind : null; },
       goalOf: (i) => { const a = actors[i]; return a ? (a.goal ? 'goal:' + a.goal.kind : (a.role ? 'role:' + a.role.kind : 'wander')) : null; },
       transform: (i) => { const a = actors[i], s = a && a.wrap.querySelector('svg'); return s ? s.style.transform : ''; },
+      goalTargetDx: (i) => { const a = actors[i]; return a && a.goal ? a.goal.targetDx : null; },
       heartsShown: () => ground.querySelectorAll('.pop-heart').length,
       zzzShown: () => ground.querySelectorAll('.t-zzz').length,
       chaseCritters: () => ground.querySelectorAll('.t-chase-critter').length,
@@ -2470,7 +2560,40 @@ export function mount(container, params, ctx) {
       // placement guard regardless of whether that item's tab happens to be reachable
       // in the current area (e.g. Landscape is hidden indoors by design).
       forceHold: (id) => { holding = id; placeMode = true; renderDrawer(); },
-      placeAt: (fx, fy) => { const r = viewport.getBoundingClientRect(); placeAtClient(r.left + r.width * fx, r.top + r.height * fy); }
+      placeAt: (fx, fy) => { const r = viewport.getBoundingClientRect(); placeAtClient(r.left + r.width * fx, r.top + r.height * fy); },
+      // RUN10 P5 QA hooks: personalities + hide-and-seek 2.0.
+      personalityOf: (booId) => personalityOf(booId),
+      // Taps once (the real squeak() path, 20% catchphrase odds) and reports whether the
+      // bubble showed THIS time — cleans it up immediately rather than waiting its own
+      // 2200ms lifetime, so a test can sample hundreds of taps quickly.
+      // Returns the catchphrase bubble's exact text if this tap showed one, else null.
+      tapAndSample: (i) => {
+        const a = actors[i]; if (!a) return null;
+        a.wrap.querySelectorAll('.catchphrase-bubble').forEach(n => n.remove());
+        squeak(a.wrap, a.item);
+        const bubble = a.wrap.querySelector('.catchphrase-bubble');
+        const text = bubble ? bubble.textContent : null;
+        a.wrap.querySelectorAll('.catchphrase-bubble, .pop-heart, .squeak-name').forEach(n => n.remove());
+        return text;
+      },
+      hidePeekEl: () => ground.querySelector('.t-hide-peek'),
+      hidePeekBBox: () => { const n = ground.querySelector('.t-hide-peek'); return n ? n.getBoundingClientRect() : null; },
+      hideItemBBox: () => { const h = currentHide(); if (!h) return null; const n = [...ground.querySelectorAll('.t-item')].find(w => w.dataset.item === h.spot.item && w.dataset.zone === h.spot.zone); return n ? n.getBoundingClientRect() : null; },
+      hideWiggleDelay: () => hideWiggleDelay,
+      forceHideWiggle: () => { const peek = ground.querySelector('.t-hide-peek'); if (!peek) return null; if (hideWiggleTimer) clearTimeout(hideWiggleTimer); fireHideWiggle(peek); return hideWiggleDelay; },
+      hideWiggling: () => { const n = ground.querySelector('.t-hide-peek'); return n ? n.classList.contains('hide-wiggle') : false; },
+      // Sample chooseBehaviourKind(a) n times without side effects (it only READS the
+      // candidate-picker helpers; startBehaviour is what actually sets a.goal) — the
+      // chi-square-vs-uniform proof for personality weighting.
+      behaviourSample: (i, n) => {
+        const a = actors[i]; if (!a) return null;
+        const savedGoal = a.goal, savedRole = a.role;
+        a.goal = null; a.role = null;
+        const counts = {};
+        for (let k = 0; k < n; k++) { const kind = chooseBehaviourKind(a); if (kind) counts[kind] = (counts[kind] || 0) + 1; }
+        a.goal = savedGoal; a.role = savedRole;
+        return counts;
+      }
     };
   }
 
@@ -2483,6 +2606,7 @@ export function mount(container, params, ctx) {
       if (starTimer) clearTimeout(starTimer);
       if (pathCommitTimer) clearInterval(pathCommitTimer);
       commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)
+      if (hideWiggleTimer) clearTimeout(hideWiggleTimer);
       ambient.stop();
       stopBand();
       window.removeEventListener('resize', onResize);
