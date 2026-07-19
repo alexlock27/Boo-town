@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 7;   // v7 (RUN10 P12): upward-only Boo Care bonds + treat pocket. v6 (RUN10 P1): area-scoped town.
+export const VERSION = 8;   // v8 (RUN10 P13): per-Boo hat/face/feet equipment slots.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -49,7 +49,7 @@ function freshSave() {
     inventory: {},               // itemId -> count
     town: { areas: {} },         // { areas: { areaKey: { items:[{x,row,item}], paths:[{cx,cy,style}] } } } (v6, RUN10 P1); old flat [{zone,x,item,row}] (v3-5) / [{plot,item}] (pre-v3) migrated forward
     nicknames: {},              // itemId -> nickname (owned Boos)
-    equips: {},                 // Boo itemId -> accessory itemId
+    equips: {},                 // Boo itemId -> {hat?,face?,feet?} accessory ids
     catBest: {},                // 'game:choice' -> best stars (per-picker badges, EXPANSION_1 §5)
     spellingMastery: {},        // word -> lifetime correct count
     ledger: {},                 // question identity -> { rights, misses, lastSeen } (RUN3 C2 Smart Mix brain)
@@ -147,6 +147,16 @@ export function migrate(obj) {
   }
   const base = freshSave();
   const merged = deepDefaults(o, base);
+  // v8 (RUN10 P13): preserve every old single accessory by placing it into its
+  // authored slot. The two glasses are clearly face items; the other legacy ten
+  // keep the brief's default hat slot.
+  if (merged.equips && typeof merged.equips === 'object') {
+    for (const [booId, worn] of Object.entries(merged.equips)) {
+      if (typeof worn !== 'string') continue;
+      const slot = worn === 'acc_shades' || worn === 'acc_heartglasses' ? 'face' : 'hat';
+      merged.equips[booId] = { [slot]: worn };
+    }
+  }
   // v5 (RUN4 C8): existing players get one welcome chest, and chest boundaries are
   // measured from their total at migration — no back-pay for stars earned before.
   if ((o.version || 0) < 5) {

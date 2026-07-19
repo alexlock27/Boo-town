@@ -135,7 +135,7 @@ console.log('== equip on Boo + player, persists across reload; nickname persists
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
   const s = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
-  assert(s.equips.boo_inky === 'acc_cape', 'Boo equip persisted across reload');
+  assert(s.equips.boo_inky && s.equips.boo_inky.hat === 'acc_cape', 'Boo equip persisted across reload in its hat slot');
   assert(s.guide.acc === 'acc_goldcrown', 'player character accessory persisted');
   assert(s.nicknames.boo_inky === 'Caped Crusader', 'nickname persisted');
   // renders: collection tile art for Inky includes the cape art; player card includes crown art

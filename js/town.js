@@ -15,7 +15,7 @@ import { voiceBooIds, playVoice } from './voices.js';
 import { checkRequestOpen, activeRequest, takeTreat } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
-import { equippedArt, openDressUp, getDisplayName } from './accessories.js';
+import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay } from './accessories.js';
 import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
@@ -2088,7 +2088,9 @@ export function mount(container, params, ctx) {
   function makeActor(wrap, item, place) {
     return { wrap, item, place, dancing: false, row: rowOf(place),
       home: 0, dx: 0, vx: 0, state: 'pause', t: 0, next: 400 + Math.random() * 1200, hopT: 0,
-      depth: 0, depthTarget: 0, goal: null };   // depth: px drift between rows (C3); goal: chosen behaviour (C1)
+      depth: 0, depthTarget: 0, goal: null,
+      locomotion: locomotionFor(item.id), costume: costumeFor(item.id),
+      costumeIdleAt: performance.now() + costumeIdleDelay(), lastStomp: 0, wellieBursts: 0, whirring: false };
   }
   function startLoop() {
     if (REDUCED) return;              // reduced motion: static poses, no wandering
@@ -2113,6 +2115,7 @@ export function mount(container, params, ctx) {
       if (paradeUntil && a.parading) { stepParade(a, now); continue; }   // the Parade (RUN4 C9)
       if (a.dancing) continue; // dancing handled by CSS
       if (a.role) { stepRole(a, dt, now); continue; }   // activity items (RUN4 C5)
+      if (a.costume && now >= a.costumeIdleAt) triggerCostumeIdle(a, now);
       a.t += dt;
       // at bedtime, near a house, drop a non-nap act so the sleep role can take over (C1)
       if (a.goal && a.goal.kind !== 'nap' && isSleepTime(currentHour()) && nearBoohouse(a) && !(a.wakeUntil && now < a.wakeUntil)) endGoal(a);
@@ -2130,11 +2133,43 @@ export function mount(container, params, ctx) {
       const range = zoneW * WANDER_FRAC;   // wander range scales with the wider zone (C3)
       if (a.state === 'walk') { a.dx += a.vx * dt; a.dx = Math.max(-range, Math.min(range, a.dx)); }
       a.depth += (a.depthTarget - a.depth) * Math.min(1, dt / 260);   // ease toward the target depth
-      let ty = 0, flip = a.vx < 0 ? -1 : 1;
+      let ty = 0, flip = a.vx < 0 ? -1 : 1, lean = 0;
       if (a.state === 'hop') { a.hopT += dt; const p = Math.min(1, a.hopT / 420); ty = -Math.sin(p * Math.PI) * 12; if (p >= 1) a.state = 'pause'; }
+      if (a.state === 'walk' && a.locomotion === 'glide') {
+        ty += Math.sin(now / 125) * 3;
+        lean = flip * 7;
+        if (!a.whirring) { a.whirring = true; sfx.whirr(); }
+      } else a.whirring = false;
+      if (a.state === 'walk' && a.locomotion === 'stomp' && currentSeasonName === 'rain' && now - a.lastStomp >= 240) {
+        a.lastStomp = now;
+        spawnWellieSplash(a);
+      }
       // moving toward the front (positive depth) reads slightly bigger; toward the back, smaller
       const depthScale = 1 + a.depth * 0.003;
-      a.wrap.querySelector('svg').style.transform = `translate(${a.dx.toFixed(1)}px, ${(ty + a.depth).toFixed(1)}px) scale(${depthScale.toFixed(3)}) scaleX(${flip})`;
+      a.wrap.querySelector('svg').style.transform = `translate(${a.dx.toFixed(1)}px, ${(ty + a.depth).toFixed(1)}px) rotate(${lean}deg) scale(${depthScale.toFixed(3)}) scaleX(${flip})`;
+    }
+  }
+
+  function triggerCostumeIdle(a, now = performance.now()) {
+    const kind = a.costume && a.costume.id === 'acc_set_builder' ? 'hammer' : a.costume && a.costume.id === 'acc_set_chef' ? 'stir' : null;
+    a.costumeIdleAt = now + costumeIdleDelay();
+    if (!kind) return null;
+    const svg = a.wrap.querySelector('svg');
+    const cls = kind === 'hammer' ? 'costume-hammer-taps' : 'costume-spoon-stir';
+    svg.classList.remove('costume-hammer-taps', 'costume-spoon-stir');
+    void svg.offsetWidth;
+    svg.classList.add(cls);
+    if (kind === 'hammer') { sfx.tap(); setTimeout(() => sfx.tap(), 180); }
+    setTimeout(() => svg.classList.remove(cls), 900);
+    return kind;
+  }
+  function spawnWellieSplash(a) {
+    a.wellieBursts++;
+    for (let i = 0; i < 3; i++) {
+      const drop = el('i', { class: 'wellie-drop' });
+      drop.style.setProperty('--wx', `${(i - 1) * 13}px`);
+      a.wrap.appendChild(drop);
+      setTimeout(() => drop.remove(), 520);
     }
   }
 
@@ -2533,20 +2568,21 @@ export function mount(container, params, ctx) {
   function renderWeather() {
     const old = viewport.querySelector('.t-weather'); if (old) old.remove();
     if (REDUCED) return;
-    const season = seasonOf(currentMonth());
+    const forced = typeof window !== 'undefined' && window.__bootownWeather;
+    const season = forced === 'rain' ? 'rain' : seasonOf(currentMonth());
     currentSeasonName = season;
     const layer = el('div', { class: 't-weather ' + season });
     if (season === 'summer') {
       if (!isNight(currentHour())) layer.appendChild(el('div', { class: 't-sunrays' }));   // sun rays are a daytime thing
     } else {
-      const glyph = season === 'autumn' ? '🍂' : season === 'winter' ? '❄' : '🌸';
+      const glyph = season === 'rain' ? '•' : season === 'autumn' ? '🍂' : season === 'winter' ? '❄' : '🌸';
       for (let i = 0; i < WEATHER_PARTICLES; i++) {
         const p = el('div', { class: 't-wp', text: glyph });
         p.style.left = (Math.random() * 100).toFixed(1) + '%';
         p.style.setProperty('--fall', (7 + Math.random() * 6).toFixed(1) + 's');
         p.style.setProperty('--delay', (-Math.random() * 10).toFixed(1) + 's');
         p.style.setProperty('--drift', (Math.random() * 40 - 20).toFixed(0) + 'px');
-        p.style.fontSize = (14 + Math.random() * 10).toFixed(0) + 'px';
+        p.style.fontSize = season === 'rain' ? '24px' : (14 + Math.random() * 10).toFixed(0) + 'px';
         layer.appendChild(p);
       }
     }
@@ -2623,7 +2659,7 @@ export function mount(container, params, ctx) {
       assignRoles: () => assignRoles(),
       // ambient life
       season: () => currentSeasonName,
-      weather: () => { const l = viewport.querySelector('.t-weather'); return l ? { season: [...l.classList].find(c => ['spring', 'summer', 'autumn', 'winter'].includes(c)), particles: l.querySelectorAll('.t-wp').length, sunrays: l.querySelectorAll('.t-sunrays').length } : null; },
+      weather: () => { const l = viewport.querySelector('.t-weather'); return l ? { season: [...l.classList].find(c => ['spring', 'summer', 'autumn', 'winter', 'rain'].includes(c)), particles: l.querySelectorAll('.t-wp').length, sunrays: l.querySelectorAll('.t-sunrays').length } : null; },
       renderWeather: () => renderWeather(),
       spawnStar: () => spawnShootingStar(),
       tapStar: (star) => claimShootingStar(star),
@@ -2727,6 +2763,22 @@ export function mount(container, params, ctx) {
         if (!actor) return false;
         openCare(actor.item, { startAction: action, onDone: () => renderPlaced() });
         return true;
+      },
+      locomotion: i => actors[i] && actors[i].locomotion,
+      forceWalk: (i, direction = 1) => {
+        const a = actors[i];
+        if (!a) return false;
+        clearRole(a); a.goal = null; a.state = 'walk'; a.vx = (direction < 0 ? -1 : 1) * .012; a.next = 5000;
+        return true;
+      },
+      stepActors: ms => stepActors(ms),
+      wellieDrops: () => ground.querySelectorAll('.wellie-drop').length,
+      wellieBursts: i => actors[i] ? actors[i].wellieBursts : 0,
+      costumeIdle: i => { const a = actors[i]; return a ? triggerCostumeIdle(a, performance.now()) : null; },
+      costumeIdleAt: i => actors[i] ? actors[i].costumeIdleAt : null,
+      outfitDebug: i => {
+        const a = actors[i];
+        return a ? { id: a.item && a.item.id, locomotion: a.locomotion, costume: a.costume && a.costume.id, state: a.state, lastStomp: a.lastStomp, season: currentSeasonName } : null;
       },
       hidePeekEl: () => ground.querySelector('.t-hide-peek'),
       hidePeekBBox: () => { const n = ground.querySelector('.t-hide-peek'); return n ? n.getBoundingClientRect() : null; },

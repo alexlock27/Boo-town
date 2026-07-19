@@ -281,8 +281,8 @@ function speciesGeom(species, bodyFill, bellyFill, extra = {}) {
 }
 
 // ---- public: render a Boo -----------------------------------------------
-// opts.equipArt = an accessory art key (from an equipped accessory item); when set it
-// renders instead of the Boo's built-in accessory (spec RUN2 C2: one accessory slot).
+// opts.equipArt accepts the legacy single art key or RUN10 P13's
+// {hat,face,feet} art map.
 export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) {
   const bodyFill = c(item.colors.body);
   const bellyFill = item.colors.belly ? c(item.colors.belly) : null;
@@ -302,9 +302,12 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
   if (item.id === 'boo_pumpkin') trinket = `<path d="M60 34 Q58 22 66 18" fill="none" stroke="#4E8B3A" stroke-width="5" stroke-linecap="round"/><path d="M56 30 Q52 24 46 26" fill="none" stroke="#4E8B3A" stroke-width="3.5" stroke-linecap="round"/>`;
 
   const booAnchor = { cx: 60, topY: 30, eyeY: 80, earY: 70, R: 45 };
+  const worn = typeof equipArt === 'string' ? { hat: equipArt } : (equipArt || {});
   let accSvg = '';
-  if (equipArt) accSvg = accessoryArt(equipArt, booAnchor);
-  else if (item.acc && item.acc !== 'none') accSvg = accessory(item.acc) || accessoryArt(item.acc, booAnchor);
+  if (worn.hat) accSvg += accessoryArt(worn.hat, booAnchor);
+  else if (item.acc && item.acc !== 'none') accSvg += accessory(item.acc) || accessoryArt(item.acc, booAnchor);
+  if (worn.face) accSvg += accessoryArt(worn.face, booAnchor);
+  if (worn.feet) accSvg += accessoryArt(worn.feet, booAnchor);
 
   const fxCls = item.fx ? ` fx-${item.fx}` : '';
   return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130/120}" class="boo-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
@@ -662,6 +665,70 @@ export function accessoryArt(key, a) {
              path(`M${cx-R} ${earY} Q${cx} ${topY-R*0.35} ${cx+R} ${earY}`, 'none', `stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"`) +
              rrect(cx - R - 8, earY - 8, 16, 24, 7, COLORS.gold, ink(3)) +
              rrect(cx + R - 8, earY - 8, 16, 24, 7, COLORS.gold, ink(3));
+    case 'starcheek':
+      return path(starPath(cx + R * .66, eyeY + R * .28, R * .14, R * .06), COLORS.gold, `stroke="${INK}" stroke-width="1.4"`);
+    case 'heartcheek':
+      return heartShape(cx + R * .66, eyeY + R * .3, R * .15, COLORS.pink);
+    case 'rainbowstripe': {
+      const y = eyeY + R * .25;
+      return ['#FF6B8A','#FFC93C','#35D0BA','#8FC7FF'].map((colour, i) =>
+        `<path d="M${cx-R*.82} ${y+i*3} Q${cx} ${y-6+i*3} ${cx+R*.82} ${y+i*3}" fill="none" stroke="${colour}" stroke-width="2.6" stroke-linecap="round"/>`
+      ).join('');
+    }
+    case 'whiskers': {
+      let marks = '';
+      for (const side of [-1, 1]) for (let i = -1; i <= 1; i++) {
+        const x1 = cx + side * R * .56, x2 = cx + side * R * .98;
+        const y1 = eyeY + R * .27 + i * 5, y2 = y1 + i * 2;
+        marks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
+      }
+      return marks;
+    }
+    case 'rollerskates': {
+      const y = eyeY + R * .72;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return rrect(x - 10, y, 20, 12, 5, COLORS.pink, ink(2.2)) +
+          `<circle cx="${x-6}" cy="${y+14}" r="3.5" fill="${COLORS.gold}" ${ink(1.5)}/><circle cx="${x+6}" cy="${y+14}" r="3.5" fill="${COLORS.gold}" ${ink(1.5)}/>`;
+      }).join('');
+    }
+    case 'wellies': {
+      const y = eyeY + R * .64;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return path(`M${x-9} ${y} H${x+8} V${y+16} H${x+13} Q${x+14} ${y+24} ${x+5} ${y+24} H${x-9} Z`, COLORS.gold, ink(2.2));
+      }).join('');
+    }
+    case 'policecap': {
+      const y = topY + 5;
+      return path(`M${cx-R*.62} ${y} Q${cx} ${topY-R*.62} ${cx+R*.62} ${y} L${cx+R*.54} ${y+10} H${cx-R*.54} Z`, '#4169A8', ink()) +
+        path(starPath(cx, y-7, 6, 2.6), COLORS.gold, `stroke="${INK}" stroke-width="1.4"`) +
+        ell(cx, y+10, R*.72, R*.14, '#2D4777', ink(2.2));
+    }
+    case 'policebadge':
+      return path(starPath(cx-R*.55, eyeY+R*.55, 8, 3.8), COLORS.gold, `stroke="${INK}" stroke-width="1.8"`);
+    case 'builderhelmet': {
+      const y = topY + 7;
+      return path(`M${cx-R*.62} ${y} Q${cx-R*.48} ${topY-R*.5} ${cx} ${topY-R*.56} Q${cx+R*.48} ${topY-R*.5} ${cx+R*.62} ${y} Z`, COLORS.gold, ink()) +
+        rrect(cx-4, topY-R*.52, 8, R*.55, 3, '#F0A81E', ink(1.8)) +
+        ell(cx, y+2, R*.78, R*.14, COLORS.gold, ink(2.2));
+    }
+    case 'builderhammer':
+      return `<g class="costume-held hammer"><path d="M${cx+R*.66} ${eyeY+R*.3} l18 28" stroke="#8A5A44" stroke-width="6" stroke-linecap="round"/><rect x="${cx+R*.62}" y="${eyeY+R*.18}" width="30" height="12" rx="4" fill="#8B93A6" ${ink(2.2)} transform="rotate(12 ${cx+R*.62} ${eyeY+R*.18})"/></g>`;
+    case 'cheftoque': {
+      const y = topY - R*.25;
+      return `<g fill="#fff" ${ink(2.2)}><circle cx="${cx-R*.3}" cy="${y}" r="${R*.28}"/><circle cx="${cx}" cy="${y-R*.12}" r="${R*.34}"/><circle cx="${cx+R*.3}" cy="${y}" r="${R*.28}"/><path d="M${cx-R*.55} ${y} H${cx+R*.55} L${cx+R*.48} ${topY+9} H${cx-R*.48} Z"/></g>`;
+    }
+    case 'chefspoon':
+      return `<g class="costume-held spoon" transform="rotate(-18 ${cx+R*.68} ${eyeY+R*.5})"><line x1="${cx+R*.68}" y1="${eyeY+R*.32}" x2="${cx+R*.82}" y2="${eyeY+R*.94}" stroke="#AAB0BE" stroke-width="5" stroke-linecap="round"/><ellipse cx="${cx+R*.65}" cy="${eyeY+R*.22}" rx="8" ry="11" fill="#DDE2EA" ${ink(2)}/></g>`;
+    case 'pithhat': {
+      const y = topY + 7;
+      return ell(cx, y, R*.92, R*.24, '#DDBE78', ink()) +
+        path(`M${cx-R*.52} ${y} Q${cx} ${topY-R*.58} ${cx+R*.52} ${y} Z`, '#EAD39A', ink()) +
+        `<path d="M${cx-R*.48} ${y-2} Q${cx} ${y-7} ${cx+R*.48} ${y-2}" fill="none" stroke="#7C9B53" stroke-width="4"/>`;
+    }
+    case 'maptan':
+      return `<path d="M${cx-R*.78} ${eyeY+R*.28} q8 -5 15 0" fill="none" stroke="#C88745" stroke-width="3" stroke-linecap="round"/><g class="costume-held map"><path d="M${cx+R*.54} ${eyeY+R*.45} l14 -5 14 5 14 -5 v25 l-14 5 -14-5 -14 5 z" fill="#F6E7A8" ${ink(1.8)}/><path d="M${cx+R*.68} ${eyeY+R*.4} v25 M${cx+R*.99} ${eyeY+R*.45} v25" stroke="#B89553" stroke-width="1.5"/></g>`;
     default:
       return '';
   }

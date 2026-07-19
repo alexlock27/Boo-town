@@ -1948,6 +1948,39 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .acc-target-art { height: 78px; display: flex; align-items: center; justify-content: center; }
 .acc-target-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--ink); text-align: center; }
 .rename-card { gap: 14px; }
+.acc-dress-card { width: min(620px, 96vw); height: min(88vh, 720px); overflow: visible; padding-bottom: 8px; }
+.acc-fit-preview { min-height: 220px; display: grid; place-items: center; }
+.acc-fit-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; min-height: 42px; }
+.acc-fit-chip { border: 2px solid #C7BEDD; border-radius: 13px; background: #F1ECF8; color: #786C95; padding: 7px 9px; font: 700 12px var(--font-display); }
+.acc-fit-chip.on { border-color: var(--ink); background: #fff; color: var(--ink); }
+.acc-dress-card .boo-drawer { margin-top: auto; }
+.acc-dress-card .bd-tray { max-height: 330px; overflow-y: auto; }
+.acc-drawer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px,1fr)); gap: 9px; width: 100%; }
+.acc-drawer-item { min-height: 112px; border: 3px solid transparent; border-radius: 15px; background: #F3EEFC; color: var(--ink); padding: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 12px var(--font-display); }
+.acc-drawer-item.sel { border-color: var(--pop); background: #fff; box-shadow: 0 0 12px rgba(255,122,198,.35); }
+.acc-drawer-art { height: 78px; display: grid; place-items: center; }
+.acc-empty-tab { text-align: center; color: #786C95; }
+.acc-dress-done { flex: none; }
+.costume-transform { position: fixed; inset: 0; z-index: 15000; display: grid; place-items: center; align-content: center; gap: 8px; background: rgba(27,16,62,.74); color: #fff; font: 800 28px var(--font-display); animation: costumeTransform .6s ease both; }
+.costume-transform-art { position: relative; z-index: 2; filter: drop-shadow(0 0 18px #fff); }
+.costume-spark-ring { position: absolute; width: 250px; height: 250px; border: 10px dotted var(--star); border-radius: 50%; animation: costumeRing .6s ease-out both; }
+@keyframes costumeTransform { 0% { opacity: 0; } 18%,82% { opacity: 1; } to { opacity: 0; } }
+@keyframes costumeRing { from { transform: scale(.2) rotate(0); opacity: 0; } 55% { opacity: 1; } to { transform: scale(1.25) rotate(130deg); opacity: 0; } }
+.boo-svg.costume-hammer-taps .costume-held.hammer { animation: costumeHammer .9s ease; transform-origin: 100px 104px; }
+.boo-svg.costume-spoon-stir .costume-held.spoon { animation: costumeStir .9s ease; transform-origin: 101px 106px; }
+@keyframes costumeHammer { 20%,55% { transform: rotate(-38deg); } 35%,70% { transform: rotate(14deg); } }
+@keyframes costumeStir { to { transform: rotate(342deg); } }
+.wellie-drop { position: absolute; left: 50%; bottom: 4px; width: 7px; height: 7px; border-radius: 50%; background: #8FC7FF; pointer-events: none; animation: wellieSplash .5s ease-out both; }
+@keyframes wellieSplash { to { transform: translate(var(--wx), -24px) scale(.5); opacity: 0; } }
+@media (max-width: 600px) {
+  .acc-dress-card { height: 94vh; }
+  .acc-fit-preview { min-height: 185px; transform: scale(.86); margin-block: -12px; }
+  .acc-dress-card .bd-tray { max-height: 350px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .costume-transform, .costume-spark-ring, .boo-svg.costume-hammer-taps .costume-held.hammer,
+  .boo-svg.costume-spoon-stir .costume-held.spoon, .wellie-drop { animation: none; }
+}
 
 /* ---- town 2.0: scrolling parallax world ---- */
 /* RUN10 P1: area header strip, exactly 56px — back-to-map (left) / area name (centre) / hammer (right) */
@@ -2153,6 +2186,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* Ambient life: seasonal weather (RUN6 C1). One particle layer over the viewport. */
 .t-weather { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 6; }
 .t-wp { position: absolute; top: -6%; will-change: transform; animation: wpFall var(--fall,9s) linear var(--delay,0s) infinite; }
+.t-weather.rain .t-wp { color: #8FC7FF; width: 3px; height: 20px; border-radius: 3px; background: currentColor; text-indent: -999px; opacity: .62; }
 @keyframes wpFall {
   0% { transform: translate(0, -10%) rotate(0deg); opacity: 0; }
   10% { opacity: 0.95; }

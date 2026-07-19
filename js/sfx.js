@@ -121,6 +121,7 @@ export const sfx = {
   ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); },
   // Pond fishing (RUN10 P3): a happy little triplet on a catch...
   giggle() { play(t => { [700, 880, 660, 940].forEach((f, i) => envTone(f, t + i * 0.07, 0.09, 'triangle', 0.3, sfxGain, 'giggle')); }); },
+  whirr() { play(t => { [180, 240, 210].forEach((f, i) => envTone(f, t + i * .045, .08, 'sawtooth', .07, sfxGain, 'wheel-whirr')); }); },
   // ...and a trombone-ish descending wobble for the comedy boot.
   trombone() { play(t => {
       const o = ctx.createOscillator(), g = ctx.createGain();
