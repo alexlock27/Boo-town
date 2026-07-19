@@ -70,6 +70,11 @@ export function setMusicEnabled(on) {
 }
 export function getSoundEnabled() { return soundOn; }
 export function getMusicEnabled() { return musicOn; }
+// A monotonic millisecond clock tied to Web Audio whenever it is running. Visual
+// schedulers (Disco Hall) use this rather than accumulating setInterval drift.
+export function audioClockMs() {
+  return ctx && ctx.state === 'running' ? ctx.currentTime * 1000 : performance.now();
+}
 
 // ---- one-shot effects ----
 function envTone(freq, t0, dur, type = 'sine', peak = 0.5, bus = sfxGain, tag = null) {

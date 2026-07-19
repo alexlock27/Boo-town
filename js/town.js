@@ -36,6 +36,7 @@ import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortr
 // — written for the old 5-zone continuous world — needs no further changes: with exactly
 // one entry, every `ZONE_INDEX[...] === zi` comparison and `zi * zoneW` offset still holds).
 const MAX_WANDERERS = 30;
+const DISCO_DOOR_X = 0.51;
 
 // ---- interior scenes (RUN10 P4): the Boo House ----
 // Only kind:'interior' areas mounted BY town.js (the Gallery is its own dedicated
@@ -864,7 +865,7 @@ export function mount(container, params, ctx) {
   }
 
   function renderFunfair() {
-    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap').forEach(n => n.remove());
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door').forEach(n => n.remove());
     if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
@@ -885,6 +886,23 @@ export function mount(container, params, ctx) {
     }
     if (view.site) ground.appendChild(ffSiteNode(view.site, zi * zoneW + RIDE_X[view.site] * zoneW));
     renderBandstand(zi);
+    renderDiscoDoor(zi);
+  }
+  function renderDiscoDoor(zi) {
+    const door = el('button', {
+      class: 'ff-disco-door',
+      'aria-label': 'Enter the Disco Hall',
+      onclick: e => { e.stopPropagation(); sfx.tap(); ctx.go('discohall'); }
+    }, [
+      el('span', { class: 'ff-disco-sign', text: 'DISCO' }),
+      el('span', { class: 'ff-disco-stars', text: '✦  ♪  ✦' }),
+      el('span', { class: 'ff-disco-enter', text: 'ENTER' })
+    ]);
+    door.style.left = `${zi * zoneW + DISCO_DOOR_X * zoneW - 74}px`;
+    door.style.top = `${groundY - 164}px`;
+    door.style.zIndex = String(Math.round(groundY) + 2);
+    door.addEventListener('pointerdown', e => e.stopPropagation());
+    ground.appendChild(door);
   }
   // The bandstand: a roofed stage with today's trio (drummer / keys / guitarist).
   // Tapping it opens the Boo Band; watch mode animates the trio to the band song (C1c).
@@ -1504,7 +1522,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand')) return; // items/rides/bandstand handle their own
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door')) return; // interactive scenery handles its own taps
     if (buildMode && (buildTool === 'paths' || buildTool === 'erase')) {
       painting = true;
       viewport.setPointerCapture(e.pointerId);
@@ -2687,6 +2705,8 @@ export function mount(container, params, ctx) {
       sceneryXf: (sel) => { const n = ground.querySelector(sel); return n ? (getComputedStyle(n).transform || '') : null; },
       sceneryAnimated: (sel) => { const n = ground.querySelector(sel); return n ? getComputedStyle(n).animationName !== 'none' : false; },
       hasBandstand: () => !!ground.querySelector('.ff-bandstand'),
+      hasDiscoDoor: () => !!ground.querySelector('.ff-disco-door'),
+      scrollToDisco: () => { scrollX = (ZONE_INDEX['funfair'] ?? 0) * zoneW + DISCO_DOOR_X * zoneW - viewW / 2; clampScroll(); applyScroll(); },
       scrollToBandstand: () => { scrollX = (ZONE_INDEX['funfair'] ?? 0) * zoneW + BANDSTAND_X * zoneW - viewW / 2; clampScroll(); applyScroll(); },
       scrollToFunfairGate: () => { scrollX = (ZONE_INDEX['funfair'] ?? 0) * zoneW; clampScroll(); applyScroll(); },   // funfair centred but bandstand off-screen → jingle
       zoneMusic: () => _zoneMusic,

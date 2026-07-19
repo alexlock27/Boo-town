@@ -51,6 +51,7 @@ const registry = {
   'band-xylophone': () => import('./band/xylophone.js'),
   'band-songs': () => import('./band/songs.js'),
   'band-jams': () => import('./band/jams.js'),
+  discohall:  () => import('./discohall.js'),   // RUN10 P18: Funfair Disco Hall
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   grownups:   () => import('./grownups.js')
 };
