@@ -842,6 +842,18 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         [[30, 88, 'bubblegum'], [48, 84, 'gold'], [66, 88, 'lilac'], [84, 84, 'teal'], [96, 90, 'pink']]
           .map(([x, y, col]) => `<circle cx="${x}" cy="${y}" r="6" fill="${c(col)}" ${ink}/><circle cx="${x}" cy="${y}" r="2.5" fill="${COLORS.gold}"/>`).join('');
       break;
+    case 'wishwell':
+      inner =
+        ell(60, 104, 47, 14, '#9AA3B6', halo) +
+        ell(60, 104, 47, 14, '#9AA3B6', ink) +
+        path('M18 72 L24 106 Q60 122 96 106 L102 72 Z', '#AEB7C8', halo) +
+        path('M18 72 L24 106 Q60 122 96 106 L102 72 Z', '#AEB7C8', ink) +
+        ell(60, 73, 43, 15, '#516A8B', ink) +
+        `<path d="M25 70 V28 M95 70 V28" fill="none" ${ink}/>` +
+        path('M14 34 Q60 4 106 34 L96 50 Q60 26 24 50 Z', COLORS.bubblegum, halo) +
+        path('M14 34 Q60 4 106 34 L96 50 Q60 26 24 50 Z', COLORS.bubblegum, ink) +
+        `<circle cx="60" cy="68" r="7" fill="${COLORS.gold}" opacity=".9"/><path d="M60 56v20" stroke="${COLORS.gold}" stroke-width="3"/>`;
+      break;
     case 'lamp':
       inner =
         rrect(56, 60, 8, 52, 4, COLORS.cocoa, halo) +
@@ -1085,10 +1097,21 @@ export function renderAccessory(item, { size = 120, cls = '' } = {}) {
     `<circle cx="60" cy="60" r="52" fill="rgba(255,255,255,0.06)"/>` + art + `</svg>`;
 }
 
+export function renderWish(item, { size = 120, cls = '' } = {}) {
+  const icon = String(item.icon || '⭐');
+  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130 / 120}" class="wish-svg wish-${item.word} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
+    `<ellipse cx="60" cy="110" rx="39" ry="9" fill="rgba(42,27,78,.18)"/>` +
+    `<circle cx="60" cy="62" r="47" fill="#FFF8E4" stroke="${INK}" stroke-width="4"/>` +
+    `<circle cx="60" cy="62" r="40" fill="#FFF1B8" stroke="#FFC93C" stroke-width="3" stroke-dasharray="4 5"/>` +
+    `<text x="60" y="76" text-anchor="middle" font-size="48" font-family="Arial, sans-serif">${icon}</text>` +
+    `<text x="60" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="${INK}" font-family="Fredoka, sans-serif">${item.name}</text></svg>`;
+}
+
 // Generic render router used by collection/town.
 // opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {
   if (item.custom) return renderCustomBoo(item.custom, opts);
+  if (item.kind === 'wish') return renderWish(item, opts);
   // landscape (RUN10 P3) and furniture (RUN10 P4) draw exactly like a deco — both are
   // game-logic tags (box exclusion/odds, indoor-vs-outdoor placement, their own drawer
   // tab), not a different art path.

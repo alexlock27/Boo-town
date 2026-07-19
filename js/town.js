@@ -28,6 +28,8 @@ import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
 import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait } from './care.js';
+import { openWishWell } from './wishwell.js';
+import { wishId, wishItem } from '../data/wishes.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -270,7 +272,8 @@ export function mount(container, params, ctx) {
     { id: 'deco', label: 'Decorations', test: (it) => it.kind === 'deco' && !it.act && it.rarity !== 'ultra' },
     { id: 'furniture', label: 'Furniture', test: (it) => it.kind === 'furniture' },
     { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' },
-    { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' }
+    { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' },
+    { id: 'wishes', label: 'Wishes', test: (it) => it.kind === 'wish' }
   ];
   const drawerStrips = {};
   const drawerTabsNodes = DRAWER_TABS_SPEC.map(spec => {
@@ -303,6 +306,15 @@ export function mount(container, params, ctx) {
       const items = areaItems(st);
       items.push({ zone: 'boohouse', x: 0.36, row: 1, item: 'deco_rug', scale: 1.2 });
       items.push({ zone: 'boohouse', x: 0.64, row: 1, item: 'deco_tablelamp', scale: 1 });
+    });
+  }
+  // The Meadow begins with one permanent magic landmark. If it is put away, the
+  // same well remains available in Build → Landscape.
+  if (AREA.key === 'meadow' && !((getState().seen || {}).wishWellSeeded)) {
+    mutate(st => {
+      st.seen = st.seen || {};
+      st.seen.wishWellSeeded = true;
+      areaItems(st).push({ zone:'meadow', x:.12, row:1, item:'deco_wishwell', scale:1.1 });
     });
   }
 
@@ -471,6 +483,10 @@ export function mount(container, params, ctx) {
     const landscapeTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'landscape')];
     if (landscapeTabBtn) landscapeTabBtn.style.display = landscapeVisible ? '' : 'none';
     if (!landscapeVisible && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
+    const wishesVisible = buildMode && AREA.kind === 'outdoor' && Object.keys(((getState().wishes || {}).unlocked) || {}).length > 0;
+    const wishesTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'wishes')];
+    if (wishesTabBtn) wishesTabBtn.style.display = wishesVisible ? '' : 'none';
+    if (!wishesVisible && drawerApi.activeTab() === 'wishes') drawerApi.showTab('deco');
     const furnitureVisible = AREA.kind === 'interior';
     const furnitureTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'furniture')];
     if (furnitureTabBtn) furnitureTabBtn.style.display = furnitureVisible ? '' : 'none';
@@ -1675,7 +1691,7 @@ export function mount(container, params, ctx) {
     if (heldItem) {
       // Outdoor-only: landscape (Build toybox) and rides (any activity item, `act`) —
       // furniture is indoor-only (RUN10 P4). Both directions, both ways.
-      const outdoorOnly = heldItem.kind === 'landscape' || !!heldItem.act;
+      const outdoorOnly = heldItem.kind === 'landscape' || heldItem.kind === 'wish' || !!heldItem.act;
       const indoorOnly = heldItem.kind === 'furniture';
       if (outdoorOnly && AREA.kind !== 'outdoor') { notIndoorsWobble(); return; }
       if (indoorOnly && AREA.kind !== 'interior') { notOutdoorsWobble(); return; }
@@ -1727,6 +1743,10 @@ export function mount(container, params, ctx) {
     // Landscape items live in the Build toybox, not `inventory` (RUN10 P3) — always
     // available, independent of what she's actually won.
     for (const id of LANDSCAPE_IDS) free[id] = LANDSCAPE_STOCK - (placed[id] || 0);
+    for (const word of Object.keys(((st.wishes || {}).unlocked) || {}).filter(word => st.wishes.unlocked[word])) {
+      const id = wishId(word);
+      free[id] = LANDSCAPE_STOCK - (placed[id] || 0);
+    }
     const ids = Object.keys(free);
     if (holding && !ids.includes(holding)) ids.unshift(holding);
     const tabButtons = drawer.querySelectorAll('.bd-tabs .bd-tab');
@@ -1887,8 +1907,43 @@ export function mount(container, params, ctx) {
       showCareArc(wrap, place, item);
       return;
     }
+    if (item.id === 'deco_wishwell') {
+      sfx.chime(2);
+      openWishWell({ onSpawn: (word, wished) => {
+        spawnWishBesideWell(wrap, word, wished);
+        renderDrawer();
+        updateBuildUI();
+      } });
+      return;
+    }
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);
+  }
+
+  function spawnWishBesideWell(wellWrap, word, wished = wishItem(word)) {
+    ground.querySelectorAll(`.wish-town-spawn[data-word="${word}"]`).forEach(n => n.remove());
+    const spawn = el('div', {
+      class:`wish-town-spawn living-${word}`,
+      dataset:{word},
+      html:renderItem(wished, {size:92})
+    });
+    const left = parseFloat(wellWrap.style.left) + wellWrap.offsetWidth * .82;
+    const top = parseFloat(wellWrap.style.top) + wellWrap.offsetHeight * .28;
+    spawn.style.left = `${left}px`; spawn.style.top = `${top}px`;
+    if (word === 'fish') {
+      const pond = ground.querySelector('.t-item[data-item="deco_pond"]');
+      spawn.classList.add(pond ? 'fish-to-pond' : 'fish-puddle-plop');
+      if (pond) {
+        const dx = parseFloat(pond.style.left) - left;
+        const fishX = Math.max(-360, Math.min(360, dx));
+        spawn.style.setProperty('--fish-x', `${fishX}px`);
+        spawn.style.setProperty('--fish-x25', `${fishX * .25}px`);
+        spawn.style.setProperty('--fish-x62', `${fishX * .62}px`);
+      }
+    }
+    ground.appendChild(spawn);
+    setTimeout(() => spawn.remove(), 20000);
+    return spawn;
   }
 
   let careArcTimer = null;
@@ -2762,6 +2817,14 @@ export function mount(container, params, ctx) {
       // in the current area (e.g. Landscape is hidden indoors by design).
       forceHold: (id) => { holding = id; placeMode = true; renderDrawer(); },
       placeAt: (fx, fy) => { const r = viewport.getBoundingClientRect(); placeAtClient(r.left + r.width * fx, r.top + r.height * fy); },
+      openWishWell: () => {
+        const well = ground.querySelector('.t-item[data-item="deco_wishwell"]');
+        if (!well) return false;
+        openWishWell({ onSpawn: (word, wished) => { spawnWishBesideWell(well, word, wished); renderDrawer(); updateBuildUI(); } });
+        return true;
+      },
+      wishSpawns: () => [...ground.querySelectorAll('.wish-town-spawn')].map(n => ({ word:n.dataset.word, cls:n.className, animation:getComputedStyle(n).animationName })),
+      drawerTabs: () => [...drawer.querySelectorAll('.bd-tab')].filter(n => getComputedStyle(n).display !== 'none').map(n => n.textContent),
       // RUN10 P5 QA hooks: personalities + hide-and-seek 2.0.
       personalityOf: (booId) => personalityOf(booId),
       // Taps once (the real squeak() path, 20% catchphrase odds) and reports whether the

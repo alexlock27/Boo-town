@@ -6,6 +6,7 @@
 import { getState, mutate } from './state.js';
 import { normalizeCustom } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
+import { wishItem } from '../data/wishes.js';
 
 export const CUSTOM_CAP = 5;
 
@@ -36,6 +37,7 @@ export function resolveCustomItem(fullId) {
 // Resolve any inventory/town id to a renderable item (catalogue OR custom).
 export function resolveItem(id) {
   if (id && id.startsWith && id.startsWith('custom:')) return resolveCustomItem(id);
+  if (id && id.startsWith && id.startsWith('wish_')) return wishItem(id);
   return BY_ID[id] || null;
 }
 // Owned custom Boos (in inventory as 'custom:<id>').

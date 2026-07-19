@@ -124,6 +124,7 @@ export const sfx = {
   // per-letter ping during the bounce-spell.
   chime(step = 0) { play(t => envTone(523.25 * Math.pow(2, (step % 8) / 12), t, 0.22, 'sine', 0.22, sfxGain, 'chime')); },
   ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); },
+  hum() { play(t => { envTone(220, t, .34, 'sine', .12, sfxGain, 'wish-hum'); envTone(330, t + .04, .3, 'sine', .08, sfxGain, 'wish-hum'); }); },
   // Pond fishing (RUN10 P3): a happy little triplet on a catch...
   giggle() { play(t => { [700, 880, 660, 940].forEach((f, i) => envTone(f, t + i * 0.07, 0.09, 'triangle', 0.3, sfxGain, 'giggle')); }); },
   whirr() { play(t => { [180, 240, 210].forEach((f, i) => envTone(f, t + i * .045, .08, 'sawtooth', .07, sfxGain, 'wheel-whirr')); }); },
