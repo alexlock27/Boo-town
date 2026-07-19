@@ -200,9 +200,9 @@ console.log('== landscape items: outdoor areas only ==');
   await page.evaluate(() => {
     [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes('Landscape'))?.click();
   });
-  await page.$eval('.bd-panel:not([hidden]) .drawer-item', n => n.click());
-  const vp = await page.$eval('.t-viewport', n => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.75 }; });
-  await page.mouse.click(vp.x, vp.y);
+  await page.$eval('.bd-panel:not([hidden]) .drawer-item[data-item="deco_palm"]', n => n.click());
+  assert(/nearest free spot/i.test(await page.$eval('.town-hint-bar', n => n.textContent)), 'choosing the Palm puts Town into clear placement mode');
+  await page.evaluate(() => window.__townLife.placeAt(.5, .75));
   await sleep(150);
   const placedOutdoors = await page.evaluate(() => document.querySelectorAll('.t-item[data-item^="deco_palm"], .t-item[data-item^="deco_oak"], .t-item[data-item^="deco_pine"], .t-item[data-item^="deco_bush"], .t-item[data-item^="deco_rock"], .t-item[data-item^="deco_flowerbed"]').length);
   assert(placedOutdoors === 1, `a landscape item places fine outdoors (${placedOutdoors})`);

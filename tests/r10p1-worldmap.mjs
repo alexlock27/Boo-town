@@ -7,6 +7,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import { migrateForTest } from './lib/migrateForTest.mjs';
+import { VERSION } from '../js/state.js';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 mkdirSync('screenshots/r10p1', { recursive: true });
 let failed = false;
@@ -136,7 +137,7 @@ console.log('== legacy flat-array save migrates every item into its mapped area 
   }
   assert(ok, 'all 12 legacy items land in their mapped area at the exact proportional x (ratio 1.7/4)');
   assert(migrated.town.areas.playground.items.length === 0 && migrated.town.areas.boohouse.items.length === 0 && migrated.town.areas.gallery.items.length === 0, 'playground/boohouse/gallery start empty (no legacy zone key)');
-  assert(migrated.version === 6, 'save version bumped to 6');
+  assert(migrated.version === VERSION, `save version bumped to current v${VERSION}`);
 }
 
 // ==================== entry crossfade ====================

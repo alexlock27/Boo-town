@@ -499,10 +499,22 @@ export function mount(container, params, ctx) {
         cx.beginPath(); cx.moveTo(-32, -48); cx.lineTo(-10, -20); cx.moveTo(32, -48); cx.lineTo(10, -20); cx.stroke();
       }
       cx.rotate(spin);
+      // A recognisable rolling Boo, not a generic smiley ball. The ears, large
+      // eyes and cheek marks rotate with the body so the roll still reads clearly.
+      cx.fillStyle = ballColour; cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 4;
+      cx.beginPath(); cx.arc(-15, -18, 10, 0, Math.PI * 2); cx.fill(); cx.stroke();
+      cx.beginPath(); cx.arc(15, -18, 10, 0, Math.PI * 2); cx.fill(); cx.stroke();
+      cx.fillStyle = '#FF9CCF';
+      cx.beginPath(); cx.arc(-15, -18, 5, 0, Math.PI * 2); cx.arc(15, -18, 5, 0, Math.PI * 2); cx.fill();
       cx.beginPath(); cx.arc(0, 0, BALL_R, 0, Math.PI * 2);
       cx.fillStyle = ballColour; cx.fill(); cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 4; cx.stroke();
+      cx.fillStyle = '#fff';
+      cx.beginPath(); cx.arc(-8, -4, 7, 0, Math.PI * 2); cx.arc(8, -4, 7, 0, Math.PI * 2); cx.fill();
       cx.fillStyle = '#2A1B4E';
-      cx.beginPath(); cx.arc(-7, -4, 3, 0, Math.PI * 2); cx.arc(7, -4, 3, 0, Math.PI * 2); cx.fill();
+      cx.beginPath(); cx.arc(-7, -3, 3.5, 0, Math.PI * 2); cx.arc(7, -3, 3.5, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = 'rgba(255,120,170,.7)';
+      cx.beginPath(); cx.arc(-15, 7, 4, 0, Math.PI * 2); cx.arc(15, 7, 4, 0, Math.PI * 2); cx.fill();
+      cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 3;
       cx.beginPath(); cx.arc(0, 5, 7, .1 * Math.PI, .9 * Math.PI); cx.stroke();
       cx.restore();
       if (state === 'bonk') {

@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'birthday-twins-11';     // Lexie & Tyler's Twin Party Garden
+const BUILD_STAMP = 'run10-final-20260719';  // Run 10 release + twin birthday activities
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

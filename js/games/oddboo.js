@@ -14,6 +14,13 @@ export const ODD_INTRO = [
   { text: 'A wrong tap just means keep looking!' }
 ];
 const ROUNDS = 10;
+const FEATURE_ROTATION = ['colour','hat','species','shine'];
+const FEATURE_LABEL = {
+  colour: 'colour',
+  species: 'shape',
+  hat: 'hat',
+  shine: 'sparkle'
+};
 
 function booHTML(boo) {
   return renderBoo({
@@ -26,13 +33,14 @@ export function mount(container, params, ctx) {
   music.play('game');
   const root = el('div', { class: 'screen oddboo' });
   const tier = contentTier();
+  const featureOffset = Math.floor(Math.random() * FEATURE_ROTATION.length);
   let index = 0, wrong = 0, streak = 0, locked = false, grid;
   const shell = createGameShell({
     title: 'Odd Boo Out', rounds: ROUNDS, accent: 'var(--zing)', hideHearts: true,
     onBack: () => ctx.go('hub'), onHint: () => shell.react('Look for colour, shape, hats or shine.'),
     onHelp: () => replayIntro('oddboo', ODD_INTRO)
   });
-  const title = el('div', { class: 'odd-find', text: 'FIND THE ODD BOO!' });
+  const title = el('div', { class: 'odd-find', text: 'WHICH BOO BREAKS THE PATTERN?' });
   const board = el('div', { class: 'odd-grid' });
   shell.area.append(title, board);
   root.appendChild(shell.root); container.appendChild(root);
@@ -41,7 +49,9 @@ export function mount(container, params, ctx) {
 
   function next() {
     locked = false;
-    grid = oddGrid(tier);
+    grid = oddGrid(tier, Math.random, {
+      oddFeature: FEATURE_ROTATION[(featureOffset + index) % FEATURE_ROTATION.length]
+    });
     board.dataset.count = String(grid.items.length);
     clear(board);
     grid.items.forEach((boo, i) => {
@@ -60,7 +70,7 @@ export function mount(container, params, ctx) {
     if (i !== grid.oddIndex) {
       wrong++; streak = 0; recordResult(key, false);
       wobble(button); sfx.oops();
-      shell.react('Good looking — keep searching!');
+      shell.react(`Good looking — compare their ${FEATURE_LABEL[grid.oddFeature]}!`);
       return;
     }
     locked = true; streak++; recordResult(key, true); sfx.star();
@@ -68,7 +78,8 @@ export function mount(container, params, ctx) {
     const r = button.getBoundingClientRect();
     sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
     if (streak >= 3) button.classList.add('odd-streak');
-    shell.react(streak >= 3 ? `${streak} in a row — sparkle eyes!` : 'You found the odd Boo!');
+    const found = `Yes — the ${FEATURE_LABEL[grid.oddFeature]} was different!`;
+    shell.react(streak >= 3 ? `${found} ${streak} in a row!` : found);
     setTimeout(() => {
       index++; shell.advance();
       if (index >= ROUNDS) finish(); else next();

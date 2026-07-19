@@ -21,7 +21,7 @@ export const WEIGHTS = {
   bouncy:  { trampoline: 2.0, chase: 1.5, nap: 0.5 },
   sleepy:  { nap: 2.5, bench: 1.5, chase: 0.4 },
   cheeky:  { chase: 1.6, visit: 1.4, watch: 0.7 },
-  shy:     { watch: 1.8, visit: 0.6 },
+  shy:     { watch: 2.2, visit: 0.5 },
   musical: { danceStage: 2.2, fairBand: 1.6 },
   sporty:  { slide: 1.8, swings: 1.6, seesaw: 1.5 }
 };

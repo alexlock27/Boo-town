@@ -53,6 +53,7 @@ export function mount(container, params, ctx) {
 
   const zones = {};
   const timers = [];
+  const partyMoments = { lexie:new Set(), tyler:new Set() };
   const ownedGuestIds = Object.keys(getState().inventory || {}).filter(id => {
     const item = resolveItem(id);
     return (getState().inventory[id] || 0) > 0 && item && item.kind === 'boo' && !item.birthdayOnly;
@@ -112,12 +113,21 @@ export function mount(container, params, ctx) {
     });
     const danceFloor = el('div', { class:'party-dance-floor', 'aria-hidden':'true' });
     for (let i = 0; i < 12; i++) danceFloor.appendChild(el('i', {style:{'--i':i}}));
-    const celebrate = el('button', { class:'party-celebrate', onclick:() => celebrateParty(key) }, [
-      el('span', { text:'🎉' }), el('strong', { text:`Celebrate ${titleCase(key)}!` }), el('small', { text:'Music · lights · confetti' })
+    const activities = el('div', { class:'party-activities', 'aria-label':`${config.name}'s party activities` }, [
+      el('span', { class:'party-activity-title', text:'Choose 3 party moments · 0/3 complete' }),
+      ...[
+        ['dance','🎵','Dance-off'],
+        ['wish','🎂','Cake wish'],
+        ['balloons','🎈','Balloons']
+      ].map(([moment, icon, label]) => el('button', {
+        class:'party-activity', dataset:{moment},
+        'aria-label':`${label} for ${config.name}`,
+        onclick:e => runPartyMoment(key, moment, e.currentTarget)
+      }, [el('span',{text:icon}),el('strong',{text:label})]))
     ]);
     const presentSpot = el('div', { class:'party-present-spot' });
     const message = el('div', { class:'party-message', 'aria-live':'polite' });
-    zone.append(sky, bunting, balloons, marquee, cake, guests, danceFloor, celebrate, presentSpot, message);
+    zone.append(sky, bunting, balloons, marquee, cake, guests, danceFloor, activities, presentSpot, message);
     return zone;
   }
 
@@ -162,6 +172,41 @@ export function mount(container, params, ctx) {
     zone.querySelector('.party-message').textContent = `${config.icon} ${line} ${config.icon}`;
     speakMaybe(line);
     timers.push(setTimeout(() => zone.classList.remove('celebrating'), 6000));
+  }
+
+  function runPartyMoment(key, moment, button) {
+    const config = PARTY_CONFIG[key], zone = zones[key];
+    const firstTime = !partyMoments[key].has(moment);
+    partyMoments[key].add(moment);
+    if (button) button.classList.add('done');
+    const title = zone.querySelector('.party-activity-title');
+    title.textContent = `${partyMoments[key].size}/3 party moments complete`;
+    zone.classList.remove('wish-moment','balloon-moment');
+    void zone.offsetWidth;
+    if (moment === 'dance') {
+      celebrateParty(key);
+      zone.querySelector('.party-message').textContent = `🎵 ${config.name}'S DANCE FLOOR IS LIVE!`;
+    } else if (moment === 'wish') {
+      zone.classList.add('wish-moment');
+      sfx.chime(4);
+      const line = `Make a giant birthday wish, ${titleCase(key)}!`;
+      zone.querySelector('.party-message').textContent = `🎂 ${line} ✨`;
+      speakMaybe(line);
+      if (!REDUCED) confetti({count:45,power:.65,origin:{x:.68,y:.42}});
+      timers.push(setTimeout(() => zone.classList.remove('wish-moment'), 3000));
+    } else {
+      zone.classList.add('balloon-moment');
+      sfx.pop();
+      zone.querySelector('.party-message').textContent = `🎈 ${config.name}'S BALLOON BURST! 🎈`;
+      if (!REDUCED) confetti({count:70,power:.9,origin:{x:.5,y:.32}});
+      timers.push(setTimeout(() => zone.classList.remove('balloon-moment'), 3800));
+    }
+    if (firstTime && partyMoments[key].size === 3) {
+      zone.classList.add('party-complete');
+      title.textContent = `🏆 ${config.name}'S PARTY CHALLENGE COMPLETE!`;
+      sfx.fanfare();
+      if (!REDUCED) confetti({count:120,power:1.15,origin:{x:.5,y:.48}});
+    }
   }
 
   function guestMessage(guest, messageIndex) {
@@ -238,8 +283,9 @@ export function mount(container, params, ctx) {
   }
 
   window.__birthdayParty = {
-    celebrate:celebrateParty, openPresent, finale:showFinale,
+    celebrate:celebrateParty, moment:runPartyMoment, openPresent, finale:showFinale,
     opened:() => ({...getState().birthdayParty.opened}),
+    moments:() => Object.fromEntries(Object.entries(partyMoments).map(([key,value]) => [key,[...value]])),
     candleCounts:() => Object.fromEntries(Object.keys(zones).map(key => [key,zones[key].querySelectorAll('.party-candles i').length])),
     guestCounts:() => Object.fromEntries(Object.keys(zones).map(key => [key,zones[key].querySelectorAll('.party-guest').length])),
     names:() => [...root.querySelectorAll('.party-marquee strong')].map(n => n.textContent),
