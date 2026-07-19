@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 10;  // v10 (RUN10 P20): permanent Wish Well drawer unlocks.
+export const VERSION = 11;  // v11: Lexie & Tyler birthday-party keepsakes.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -79,6 +79,7 @@ function freshSave() {
     care: { bonds: {}, treats: 0 },  // RUN10 P12: friendship only rises; treats cap at five
     bloom: { max: {} },              // RUN10 P19: five child-facing petals never shrink
     wishes: { unlocked: {} },        // RUN10 P20: word -> true, one permanent Build item each
+    birthdayParty: { opened: { lexie: false, tyler: false }, visits: 0 },
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)

@@ -4128,3 +4128,105 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media(prefers-reduced-motion:reduce) {
   .wish-poof,.wish-made,.wish-town-spawn { animation:none!important; }
 }
+
+/* Lexie & Tyler's Twin Party Garden */
+.map-birthday { position:absolute; z-index:15; left:50%; bottom:3.5%; transform:translateX(-50%); min-width:250px; padding:8px 14px; border:4px solid #fff; border-radius:22px; display:flex; align-items:center; justify-content:center; gap:9px; color:#fff; background:linear-gradient(115deg,#FF65BC,#7E5AE8 48%,#21C8BF); box-shadow:0 6px 0 #45256F,0 0 22px rgba(255,255,255,.75); animation:partyMapPulse 1.7s ease-in-out infinite; }
+.map-birthday-gift { font-size:30px; }.map-birthday-balloons { font-size:21px; }
+.map-birthday-copy { display:grid; line-height:1.05; text-align:center; }
+.map-birthday-copy strong { font:700 17px var(--font-display); letter-spacing:2px; }
+.map-birthday-copy small { margin-top:3px; font:700 10px var(--font-display); }
+@keyframes partyMapPulse { 50% { filter:brightness(1.14); box-shadow:0 8px 0 #45256F,0 0 32px #fff; } }
+
+.birthday-party { height:100%; min-height:0; display:grid; grid-template-rows:auto auto 1fr auto; overflow:hidden; background:#251252; }
+.birthday-header { min-height:72px; display:grid; grid-template-columns:58px 1fr 58px; align-items:center; gap:8px; padding:7px 14px; color:#fff; background:linear-gradient(90deg,#6A2F91,#35216F,#1C766F); border-bottom:3px solid rgba(255,255,255,.18); }
+.birthday-title { text-align:center; }.birthday-title h2 { margin:0; font-size:27px; }.birthday-title p { margin:2px 0 0; color:#FFE6A4; font:700 12px var(--font-display); }
+.birthday-eleven { width:52px; height:52px; border:4px solid #fff; border-radius:50%; display:grid; place-items:center; color:#45256F; background:var(--star); font:700 25px var(--font-display); transform:rotate(6deg); box-shadow:0 3px 0 #C58C17; }
+.birthday-jump { display:flex; justify-content:center; gap:10px; padding:7px 12px; background:#14082F; }
+.birthday-jump-btn { --party:#FF72C6; min-width:145px; padding:6px 13px; border:3px solid var(--party); border-radius:999px; display:flex; align-items:center; justify-content:center; gap:6px; background:#fff; color:var(--ink); }
+.birthday-jump-btn strong { font:700 15px var(--font-display); }.birthday-jump-btn small { color:#6F55A5; font:700 9px var(--font-display); }
+.party-garden { min-height:0; display:flex; gap:16px; overflow-x:auto; overflow-y:hidden; padding:10px 14px 14px; scroll-snap-type:x mandatory; scrollbar-color:#B28BDD #251252; }
+.party-zone { --party:#FF72C6;--party-deep:#7F3A8F;--party-soft:#FFE0F4; position:relative; flex:0 0 min(920px,calc(100vw - 40px)); min-height:590px; height:100%; overflow:hidden; border:5px solid #fff; border-radius:30px; scroll-snap-align:center; background:linear-gradient(#8CDCF0 0 57%,#70C865 57% 100%); box-shadow:inset 0 0 0 5px var(--party),0 8px 0 #100624; }
+.party-zone.party-tyler { background:linear-gradient(#92DFF4 0 57%,#67C281 57% 100%); }
+.party-sky { position:absolute; inset:0 0 43%; background:radial-gradient(circle at 14% 22%,rgba(255,255,255,.8) 0 2px,transparent 3px),radial-gradient(circle at 78% 26%,rgba(255,255,255,.75) 0 2px,transparent 3px),linear-gradient(155deg,rgba(255,255,255,.42),transparent 45%); }
+.party-bunting { position:absolute; z-index:4; top:10px; left:1%; right:1%; height:45px; display:flex; justify-content:space-around; border-top:3px solid #fff; }
+.party-bunting i { --i:0; width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:25px solid hsl(calc(var(--i)*31 + 315),75%,62%); filter:drop-shadow(0 2px 0 rgba(42,27,78,.35)); }
+.party-marquee { position:absolute; z-index:5; top:51px; left:50%; transform:translateX(-50%); width:min(520px,70%); padding:8px 18px 10px; border:5px solid #fff; border-radius:22px; display:grid; justify-items:center; color:#fff; background:var(--party-deep); box-shadow:0 6px 0 rgba(42,27,78,.42),0 0 24px var(--party); }
+.party-marquee::before,.party-marquee::after { content:'✦'; position:absolute; top:50%; transform:translateY(-50%); color:var(--star); font-size:25px; }.party-marquee::before { left:15px }.party-marquee::after { right:15px }
+.party-marquee small { font:700 10px var(--font-display); letter-spacing:2px; color:#FFEAA3; text-transform:uppercase; }
+.party-marquee strong { font:700 clamp(40px,7vw,70px)/.95 var(--font-display); letter-spacing:7px; text-shadow:0 4px 0 rgba(42,27,78,.35); }
+.party-marquee span { margin-top:3px; font:700 12px var(--font-display); letter-spacing:2px; }
+.party-balloons { position:absolute; inset:0; z-index:3; pointer-events:none; }
+.party-balloon { --x:10%;--delay:0s;--drift:0px; position:absolute; left:var(--x); top:28%; width:30px; height:38px; border:3px solid #fff; border-radius:50% 50% 48% 48%; background:var(--party); box-shadow:inset -7px -5px rgba(42,27,78,.18); opacity:.9; }
+.party-balloon::before { content:''; position:absolute; left:13px; top:38px; width:2px; height:80px; background:rgba(42,27,78,.45); }
+.party-balloon::after { content:''; position:absolute; left:10px; top:34px; border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid var(--party); }
+.party-balloon.balloon-1 { background:#FFC93C }.party-balloon.balloon-2 { background:#8FC7FF }.party-balloon.balloon-3 { background:#C6A9F0 }
+.party-cake-wrap { position:absolute; z-index:7; right:8%; top:36%; width:220px; display:grid; justify-items:center; }
+.party-cake-label { margin-bottom:15px; padding:5px 10px; border-radius:999px; background:#fff; color:var(--ink); font:700 11px var(--font-display); box-shadow:0 3px 0 rgba(42,27,78,.2); }
+.party-cake { position:relative; width:190px; height:150px; filter:drop-shadow(0 8px 3px rgba(42,27,78,.25)); }
+.cake-bottom,.cake-middle,.cake-top { position:absolute; left:50%; transform:translateX(-50%); border:4px solid var(--ink); background:var(--party-soft); box-shadow:inset 0 -10px rgba(42,27,78,.08); }
+.cake-bottom { bottom:0;width:180px;height:55px;border-radius:18px 18px 10px 10px }.cake-middle { bottom:48px;width:142px;height:48px;border-radius:16px }.cake-top { bottom:88px;width:100px;height:39px;border-radius:14px;display:grid;place-items:center;color:var(--party-deep);font:700 24px var(--font-display); }
+.party-candles { position:absolute; z-index:3; bottom:124px; left:50%; width:155px; transform:translateX(-50%); display:flex; justify-content:space-around; align-items:end; }
+.party-candles i { width:5px; height:24px; border:1px solid var(--ink); border-radius:2px; background:repeating-linear-gradient(-45deg,#fff 0 3px,var(--party) 3px 6px); }
+.party-candles i::before { content:''; display:block; width:8px; height:12px; margin:-12px 0 0 -3px; border-radius:55% 45% 55% 45%; background:#FFD85C; box-shadow:0 0 8px #FF8A38; transform:rotate(7deg); }
+.party-present-spot { position:absolute; z-index:8; left:7%; top:37%; width:210px; min-height:210px; display:grid; place-items:center; }
+.party-present { position:relative; width:174px; height:160px; padding:20px 10px 8px; border:5px solid #fff; border-radius:22px; display:grid; align-content:center; gap:6px; color:#fff; background:linear-gradient(90deg,var(--party) 0 42%,#FFE26F 42% 58%,var(--party) 58%); box-shadow:0 9px 0 var(--party-deep),0 0 24px #fff; animation:partyPresent 1.35s ease-in-out infinite; }
+.party-present::before { content:''; position:absolute; left:-8px; right:-8px; top:-23px; height:35px; border:5px solid #fff; border-radius:15px; background:var(--party); box-shadow:0 5px 0 var(--party-deep); }
+.party-present strong { font:700 17px var(--font-display); text-shadow:0 2px var(--party-deep); }.party-present small { font:700 11px var(--font-display); }
+.present-bow { position:absolute; z-index:2; left:50%; top:-43px; transform:translateX(-50%); width:54px;height:45px;border-radius:50%;display:grid;place-items:center;background:#FFE26F;color:var(--party-deep);font-size:24px;border:4px solid #fff; }
+.party-opened-friend { width:200px; display:grid; justify-items:center; color:var(--ink); }
+.party-opened-friend > div { height:132px }.party-opened-friend strong,.party-opened-friend small { padding:3px 8px;border-radius:9px;background:rgba(255,255,255,.88);text-align:center; }.party-opened-friend strong { font:700 15px var(--font-display); }.party-opened-friend small { font-size:10px; }
+.party-guests { position:absolute; z-index:8; left:25%; right:25%; bottom:57px; display:flex; align-items:end; justify-content:center; gap:clamp(0px,1.4vw,14px); }
+.party-guest { position:relative; width:95px; padding:0; border:0; background:transparent; filter:drop-shadow(0 6px 3px rgba(42,27,78,.28)); }
+.party-guest svg { max-width:100%;height:auto; }.party-guest:nth-child(even) { transform:translateY(8px); }
+.guest-says { position:absolute; z-index:30; left:50%; bottom:90%; transform:translateX(-50%); width:135px; padding:7px; border:3px solid var(--ink); border-radius:13px; background:#fff; color:var(--ink); font:700 11px var(--font-display); }
+.party-dance-floor { position:absolute; z-index:2; left:21%; right:21%; bottom:14px; height:125px; display:grid; grid-template-columns:repeat(6,1fr); grid-template-rows:repeat(2,1fr); gap:3px; transform:perspective(400px) rotateX(58deg); transform-origin:bottom; padding:4px; border:4px solid var(--party-deep); background:#28114D; }
+.party-dance-floor i { background:hsl(calc(var(--i)*29 + 300),72%,52%); box-shadow:inset 0 0 0 2px rgba(255,255,255,.25); }
+.party-celebrate { position:absolute; z-index:20; left:50%; bottom:8px; transform:translateX(-50%); min-width:245px; padding:7px 18px; border:4px solid #fff; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:7px; background:var(--party-deep); color:#fff; box-shadow:0 5px 0 rgba(42,27,78,.5); }
+.party-celebrate strong { font:700 15px var(--font-display); }.party-celebrate small { font:700 9px var(--font-display); color:#FFEAA3; }
+.party-message { position:absolute; z-index:25; left:50%; top:29%; transform:translateX(-50%); min-height:30px; width:max-content; max-width:80%; color:var(--party-deep); font:700 17px var(--font-display); text-align:center; }
+.party-zone.celebrating .party-balloon { animation:partyBalloon 3.2s var(--delay) ease-in forwards; }
+.party-zone.celebrating .party-guest { animation:partyGuestDance .6s ease-in-out infinite alternate; }
+.party-zone.celebrating .party-dance-floor i { animation:partyFloor .5s calc(var(--i)*.04s) ease-in-out infinite alternate; }
+.party-zone.celebrating .party-candles i::before { animation:partyFlame .28s ease-in-out infinite alternate; }
+@keyframes partyPresent { 50% { filter:brightness(1.12);box-shadow:0 12px 0 var(--party-deep),0 0 34px #fff; } }
+@keyframes partyBalloon { 30% { opacity:1 } to { transform:translate(var(--drift),-360px) rotate(8deg);opacity:0 } }
+@keyframes partyGuestDance { to { transform:translateY(-15px) rotate(5deg); } }
+@keyframes partyFloor { to { filter:brightness(1.8); } }
+@keyframes partyFlame { to { transform:rotate(-10deg) scale(1.16); } }
+.twin-finale { min-height:48px; margin:0 14px 8px; padding:5px 15px; border:3px solid #6F55A5; border-radius:18px; display:flex; align-items:center; justify-content:center; gap:8px; background:#392060;color:#BDB0D0; }
+.twin-finale.ready { border-color:var(--star); background:linear-gradient(90deg,#FF65BC,#8C57DF,#20BFB6); color:#fff; box-shadow:0 0 20px rgba(255,201,60,.55); }
+.twin-finale strong { font:700 15px var(--font-display);letter-spacing:1px }.twin-finale small { font:700 10px var(--font-display); }
+.party-gift-overlay,.twin-finale-overlay { z-index:1700; background:radial-gradient(circle,rgba(255,255,255,.2),rgba(22,8,50,.94)); }
+.party-gift-card { position:relative; width:min(520px,92vw); max-height:92vh; overflow:auto; padding:25px 22px 20px; border:6px solid #fff; border-radius:32px; display:grid; justify-items:center; text-align:center; background:linear-gradient(#FFF8DF,#fff 58%,#FCE3F3); box-shadow:0 0 0 8px var(--party),0 20px 50px #12072E; }
+.party-gift-overlay.party-tyler .party-gift-card { background:linear-gradient(#E1FBFA,#fff 58%,#DCEBFF); }
+.gift-rays { position:absolute; inset:90px 20px auto;height:240px;background:repeating-conic-gradient(from 0deg,rgba(255,201,60,.25) 0 10deg,transparent 10deg 22deg);border-radius:50%;animation:giftRays 12s linear infinite; }
+.gift-ribbon { z-index:2;padding:7px 14px;border-radius:999px;background:var(--party);color:#fff;font:700 12px var(--font-display);letter-spacing:1px; }
+.gift-boo { z-index:2;height:245px;filter:drop-shadow(0 10px 5px rgba(42,27,78,.22));animation:giftBooArrive .7s cubic-bezier(.2,.9,.2,1.25); }
+.party-gift-card h2 { z-index:2;margin:0;color:var(--ink);font-size:31px }.party-gift-card p { z-index:2;margin:5px 0;color:#594581;font:700 15px var(--font-display) }
+.gift-keepsake { z-index:2;margin:8px 0 12px;padding:8px;border-radius:12px;background:#E0F7E8;color:#287045;font:700 11px var(--font-display) }
+.party-gift-done { z-index:2;background:var(--party);color:#fff; }
+@keyframes giftRays { to { transform:rotate(360deg); } } @keyframes giftBooArrive { from { opacity:0;transform:scale(.15) rotate(-12deg) } 70% { transform:scale(1.1) rotate(3deg) } }
+.twin-finale-card { width:min(650px,94vw);max-height:94vh;overflow:auto;padding:18px 20px 22px;border:7px solid #fff;border-radius:34px;display:grid;justify-items:center;text-align:center;color:#fff;background:linear-gradient(145deg,#F04EA8,#754DD8 48%,#18AFA7);box-shadow:0 0 0 8px var(--star),0 20px 60px #100423; }
+.finale-eleven { width:90px;height:90px;border:6px solid #fff;border-radius:50%;display:grid;place-items:center;background:var(--star);color:var(--ink);font:700 45px var(--font-display);transform:rotate(-5deg) }
+.twin-finale-card h1 { margin:7px 0 0;font-size:clamp(31px,7vw,52px);letter-spacing:4px;text-shadow:0 4px rgba(42,27,78,.4) }.twin-finale-card p { margin:3px 0 0;font:700 13px var(--font-display);color:#FFF1B8 }
+.finale-boos { height:225px;display:flex;align-items:end;justify-content:center;gap:20px }.finale-boos > div { filter:drop-shadow(0 9px 4px rgba(42,27,78,.3));animation:finaleBop .7s ease-in-out infinite alternate }.finale-boos > div:nth-child(2) { animation-delay:.25s }
+.twin-finale-card > strong { font:700 20px var(--font-display);margin-bottom:10px }.finale-again { background:var(--star);color:var(--ink); }
+@keyframes finaleBop { to { transform:translateY(-14px) rotate(4deg); } }
+.rar-birthday { border-color:var(--star)!important;background:linear-gradient(145deg,#FFF4BE,#FFE3F4)!important;box-shadow:0 0 0 3px #FF7AC6,0 5px 0 rgba(42,27,78,.25)!important }.birthday-coll-art { filter:drop-shadow(0 0 8px #FFC93C) }.birthday-11-badge { position:absolute;top:4px;right:4px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:var(--star);color:var(--ink);font:700 10px var(--font-display) }
+
+@media(max-width:600px) {
+  .map-birthday { min-width:215px;bottom:2%;padding:6px 10px }.map-birthday-copy strong { font-size:14px }.map-birthday-gift { font-size:25px }.map-birthday-balloons { display:none }
+  .birthday-header { min-height:62px;grid-template-columns:50px 1fr 46px;padding:4px 8px }.birthday-title h2 { font-size:21px }.birthday-title p { font-size:9px }.birthday-eleven { width:42px;height:42px;font-size:20px }
+  .birthday-jump { padding:5px 7px;gap:6px }.birthday-jump-btn { min-width:0;flex:1;padding:5px 7px }.birthday-jump-btn small { display:none }
+  .party-garden { gap:10px;padding:7px 7px 11px }.party-zone { flex-basis:calc(100vw - 22px);min-height:610px;border-radius:22px }
+  .party-bunting i { border-left-width:8px;border-right-width:8px;border-top-width:18px }.party-marquee { top:38px;width:82%;padding:6px 10px }.party-marquee strong { font-size:40px;letter-spacing:4px }.party-marquee span { font-size:9px }.party-marquee small { font-size:8px }
+  .party-message { top:24%;font-size:13px }.party-present-spot { left:1%;top:32%;width:48%; }.party-present { width:135px;height:132px }.party-present strong { font-size:13px }
+  .party-opened-friend { width:150px }.party-opened-friend > div { height:115px }.party-cake-wrap { right:1%;top:34%;width:49%;transform:scale(.8);transform-origin:center top }
+  .party-guests { left:3%;right:3%;bottom:66px;gap:0 }.party-guest { width:82px;margin-inline:-2px }.party-dance-floor { left:5%;right:5%;bottom:20px;height:115px }
+  .party-celebrate { bottom:5px;min-width:225px }.party-celebrate small { display:none }.party-balloon { width:23px;height:30px }.party-balloon::before { top:30px;left:10px;height:60px }
+  .twin-finale { margin:0 7px 5px;min-height:42px }.twin-finale small { font-size:8px }
+  .party-gift-card { padding:16px 13px }.gift-boo { height:220px }.party-gift-card h2 { font-size:27px }.finale-boos { height:200px;gap:0 }.finale-boos svg { width:165px;height:auto }
+}
+@media(prefers-reduced-motion:reduce) {
+  .map-birthday,.party-present,.gift-rays,.gift-boo,.finale-boos>div,.party-zone.celebrating .party-balloon,.party-zone.celebrating .party-guest,.party-zone.celebrating .party-dance-floor i,.party-zone.celebrating .party-candles i::before { animation:none!important; }
+}

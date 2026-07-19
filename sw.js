@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run10-p20-recovery';    // selected local recovery checkpoint
+const BUILD_STAMP = 'birthday-twins-11';     // Lexie & Tyler's Twin Party Garden
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -79,6 +79,7 @@ const ASSETS = [
   'js/requests.js',
   'js/choreographer.js',
   'js/discohall.js',
+  'js/birthdayparty.js',
   'js/attrengine.js',
   'js/wishwell.js',
   'js/content.js',
