@@ -4,7 +4,7 @@ import { el, dialog, backControl } from './ui.js';
 import { getState } from './state.js';
 import { renderItem, renderGuide } from './art.js';
 import { applyRarityFx } from './rarityfx.js';
-import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY } from '../data/catalogue.js';
+import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY, BIRTHDAY_BOOS } from '../data/catalogue.js';
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
@@ -106,7 +106,24 @@ export function mount(container, params, ctx) {
     ]);
   }
 
-  const scroll = el('div', { class: 'coll-scroll' }, [myCharCard, grid, ...(customsSection ? [customsSection] : []), wardrobe]);
+  const birthdayOwned = BIRTHDAY_BOOS.filter(item => owned[item.id] > 0);
+  let birthdaySection = null;
+  if (birthdayOwned.length) {
+    const bgrid = el('div', { class:'coll-grid birthday-boos-grid' });
+    birthdayOwned.forEach(item => {
+      const art = el('div', { class:'coll-art birthday-coll-art', html:renderItem(item,{size:94,equipArt:equippedArt(item.id)}) });
+      applyRarityFx(art, item, {context:'calm'});
+      bgrid.appendChild(el('button', { class:'coll-tile owned rar-birthday', onclick:() => { sfx.tap(); showItem(item,1); } }, [
+        art, el('div',{class:'coll-name',text:getDisplayName(item.id)}), el('div',{class:'birthday-11-badge',text:'11'})
+      ]));
+    });
+    birthdaySection = el('section', {class:'birthday-boos-section'}, [
+      el('div',{class:'wardrobe-head'},[el('h3',{text:'🎉 Birthday Boos'}),el('span',{class:'coll-count small',text:`${birthdayOwned.length} of 2`})]),
+      bgrid
+    ]);
+  }
+
+  const scroll = el('div', { class: 'coll-scroll' }, [myCharCard, grid, ...(birthdaySection ? [birthdaySection] : []), ...(customsSection ? [customsSection] : []), wardrobe]);
 
   // ---- Journal tab (RUN3 C4): a scrapbook of dated stamp stickers on flippable pages ----
   const journalView = el('div', { class: 'coll-scroll journal-view', style: { display: 'none' } });
