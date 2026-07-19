@@ -11,14 +11,29 @@ const ok = (condition, message) => {
 };
 
 console.log('== pure generators ==');
+ok(['colour','hat','species','shine'].every(feature => oddGrid('full', Math.random, {oddFeature:feature}).oddFeature === feature),
+  'the live game can rotate all four visible answer features without repeats');
 for (const tier of ['light', 'medium', 'full']) {
-  let valid = true;
+  let valid = true, visuallyClear = true;
   for (let i = 0; i < 500; i++) {
     const grid = oddGrid(tier);
     const count = grid.items.filter(item => violatesOddPredicate(item, grid)).length;
     if (count !== 1 || grid.items.length !== ({ light:4, medium:9, full:12 })[tier]) { valid = false; break; }
+    const singletonFeatures = ['colour','species','hat','shine'].filter(feature => {
+      const counts = Object.values(grid.items.reduce((all, boo) => {
+        const value = String(boo[feature]); all[value] = (all[value] || 0) + 1; return all;
+      }, {}));
+      return counts.includes(1);
+    });
+    const signatures = grid.items.reduce((all, boo) => {
+      const signature = ['colour','species','hat','shine'].map(feature => boo[feature]).join('|');
+      all[signature] = (all[signature] || 0) + 1; return all;
+    }, {});
+    const repeatedFamilies = Object.values(signatures).filter(n => n > 1).length;
+    if (singletonFeatures.length !== 1 || singletonFeatures[0] !== grid.oddFeature ||
+        repeatedFamilies < (tier === 'light' ? 1 : 2)) visuallyClear = false;
   }
-  ok(valid, `${tier}: 500 grids each have exactly one predicate violator`);
+  ok(valid && visuallyClear, `${tier}: 500 grids mix repeated visual groups with one unambiguous singleton`);
 }
 for (const tier of ['light', 'medium', 'full']) {
   let valid = true, genuineNear = true;
@@ -76,6 +91,21 @@ await page.evaluate(() => window.BooTown.go('oddboo'));
 await page.waitForFunction(() => window.__oddboo);
 ok(await page.locator('.odd-choice').count() === 9, 'medium Odd Boo Out presents a readable 9-Boo grid');
 ok((await page.evaluate(() => window.__oddboo.violators())).length === 1, 'live grid exposes exactly one true violator');
+ok(await page.evaluate(() => {
+  const grid = window.__oddboo.grid();
+  const singletonFeatures = ['colour','species','hat','shine'].filter(feature => {
+    const counts = Object.values(grid.items.reduce((all, boo) => {
+      const value = String(boo[feature]); all[value] = (all[value] || 0) + 1; return all;
+    }, {}));
+    return counts.includes(1);
+  });
+  const signatures = Object.values(grid.items.reduce((all, boo) => {
+    const signature = ['colour','species','hat','shine'].map(feature => boo[feature]).join('|');
+    all[signature] = (all[signature] || 0) + 1; return all;
+  }, {}));
+  return singletonFeatures.length === 1 && singletonFeatures[0] === grid.oddFeature &&
+    signatures.filter(count => count > 1).length >= 2;
+}), 'the live puzzle includes repeated distractor groups but only one singleton feature');
 const oddIndex = await page.evaluate(() => window.__oddboo.grid().oddIndex);
 const wrongIndex = oddIndex === 0 ? 1 : 0;
 await page.locator('.odd-choice').nth(wrongIndex).click();

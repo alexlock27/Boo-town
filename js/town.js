@@ -314,7 +314,20 @@ export function mount(container, params, ctx) {
     mutate(st => {
       st.seen = st.seen || {};
       st.seen.wishWellSeeded = true;
-      areaItems(st).push({ zone:'meadow', x:.12, row:1, item:'deco_wishwell', scale:1.1 });
+      const items = areaItems(st);
+      // A gift landmark must not silently push an already-full legacy Meadow over
+      // its capacity. It remains available from Build → Landscape in that case.
+      if (items.length >= AREA_CAP) return;
+      const candidates = [.12, .24, .36, .48, .60, .72, .84, .92];
+      const rows = [1, 0, 2];
+      let position = null;
+      for (const row of rows) {
+        const x = candidates.find(candidate =>
+          items.every(placed => placed.row !== row || Math.abs((placed.x || 0) - candidate) >= .09));
+        if (x != null) { position = { x, row }; break; }
+      }
+      position ||= { x:.92, row:0 };
+      items.push({ zone:'meadow', ...position, item:'deco_wishwell', scale:1.1 });
     });
   }
 
@@ -1240,6 +1253,7 @@ export function mount(container, params, ctx) {
     }
   }
   function clearRole(a) {
+    if (a.role && a.role.finishTimer) clearTimeout(a.role.finishTimer);
     releaseSocket(a);   // RUN10 P2: free the seat for the next Boo
     a.role = null;
     a.wrap.querySelectorAll('.t-zzz, .t-rod').forEach(n => n.remove());
@@ -1338,11 +1352,20 @@ export function mount(container, params, ctx) {
           const bobber = a.wrap.querySelector('.t-bobber');
           if (bobber) bobber.style.transform = `translateY(${dipping ? 9 : Math.sin(t / 600) * 2}px)`;
           if (t >= r.holdMs) {
-            r.phase = 'burst'; r.burstStart = t;
+            r.phase = 'burst'; r.burstStart = t; r.burstStartedAt = now;
+            const finishAfter = r.outcome === 'catch' ? FISH_CATCH_MS : FISH_BOOT_MS;
+            r.finishTimer = setTimeout(() => {
+              if (a.role !== r) return;
+              benchCooldown.set(r.socketArrKey, performance.now() + FISH_COOLDOWN_MS);
+              clearRole(a);
+            }, finishAfter + 80);
             if (r.outcome === 'catch') sfx.giggle(); else sfx.trombone();
           }
         } else if (r.phase === 'burst') {
-          const bt = t - r.burstStart;
+          // Use wall-clock time for the finite reveal. The actor loop clamps large
+          // frame gaps for smooth movement; using that clamped total here could make
+          // the boot hold its socket indefinitely on a busy or backgrounded tablet.
+          const bt = r.burstStartedAt == null ? t - r.burstStart : now - r.burstStartedAt;
           if (r.outcome === 'catch') {
             const p = Math.min(1, bt / FISH_CATCH_MS);
             const arc = -Math.sin(p * Math.PI) * 74;

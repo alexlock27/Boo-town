@@ -43,7 +43,11 @@ await page.evaluate(() => window.__townLife.openWishWell());
 await page.waitForFunction(() => window.__wishwell);
 ok(await page.evaluate(() => window.__wishwell.usesDrawer()), 'letter tray uses the shared createDrawer component');
 ok((await page.evaluate(() => window.__wishwell.suggestions())).length === 0, 'medium tier does not show short-word suggestion chips');
+ok(await page.locator('.wish-enter').innerText() === 'WISH' &&
+   /press WISH/i.test(await page.locator('.wish-line').innerText()),
+   'the spelling action is explained in words rather than an ambiguous symbol');
 await page.evaluate(() => { for (const ch of 'moon') window.__wishwell.type(ch); });
+await page.waitForTimeout(100);
 await page.screenshot({path:'screenshots/r10p20/wishwell-390x844.png'});
 await page.evaluate(() => window.__wishwell.spell('zzzz'));
 await page.evaluate(() => window.__wishwell.spell('stsr'));

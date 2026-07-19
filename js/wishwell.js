@@ -21,7 +21,10 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   const panel = el('div', { class:'wish-panel' });
   const top = el('header', { class:'wish-head' }, [
     el('div', { class:'wish-guide', html:renderGuide(state.guide, { view:'head', size:82 }) }),
-    el('div', {}, [el('h2', { text:'The Wish Well' }), el('p', { class:'wish-line', text:guideLine('L_WISH_OPEN') })]),
+    el('div', {}, [
+      el('h2', { text:'The Wish Well' }),
+      el('p', { class:'wish-line', text:'Spell a wish, then press WISH to make it appear!' })
+    ]),
     el('button', { class:'wish-close', text:'×', 'aria-label':'Close Wish Well', onclick:close })
   ]);
   const hint = el('div', { class:'wish-ghost', 'aria-live':'polite' });
@@ -31,13 +34,13 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   const keyboard = el('div', { class:'wish-keyboard' });
   KEYROWS.forEach((row, ri) => {
     const rowNode = el('div', { class:'det-kb-row' });
-    if (ri === 2) rowNode.appendChild(el('button', { class:'det-key wide wish-enter', text:'⏎', 'aria-label':'Make wish', onclick:submit }));
+    if (ri === 2) rowNode.appendChild(el('button', { class:'det-key wide wish-enter', text:'WISH', 'aria-label':'Make wish', onclick:submit }));
     [...row].forEach(ch => rowNode.appendChild(el('button', { class:'det-key', text:ch.toUpperCase(), dataset:{key:ch}, onclick:() => type(ch) })));
     if (ri === 2) rowNode.appendChild(el('button', { class:'det-key wide', text:'⌫', 'aria-label':'Backspace', onclick:backspace }));
     keyboard.appendChild(rowNode);
   });
   const drawer = createDrawer({ tabs:[{id:'letters',label:'Letters',node:keyboard}], ariaLabel:'Wish letters' });
-  drawer.setCurrent(el('span', { class:'wish-current', text:'Tap letters to make a wish' }));
+  drawer.setCurrent(el('span', { class:'wish-current', text:'Tap letters · then press WISH' }));
   panel.append(top, hint, slots, magic, suggestions, drawer.root);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);

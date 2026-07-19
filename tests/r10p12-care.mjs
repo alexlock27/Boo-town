@@ -75,6 +75,13 @@ console.log('== treat pocket: +1 per round helper, hard cap five ==');
 console.log('== Town entry: a Boo opens the staggered four-action flourish ==');
 {
   const { ctx, page } = await openCare({ width: 390, height: 844 });
+  await page.waitForSelector('.t-item[data-item="deco_wishwell"]');
+  const spacing = await page.evaluate(() => {
+    const boo = document.querySelector('.t-item.boo').getBoundingClientRect();
+    const well = document.querySelector('.t-item[data-item="deco_wishwell"]').getBoundingClientRect();
+    return Math.max(boo.left, well.left) >= Math.min(boo.right, well.right);
+  });
+  ok(spacing, 'the newly seeded Wish Well does not cover an existing Boo');
   await page.click('.t-item.boo');
   const count = await page.evaluate(() => window.__townLife.careArcCount());
   ok(count === 1, 'tapping a placed Boo opens one care flourish');

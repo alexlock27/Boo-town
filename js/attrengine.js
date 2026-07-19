@@ -8,6 +8,14 @@ export const TIER_ARITY = { toddler: 1, light: 1, medium: 2, full: 3 };
 const pick = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
 const other = (a, value, rng) => pick(a.filter(x => x !== value), rng);
 const boolOther = v => !v;
+const shuffled = (values, rng) => {
+  const out = [...values];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
 
 export function randomBrainBoo(rng = Math.random) {
   return {
@@ -24,20 +32,38 @@ function invert(boo, feature, rng) {
   else boo[feature] = boolOther(boo[feature]);
 }
 
-export function oddGrid(tier = 'light', rng = Math.random) {
+export function oddGrid(tier = 'light', rng = Math.random, options = {}) {
   const count = tier === 'full' ? 12 : tier === 'medium' ? 9 : 4;
-  const arity = TIER_ARITY[tier] || 1;
-  const predicateFeatures = FEATURES.slice().sort(() => rng() - .5).slice(0, arity);
   const base = randomBrainBoo(rng);
   const oddIndex = Math.floor(rng() * count);
-  const oddFeature = pick(predicateFeatures, rng);
-  const items = Array.from({ length: count }, (_, index) => {
-    const boo = randomBrainBoo(rng);
-    for (const f of predicateFeatures) boo[f] = base[f];
-    if (index === oddIndex) invert(boo, oddFeature, rng);
-    return { ...boo, id: `odd-${index}` };
+  const oddFeature = FEATURES.includes(options.oddFeature) ? options.oddFeature : pick(FEATURES, rng);
+  const distractorFeatures = shuffled(FEATURES.filter(feature => feature !== oddFeature), rng)
+    .slice(0, TIER_ARITY[tier] || 1);
+
+  // Build repeated visual families, then change one feature on one Boo. Other
+  // differences remain interesting but always occur in groups of 2+, so none can
+  // masquerade as a second answer. Medium uses 3 families; Full uses 4.
+  const familySize = tier === 'light' ? 2 : 3;
+  const familyCount = count / familySize;
+  const families = Array.from({ length: familyCount }, () => ({ ...base }));
+  distractorFeatures.forEach((feature, featureIndex) => {
+    const alternate = { ...base };
+    invert(alternate, feature, rng);
+    families.forEach((family, familyIndex) => {
+      if ((familyIndex + featureIndex) % 2 === 1) family[feature] = alternate[feature];
+    });
   });
-  return { items, oddIndex, oddFeature, predicateFeatures, expected: Object.fromEntries(predicateFeatures.map(f => [f, base[f]])) };
+  const positions = shuffled(Array.from({ length: count }, (_, index) => index), rng);
+  const familyForIndex = new Map(positions.map((index, position) => [index, Math.floor(position / familySize)]));
+  const items = Array.from({ length: count }, (_, index) => ({
+    ...families[familyForIndex.get(index)], id:`odd-${index}`
+  }));
+  invert(items[oddIndex], oddFeature, rng);
+  const predicateFeatures = [oddFeature];
+  return {
+    items, oddIndex, oddFeature, predicateFeatures, distractorFeatures,
+    expected: { [oddFeature]: base[oddFeature] }
+  };
 }
 
 export function violatesOddPredicate(boo, grid) {

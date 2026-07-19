@@ -4010,7 +4010,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .odd-choice { position:relative; min-height:148px; padding:5px; border:3px solid #6F55A5; border-radius:24px; background:rgba(255,255,255,.75); display:grid; place-items:center; transition:transform .18s,box-shadow .18s; }
 .odd-choice:hover { transform:translateY(-3px); box-shadow:0 7px 0 rgba(42,27,78,.16); }
 .odd-art svg { max-width:100%; height:auto; }
-.odd-choice.has-shine::after { content:'✦'; position:absolute; top:7px; right:11px; color:var(--star); font-size:24px; animation:oddTwinkle 1.1s ease-in-out infinite; }
+.odd-choice.has-shine { box-shadow:inset 0 0 0 5px rgba(255,201,60,.48),0 0 13px rgba(255,201,60,.5); }
+.odd-choice.has-shine .odd-art { filter:drop-shadow(0 0 8px #FFC93C); }
+.odd-choice.has-shine::after { content:'✨'; position:absolute; top:5px; right:8px; padding:2px 4px; border-radius:8px; background:#FFF4B8; color:var(--ink); font-size:18px; animation:oddTwinkle 1.1s ease-in-out infinite; }
 .odd-found { border-color:var(--star); box-shadow:0 0 0 7px rgba(255,201,60,.35); animation:oddPop .55s ease-out; }
 .odd-streak::before { content:'✦ ✦ ✦'; position:absolute; z-index:3; top:-14px; color:var(--star); font-size:20px; text-shadow:0 2px #fff; }
 @keyframes oddPop { 50% { transform:scale(1.16) rotate(3deg); } }
@@ -4096,6 +4098,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .wish-keyboard { padding:8px; display:grid; gap:5px; }
 .wish-keyboard .det-kb-row { display:flex; justify-content:center; gap:4px; }
 .wish-keyboard .det-key { height:44px; }
+.wish-keyboard .wish-enter { min-width:58px; padding-inline:7px; font:700 10px var(--font-display); background:var(--star); color:var(--ink); }
 .wish-panel .boo-drawer { max-width:700px; }
 .wish-panel .bd-tray { max-height:245px; overflow:auto; }
 .wish-panel.listening .wish-well-mini { animation:wishListen .5s ease; }
@@ -4175,24 +4178,30 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .present-bow { position:absolute; z-index:2; left:50%; top:-43px; transform:translateX(-50%); width:54px;height:45px;border-radius:50%;display:grid;place-items:center;background:#FFE26F;color:var(--party-deep);font-size:24px;border:4px solid #fff; }
 .party-opened-friend { width:200px; display:grid; justify-items:center; color:var(--ink); }
 .party-opened-friend > div { height:132px }.party-opened-friend strong,.party-opened-friend small { padding:3px 8px;border-radius:9px;background:rgba(255,255,255,.88);text-align:center; }.party-opened-friend strong { font:700 15px var(--font-display); }.party-opened-friend small { font-size:10px; }
-.party-guests { position:absolute; z-index:8; left:25%; right:25%; bottom:57px; display:flex; align-items:end; justify-content:center; gap:clamp(0px,1.4vw,14px); }
+.party-guests { position:absolute; z-index:8; left:25%; right:25%; bottom:82px; display:flex; align-items:end; justify-content:center; gap:clamp(0px,1.4vw,14px); }
 .party-guest { position:relative; width:95px; padding:0; border:0; background:transparent; filter:drop-shadow(0 6px 3px rgba(42,27,78,.28)); }
 .party-guest svg { max-width:100%;height:auto; }.party-guest:nth-child(even) { transform:translateY(8px); }
 .guest-says { position:absolute; z-index:30; left:50%; bottom:90%; transform:translateX(-50%); width:135px; padding:7px; border:3px solid var(--ink); border-radius:13px; background:#fff; color:var(--ink); font:700 11px var(--font-display); }
 .party-dance-floor { position:absolute; z-index:2; left:21%; right:21%; bottom:14px; height:125px; display:grid; grid-template-columns:repeat(6,1fr); grid-template-rows:repeat(2,1fr); gap:3px; transform:perspective(400px) rotateX(58deg); transform-origin:bottom; padding:4px; border:4px solid var(--party-deep); background:#28114D; }
 .party-dance-floor i { background:hsl(calc(var(--i)*29 + 300),72%,52%); box-shadow:inset 0 0 0 2px rgba(255,255,255,.25); }
-.party-celebrate { position:absolute; z-index:20; left:50%; bottom:8px; transform:translateX(-50%); min-width:245px; padding:7px 18px; border:4px solid #fff; border-radius:999px; display:flex; align-items:center; justify-content:center; gap:7px; background:var(--party-deep); color:#fff; box-shadow:0 5px 0 rgba(42,27,78,.5); }
-.party-celebrate strong { font:700 15px var(--font-display); }.party-celebrate small { font:700 9px var(--font-display); color:#FFEAA3; }
+.party-activities { position:absolute; z-index:20; left:50%; bottom:7px; transform:translateX(-50%); width:min(430px,94%); display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+.party-activity-title { grid-column:1/-1; justify-self:center; padding:3px 10px; border-radius:999px; background:rgba(255,255,255,.92); color:var(--party-deep); font:700 10px var(--font-display); }
+.party-activity { min-width:0; padding:7px 5px; border:3px solid #fff; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:4px; background:var(--party-deep); color:#fff; box-shadow:0 4px 0 rgba(42,27,78,.5); }
+.party-activity strong { font:700 11px var(--font-display); }.party-activity.done { background:#247B62;box-shadow:0 4px 0 #15513F; }.party-activity.done::after { content:'✓';font-weight:900; }
 .party-message { position:absolute; z-index:25; left:50%; top:29%; transform:translateX(-50%); min-height:30px; width:max-content; max-width:80%; color:var(--party-deep); font:700 17px var(--font-display); text-align:center; }
 .party-zone.celebrating .party-balloon { animation:partyBalloon 3.2s var(--delay) ease-in forwards; }
+.party-zone.balloon-moment .party-balloon { animation:partyBalloon 3.2s var(--delay) ease-in forwards; }
 .party-zone.celebrating .party-guest { animation:partyGuestDance .6s ease-in-out infinite alternate; }
 .party-zone.celebrating .party-dance-floor i { animation:partyFloor .5s calc(var(--i)*.04s) ease-in-out infinite alternate; }
 .party-zone.celebrating .party-candles i::before { animation:partyFlame .28s ease-in-out infinite alternate; }
+.party-zone.wish-moment .party-candles i::before { animation:partyWish 2.8s ease-in-out; }
+.party-zone.party-complete { box-shadow:inset 0 0 0 5px var(--party),0 0 0 5px #FFE26F,0 8px 0 #100624; }
 @keyframes partyPresent { 50% { filter:brightness(1.12);box-shadow:0 12px 0 var(--party-deep),0 0 34px #fff; } }
 @keyframes partyBalloon { 30% { opacity:1 } to { transform:translate(var(--drift),-360px) rotate(8deg);opacity:0 } }
 @keyframes partyGuestDance { to { transform:translateY(-15px) rotate(5deg); } }
 @keyframes partyFloor { to { filter:brightness(1.8); } }
 @keyframes partyFlame { to { transform:rotate(-10deg) scale(1.16); } }
+@keyframes partyWish { 35%,65% { opacity:0;transform:scale(.1); } }
 .twin-finale { min-height:48px; margin:0 14px 8px; padding:5px 15px; border:3px solid #6F55A5; border-radius:18px; display:flex; align-items:center; justify-content:center; gap:8px; background:#392060;color:#BDB0D0; }
 .twin-finale.ready { border-color:var(--star); background:linear-gradient(90deg,#FF65BC,#8C57DF,#20BFB6); color:#fff; box-shadow:0 0 20px rgba(255,201,60,.55); }
 .twin-finale strong { font:700 15px var(--font-display);letter-spacing:1px }.twin-finale small { font:700 10px var(--font-display); }
@@ -4222,11 +4231,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .party-bunting i { border-left-width:8px;border-right-width:8px;border-top-width:18px }.party-marquee { top:38px;width:82%;padding:6px 10px }.party-marquee strong { font-size:40px;letter-spacing:4px }.party-marquee span { font-size:9px }.party-marquee small { font-size:8px }
   .party-message { top:24%;font-size:13px }.party-present-spot { left:1%;top:32%;width:48%; }.party-present { width:135px;height:132px }.party-present strong { font-size:13px }
   .party-opened-friend { width:150px }.party-opened-friend > div { height:115px }.party-cake-wrap { right:1%;top:34%;width:49%;transform:scale(.8);transform-origin:center top }
-  .party-guests { left:3%;right:3%;bottom:66px;gap:0 }.party-guest { width:82px;margin-inline:-2px }.party-dance-floor { left:5%;right:5%;bottom:20px;height:115px }
-  .party-celebrate { bottom:5px;min-width:225px }.party-celebrate small { display:none }.party-balloon { width:23px;height:30px }.party-balloon::before { top:30px;left:10px;height:60px }
+  .party-guests { left:3%;right:3%;bottom:91px;gap:0 }.party-guest { width:82px;margin-inline:-2px }.party-dance-floor { left:5%;right:5%;bottom:35px;height:115px }
+  .party-activities { bottom:5px;width:96%;gap:3px }.party-activity { padding:6px 3px }.party-activity strong { font-size:9px }.party-balloon { width:23px;height:30px }.party-balloon::before { top:30px;left:10px;height:60px }
   .twin-finale { margin:0 7px 5px;min-height:42px }.twin-finale small { font-size:8px }
   .party-gift-card { padding:16px 13px }.gift-boo { height:220px }.party-gift-card h2 { font-size:27px }.finale-boos { height:200px;gap:0 }.finale-boos svg { width:165px;height:auto }
 }
 @media(prefers-reduced-motion:reduce) {
-  .map-birthday,.party-present,.gift-rays,.gift-boo,.finale-boos>div,.party-zone.celebrating .party-balloon,.party-zone.celebrating .party-guest,.party-zone.celebrating .party-dance-floor i,.party-zone.celebrating .party-candles i::before { animation:none!important; }
+  .map-birthday,.party-present,.gift-rays,.gift-boo,.finale-boos>div,.party-zone.celebrating .party-balloon,.party-zone.balloon-moment .party-balloon,.party-zone.celebrating .party-guest,.party-zone.celebrating .party-dance-floor i,.party-zone.celebrating .party-candles i::before,.party-zone.wish-moment .party-candles i::before { animation:none!important; }
 }

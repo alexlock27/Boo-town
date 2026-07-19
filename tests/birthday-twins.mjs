@@ -41,6 +41,7 @@ const candles = await page.evaluate(() => window.__birthdayParty.candleCounts())
 ok(candles.twin1 === 11 && candles.twin2 === 11, 'each cake has exactly eleven lit candles');
 const guestCounts = await page.evaluate(() => window.__birthdayParty.guestCounts());
 ok(guestCounts.twin1 === 4 && guestCounts.twin2 === 4, 'each party has four individual Boo guests');
+ok(await page.locator('.party-activity').count() === 6, 'each party has three clear replayable activities');
 ok(PARTY_CONFIG.twin1.booId !== PARTY_CONFIG.twin2.booId && PARTY_CONFIG.twin1.colour !== PARTY_CONFIG.twin2.colour, 'the presents and visual themes are genuinely different');
 await page.screenshot({path:'screenshots/birthday-twins/twin1-party-390x844.png'});
 
@@ -56,6 +57,12 @@ let saved = await page.evaluate(async () => (await import('./js/state.js')).getS
 ok(saved.inventory.boo_birthday_twin1 === 1 && saved.birthdayParty.opened.twin1, 'Twin1’s Boo is permanently saved into inventory');
 await page.screenshot({path:'screenshots/birthday-twins/twin1-present-390x844.png'});
 await page.locator('.party-gift-done').click();
+for (const moment of ['dance','wish','balloons']) {
+  await page.locator(`.party-twin1 .party-activity[data-moment="${moment}"]`).click();
+}
+ok(await page.locator('.party-twin1.party-complete').count() === 1 &&
+   (await page.evaluate(() => window.__birthdayParty.moments().twin1)).length === 3,
+   'Twin1 can complete a dance-off, cake wish and balloon burst after opening the present');
 
 console.log('== Twin2 present and twin finale ==');
 await page.evaluate(() => window.__birthdayParty.jump('twin2'));
