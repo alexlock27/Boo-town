@@ -13,6 +13,7 @@ import { LESSONS } from '../data/lessons.js';
 import { stampJournal } from './quests.js';
 import { AREA_UNLOCK_STARS } from './areas.js';
 import { sfx } from './sfx.js';
+import { BLOOM_COPY, bloomStats, persistBloomMax } from '../data/bloom.js';
 
 const ALL_ZONES_STARS = Math.max(...Object.values(AREA_UNLOCK_STARS));   // highest gate = Beach (180); the Funfair opens day-one (RUN7 C1)
 
@@ -208,6 +209,7 @@ export function retroAwardOnce() {
 const CHIPS = [['maths', '🔢 Maths'], ['words', '🔤 Words'], ['collector', '🧸 Collector'], ['adventures', '🗺️ Adventures']];
 
 export function renderTrophyRoom(container) {
+  mutate(st => persistBloomMax(st));
   const s = getState();
   let filter = 'maths';
   const room = el('div', { class: 'trophy-room' });
@@ -234,9 +236,31 @@ export function renderTrophyRoom(container) {
     shelfWrap.appendChild(el('p', { class: 'trophy-count', text: `${earned} of ${items.length} earned here` }));
   }
   renderShelves();
-  room.append(chipRow, shelfWrap);
+  room.append(brainBloomCard(s), chipRow, shelfWrap);
   container.appendChild(room);
   return room;
+}
+
+function brainBloomCard(s) {
+  const stats = bloomStats(s);
+  const strongest = stats.slice().sort((a, b) => b.growth - a.growth)[0];
+  const copy = BLOOM_COPY[new Date().getDate() % BLOOM_COPY.length].replace('{petal}', strongest.display.replace(/!$/, ''));
+  const flower = el('div', { class: 'bloom-flower', 'aria-label': 'Your Brain Bloom' });
+  const colours = ['#FF7AC6','#8FC7FF','#FFC93C','#35D0BA','#C6A9F0'];
+  stats.forEach((petal, i) => {
+    // Keep even a new petal recognisable; growth expands it from a small bud to full bloom.
+    const scale = .68 + petal.growth / 100 * .32;
+    flower.appendChild(el('div', {
+      class: `bloom-petal bloom-petal-${i + 1}`,
+      style: { '--petal': colours[i], '--growth': scale, '--delay': `${i * 120}ms` },
+      title: `${petal.display} ${Math.round(petal.growth)}%`
+    }, [el('span', { text: petal.display })]));
+  });
+  flower.appendChild(el('div', { class: 'bloom-centre', text: '🧠' }));
+  return el('section', { class: 'brain-bloom-card' }, [
+    el('div', { class: 'bloom-copy' }, [el('h3', { text: 'Your Brain Bloom' }), el('p', { text: copy })]),
+    flower
+  ]);
 }
 
 // One trophy/certificate/medal card. Unearned = silhouette + hint (motivation!).

@@ -35,6 +35,8 @@ const GAMES = [
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
   { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
+  { id: 'oddboo',    name: 'Odd Boo Out',  tag: 'Spot the difference', accent: 'var(--zing)', icon: oddIcon, group: 'Learn' },
+  { id: 'flashboos', name: 'Flash Boos',   tag: 'Look, hide, remember', accent: 'var(--pop)', icon: flashIcon, group: 'Learn' },
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
@@ -441,6 +443,10 @@ function mountToddlerHub(container, params, ctx) {
     sfx.tap(); speakMaybe('Echo Boos'); ctx.go('echoboos');
   } }, [el('span', { class: 'tc-icon', text: '🎵' }), el('span', { class: 'tc-word', text: 'Echo' })]));
 
+  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Flash Boos', onclick: () => {
+    sfx.tap(); speakMaybe('Flash Boos'); ctx.go('flashboos');
+  } }, [el('span', { class: 'tc-icon', text: '👀' }), el('span', { class: 'tc-word', text: 'Flash' })]));
+
   // bottom bar: Town, Collection, Studio + the cog behind its long-press, as ever
   const say = (word, fn) => () => { sfx.tap(); speakMaybe(word); fn(); };
   const bar = el('nav', { class: 'bottom-bar' }, [
@@ -552,6 +558,12 @@ function popIcon() {
 }
 function clockIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="30" cy="30" r="22" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/><circle cx="30" cy="30" r="22" fill="none" stroke="var(--star)" stroke-width="3" opacity="0.5"/><line x1="30" y1="30" x2="30" y2="17" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="30" x2="40" y2="34" stroke="var(--pop)" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="30" r="2.5" fill="var(--ink)"/></svg>`;
+}
+function oddIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="17" cy="22" r="10" fill="#C6A9F0" stroke="var(--ink)" stroke-width="3"/><circle cx="42" cy="22" r="10" fill="#C6A9F0" stroke="var(--ink)" stroke-width="3"/><circle cx="17" cy="45" r="10" fill="#C6A9F0" stroke="var(--ink)" stroke-width="3"/><circle cx="42" cy="45" r="12" fill="var(--zing)" stroke="var(--star)" stroke-width="4"/><text x="42" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">?</text></svg>`;
+}
+function flashIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M6 9h48v42H6z" fill="#4B2B78" stroke="var(--ink)" stroke-width="3"/><path d="M6 9h21v42H6zM54 9H33v42h21z" fill="var(--pop)" stroke="var(--ink)" stroke-width="2"/><circle cx="30" cy="32" r="9" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><circle cx="27" cy="30" r="2" fill="var(--ink)"/><circle cx="33" cy="30" r="2" fill="var(--ink)"/></svg>`;
 }
 
 // the Star Chest (RUN4 C8): closed gold chest; lid pops + glow when ready

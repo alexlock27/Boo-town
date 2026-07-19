@@ -5,7 +5,7 @@
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 8;   // v8 (RUN10 P13): per-Boo hat/face/feet equipment slots.
+export const VERSION = 9;   // v9 (RUN10 P19): Brain Bloom persistent maxima.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -31,6 +31,8 @@ function freshSave() {
         detective: { best: 0, plays: 0, earned: 0 },   // Word Detective (RUN9 C3)
         booroll:   { best: 0, plays: 0, earned: 0 },   // Boo Roll (RUN9 C4)
         echoboos:  { best: 0, plays: 0, earned: 0 },   // Echo Boos (RUN9 C5)
+        oddboo:    { best: 0, plays: 0, earned: 0 },
+        flashboos: { best: 0, plays: 0, earned: 0 },
         // Toddler mode (RUN5 C7)
         tcount:    { best: 0, plays: 0, earned: 0 },
         tcolour:   { best: 0, plays: 0, earned: 0 },
@@ -75,6 +77,7 @@ function freshSave() {
     quest: { node: 0, lands: {} },  // Boo Quest progress: current node in the active land + completed lands (RUN6 C6)
     booRoll: { best: {}, medals: {} },  // Boo Roll per-course best times (ms) + best medal (RUN9 C4)
     care: { bonds: {}, treats: 0 },  // RUN10 P12: friendship only rises; treats cap at five
+    bloom: { max: {} },              // RUN10 P19: five child-facing petals never shrink
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)

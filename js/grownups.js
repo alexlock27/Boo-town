@@ -9,6 +9,7 @@ import { setRequestsEnabled } from './requests.js';
 import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
+import { bloomStats } from '../data/bloom.js';
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -176,6 +177,7 @@ export function mount(container, params, ctx) {
     { id: 'settings', label: 'Settings',      cards: [toggles, contentCard, micCard, requestsCard] },
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
+    { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },
     { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), reset] }
   ];
   const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });
@@ -229,6 +231,28 @@ export function mount(container, params, ctx) {
   }
 
   // ---- Star Ledger (RUN5 C0): a visible per-game record, read straight from the save ----
+  function bloomReport(s) {
+    const rows = bloomStats(s);
+    const table = el('table', { class: 'gu-ledger bloom-table' });
+    table.appendChild(el('tr', { class: 'gl-head' }, [
+      el('th', { text: 'Petal' }), el('th', { text: 'Mastered' }), el('th', { text: 'Plays' }), el('th', { text: 'Last played' })
+    ]));
+    rows.forEach(row => table.appendChild(el('tr', { class: 'gl-row' }, [
+      el('td', { class: 'gl-name', text: row.display }),
+      el('td', { class: 'gl-num', text: String(row.mastered) }),
+      el('td', { class: 'gl-num', text: String(row.plays) }),
+      el('td', { text: row.lastPlayed ? new Date(row.lastPlayed).toLocaleDateString() : '—' })
+    ])));
+    const quiet = rows.filter(row => row.quiet);
+    return el('div', { class: 'gu-card bloom-report' }, [
+      el('h3', { text: 'Brain Bloom' }),
+      el('p', { class: 'gu-note', text: 'A neutral view of activity feeding each petal.' }),
+      table,
+      el('h4', { text: 'Quiet lately' }),
+      el('p', { class: 'gu-note', text: quiet.length ? quiet.map(row => row.display).join(' · ') : 'No petals have been quiet lately.' })
+    ]);
+  }
+
   function starLedger(s) {
     const NAMES = {
       bubblepop: 'Bubble Pop', feedboos: 'Feed the Boos', spellboo: 'Spell Boo',
