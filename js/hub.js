@@ -18,6 +18,8 @@ import { chestState, CHEST_EVERY } from './shiny.js';
 import { booOfTheDay } from './delights.js';
 import { renderItem } from './art.js';
 import { getDisplayName } from './accessories.js';
+import { isBestFriend } from './care.js';   // RUN10 P21 best-friend cameo
+import { BY_ID } from '../data/catalogue.js';
 import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './resilience.js';
 import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
@@ -102,6 +104,14 @@ export function mount(container, params, ctx) {
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
+  // RUN10 P21: the best-friend cameo — the highest bond-5 Boo idles beside the guide.
+  // Below level 5 it is simply absent, and the hub layout is unchanged.
+  try {
+    const bonds = (s.care && s.care.bonds) || {};
+    const bff = Object.keys(bonds).filter(id => BY_ID[id] && isBestFriend(id, s))
+      .sort((a, b) => (bonds[b] || 0) - (bonds[a] || 0))[0];
+    if (bff) gb.root.appendChild(el('span', { class: 'hub-bff', text: '👻♥', title: getDisplayName(bff) }));
+  } catch {}
   const guideSection = el('section', { class: 'hub-guide' }, [gb.root]);
 
   // Boo of the Day (RUN4 C9): rotates at local midnight; now a Today-rail chip (C3).
