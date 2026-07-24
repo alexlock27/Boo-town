@@ -321,8 +321,10 @@ export function mount(container, params, ctx) {
     const panel = el('div', { class: 'gu-panel', role: 'tabpanel', dataset: { tab: t.id } }, t.cards);
     panelEls[t.id] = panel; panels.appendChild(panel);
   }
-  // When a backup is overdue, open straight to the Backup tab so the grown-up sees the nudge.
-  showTab(reminderActive ? 'data' : 'settings');
+  // Settings stays the landing tab (RUN6 C0.2: no setting hides behind another panel). An
+  // overdue backup is signalled by the dot on the Backup tab label and the banner waiting
+  // inside it — hijacking the default tab would make the dot pointless. (RUN11 Q9.)
+  showTab('settings');
   root.append(header, tabbar, panels);
   container.appendChild(root);
 
