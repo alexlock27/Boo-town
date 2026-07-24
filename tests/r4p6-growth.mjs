@@ -99,7 +99,8 @@ console.log('== the Builders finish in 24h without a visit ==');
   assert(st.townGrowth.site && st.townGrowth.site.idx === 1, 'the queued site starts next (one at a time)');
   assert(!!(await page.$('.tg-wildflowers')), 'wildflowers now bloom along the paths');
   // upgrades never consume plots: her placed Boo at the fountain spot is untouched
-  const placed = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
+  // The P20 Wish Well is pre-placed meadow scenery, not one of her placements. (RUN11 Q9.)
+  const placed = (await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items)).filter(t => t.item !== 'deco_wishwell');
   assert(placed.length === 1 && placed[0].x === 0.46, 'placed items stay exactly where she put them');
   await ctx.close();
 }

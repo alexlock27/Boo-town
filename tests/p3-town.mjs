@@ -45,10 +45,13 @@ console.log('== old grid town migrates to Meadow ==');
     inventory: { boo_inky: 1, boo_beam: 1, deco_tree: 1 },
     town: [{ plot: 8, item: 'boo_inky' }, { plot: 2, item: 'deco_tree' }, { plot: 20, item: 'boo_beam' }] };
   const { ctx, page } = await open(old, 'meadow');
-  const items = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
+  const all = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
+  // RUN10 P20 pre-places the Wish Well in the Meadow, so the area legitimately holds one
+  // scenery item beyond her migrated placements. Count only what SHE placed. (RUN11 Q9.)
+  const items = all.filter(t => t.item !== 'deco_wishwell');
   assert(items.every(t => t.zone === 'meadow' && typeof t.x === 'number'), 'all migrated to Meadow with x (' + JSON.stringify(items) + ')');
   assert(items.length === 3, 'all 3 placements kept');
-  assert(await page.$$eval('.t-item', e => e.length) === 3, 'migrated items render');
+  assert(await page.$$eval('.t-item', e => e.length) === all.length, 'migrated items render');
   await ctx.close();
 }
 
@@ -77,15 +80,18 @@ console.log('== placements persist per-area ==');
 {
   const seed = BASESAVE({ town: { areas: { meadow: { items: [{ zone: 'meadow', x: 0.3, row: 1, item: 'boo_inky' }], paths: [] }, riverside: { items: [{ zone: 'riverside', x: 0.5, row: 1, item: 'boo_lolly' }], paths: [] }, hilltop: { items: [], paths: [] }, beach: { items: [], paths: [] }, funfair: { items: [], paths: [] }, playground: { items: [], paths: [] }, boohouse: { items: [], paths: [] }, gallery: { items: [], paths: [] } } } });
   const { ctx, page } = await open(seed, 'meadow');
+  // Every rendered item must belong to THIS area; the P20 Wish Well is legitimate meadow
+  // scenery, so assert on zone ownership rather than on an exact item count. (RUN11 Q9.)
   const meadowZones = await page.$$eval('.t-item', els => els.map(e => e.dataset.zone).sort());
-  assert(JSON.stringify(meadowZones) === JSON.stringify(['meadow']), 'meadow mount shows only its own item (' + meadowZones + ')');
+  assert(meadowZones.length >= 1 && meadowZones.every(z => z === 'meadow'), 'meadow mount shows only its own items (' + meadowZones + ')');
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub'); await page.evaluate(() => window.BooTown.go('town', { area: 'riverside' })); await page.waitForSelector('.t-viewport');
   await page.waitForTimeout(300);
   const riverZones = await page.$$eval('.t-item', els => els.map(e => e.dataset.zone).sort());
-  assert(JSON.stringify(riverZones) === JSON.stringify(['riverside']), 'riverside mount shows only its own item after reload (' + riverZones + ')');
+  assert(riverZones.length >= 1 && riverZones.every(z => z === 'riverside'), 'riverside mount shows only its own items after reload (' + riverZones + ')');
   const full = await page.evaluate(() => window.BooTown.State.getState().town.areas);
-  assert(full.meadow.items.length === 1 && full.riverside.items.length === 1, 'both areas persist their own item independently');
+  const herMeadow = full.meadow.items.filter(t => t.item !== 'deco_wishwell');
+  assert(herMeadow.length === 1 && full.riverside.items.length === 1, 'both areas persist their own item independently');
   await ctx.close();
 }
 
