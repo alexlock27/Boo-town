@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run11-q1-20260724';  // RUN11 Q1: retire party feature, purge names, VERSION 13
+const BUILD_STAMP = 'run11-q2-20260724';  // RUN11 Q2: Word Detective GO key + tile badges
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
