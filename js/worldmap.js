@@ -4,9 +4,10 @@
 // crossing detected here plays the unlock ceremony before you ever step into the area.
 
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
-import { getState, mutate } from './state.js';
+import { getState, mutate, todayKey } from './state.js';
 import { AREAS, MAP_POS, AREA_UNLOCK_STARS } from './areas.js';
-import { renderIslandMap, renderAreaGlyph } from './art.js';
+import { renderIslandMap, renderAreaGlyph, renderItem } from './art.js';
+import { BY_ID } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { stampJournal } from './quests.js';
 import { sfx, music } from './sfx.js';
@@ -36,6 +37,26 @@ export function mount(container, params, ctx) {
   const island = el('div', { class: 'map-island', html: renderIslandMap({}) });
   stage.appendChild(island);
   // (RUN11 Q1: the birthday party entry point is retired — see archive/birthdayparty.js.)
+
+  // RUN11: one of HER OWN Boos ambles across the island, so the map is somewhere lived in
+  // rather than a diagram. Pure scenery — it is not a button, it never blocks a badge tap,
+  // and it is silently absent before she owns a Boo. Transform-only, stilled by reduced
+  // motion, and it rotates by local day so it is a small daily "who's out today?".
+  function addIslandWanderer() {
+    const s = getState();
+    const owned = Object.keys(s.inventory || {}).filter(id => id.startsWith('boo_') && s.inventory[id] > 0 && BY_ID[id]);
+    if (!owned.length) return;
+    const day = todayKey();
+    let h = 0; for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const who = owned[h % owned.length];
+    const strollY = 46 + (h % 5) * 6;   // a different lane each day, always over the grass
+    const boo = el('div', {
+      class: 'map-wanderer', 'aria-hidden': 'true',
+      style: { top: strollY + '%' },
+      html: renderItem(BY_ID[who], { size: 40 })
+    });
+    stage.appendChild(boo);
+  }
 
   const badgeEls = {};
   let justUnlocked = new Set();
@@ -114,6 +135,7 @@ export function mount(container, params, ctx) {
   }
 
   render();
+  addIslandWanderer();
   requestAnimationFrame(maybeCelebrateUnlock);
 
   if (typeof window !== 'undefined') {

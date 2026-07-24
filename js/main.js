@@ -241,7 +241,12 @@ async function boot() {
         regs.forEach(r => r.unregister());
       });
     } else {
-      window.addEventListener('load', () => {
+      // boot() is async (it awaits the fail-safe loader, which touches IndexedDB), so by the
+      // time we get here the window 'load' event may ALREADY have fired — in which case a
+      // plain addEventListener('load') never runs and the worker is never registered, which
+      // would silently disable offline support on a real device. Register immediately if
+      // loading has finished, otherwise wait for load as before. (RUN11.)
+      const registerSW = () => {
         navigator.serviceWorker.register('sw.js').then((reg) => {
           if (reg.waiting) setWaitingWorker(reg.waiting);
           reg.addEventListener('updatefound', () => {
@@ -255,7 +260,9 @@ async function boot() {
           document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
           window.addEventListener('focus', recheck);
         }).catch(() => {});
-      });
+      };
+      if (document.readyState === 'complete') registerSW();
+      else window.addEventListener('load', registerSW, { once: true });
     }
   }
 }

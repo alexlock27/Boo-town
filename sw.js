@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run11-map-20260724';  // RUN11 follow-up: world map art pass + router race fix
+const BUILD_STAMP = 'run11-clear-20260724';  // RUN11 follow-up: all blocks cleared + SW registration fix
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
