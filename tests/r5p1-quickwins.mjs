@@ -97,18 +97,20 @@ console.log('== update toast ==');
 console.log('== rolling backups ==');
 {
   const { ctx, page } = await fresh(SAVE({ stars: { total: 10, byGame: {} } }));
+  // Drive a day of play through the app's OWN api rather than writing localStorage and
+  // reloading: the live save flushes on pagehide and would overwrite a raw seed (the
+  // CLAUDE.md seeding pitfall), and the day key comes from window.__bootownDay, not a
+  // localStorage flag. This snapshots exactly as a real day of play does. (RUN11.)
   async function snapshotDay(day, starTotal) {
-    await page.evaluate(({ d, t }) => {
-      localStorage.setItem('__testDay', d);
-      const s = JSON.parse(localStorage.getItem('bootown.save.v1'));
-      s.stars.total = t;
-      // clear the daily guard so the reload re-snapshots
-      if (s.seen) delete s.seen.lastBackupDay;
-      localStorage.setItem('bootown.save.v1', JSON.stringify(s));
+    await page.evaluate(async ({ d, t }) => {
+      window.__bootownDay = d;
+      const st = await import('./js/state.js');
+      const res = await import('./js/resilience.js');
+      st.mutate(s => { s.stars.total = t; s.seen = s.seen || {}; delete s.seen.lastBackupDay; });
+      st.commit();
+      await res.maybeRollingBackup();
     }, { d: day, t: starTotal });
-    await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('.hub');
-    await sleep(400); // let maybeRollingBackup + IDB settle
+    await sleep(120); // let the IDB write settle
   }
   await snapshotDay('2026-07-01', 10);
   await snapshotDay('2026-07-02', 20);
@@ -124,8 +126,12 @@ console.log('== rolling backups ==');
   assert(dates.every(d => d && d.length), 'each snapshot shows a date');
   // Restore the OLDEST kept snapshot (day 2, stars 20) — round-trip. Rows are
   // newest-first, so the last row is the oldest kept snapshot.
+  // RUN8 v2 C3: restoring a snapshot now previews first (and leaves an undo point) rather
+  // than applying straight away, so the round-trip is Preview -> Restore this. (RUN11.)
   await page.locator('.gu-snap-row').last().locator('.gu-snap-restore').click();
-  await page.waitForSelector('.hub', { timeout: 6000 });
+  await page.waitForSelector('.gu-preview-card', { timeout: 6000 });
+  await page.click('.gu-restore-go');
+  await page.waitForSelector('.hub', { timeout: 8000 });
   const s = await getState(page);
   assert(s.stars.total === 20, `restoring the oldest kept snapshot round-trips stars to 20, got ${s.stars.total}`);
   await ctx.close();

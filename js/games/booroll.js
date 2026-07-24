@@ -6,6 +6,7 @@ import { sfx, music } from '../sfx.js';
 import { checkAndCelebrate } from '../trophies.js';
 import { COURSES } from '../../data/courses.js';
 import { GRAV, FRICTION, MAX_SPEED, BOUNCE, slopeStep, shouldBonk, buildGround } from './boorollphysics.js';
+import { haptic } from '../haptics.js';   // RUN9 C7 garnish: a gentle bump on wall hits
 
 export { COURSES };
 export const COURSE_IDS = COURSES.map(c => c.key);
@@ -125,7 +126,14 @@ export function mount(container, params, ctx) {
           if (landing && vy >= 0 && y >= groundY(landing) - BALL_R) { const impact = vy; y = groundY(landing) - BALL_R; grounded = true; squash = 1; vy = 0; if (shouldBonk(impact, y - fallStart)) startBonk(); }
           if (y > BASE_Y + FALL_LIMIT) startBonk();
         }
-        if (x < BALL_R || x > course.world - BALL_R) { x = clamp(x, BALL_R, course.world - BALL_R); vx *= -BOUNCE; if (Math.abs(vx) > BONK_IMPACT) startBonk(); }
+        if (x < BALL_R || x > course.world - BALL_R) {
+          x = clamp(x, BALL_R, course.world - BALL_R); vx *= -BOUNCE;
+          // RUN9 C7 promises "gentle bumps on Boo Roll wall hits"; the side-view roller
+          // adopted in RUN8 lost that garnish. Android-only + feature-detected + mutable,
+          // and nothing depends on it. (RUN11.)
+          try { haptic('bump'); } catch {}
+          if (Math.abs(vx) > BONK_IMPACT) startBonk();
+        }
         const current = surfaceAt(x); if (grounded && !current) { grounded = false; fallStart = y; }
         course.flags.forEach((f, i) => { if (i === flagIndex && x >= f.x) { lastFlag = f.x; flagIndex++; sfx.correct(); } });
         course.stars.forEach((st, i) => { if (!stars[i] && Math.hypot(x - st.x, y - (BASE_Y + st.y)) < 42) { stars[i] = true; sfx.pop(); if (!REDUCED) sparkleAt(canvas.getBoundingClientRect().left + W / 2, canvas.getBoundingClientRect().top + H / 2); } });

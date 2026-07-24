@@ -84,16 +84,36 @@ console.log('== spacing rule ==');
   const before = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items.length);
   const vp = await page.$('.t-viewport'); const box = await vp.boundingBox();
   // the existing Boo's actual on-screen centre
-  const itemC = await page.$eval('.t-item.boo', n => { const r = n.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; });
-  // enter place mode with a drawer item, then tap empty ground JUST beside it (within
-  // the min-spacing radius, but not on the Boo itself, which the ground ignores)
+  // Aim from the SAVED coordinate, not from a sprite box: a placed Boo becomes a live
+  // actor and leaves a zero-size .t-item placeholder behind, which silently sent this tap
+  // to the screen corner. (RUN11.)
+  const itemC = await page.evaluate(() => {
+    const t = window.BooTown.State.getState().town.areas.meadow.items.find(i => i.item === 'boo_inky');
+    // aim at the SAME depth row: min-spacing is enforced per (zone, row)
+    return { cx: window.__townLife.screenXForFraction(t.x), cy: window.__townLife.screenYForRow(t.row) };
+  });
+  // enter place mode with a drawer item, then tap empty ground JUST beside it — inside the
+  // min-spacing radius, but not on the Boo itself (the ground ignores taps on an item).
+  // The offset is derived from the RULE (MIN_SPACING x the world width) rather than a fixed
+  // pixel guess, which drifted once P20 pre-placed the Wish Well in the Meadow. (RUN11.)
   await selectFirstDrawerItem(page);
-  await page.mouse.click(itemC.cx + 62, itemC.cy);
+  const gap = await page.evaluate(() => window.__townLife.minSpacingPx());
+  const dx = Math.max(56, Math.min(gap * 0.5, gap - 8));   // clear of the sprite, inside the radius
+  await page.mouse.click(itemC.cx + dx, itemC.cy);
   await sleep(200);
-  const wobbled = await page.evaluate(() => document.querySelector('.town-drawer').classList.contains('taken'));
-  const afterBlocked = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items.length);
-  assert(afterBlocked === before, `placing on an occupied spot is refused (count ${before} → ${afterBlocked})`);
-  assert(wobbled, 'the drawer wobbles "that spot\'s taken"');
+  // RUN10 P2 deliberately REPLACED the old "refuse + wobble" with a kinder rule: a drop near
+  // an occupied spot slides to the nearest legal position (nearestLegalSpot) so a placement
+  // is never rejected outright. The invariant this section is really about still holds and
+  // is what we assert now — NO PILING: nothing ends up inside the min-spacing radius of a
+  // neighbour in the same row. (RUN11: the old assertion tested behaviour the spec retired.)
+  const placed = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
+  const MIN_SPACING = 0.06;
+  let tooClose = null;
+  for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) {
+    if (placed[i].row === placed[j].row && Math.abs(placed[i].x - placed[j].x) < MIN_SPACING - 1e-9) tooClose = [placed[i], placed[j]];
+  }
+  assert(placed.length === before + 1, `a drop near an occupied spot still lands, nudged clear (count ${before} → ${placed.length})`);
+  assert(!tooClose, 'no piling: every same-row pair keeps the min-spacing gap ' + (tooClose ? JSON.stringify(tooClose) : ''));
   // a clear spot well further along (still holding it) DOES place
   await sleep(700);
   await page.mouse.click(box.x + box.width * 0.92, itemC.cy);

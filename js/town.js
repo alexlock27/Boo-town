@@ -2827,6 +2827,14 @@ export function mount(container, params, ctx) {
     // RUN6 C1 QA hooks: drive the behaviour engine + ambient life deterministically.
     window.__townLife = {
       actorCount: () => actors.length,
+      // QA: the real min-spacing radius in on-screen pixels, plus the on-screen x for a
+      // saved item fraction, so a suite can aim a "too close" tap from the RULE rather than
+      // from a sprite's box (a placed Boo becomes a live actor and leaves a zero-size
+      // placeholder behind, which silently aimed one such tap at the corner). (RUN11.)
+      minSpacingPx: () => MIN_SPACING * zoneW,
+      screenXForFraction: (x) => { const r = viewport.getBoundingClientRect(); return r.left + (x * zoneW) - scrollX; },
+      groundY: () => { const r = viewport.getBoundingClientRect(); return r.top + groundY; },
+      screenYForRow: (row) => { const r = viewport.getBoundingClientRect(); return r.top + viewH * ROW_GROUND[row] - 6; },
       free: () => actors.filter(a => !a.role && !a.dancing && !a.goal).length,
       // force actor i into a behaviour; returns the goal kind (or a claimed role kind), else null
       force: (i, kind) => { const a = actors[i]; if (!a) return null; clearRole(a); a.goal = null; a.depthLock = false; startBehaviour(a, kind, performance.now()); return a.goal ? a.goal.kind : null; },
