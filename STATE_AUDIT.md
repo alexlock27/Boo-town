@@ -96,11 +96,17 @@ is vindicated: 26/28 sound, 2 broken and shipped.
 
 ## 4. Health sweep
 
-- **Test board:** the 13 RUN10 packet suites + a 35-route smoke were run. Passing packet
-  suites: `r10p6-bandscenes`, `r10p18-disco` (+ `birthday-twins`). All town-rendering
-  suites fail via F-02; `r10p7-booroll2` fails via F-01; `r10p10-p11` (F-03) and
-  `r10p19-brain` (F-04) fail independently. The full 113-suite board was not run to
-  completion — with F-02 aborting town render, the count would largely restate one bug.
+- **Test board (`./_runall.sh`, full):** **PASS=50, FAIL=38** (88 suites after the
+  `shoot`/`sim-blocks`/`device-qa` exclusions). The failure set is dominated by the two
+  S1 regressions: ~14 of the fails are town-rendering suites cascading from F-02
+  (`r10p1/p2/p3/p4/p5/p12/p13/p20`, `p3-town`, `r4p5-town`, `r5p4-town`, `r6p1-town`,
+  `r7p2-zones`, …) and 2 are Boo Roll via F-01 (`r9p4-booroll`, `r10p7-booroll2`);
+  `r10p10-p11` (F-03) and `r10p19-brain` (F-04) fail independently. Passing RUN10 packet
+  suites: `r10p6-bandscenes`, `r10p18-disco` (+ `birthday-twins`). A residue of the fails
+  are frame-sampling suites (`r4p10-phone`, `r5p5-phone`, `r6p9-perf`, `r7p4-toddler`,
+  `m3-pwa`, …) that CLAUDE.md flags as batch-load-flaky and that warrant a direct re-run
+  before being treated as real; the 38 is therefore an upper bound, but the town/Boo Roll
+  core is a genuine, deterministic break. **Bottom line: the tree is not all-green.**
 - **sw.js ASSETS completeness:** **clean** — 102 `js/`+`data/` files on disk, 102
   precached, 0 missing, 0 stale. (`e8ec1e3` already removed the phantom `courses.js`
   entry; note the offline gap is now F-01's missing *file*, not a manifest miss.) No
