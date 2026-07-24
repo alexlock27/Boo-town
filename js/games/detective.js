@@ -123,9 +123,10 @@ export function mount(container, params, ctx) {
     }
     const kb = el('div', { class: 'det-kb' });
     const keyEls = {};
+    let goKey = null, goTaught = false;   // RUN10 P9: the big GO key + its once-per-round taught line
     KEYROWS.forEach((krow, ri) => {
       const rowEl = el('div', { class: 'det-kb-row' });
-      if (ri === 2) rowEl.appendChild(el('button', { class: 'det-key wide', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }));
+      if (ri === 2) { goKey = el('button', { class: 'det-key wide det-go', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }); rowEl.appendChild(goKey); }
       for (const ch of krow) { const k = el('button', { class: 'det-key', text: ch.toUpperCase(), dataset: { key: ch }, onclick: () => typeCh(ch) }); rowEl.appendChild(k); keyEls[ch] = k; }
       if (ri === 2) rowEl.appendChild(el('button', { class: 'det-key wide', text: '⌫', 'aria-label': 'Backspace', onclick: () => backspace() }));
       kb.appendChild(rowEl);
@@ -153,7 +154,10 @@ export function mount(container, params, ctx) {
       keyState: () => ({ ...keyState }),
       state: () => ({ guessesUsed, solved, hinted, ended, cur }),
       hint: doHint, hintOffered: () => hintOffered && !hinted,
-      stars: () => starsFor(solved, guessesUsed, hinted)
+      stars: () => starsFor(solved, guessesUsed, hinted),
+      goReady: () => !!(goKey && goKey.classList.contains('go-ready')),   // RUN10 P9 QA hooks
+      goText: () => goKey ? goKey.textContent : '',
+      goTaught: () => goTaught
     };
 
     function typeCh(ch) {
@@ -170,6 +174,10 @@ export function mount(container, params, ctx) {
         t.textContent = (cur[c] || '').toUpperCase();
         t.classList.toggle('filled', !!cur[c]);
       }
+      // RUN10 P9: the GO key wakes up when the row is full; taught once per round.
+      const ready = cur.length === mode && !locked && !ended;
+      if (goKey) { goKey.classList.toggle('go-ready', ready); goKey.textContent = ready ? 'GO!' : '⏎'; }
+      if (ready && !goTaught) { goTaught = true; shell.react(guideLine('L_WD_GO'), { voice: false, hold: 1800 }); }
     }
 
     function submit() {

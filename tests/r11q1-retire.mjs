@@ -30,7 +30,7 @@ console.log('== the two earned Boos are renamed to neutral gift ids with art int
     const a = cat.BY_ID['boo_party_gift_a'], b = cat.BY_ID['boo_party_gift_b'];
     return {
       a, b,
-      oldGone: !cat.BY_ID['boo_birthday_lexie'] && !cat.BY_ID['boo_birthday_tyler'],
+      oldGone: !Object.keys(cat.BY_ID).some(id => id.startsWith('boo_birthday_')),
       inGiftList: cat.BIRTHDAY_BOOS.map(x => x.id).sort().join(',')
     };
   });
@@ -62,7 +62,7 @@ console.log('== v12→v13 migration is lossless: a two-Boo save keeps ownership,
     return {
       version: m.version,
       ownsBoth: m.inventory['boo_party_gift_a'] === 1 && m.inventory['boo_party_gift_b'] === 1,
-      oldGone: !('boo_birthday_lexie' in m.inventory) && !('boo_birthday_tyler' in m.inventory),
+      oldGone: !Object.keys(m.inventory).some(k => k.startsWith('boo_birthday_')),
       shinyKept: m.shinies['boo_party_gift_a'] === 1,
       nickKept: m.nicknames['boo_party_gift_b'] === 'Speedy',
       equipKept: m.equips['boo_party_gift_a'] && m.equips['boo_party_gift_a'].hat === 'acc_sunhat',
