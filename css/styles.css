@@ -4449,3 +4449,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-preview-title { margin: 0 0 8px; font-size: 1.05rem; }
 .gu-preview-facts { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .gu-preview-facts li { font-weight: 600; }
+
+/* ---- RUN8 v2 C4: backup status panel + gentle reminder -------------------- */
+.gu-backup-status { background: #f3f0fa; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.gu-status-row { margin: 4px 0; font-size: .92rem; }
+.gu-status-row.ok { color: #2e7d54; }
+.gu-status-row.warn { color: #b8621b; display: flex; flex-direction: column; gap: 2px; }
+.gu-status-tip { font-size: .82rem; color: #7a5a3a; }
+.gu-status-row.note { color: #6b5e86; font-size: .82rem; }
+.gu-backup-reminder { display: none; }
+.gu-backup-reminder.on { display: block; background: #fff4d6; border: 2px solid #f2c94c; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.gu-reminder-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gu-reminder-text { font-weight: 700; color: #8a6d1a; flex: 1 1 180px; }
+.gu-tab { position: relative; }
+.gu-tab-dot { position: absolute; top: 6px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: #f2994a; box-shadow: 0 0 0 2px #fff; }
