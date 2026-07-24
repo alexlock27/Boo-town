@@ -4404,3 +4404,16 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .hub-bff { position: absolute; right: -6px; bottom: 4px; font-size: 22px; filter: drop-shadow(0 0 6px rgba(255,120,200,.85)); animation: bffGlow 2.4s ease-in-out infinite; }
 @keyframes bffGlow { 50% { transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .dusk-visitor { animation: none; } .hub-bff { animation: none; } }
+
+/* RUN11: one owned Boo ambles across the island map — scenery, never a control. */
+.map-wanderer { position: absolute; left: 0; pointer-events: none; z-index: 6; opacity: .95;
+  filter: drop-shadow(0 3px 4px rgba(20,8,50,.35)); animation: mapStroll 38s linear infinite; }
+.map-wanderer svg { display: block; }
+@keyframes mapStroll {
+  0%   { transform: translateX(6vw) scaleX(1); }
+  48%  { transform: translateX(72vw) scaleX(1); }
+  50%  { transform: translateX(72vw) scaleX(-1); }
+  98%  { transform: translateX(6vw) scaleX(-1); }
+  100% { transform: translateX(6vw) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) { .map-wanderer { animation: none; transform: translateX(30vw); } }

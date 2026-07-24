@@ -114,6 +114,54 @@ console.log('== the island has quiet life, transform/opacity only ==');
   await rctx.close();
 }
 
+console.log('== one of her own Boos ambles the island, as scenery only ==');
+{
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
+  await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), SAVE(500));
+  await page.goto(`${BASE}/index.html`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.BooTown, null, { timeout: 12000 });
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.map-badge', { timeout: 8000 });
+  await page.waitForTimeout(300);
+  const w = await page.evaluate(() => {
+    const n = document.querySelector('.map-wanderer');
+    return n ? { pointer: getComputedStyle(n).pointerEvents, anim: getComputedStyle(n).animationName, svg: !!n.querySelector('svg'), hidden: n.getAttribute('aria-hidden') } : null;
+  });
+  assert(w && w.svg, 'an owned Boo is drawn on the island');
+  assert(w.pointer === 'none', 'the wanderer is inert — it can never swallow a badge tap');
+  assert(w.hidden === 'true', 'it is hidden from assistive tech (decoration, not a control)');
+  assert(w.anim === 'mapStroll', 'it strolls (transform-only)');
+  // and a badge tap still works with it on screen
+  await page.evaluate(() => window.__worldmap.tap('meadow'));
+  await page.waitForTimeout(500);
+  assert(await page.evaluate(() => document.getElementById('screen').dataset.screen) === 'town', 'badges still navigate with the wanderer present');
+  await ctx.close();
+
+  // absent before she owns a Boo, and stilled by reduced motion
+  const ectx = await browser.newContext();
+  const epage = await ectx.newPage();
+  const noBoos = JSON.parse(SAVE(500)); noBoos.inventory = {};
+  await epage.addInitScript(s => localStorage.setItem('bootown.save.v1', s), JSON.stringify(noBoos));
+  await epage.goto(`${BASE}/index.html`, { waitUntil: 'load' });
+  await epage.waitForFunction(() => window.BooTown, null, { timeout: 12000 });
+  await epage.evaluate(() => window.BooTown.go('worldmap'));
+  await epage.waitForSelector('.map-badge', { timeout: 8000 });
+  assert(await epage.locator('.map-wanderer').count() === 0, 'no wanderer before she owns a Boo');
+  await ectx.close();
+
+  const rctx = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1024, height: 768 } });
+  const rpage = await rctx.newPage();
+  await rpage.addInitScript(s => localStorage.setItem('bootown.save.v1', s), SAVE(500));
+  await rpage.goto(`${BASE}/index.html`, { waitUntil: 'load' });
+  await rpage.waitForFunction(() => window.BooTown, null, { timeout: 12000 });
+  await rpage.evaluate(() => window.BooTown.go('worldmap'));
+  await rpage.waitForSelector('.map-wanderer', { timeout: 8000 });
+  assert(await rpage.evaluate(() => getComputedStyle(document.querySelector('.map-wanderer')).animationName) === 'none', 'reduced motion stills the wanderer');
+  await rctx.close();
+}
+
 await browser.close();
 console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS'));
 process.exit(failed ? 1 : 0);
