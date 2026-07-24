@@ -224,7 +224,10 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'town2 area-' + AREA.key + ' entering' });
   const back = backControl(() => ctx.go('worldmap'));
   const title = el('h2', { text: AREA.name });
-  const hammerBtn = el('button', { class: 'icon-btn town-hammer-btn', 'aria-label': 'Build mode', onclick: () => toggleBuildMode(), html: '🔨' });
+  const hammerBtn = el('button', { class: 'icon-btn town-hammer-btn', 'aria-label': 'Build mode', onclick: () => toggleBuildMode() }, [
+    el('span', { class: 'hammer-ic', text: '🔨' }),
+    el('span', { class: 'hammer-lbl', text: 'Build' })
+  ]);
   const header = el('header', { class: 'town-header' }, [back, title, hammerBtn]);
   const hint = el('div', { class: 'town-hint-bar' });
 
@@ -244,20 +247,26 @@ export function mount(container, params, ctx) {
     { id: 'erase', label: '🧹', title: 'Erase' }
   ];
   const toolBtns = BUILD_TOOLS.map(td => el('button', {
-    class: 't-tool-btn' + (buildTool === td.id ? ' sel' : ''), text: td.label, type: 'button', 'aria-label': td.title,
+    class: 't-tool-btn' + (buildTool === td.id ? ' sel' : ''), type: 'button', 'aria-label': td.title,
     onclick: () => selectBuildTool(td.id)
-  }));
+  }, [
+    el('span', { class: 'tool-ic', text: td.label }),
+    el('span', { class: 'tool-lbl', text: td.title })
+  ]));
   const toolRow = el('div', { class: 't-tool-row' }, toolBtns);
   toolRow.addEventListener('pointerdown', e => e.stopPropagation());
   const PATH_STYLES = [
-    { id: 'stone', label: '🪨', title: 'Stone path' },
-    { id: 'sand', label: '🏖️', title: 'Sand path' },
-    { id: 'flower', label: '🌸', title: 'Flower path' }
+    { id: 'stone', label: '🪨', title: 'Stone' },
+    { id: 'sand', label: '🏖️', title: 'Sand' },
+    { id: 'flower', label: '🌸', title: 'Flower' }
   ];
   const styleBtns = PATH_STYLES.map(sd => el('button', {
-    class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : ''), text: sd.label, type: 'button', 'aria-label': sd.title,
+    class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : ''), type: 'button', 'aria-label': sd.title,
     onclick: () => selectPathStyle(sd.id)
-  }));
+  }, [
+    el('span', { class: 'tool-ic', text: sd.label }),
+    el('span', { class: 'tool-lbl', text: sd.title })
+  ]));
   const pathStyleRow = el('div', { class: 't-path-style-row' }, styleBtns);
   pathStyleRow.addEventListener('pointerdown', e => e.stopPropagation());
   viewport.append(toolRow, pathStyleRow);
@@ -334,6 +343,7 @@ export function mount(container, params, ctx) {
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
     if (params && params.enterPan) setTimeout(() => panAcrossZone(0, 1600), REDUCED ? 0 : 200);
+    if (params && params.openWishWell) setTimeout(() => openWishWellOverlay(), 350);
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
     // finished while she was away, the next town open plays the reveal.
     const gt = tickGrowth();
@@ -487,7 +497,10 @@ export function mount(container, params, ctx) {
   function updateBuildUI() {
     root.classList.toggle('building', buildMode);
     hammerBtn.classList.toggle('active', buildMode);
+    hammerBtn.classList.toggle('hammer-active', buildMode);
     hammerBtn.setAttribute('aria-label', buildMode ? 'Exit build mode' : 'Build mode');
+    const hammerLbl = hammerBtn.querySelector('.hammer-lbl');
+    if (hammerLbl) hammerLbl.textContent = buildMode ? 'Done' : 'Build';
     pathStyleRow.style.display = (buildMode && buildTool === 'paths') ? '' : 'none';
     // Landscape is a Build-only, outdoor-only toybox (RUN10 P3/P4) — hidden whenever
     // either condition isn't met (e.g. build mode toggled on inside the Boo House).
@@ -591,7 +604,7 @@ export function mount(container, params, ctx) {
   }
 
   function renderPlaced() {
-    ground.querySelectorAll('.t-item').forEach(n => n.remove());
+    const existing = Array.from(ground.querySelectorAll('.t-item'));
     // clear any orphaned zone-behaviour props (RUN7 C2) so a re-render never leaves them stranded
     ground.querySelectorAll('.t-kite-wrap, .t-skip-stone, .t-skim-ring, .t-sandcastle, .t-towel').forEach(n => n.remove());
     actors = [];
@@ -603,6 +616,7 @@ export function mount(container, params, ctx) {
     socketUse.clear();
     const st = getState();
     let count = 0, fancyCount = 0;
+    
     for (const t of areaItems(st)) {
       const item = resolveItem(t.item);
       if (!item) continue;
@@ -616,34 +630,86 @@ export function mount(container, params, ctx) {
       const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
       const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
       const size = baseSize * itemScaleOf(t);
-      const wrap = el('div', { class: 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '') + (item.kind === 'boo' && isBestFriend(item.id, st) ? ' care-bff' : ''), dataset: { zone: t.zone, x: String(t.x), item: t.item, row: String(row) } });
+      
+      let wrapIndex = existing.findIndex(w => w._placeRef === t);
+      // Fallback if re-loaded from string or manual DOM insertion
+      if (wrapIndex < 0) {
+        wrapIndex = existing.findIndex(w => !w._matched && w.dataset.item === t.item && Math.abs(parseFloat(w.dataset.x || '0') - t.x) < 0.001 && w.dataset.row === String(row));
+      }
+      
+      let wrap;
+      if (wrapIndex >= 0) {
+        wrap = existing[wrapIndex];
+        wrap._matched = true;
+      } else {
+        wrap = el('div');
+        attachItemPointer(wrap, t, item);
+        ground.appendChild(wrap);
+      }
+      wrap._placeRef = t;
+      
+      const bff = item.kind === 'boo' && isBestFriend(item.id, st);
+      const newClass = 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '') + (bff ? ' care-bff' : '');
+      if (wrap.className !== newClass) wrap.className = newClass;
+      
+      wrap.dataset.zone = t.zone;
+      wrap.dataset.x = String(t.x);
+      wrap.dataset.item = t.item;
+      wrap.dataset.row = String(row);
       wrap.dataset.scale = String(itemScaleOf(t));
+      
       wrap.style.left = (px - size / 2) + 'px';
       wrap.style.top = (rowGroundPx - size + 8) + 'px';
       wrap.style.zIndex = onWall ? '1' : String(Math.round(rowGroundPx));
+      
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
       if (t.item === 'deco_tablelamp' && isNight(currentHour())) wrap.classList.add('lit');
-      wrap.innerHTML = t.item === 'deco_bffportrait' && t.portraitBoo
+      else wrap.classList.remove('lit');
+      
+      const newHTML = t.item === 'deco_bffportrait' && t.portraitBoo
         ? renderBffPortrait(t.portraitBoo, size)
         : renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
-      attachItemPointer(wrap, t, item);
-      ground.appendChild(wrap);
+        
+      if (wrap._lastHTML !== newHTML) {
+        wrap.innerHTML = newHTML;
+        wrap._lastHTML = newHTML;
+      }
+      
       // Shared rarity VFX (C2): full effect for the first RARITY_TOWN_CAP fancy items,
       // then a static sheen so the emitter cap holds (distant/numerous items degrade).
       const shiny = ((st.shinies && st.shinies[t.item]) || 0) > 0;
       if (rarityRank(item) > 0 || shiny) {
         const degrade = fancyCount >= RARITY_TOWN_CAP;
-        applyRarityFx(wrap, item, { context: 'town', shiny, degrade });
+        // Optimization: don't clear and re-append identical fx DOM nodes if properties haven't changed.
+        const fxKey = `${shiny ? 's' : ''}-${degrade ? 'd' : ''}`;
+        if (wrap._lastFxKey !== fxKey) {
+          applyRarityFx(wrap, item, { context: 'town', shiny, degrade });
+          wrap._lastFxKey = fxKey;
+        }
         if (!degrade) fancyCount++;
+      } else {
+        if (wrap._lastFxKey !== 'none') {
+          clearRarityFx(wrap);
+          wrap._lastFxKey = 'none';
+        }
       }
+      
       if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) {
         const act = makeActor(wrap, item, t);
         // a Boo currently riding a funfair ride shows ONLY on the ride, not on the ground (C1b)
         if (isSeated(t.item)) { act.riding = true; wrap.style.display = 'none'; }
+        else wrap.style.display = '';
         actors.push(act); count++;
       }
     }
+    
+    // Cleanup old unused item wrappers (diff teardown)
+    existing.forEach(w => {
+      if (!w._matched) w.remove();
+      else w._matched = false; // Reset for next render
+    });
+    
     applyDance();
     assignRoles();
     renderZoneScenery();   // zone identity (RUN7 C2): distinct backdrop per zone, behind items

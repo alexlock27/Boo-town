@@ -15,7 +15,7 @@ let audioInited = false;
 // Lazy screen registry (dynamic import → build incrementally, lighter first paint).
 const registry = {
   onboarding: () => import('./onboarding.js'),
-  hub:        () => import('./hub.js'),
+  hub:        () => import('./hub.js?v=5'),
   bubblepop:  () => import('./games/bubblepop.js'),
   feedboos:   () => import('./games/feedboos.js'),
   spellboo:   () => import('./games/spellboo.js'),
@@ -62,6 +62,8 @@ const registry = {
 const ctx = { go, music, refreshAudio: applyAudioSettings };
 
 export async function go(name, params = {}) {
+  console.log("GO CALLED:", name);
+  console.trace();
   if (current && current.api && typeof current.api.unmount === 'function') {
     try { current.api.unmount(); } catch (e) { console.warn(e); }
   }
@@ -147,30 +149,29 @@ function boot() {
   // Register the service worker only off-localhost (spec §11.6: avoids stale-cache
   // pain during dev). On GitHub Pages it registers and enables full offline use.
   const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isLocal) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then((reg) => {
-        // Update toast (RUN5 C0b): surface a waiting build so the hub can offer it.
-        // The worker still waits (no auto-activation) until she taps to accept.
-        if (reg.waiting) setWaitingWorker(reg.waiting);
-        reg.addEventListener('updatefound', () => {
-          const nw = reg.installing;
-          if (!nw) return;
-          nw.addEventListener('statechange', () => {
-            if (nw.state === 'installed' && navigator.serviceWorker.controller) setWaitingWorker(nw);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    if (isLocal) {
+      // Clear any stale local development service workers so local code updates apply immediately
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      });
+    } else {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          if (reg.waiting) setWaitingWorker(reg.waiting);
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) setWaitingWorker(nw);
+            });
           });
-        });
-        // RUN5 C0b (update discovery): the browser only re-checks sw.js on a hard
-        // navigation, so an app that is merely backgrounded and resumed can sit on an
-        // old build without noticing a deploy. Re-check when the app returns to the
-        // foreground — DETECTION ONLY: a new build installs to `waiting` and the hub
-        // offers the toast; it never auto-activates (that stays user-initiated,
-        // honouring the no-skipWaiting policy from hotfix 1). Same-origin and cheap.
-        const recheck = () => { try { reg.update(); } catch {} };
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
-        window.addEventListener('focus', recheck);
-      }).catch(() => {});
-    });
+          const recheck = () => { try { reg.update(); } catch {} };
+          document.addEventListener('visibilitychange', () => { if (!document.hidden) recheck(); });
+          window.addEventListener('focus', recheck);
+        }).catch(() => {});
+      });
+    }
   }
 }
 

@@ -27,6 +27,14 @@ export function el(tag, props = {}, children = []) {
 
 export function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
 
+// ---- HTML escaping (Security) --------------------------------------------
+export function escapeHTML(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[m]);
+}
+
 // ---- long-press hardening (RUN6 C0.1) ------------------------------------
 // On Amazon Silk / iOS Safari a steady press fires the native context menu
 // (download / print / share) and a text-callout. Every press-and-hold target

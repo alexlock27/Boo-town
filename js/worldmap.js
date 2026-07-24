@@ -16,7 +16,17 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'worldmap' });
   const back = backControl(() => ctx.go('hub'));
   const title = el('h2', { text: 'My Town' });
-  const header = el('header', { class: 'town-header' }, [back, title, el('span', { class: 'icon-btn', style: { visibility: 'hidden' } })]);
+  function exportTown() {
+    sfx.tap();
+    try {
+      const code = btoa(encodeURIComponent(JSON.stringify(getState())));
+      if (navigator.clipboard) navigator.clipboard.writeText(code);
+      toast.textContent = "✈️ Town Code copied to clipboard! Share it with a friend.";
+      toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+    } catch(e) {}
+  }
+  const exportBtn = el('button', { class: 'icon-btn', text: '✈️', 'aria-label': 'Visitor Mode / Export Town', onclick: exportTown });
+  const header = el('header', { class: 'town-header' }, [back, title, exportBtn]);
   const stage = el('div', { class: 'map-stage' });
   const toast = el('div', { class: 'map-toast' });
   root.append(header, stage, toast);

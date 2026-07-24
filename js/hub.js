@@ -119,6 +119,37 @@ export function mount(container, params, ctx) {
   const railInner = el('div', { class: 'trail-inner' });
   todayRail.appendChild(railInner);
 
+  // Quick Meta Chips for instant access
+  const wishChip = el('button', {
+    class: 'trail-chip quick-wish',
+    onclick: () => { sfx.tap(); ctx.go('town', { area: 'meadow', openWishWell: true }); }
+  }, [
+    el('span', { class: 'tc-ic', text: '🔮' }),
+    el('div', { class: 'tc-txt' }, [
+      el('strong', { class: 'tc-title', text: 'Wish Well' }),
+      el('span', { class: 'tc-sub', text: 'Spell a wish!' })
+    ])
+  ]);
+  const careChip = el('button', {
+    class: 'trail-chip quick-care',
+    onclick: async () => {
+      sfx.tap();
+      if (botd && botd.item) {
+        const care = await import('./care.js');
+        care.openCare(botd.item);
+      } else {
+        ctx.go('collection');
+      }
+    }
+  }, [
+    el('span', { class: 'tc-ic', text: '💖' }),
+    el('div', { class: 'tc-txt' }, [
+      el('strong', { class: 'tc-title', text: 'Boo Care' }),
+      el('span', { class: 'tc-sub', text: 'Play & feed' })
+    ])
+  ]);
+  railInner.append(wishChip, careChip);
+
   // Jump back in (RUN5 C0b + RUN7 C3 manners): appears only if a last-played mode
   // exists, has NOT been played today, and has NOT been dismissed today. Playing it
   // (chip or grid) sets lastPlayDay=today → hidden; the small × dismisses until tomorrow.
@@ -162,7 +193,7 @@ export function mount(container, params, ctx) {
       el('div', { class: 'gc-icon', html: g.icon() }),
       el('div', { class: 'gc-name', text: g.name }),
       el('div', { class: 'gc-tag', text: g.tag }),
-      el('div', { class: 'gc-stars', html: starsRow(best, { size: 22 }) })
+      el('div', { class: 'gc-stars', html: `<span class="gc-stars-pill">${starsRow(best, { size: 20 })}</span>` })
     ]);
   };
   for (const groupName of ['Learn', 'Play']) {
