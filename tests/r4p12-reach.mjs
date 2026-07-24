@@ -32,7 +32,7 @@ const SCREENS = [
   ['collage',    '.collage-svg',  '.collage-actions .btn:last-of-type'],
   ['gallery',    '.studio-header', null],
   ['teachme',    '.lesson-grid',  '.lesson-card:last-of-type'],
-  ['grownups',   '.grownups',     '.gu-switch:last-of-type'],
+  ['grownups',   '.grownups',     '.gu-panel.active .gu-switch:last-of-type'],
   ['editguide',  '.creator',      '.creator-btns .btn:last-of-type'],
   ['collection', '.coll-grid',    '.coll-grid:not(.wardrobe-grid) .coll-tile:last-of-type'],
   ['town',       '.town2',        '.town-drawer'],

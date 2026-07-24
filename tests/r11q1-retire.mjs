@@ -60,7 +60,7 @@ console.log('== v12→v13 migration is lossless: a two-Boo save keeps ownership,
     };
     const m = st.migrate(structuredClone(v12));
     return {
-      version: m.version,
+      version: m.version, current: st.VERSION,
       ownsBoth: m.inventory['boo_party_gift_a'] === 1 && m.inventory['boo_party_gift_b'] === 1,
       oldGone: !Object.keys(m.inventory).some(k => k.startsWith('boo_birthday_')),
       shinyKept: m.shinies['boo_party_gift_a'] === 1,
@@ -72,7 +72,7 @@ console.log('== v12→v13 migration is lossless: a two-Boo save keeps ownership,
       partyGone: !('birthdayParty' in m)
     };
   });
-  assert(r.version === 13, 'migrates to VERSION 13');
+  assert(r.version === r.current, `migrates to the current VERSION (${r.version})`);
   assert(r.ownsBoth && r.oldGone, 'both Boos are owned under the new ids; old ids are gone');
   assert(r.shinyKept, 'shiny state carried to the new id');
   assert(r.nickKept, 'nickname carried to the new id');

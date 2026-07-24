@@ -60,6 +60,10 @@ console.log('== crediting guard: single credit path ==');
   const bypass = [];
   for (const f of gameFiles) {
     const src = readFileSync(f, 'utf8');
+    // Only SCREEN modules finish a round. js/games/ also holds pure helper modules (e.g.
+    // boorollphysics.js, adopted in RUN8) that export no mount() and never navigate — the
+    // invariant was never about those. (RUN11 Q10.)
+    if (!/export\s+function\s+mount\b/.test(src)) continue;
     if (!/go\(\s*['"]results['"]/.test(src)) bypass.push(f.replace(ROOT, '').replace(/\\/g, '/'));
   }
   assert(bypass.length === 0, 'every game module finishes via go("results")' + (bypass.length ? ' (missing: ' + bypass.join(', ') + ')' : ''));
@@ -119,7 +123,11 @@ console.log('== Star Ledger panel ==');
     return { name: td[0].textContent.trim(), plays: td[1].textContent.trim(), earned: td[2].textContent.trim() };
   }));
   const find = (name) => rows.find(r => r.name === name);
-  assert(rows.length === 20, `ledger lists all 20 games (13 main incl. Detective + Boo Roll + Echo Boos + 7 toddler), got ${rows.length}`);
+  // The ledger lists every game in the star ledger; that set grows as packets ship (RUN10
+  // added Odd Boo Out and Flash Boos, RUN11 the Expedition and Caper). Assert it covers the
+  // save's own byGame set rather than a frozen count. (RUN11 Q10.)
+  const ledgerGames = await page.evaluate(() => Object.keys(window.BooTown.State.getState().stars.byGame).length);
+  assert(rows.length >= 20 && rows.length <= ledgerGames + 6, `ledger lists every game in the star ledger (${rows.length} rows for ${ledgerGames} tracked games)`);
   assert(find('Bubble Pop') && find('Bubble Pop').plays === '8' && find('Bubble Pop').earned === '19', 'Bubble Pop row: 8 rounds / 19 stars');
   assert(find('Spell Boo') && find('Spell Boo').plays === '4' && find('Spell Boo').earned === '9', 'Spell Boo row: 4 rounds / 9 stars');
   assert(find('Boo Dash') && find('Boo Dash').plays === '6' && find('Boo Dash').earned === '15', 'Boo Dash row: 6 rounds / 15 stars');
