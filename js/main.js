@@ -54,7 +54,7 @@ const registry = {
   'band-songs': () => import('./band/songs.js'),
   'band-jams': () => import('./band/jams.js'),
   discohall:  () => import('./discohall.js'),   // RUN10 P18: Funfair Disco Hall
-  birthdayparty: () => import('./birthdayparty.js'),
+  // (RUN11 Q1: the birthday party route is retired; its code is archived under archive/.)
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   grownups:   () => import('./grownups.js')
 };
@@ -62,6 +62,9 @@ const registry = {
 const ctx = { go, music, refreshAudio: applyAudioSettings };
 
 export async function go(name, params = {}) {
+  // Unknown / retired route → fall back to the hub gracefully (RUN11 Q1: the retired
+  // birthday route must 404 to the hub, never a broken screen).
+  if (!registry[name]) { console.warn('[main] unknown route', name, '→ hub'); name = 'hub'; params = {}; }
   if (current && current.api && typeof current.api.unmount === 'function') {
     try { current.api.unmount(); } catch (e) { console.warn(e); }
   }

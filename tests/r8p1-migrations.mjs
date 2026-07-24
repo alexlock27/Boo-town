@@ -53,8 +53,8 @@ function eraSave(version) {
   return base;
 }
 
-console.log('== era migrations v5 → v12 reach current VERSION losslessly ==');
-for (let v = 5; v <= 12; v++) {
+console.log('== era migrations v5 → v13 reach current VERSION losslessly ==');
+for (let v = 5; v <= 13; v++) {
   const src = eraSave(v);
   const m = migrate(structuredClone(src));
   assert(m.version === VERSION, `v${v}: migrates to VERSION ${VERSION}`);
@@ -88,6 +88,33 @@ for (let v = 5; v <= 12; v++) {
   assert(typeof m.lastBackupAt === 'number', `v${v}: lastBackupAt present`);
   if (v >= 12) assert(m.lastBackupAt === 1_700_000_000_000, `v${v}: existing lastBackupAt preserved`);
   else assert(m.lastBackupAt === 0, `v${v}: lastBackupAt defaults to 0 for pre-v12 saves`);
+}
+
+// v12→v13 (RUN11 Q1): a save owning both retired party Boos emerges owning both neutral
+// gift Boos with shiny + bond + nickname + equip intact. Name-free suffixes exercise the
+// prefix remap without embedding a retired name (G9).
+console.log('== v12 → v13 party-Boo retirement is lossless ==');
+{
+  const v12 = {
+    version: 12, name: 'Ada',
+    inventory: { boo_birthday_one: 1, boo_birthday_two: 1, boo_pip: 2 },
+    shinies: { boo_birthday_one: 1 },
+    nicknames: { boo_birthday_two: 'Speedy' },
+    equips: { boo_birthday_one: { hat: 'acc_sunhat' } },
+    care: { bonds: { boo_birthday_two: 45 }, treats: 1 },
+    birthdayParty: { opened: { first: true, second: false }, visits: 2 },
+    stars: { total: 90, byGame: {} }
+  };
+  const m = migrate(structuredClone(v12));
+  assert(m.version === VERSION, 'reaches current VERSION');
+  assert(m.inventory.boo_party_gift_a === 1 && m.inventory.boo_party_gift_b === 1, 'both gift Boos owned under new ids');
+  assert(!('boo_birthday_one' in m.inventory) && !('boo_birthday_two' in m.inventory), 'legacy ids removed');
+  assert(m.shinies.boo_party_gift_a === 1, 'shiny carried to new id');
+  assert(m.nicknames.boo_party_gift_b === 'Speedy', 'nickname carried to new id');
+  assert(m.equips.boo_party_gift_a && m.equips.boo_party_gift_a.hat === 'acc_sunhat', 'equip carried to new id');
+  assert(m.care.bonds.boo_party_gift_b === 45, 'bond carried to new id');
+  assert(m.partyGiftArchived === true && !('birthdayParty' in m), 'party state folded into a neutral archived flag');
+  assert(m.inventory.boo_pip === 2 && m.stars.total === 90, 'unrelated data untouched');
 }
 
 // idempotence: migrating an already-current save changes nothing material
