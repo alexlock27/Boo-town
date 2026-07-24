@@ -70,7 +70,7 @@ console.log('== Boo Roll wall-hit bump ==');
   const { ctx, page } = await fresh();
   await page.evaluate(() => window.BooTown.go('booroll'));
   await page.waitForSelector('.roll-course-grid');
-  await page.evaluate(() => window.__booroll.openCourse('roll1'));
+  await page.evaluate(() => window.__booroll.openCourse('rolling-meadow')   /* RUN11 Q10: P8 retired the roll1..roll6 ids */);
   await page.waitForSelector('.roll-calibrate');
   await page.evaluate(() => window.__booroll.go('virtual'));
   await page.waitForSelector('.roll-canvas');

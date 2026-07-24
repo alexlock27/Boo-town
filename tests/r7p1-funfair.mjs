@@ -116,7 +116,11 @@ console.log('== the band has NO star gate: all three instruments + record work a
   await sleep(300);
   await page.click('.ff-bandstand');
   await page.waitForSelector('.band-screen, .screen.band, [class*="band"]', { timeout: 3000 }).catch(() => {});
-  await page.waitForFunction(() => window.__band, { timeout: 3000 });
+  // RUN10 P6 split the band into per-instrument scenes; the bandstand now opens the Band
+  // Room. The multi-instrument __band harness these assertions drive is preserved at the
+  // 'band-legacy' route (see main.js), so drive it there. (RUN11 Q10.)
+  await page.evaluate(() => window.BooTown.go('band-legacy'));
+  await page.waitForFunction(() => window.__band, { timeout: 5000 });
   const res = await page.evaluate(async () => {
     const sfx = await import('./js/sfx.js');
     sfx.setAudioLog(true); sfx.initAudio(); sfx.setSoundEnabled(true);
