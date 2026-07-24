@@ -1,5 +1,21 @@
 # STATE_AUDIT.md — Boo Town main-branch audit
 
+> **STATUS UPDATE (post RUN8 v2 + RUN11).** Every finding below is now closed. Dispositions:
+> **F-01** Boo Roll — CLOSED (RUN8 v2 adopted the courses/booroll/physics trio; RUN11 Q6
+> corrected the data to the P8 spec). **F-02** town `clearRarityFx` — CLOSED (import added).
+> **F-03** Echo Lightning best — CLOSED (fields were already separate; the real defect was
+> the 2s save debounce, so a new best now commits immediately). **F-04** "Flash Boos hang" —
+> CLOSED and **re-diagnosed**: not a Flash Boos bug at all; the suite tapped during the
+> deliberate 1.5s anti-brute-force lockout after a wrong tap. **F-05** P9 GO key — CLOSED
+> (RUN11 Q2). **F-06** attribute engine — CLOSED (Q3: real P14 engine adopted, P19 helpers
+> split into `brainhelpers.js`). **F-07** child PII — CLOSED (Q1: feature retired, names
+> purged from every tracked file, permanent grep-guard; git history still contains them).
+> **F-08** this report's sibling `RECONCILE_REPORT.md` — CLOSED (rewritten in full).
+> **F-09** orphaned data files — CLOSED (deleted). **F-10** the lone `fetch()` — CLOSED
+> (guarded + suite). **F-11** melody validator — CLOSED, it was never missing (all four Hits
+> pass every rule). Board: 69/24 of 88 → **99/5 of 104**. Full detail in `RUN11_REPORT.md`.
+
+
 Audit of `main` at stamp `run10-final-20260724`. Evidence-based (static anchors, the
 `tests/` assertion suites, a headless console-error smoke, and git archaeology). This
 document is strictly technical and contains no personal data. "SHIPPED-TO-SPEC / PARTIAL
