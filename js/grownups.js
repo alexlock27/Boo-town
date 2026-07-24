@@ -9,7 +9,18 @@ import { setRequestsEnabled } from './requests.js';
 import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
+import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes } from './backup.js';
 import { bloomStats } from '../data/bloom.js';
+
+// Rough platform sniff, only to word the "where did it save?" helper text. Never gates
+// behaviour — the buttons feature-detect (canShareFiles) regardless.
+function platformNote() {
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
+  if (iOS) return { where: 'the Files app', routes: 'AirDrop to a grown-up’s iPhone, or Messages, Mail or chat' };
+  if (/Android/.test(ua)) return { where: 'your Downloads', routes: 'Quick Share or Bluetooth to a grown-up’s phone, or chat and email' };
+  return { where: 'your device’s downloads', routes: 'chat, email, or a nearby-share to a grown-up’s phone' };
+}
 
 const GOLDEN_MAX_WORDS = 10, GOLDEN_MAX_CHOICES = 5;
 
@@ -127,9 +138,50 @@ export function mount(container, params, ctx) {
     snapWrap.appendChild(el('div', { class: 'gu-row' }, [snapMsg]));
   })();
 
+  // ---- Keep a copy / Send a copy (RUN8 v2 C2): account-free file backups ----
+  const plat = platformNote();
+  let includeCreations = false, includeVoices = false;
+  const sizeLine = el('p', { class: 'gu-note gu-backup-size', text: 'Backup file: measuring…' });
+  async function refreshSize() {
+    try { const f = await buildBackupFile({ includeCreations, includeVoices }); sizeLine.textContent = f ? `Backup file: about ${formatBytes(f.size)}` : 'Nothing to back up yet.'; }
+    catch { sizeLine.textContent = ''; }
+  }
+  const keepMsg = el('span', { class: 'gu-msg' });
+  const keepBtn = el('button', { class: 'btn big gu-keep', text: 'Keep a copy on this tablet', onclick: async () => {
+    keepMsg.classList.remove('err'); keepMsg.textContent = 'Saving…';
+    const r = await keepCopy({ includeCreations, includeVoices });
+    if (r.ok) keepMsg.textContent = `Saved to ${plat.where} (${formatBytes(r.size)}) ✓`;
+    else { keepMsg.classList.add('err'); keepMsg.textContent = r.error || 'Could not save the file.'; }
+  } });
+  const sendMsg = el('span', { class: 'gu-msg' });
+  const sendBtn = el('button', { class: 'btn secondary gu-send', text: 'Send a copy off this tablet', onclick: async () => {
+    sendMsg.classList.remove('err'); sendMsg.textContent = '';
+    const r = await sendCopy({ includeCreations, includeVoices });
+    if (r.ok) sendMsg.textContent = 'Shared ✓';
+    else if (!r.aborted) { sendMsg.classList.add('err'); sendMsg.textContent = r.error || 'Could not open the share sheet.'; }
+  } });
+  const exportBlock = el('div', { class: 'gu-backup-export' }, [
+    el('p', { class: 'gu-note', text: 'A backup is her whole save in one file. Keep one on this tablet, and send one to a grown-up — either survives cleared browser data or a deleted app.' }),
+    toggle('Include her creations (drawings & jams)', includeCreations, v => { includeCreations = v; refreshSize(); }),
+    toggle('Include voice recordings (her voice)', includeVoices, v => { includeVoices = v; refreshSize(); }),
+    sizeLine,
+    el('div', { class: 'gu-row' }, [keepBtn]),
+    el('p', { class: 'gu-note', text: `Saves the file to ${plat.where}, safe from cleared browser data.` }),
+    el('div', { class: 'gu-row' }, [keepMsg]),
+    ...(canShareFiles() ? [
+      el('div', { class: 'gu-row' }, [sendBtn]),
+      el('p', { class: 'gu-note', text: `Opens the share sheet — ${plat.routes}. No account needed.` }),
+      el('div', { class: 'gu-row' }, [sendMsg])
+    ] : [])
+  ]);
+  refreshSize();
+
   const backup = el('div', { class: 'gu-card' }, [
-    el('h3', { text: 'Backup & restore' }),
-    el('p', { class: 'gu-note', text: 'This code is her whole save. Keep it somewhere safe. Paste it on another device (or after a reset) to bring everything back.' }),
+    el('h3', { text: 'Keep her progress safe' }),
+    exportBlock,
+    el('hr', {}),
+    el('h4', { class: 'gr-sub', text: 'Or copy a backup code' }),
+    el('p', { class: 'gu-note', text: 'The code is her whole save as text. Copy it somewhere safe, or paste one below to restore.' }),
     codeBox,
     el('div', { class: 'gu-row' }, [copyBtn, copyMsg]),
     el('hr', {}),

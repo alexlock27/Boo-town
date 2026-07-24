@@ -49,11 +49,12 @@ function eraSave(version) {
   if (version >= 9) base.care = { bonds: { boo_pip: 45 }, treats: 3 };            // P12 care era
   if (version >= 10) base.bloom = { max: { identify: 40, compute: 22 } };          // P19 bloom era
   if (version >= 11) base.wishes = { unlocked: { star: true, cake: true } };       // P20 wishes era
+  if (version >= 12) base.lastBackupAt = 1_700_000_000_000;                        // RUN8 v2 backup era
   return base;
 }
 
-console.log('== era migrations v5 → v11 reach current VERSION losslessly ==');
-for (let v = 5; v <= 11; v++) {
+console.log('== era migrations v5 → v12 reach current VERSION losslessly ==');
+for (let v = 5; v <= 12; v++) {
   const src = eraSave(v);
   const m = migrate(structuredClone(src));
   assert(m.version === VERSION, `v${v}: migrates to VERSION ${VERSION}`);
@@ -83,6 +84,10 @@ for (let v = 5; v <= 11; v++) {
   if (v >= 9) assert(m.care.bonds.boo_pip === 45 && m.care.treats === 3, `v${v}: existing care data preserved`);
   if (v >= 10) assert(m.bloom.max.identify === 40 && m.bloom.max.compute === 22, `v${v}: existing bloom maxima preserved`);
   if (v >= 11) assert(m.wishes.unlocked.star === true && m.wishes.unlocked.cake === true, `v${v}: existing wish unlocks preserved`);
+  // v12 backup field: preserved when present, defaults to 0 for older saves (lossless)
+  assert(typeof m.lastBackupAt === 'number', `v${v}: lastBackupAt present`);
+  if (v >= 12) assert(m.lastBackupAt === 1_700_000_000_000, `v${v}: existing lastBackupAt preserved`);
+  else assert(m.lastBackupAt === 0, `v${v}: lastBackupAt defaults to 0 for pre-v12 saves`);
 }
 
 // idempotence: migrating an already-current save changes nothing material
