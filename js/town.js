@@ -23,7 +23,7 @@ import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
-import { applyRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
+import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
