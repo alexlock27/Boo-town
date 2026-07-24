@@ -152,6 +152,8 @@ export const CATALOGUE = [
 
   // --- Boo Quest exclusives (RUN6 C6): earned only by finishing a land, never in boxes ---
   { id: 'boo_scout', kind: 'boo', name: 'Scout', rarity: 'ultra', species: 'pip', colors: { body: 'teal' }, acc: 'explorerhat', questOnly: true, blurb: 'Map in paw, hat on head, always first to the horizon.' },
+  // RUN10 P15: the Boo Expedition reward — granted once for a full trail at tier ≥2, never in box rolls.
+  { id: 'boo_wander', kind: 'boo', name: 'Wander', rarity: 'ultra', species: 'nova', colors: { body: 'midnight' }, acc: 'explorerhat', free: true, expeditionOnly: true, blurb: 'A far-travelled Boo who has seen every node on the trail.' },
   { id: 'deco_questflag', kind: 'deco', name: 'Quest Flag', rarity: 'rare', deco: 'questflag', questOnly: true, blurb: 'Planted at the end of the Sparkle Meadow. You were here!' },
   // --- Party gift keepsakes (retired party feature, RUN11 Q1; earned Boos kept) ---
   // Free + birthdayOnly keeps them out of mystery boxes and the standard collection count.
@@ -170,7 +172,7 @@ export const BIRTHDAY_BOOS = CATALOGUE.filter(it => it.birthdayOnly);
 
 // Grouped by kind then rarity for the type-first drop roll (RUN2 C2). Free items never drop.
 export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
-  if (it.free || it.questOnly) return m;   // quest-exclusives (RUN6 C6) never drop from boxes
+  if (it.free || it.questOnly || it.expeditionOnly) return m;   // quest/expedition exclusives never drop from boxes
   if (it.kind === 'landscape') return m;   // Build-mode toybox items (RUN10 P3) never drop either
   // Furniture (RUN10 P4) joins the box pools "at decoration odds" — bucketed under the
   // same 'deco' type-roll weight, not a separate furniture type/weight of its own.

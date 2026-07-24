@@ -4366,3 +4366,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-reminder-text { font-weight: 700; color: #8a6d1a; flex: 1 1 180px; }
 .gu-tab { position: relative; }
 .gu-tab-dot { position: absolute; top: 6px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: #f2994a; box-shadow: 0 0 0 2px #fff; }
+
+/* RUN11 Q4: Boo Expedition trail reveal (Snaffle + Wander reward) */
+.exp-reveal-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(22,8,50,.72); z-index: 1600; padding: 20px; }
+.exp-reveal.card { max-width: 420px; text-align: center; display: grid; gap: 12px; justify-items: center; padding: 22px 20px; }
+.exp-snaffle { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--pop); }
+.exp-reward { display: grid; justify-items: center; gap: 6px; }
+.exp-complete { font-family: var(--font-display); font-weight: 700; color: var(--star); text-align: center; }
