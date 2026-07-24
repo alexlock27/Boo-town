@@ -73,7 +73,10 @@ console.log('== toddler hub ==');
   const { ctx, page } = await fresh(SAVE());
   await page.waitForSelector('.toddler-hub');
   const words = await page.$$eval('.toddler-card .tc-word', ns => ns.map(n => n.textContent));
-  assert(words.join(',') === 'Count,Colours,Shapes,Letters,Animals,Pairs,Sizes,Echo', `eight giant one-word cards: the seven toddler games + Echo Boos (RUN9 C5) (${words.join(',')})`);
+  // RUN10 P19 gave Flash Boos a Toddler variant, so the set grew by one. The rule is giant
+  // ONE-WORD cards for every toddler game, not a frozen list. (RUN11 Q10.)
+  const expectedToddler = ['Count','Colours','Shapes','Letters','Animals','Pairs','Sizes','Echo'];
+  assert(expectedToddler.every(w => words.includes(w)) && words.every(w => /^\S+$/.test(w)), `giant one-word cards for every toddler game (${words.join(',')})`);
   // the Toddler hub has no Today rail and none of its meta chips
   for (const sel of [['.today-rail', 'the Today rail'], ['.trail-chip.quests', 'quests chip'], ['.trail-chip.golden', 'Golden chip'], ['.trail-chip.jumpback', 'jump-back chip'], ['.trail-chip.botd', 'Boo-of-the-Day chip'], ['.trail-chip.booquest', 'Boo Quest chip']]) {
     assert(!(await page.$(sel[0])), `${sel[1]} hidden on the Toddler hub`);

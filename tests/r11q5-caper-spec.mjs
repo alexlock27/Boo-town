@@ -130,7 +130,9 @@ console.log('== guess paths: wrong first re-arms and costs nothing; right first 
     return { open: s.caper.open, stars: s.caper.stars, gained: s.stars.total - before, ending: document.querySelector('.caper-board').innerText };
   });
   assert(b.open === false && b.stars === 3, 'a right first guess = 3 stars');
-  assert(b.gained === 3, 'the stars are credited to the total');
+  // RUN5 C0: results.js is the single crediting path, so the notebook itself must NOT
+  // move stars.total — it hands the stars to the results screen. (RUN11 Q10.)
+  assert(b.gained === 0, 'the notebook does not credit stars.total directly (results.js does)');
   assert(/Everyone fits at OUR picnic/.test(b.ending), 'the ending line plays (L_CAPER_END)');
   await ctxB.close();
 }

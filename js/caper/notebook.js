@@ -50,14 +50,17 @@ export function mount(container, params, ctx) {
     status.textContent = 'POOF! Snaffle was the trickster all along! ' + guideLine('L_CAPER_END');
     confetti({ count: 55, power: .8 });
     // RUN10 P17 stars: three for pinning it first guess, one for getting there second.
+    // RUN5 C0 invariant: results.js is the SINGLE path that credits stars.total — the caper
+    // records its own result and hands the stars to the results screen rather than adding
+    // them here. (RUN11 Q10 fix: the direct credit violated that invariant.)
     const stars = (getState().caper.guesses || 1) <= 1 ? 3 : 1;
     mutate(save => {
       save.caper.open = false; save.caper.nextAt = Date.now() + 86400000; save.caper.resolved = true;
       save.caper.stars = stars;
-      save.stars.total += stars;
     });
     stampJournal('caper_snaffle');
     accuse.disabled = true;
+    setTimeout(() => ctx.go('results', { game: 'caper', gameName: "Snaffle's Caper", stars, replay: () => ctx.go('hub') }), 2200);
   };
   root.append(el('div', { class: 'caper-board card' }, [
     el('h2', { text: "Snaffle's Notebook" }), status, grid, clueFan, accuse

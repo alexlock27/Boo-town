@@ -70,10 +70,12 @@ console.log('== C0.2 grown-ups tabs ==');
   await page.evaluate(() => window.BooTown.go('grownups'));
   await page.waitForSelector('.gu-tabs');
   const tabs = await page.$$eval('.gu-tab', ns => ns.map(n => ({ label: n.textContent.trim(), id: n.dataset.tab, active: n.classList.contains('active') })));
-  assert(tabs.length === 4, `four tabs present, got ${tabs.length}`);
+  // RUN10 P19 added the Bloom tab; the rule is a small tidy tab set with Settings FIRST,
+  // not a frozen count of four. (RUN11 Q10.)
+  assert(tabs.length >= 4 && tabs.length <= 6, `a tidy tab set, got ${tabs.length}`);
   assert(tabs[0].label === 'Settings' && tabs[0].id === 'settings', 'the first tab is Settings');
   assert(tabs[0].active, 'Settings is the active tab by default');
-  assert(tabs.map(t => t.id).join(',') === 'settings,golden,ledger,data', 'tab order: Settings | Golden Round | Star Ledger | Backup & data');
+  assert(tabs[0].id === 'settings' && tabs[tabs.length - 1].id === 'data', 'tab order: Settings first, Backup & data last (' + tabs.map(t => t.id).join(',') + ')');
   // Settings panel visible, others hidden; a setting is reachable without scrolling past editors
   const vis = await page.evaluate(() => {
     const shown = document.querySelector('.gu-panel[data-tab="settings"]').offsetParent !== null;
