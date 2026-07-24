@@ -54,6 +54,8 @@ const registry = {
   'band-songs': () => import('./band/songs.js'),
   'band-jams': () => import('./band/jams.js'),
   discohall:  () => import('./discohall.js'),   // RUN10 P18: Funfair Disco Hall
+  expedition:      () => import('./expedition/trail.js'),    // RUN10 P15: Boo Expedition
+  expeditionpuzzle: () => import('./expedition/puzzle.js'),  // RUN10 P16: the four puzzles
   // (RUN11 Q1: the birthday party route is retired; its code is archived under archive/.)
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   grownups:   () => import('./grownups.js')

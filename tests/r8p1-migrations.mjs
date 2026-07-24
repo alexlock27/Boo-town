@@ -53,8 +53,8 @@ function eraSave(version) {
   return base;
 }
 
-console.log('== era migrations v5 → v13 reach current VERSION losslessly ==');
-for (let v = 5; v <= 13; v++) {
+console.log('== era migrations v5 → v14 reach current VERSION losslessly ==');
+for (let v = 5; v <= 14; v++) {
   const src = eraSave(v);
   const m = migrate(structuredClone(src));
   assert(m.version === VERSION, `v${v}: migrates to VERSION ${VERSION}`);
@@ -80,6 +80,8 @@ for (let v = 5; v <= 13; v++) {
   assert(m.bloom && m.bloom.max && typeof m.bloom.max === 'object', `v${v}: bloom present`);
   assert(m.wishes && m.wishes.unlocked && typeof m.wishes.unlocked === 'object', `v${v}: wishes present`);
   assert(m.settings && typeof m.settings === 'object' && 'content' in m.settings, `v${v}: settings present`);
+  assert(m.expedition && Array.isArray(m.expedition.party) && typeof m.expedition.tiers === 'object', `v${v}: expedition state present`);
+  assert('caper' in m, `v${v}: caper field present`);
   // era-specific real data that existed must not be dropped
   if (v >= 9) assert(m.care.bonds.boo_pip === 45 && m.care.treats === 3, `v${v}: existing care data preserved`);
   if (v >= 10) assert(m.bloom.max.identify === 40 && m.bloom.max.compute === 22, `v${v}: existing bloom maxima preserved`);

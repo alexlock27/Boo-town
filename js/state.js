@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 13;  // v13: retire the party feature — earned gift Boos keep neutral ids. v12: lastBackupAt.
+export const VERSION = 14;  // v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -82,6 +82,8 @@ function freshSave() {
     care: { bonds: {}, treats: 0 },  // RUN10 P12: friendship only rises; treats cap at five
     bloom: { max: {} },              // RUN10 P19: five child-facing petals never shrink
     wishes: { unlocked: {} },        // RUN10 P20: word -> true, one permanent Build item each
+    expedition: { tiers: {}, progress: {}, party: [] },  // v14 (RUN11 Q4): Boo Expedition tiers + per-node progress
+    caper: null,                     // v14 (RUN11 Q5): active Snaffle caper state, or null when none is open
     partyGiftArchived: false,   // v13 (RUN11 Q1): the party feature is retired; its earned Boos live on as gift Boos
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
