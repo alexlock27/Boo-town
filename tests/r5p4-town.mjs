@@ -113,7 +113,8 @@ console.log('== migration ==');
     { zone: 'meadow', x: 0.8, item: 'boo_inky' }
   ] });
   const { ctx, page } = await openTown(OLD);
-  const migrated = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
+  // RUN10 P20 pre-places the Wish Well in the Meadow; count only her migrated items.
+  const migrated = (await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items)).filter(t => t.item !== 'deco_wishwell');
   assert(migrated.length === 3, 'nothing lost in migration (3 items)');
   assert(migrated.every(t => t.row != null && t.row >= 0 && t.row <= 2), 'every migrated item gained a depth row');
   assert(migrated.map(t => t.row).join(',') === '0,1,2', 'migrated items spread across the three rows (no piling)');
