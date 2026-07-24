@@ -4377,3 +4377,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* RUN10 P17 (RUN11 Q5): caper signposts + detective notebook */
 .caper-town-sign { position: absolute; transform: translateX(-50%); background: #FFF3D0; color: #5A3E20; border: 3px solid #8A5A2B; border-radius: 8px; padding: 4px 10px; font-family: var(--font-display); font-weight: 700; font-size: 13px; white-space: nowrap; box-shadow: 0 3px 0 #6B4420; z-index: 6; }
 .trail-chip.caper .tc-ic { font-size: 22px; }
+
+/* RUN10 P21 (RUN11 Q7): dusk visitor + best-friend cameo */
+.dusk-visitor { position: absolute; transform: translateX(-50%); background: none; border: 0; padding: 0; filter: brightness(.35) saturate(.4); opacity: .85; z-index: 4; cursor: pointer; animation: duskCross 12s linear both; }
+@keyframes duskCross { from { transform: translateX(-50%) translateX(60px); } to { transform: translateX(-50%) translateX(-60px); } }
+.dusk-visitor span { position: absolute; top: -6px; right: -6px; font-size: 18px; }
+.hub-bff { position: absolute; right: -6px; bottom: 4px; font-size: 22px; filter: drop-shadow(0 0 6px rgba(255,120,200,.85)); animation: bffGlow 2.4s ease-in-out infinite; }
+@keyframes bffGlow { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .dusk-visitor { animation: none; } .hub-bff { animation: none; } }

@@ -20,7 +20,7 @@ import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, co
 import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
-import { ensureHide, currentHide, foundHide, HIDE_REWARD } from './delights.js';
+import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
@@ -576,6 +576,16 @@ export function mount(container, params, ctx) {
       const sign = el('div', { class: 'caper-town-sign', text: caperText });
       sign.style.left = (zoneW * .5) + 'px'; sign.style.top = (groundY - 56) + 'px';
       ground.appendChild(sign);
+    }
+    // RUN10 P21: at dusk an UNOWNED Boo wanders the far background. Pure scenery — one tap
+    // gives one giggle and one sparkle, and never anything else.
+    const visitor = duskVisitor(AREA.key, currentHour());
+    if (visitor && visitor.area === AREA.key && BY_ID[visitor.id]) {
+      const visitorNode = el('button', { class: 'dusk-visitor', html: renderItem(BY_ID[visitor.id], { size: 58 }), onclick: () => {
+        if (tapDuskVisitor()) { sfx.pop(); const spark = el('span', { text: '✨' }); visitorNode.appendChild(spark); setTimeout(() => spark.remove(), 700); }
+      } });
+      visitorNode.style.left = (zoneW * .9) + 'px'; visitorNode.style.top = (groundY - 82) + 'px';
+      ground.appendChild(visitorNode);
     }
   }
 
