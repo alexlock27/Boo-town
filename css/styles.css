@@ -2511,9 +2511,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   background: rgba(255,201,60,.22);
   box-shadow: 0 0 0 2px var(--star), 0 0 16px rgba(255,201,60,.65);
   font-size: 24px;
+  bottom: 4px;
   animation: bandLaneFall .9s ease-out both;
 }
-@keyframes bandLaneFall { from { bottom: 46px; opacity: .3; } to { bottom: 4px; opacity: 1; } }
+/* transform-only (house law): the lane sparkle falls via translateY, not `bottom`. */
+@keyframes bandLaneFall { from { transform: translateY(-42px); opacity: .3; } to { transform: translateY(0); opacity: 1; } }
 .band-playfield {
   flex: 1 1 auto;
   min-height: 260px;
@@ -3023,11 +3025,12 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   top: 24%;
   width: 12px;
   height: 170px;
-  transform: rotate(26deg);
+  left: 22%;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent);
   animation: careGleam .7s ease both;
 }
-@keyframes careGleam { from { left: 22%; opacity: 0; } 50% { opacity: 1; } to { left: 70%; opacity: 0; } }
+/* transform-only (house law): the gleam sweeps via translateX, keeping its 26deg tilt. */
+@keyframes careGleam { from { transform: rotate(26deg) translateX(0); opacity: 0; } 50% { opacity: 1; } to { transform: rotate(26deg) translateX(190px); opacity: 0; } }
 .care-scrub-controls {
   inset: 0;
   display: grid;

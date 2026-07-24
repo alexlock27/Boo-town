@@ -63,7 +63,11 @@ console.log('== chips render only when they have content ==');
 {
   // full content: all six chips
   let { ctx, page } = await openHub(SAVE());
-  assert(JSON.stringify(await chips(page)) === JSON.stringify(['jumpback', 'quests', 'booquest', 'chest', 'golden', 'botd']), 'all six chips show when all have content');
+  // RUN11 Q5 added the caper wanted-poster chip, shown only while a caper is open. Assert
+  // the established six are all present and in order, rather than a frozen total. (Q10.)
+  const shown = await chips(page);
+  const want = ['jumpback', 'quests', 'booquest', 'chest', 'golden', 'botd'];
+  assert(want.every(c => shown.includes(c)) && JSON.stringify(shown.filter(c => want.includes(c))) === JSON.stringify(want), `every content chip shows, in order (${shown.join(',')})`);
   await ctx.close();
   // no golden published, no botd (no Boos), no lastPlay → those chips vanish
   ({ ctx, page } = await openHub(SAVE({ golden: null, inventory: {}, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } })));

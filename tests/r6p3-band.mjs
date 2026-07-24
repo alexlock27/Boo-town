@@ -35,7 +35,7 @@ async function open(save, { screen = 'band' } = {}) {
   await page.waitForSelector('.hub');
   await page.evaluate(async () => { const s = await import('./js/sfx.js'); s.initAudio(); s.setSoundEnabled(true); s.setMusicEnabled(true); });
   await page.evaluate(async () => { const m = await import('./js/idb.js'); await m.idbClear('jams').catch(() => {}); });
-  if (screen === 'band') { await page.evaluate(() => window.BooTown.go('band')); await page.waitForFunction(() => window.__band, { timeout: 4000 }); }
+  if (screen === 'band') { await page.evaluate(() => window.BooTown.go('band-legacy')); await page.waitForFunction(() => window.__band, { timeout: 4000 }); }
   return { ctx, page };
 }
 
@@ -180,7 +180,7 @@ for (const [w, h, tag] of [[768, 1024, 'portrait'], [390, 844, 'phone']]) {
   await p.goto(BASE + '/index.html', { waitUntil: 'load' });
   await p.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE());
   await p.reload({ waitUntil: 'load' }); await p.waitForSelector('.hub');
-  await p.evaluate(() => window.BooTown.go('band')); await p.waitForFunction(() => window.__band);
+  await p.evaluate(() => window.BooTown.go('band-legacy')); await p.waitForFunction(() => window.__band);
   await sleep(300);
   await p.screenshot({ path: `screenshots/r6p3/band-${tag}-${w}x${h}.png` });
   await c.close();
