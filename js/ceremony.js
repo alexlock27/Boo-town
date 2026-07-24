@@ -123,10 +123,10 @@ export function mount(container, params, ctx) {
       try { tickGrowth(); } catch (e) { console.warn(e); }
 
       if (result.duplicate) {
-        // duplicate -> +2 meter points, with a small star animation
+        // duplicate -> +1 Stardust, with a small star animation
         guideBubble.textContent = guideLine('duplicate');
         speakMaybe(guideBubble.textContent);
-        const dup = el('div', { class: 'dup-points', html: `+${result.bonusPoints} <span class="dup-star">★</span> to your meter!` });
+        const dup = el('div', { class: 'dup-points', html: `+1 <span class="dup-star">✨</span> Stardust!` });
         card.appendChild(dup);
         flyStars(card);
         buttons.appendChild(el('button', { class: 'btn big', text: 'Yay! 🎉', onclick: next }));
