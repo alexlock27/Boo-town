@@ -30,6 +30,16 @@ export function mount(container, params, ctx) {
     if (g) { g.plays += 1; g.best = Math.max(g.best, stars); g.earned = (g.earned || 0) + stars; }  // C0 Star Ledger tally
     st.stars.total += stars;
     if (stars >= 3) { st.gameThrees = st.gameThrees || {}; st.gameThrees[game] = (st.gameThrees[game] || 0) + 1; }  // C4 medal tally
+    // RUN10 P17: a completed learning round posts one clue card to an open notebook,
+    // at most three a day, capped at the four clues that pin the culprit.
+    if (st.caper && st.caper.open) {
+      const day = todayKey();
+      if (st.caper.clueDay !== day) { st.caper.clueDay = day; st.caper.cluesToday = 0; }
+      if ((st.caper.cluesToday || 0) < 3) {
+        st.caper.clues = Math.min(4, (st.caper.clues || 0) + 1);
+        st.caper.cluesToday = (st.caper.cluesToday || 0) + 1;
+      }
+    }
   });
   // Dev-only runtime assertion (RUN5 C0): a finished round increments the total by
   // exactly its stars. Silent no-op on the live build; fails loudly on localhost.

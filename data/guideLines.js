@@ -10,6 +10,7 @@ export const LINES = {
   L_EXP_GUESTS: ["The trail needs more variety — friends are joining!"],
   L_EXP_HINT: ["Hmm... try THAT one!"],
   L_EXP_SNAFFLE: ["SNAFFLE! So THAT'S who peppered the bridges!"],
+  L_CAPER_END: ["Everyone fits at OUR picnic."],
   firstHello: [
     "Hi {name}! I'm {guide}, your guide to Boo Town.",
     "The Boos are shy little things. Win stars and they'll come and live here!",
