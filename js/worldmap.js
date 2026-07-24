@@ -6,7 +6,7 @@
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
 import { AREAS, MAP_POS, AREA_UNLOCK_STARS } from './areas.js';
-import { renderIslandMap } from './art.js';
+import { renderIslandMap, renderAreaGlyph } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { stampJournal } from './quests.js';
 import { sfx, music } from './sfx.js';
@@ -133,7 +133,6 @@ export function mount(container, params, ctx) {
   return { unmount() { if (typeof window !== 'undefined') delete window.__worldmap; } };
 }
 
-function areaIcon(key) {
-  const icons = { meadow: '🌼', riverside: '🌉', hilltop: '⛰️', beach: '🏖️', funfair: '🎡', playground: '🛝', boohouse: '🏠', gallery: '🖼️' };
-  return icons[key] || '📍';
-}
+// RUN11: house-style sticker glyphs, not emoji. Emoji-as-art is forbidden in game scenes
+// (CLAUDE.md art contract) and made the map read as a menu of chips rather than a place.
+function areaIcon(key) { return renderAreaGlyph(key, { size: 44 }); }

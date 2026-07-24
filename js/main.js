@@ -64,13 +64,21 @@ const registry = {
 
 const ctx = { go, music, refreshAudio: applyAudioSettings };
 
+// Every navigation takes a ticket. Screens are lazily imported, so a second go() can start
+// while the first is still awaiting its module; without this guard the slower import wins
+// the race and mounts ITS screen over the newer one — a fast tap during boot could land on
+// the wrong screen, and it made test navigations flaky. A superseded navigation now drops
+// its result instead of painting it. (RUN11.)
+let navToken = 0;
 export async function go(name, params = {}) {
   // Unknown / retired route → fall back to the hub gracefully (RUN11 Q1: the retired
   // birthday route must 404 to the hub, never a broken screen).
   if (!registry[name]) { console.warn('[main] unknown route', name, '→ hub'); name = 'hub'; params = {}; }
+  const token = ++navToken;
   if (current && current.api && typeof current.api.unmount === 'function') {
     try { current.api.unmount(); } catch (e) { console.warn(e); }
   }
+  current = null;
   State.commit(); // flush any pending debounced save before leaving a screen
   clearConfetti(); // don't let celebration particles linger across a navigation
   // A first-play intro is tied to its game; never let it bleed onto the next screen.
@@ -82,11 +90,17 @@ export async function go(name, params = {}) {
   try {
     mod = await registry[name]();
   } catch (e) {
+    if (token !== navToken) return;   // superseded while importing
     console.error('[main] failed to load screen', name, e);
     screenEl.innerHTML = `<div class="card" style="margin:40px auto;max-width:400px">Something went wrong loading "${name}".</div>`;
     return;
   }
+  if (token !== navToken) return;     // a newer navigation owns the screen now
   const api = await mod.mount(screenEl, params, ctx);
+  if (token !== navToken) {           // mount itself can await; if we lost, clean up after us
+    try { if (api && typeof api.unmount === 'function') api.unmount(); } catch {}
+    return;
+  }
   current = { name, api };
   screenEl.dataset.screen = name;
 }

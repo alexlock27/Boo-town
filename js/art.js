@@ -1143,14 +1143,77 @@ export function renderIslandMap({ w = 100, h = 100 } = {}) {
     <path d="M62 74 Q78 72 88 82 Q94 90 84 94 Q68 98 58 90 Q54 82 62 74 Z" fill="${sand}" stroke="${INK}" stroke-width="1.2"/>
     <path d="M66 80 Q76 78 82 86" fill="none" stroke="${sand2}" stroke-width="1" opacity="0.6"/>
     <!-- fair tents, right -->
-    <g transform="translate(80,34)">
+    <g transform="translate(78,30) scale(0.55)">
       <path d="M0 10 L6 -6 L12 10 Z" fill="#FF5C8A" stroke="${INK}" stroke-width="1"/>
       <path d="M10 12 L15 0 L20 12 Z" fill="#FFC93C" stroke="${INK}" stroke-width="1"/>
     </g>
-    <!-- two little roofs for the interiors -->
-    <g transform="translate(26,66)"><path d="M-6 6 L0 -4 L6 6 Z" fill="#C6A9F0" stroke="${INK}" stroke-width="1"/><rect x="-5" y="6" width="10" height="6" fill="#FFF8F0" stroke="${INK}" stroke-width="1"/></g>
-    <g transform="translate(58,28)"><path d="M-6 6 L0 -4 L6 6 Z" fill="#35D0BA" stroke="${INK}" stroke-width="1"/><rect x="-5" y="6" width="10" height="6" fill="#FFF8F0" stroke="${INK}" stroke-width="1"/></g>
+    <!-- the two interiors: real little buildings, not blank blocks -->
+    <g transform="translate(37,73) scale(0.6)">
+      <path d="M-7 6 L0 -5 L7 6 Z" fill="#C6A9F0" stroke="${INK}" stroke-width="1"/>
+      <rect x="-5" y="6" width="10" height="6.5" fill="#FFF8F0" stroke="${INK}" stroke-width="1"/>
+      <rect x="-1.6" y="8.6" width="3.2" height="3.9" fill="#8A5A2B" stroke="${INK}" stroke-width="0.7"/>
+      <circle cx="-3.2" cy="8.9" r="1" fill="${COLORS.gold}" stroke="${INK}" stroke-width="0.5"/>
+      <circle cx="3.2" cy="8.9" r="1" fill="${COLORS.gold}" stroke="${INK}" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(53,33) scale(0.6)">
+      <path d="M-7 6 L0 -5 L7 6 Z" fill="#35D0BA" stroke="${INK}" stroke-width="1"/>
+      <rect x="-5" y="6" width="10" height="6.5" fill="#FFF8F0" stroke="${INK}" stroke-width="1"/>
+      <rect x="-3.4" y="8.2" width="6.8" height="4.3" fill="#FFE9B8" stroke="${INK}" stroke-width="0.7"/>
+      <path d="M-2.4 11.4 L-0.6 9.2 L0.8 11.4 Z" fill="#7FC85F" stroke="${INK}" stroke-width="0.5"/>
+    </g>
+    <!-- a little life: drifting clouds and a shimmer on the water -->
+    <g class="map-clouds" opacity="0.9">
+      <g class="map-cloud c1"><ellipse cx="24" cy="9" rx="7" ry="3.2" fill="#FFFFFF"/><ellipse cx="29" cy="8" rx="5" ry="2.6" fill="#FFFFFF"/></g>
+      <g class="map-cloud c2"><ellipse cx="70" cy="16" rx="6" ry="2.8" fill="#FFFFFF" opacity="0.85"/><ellipse cx="65" cy="17" rx="4" ry="2.2" fill="#FFFFFF" opacity="0.85"/></g>
+    </g>
+    <g class="map-shimmer" stroke="#FFFFFF" stroke-width="0.6" stroke-linecap="round" opacity="0.55">
+      <path d="M52 18 q2.4 -1.2 4.8 0"/><path d="M51 33 q2.4 -1.2 4.8 0"/><path d="M51.5 50 q2.4 -1.2 4.8 0"/>
+    </g>
   </svg>`;
+}
+
+// RUN11: house-style sticker glyphs for the world-map badges. These replace the emoji the
+// badges used to show — emoji-as-art is forbidden in game scenes (CLAUDE.md art contract),
+// and it made the map read as a menu of chips rather than a place. Each glyph is drawn on
+// the same 0..24 box so every badge sits identically inside its 88px circle.
+export function renderAreaGlyph(key, { size = 44 } = {}) {
+  const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"`;
+  const G = {
+    // a meadow flower
+    meadow: `<g>${[[12,7],[7,11],[17,11],[9,16],[15,16]].map(([x,y]) => `<ellipse cx="${x}" cy="${y}" rx="3.4" ry="3.4" fill="${COLORS.bubblegum}" ${ink}/>`).join('')}
+      <circle cx="12" cy="12" r="3.1" fill="${COLORS.gold}" ${ink}/></g>`,
+    // a wooden bridge over water
+    riverside: `<g><rect x="2" y="15" width="20" height="5" rx="1.5" fill="#7FC7E8" ${ink}/>
+      <path d="M3 14 Q12 6 21 14" fill="none" ${ink}/>
+      <path d="M3 14 L3 19 M8 11 L8 19 M12 9.6 L12 19 M16 11 L16 19 M21 14 L21 19" ${ink}/></g>`,
+    // a green hill with a sun behind it
+    hilltop: `<g><circle cx="16.5" cy="8" r="4" fill="${COLORS.gold}" ${ink}/>
+      <path d="M2 19 Q8 8 13 13 Q17 17 22 19 Z" fill="#6FBF77" ${ink}/></g>`,
+    // a beach parasol on sand
+    beach: `<g><path d="M3 20 Q12 17 21 20" fill="#F2DDA6" ${ink}/>
+      <path d="M12 6 Q4 8 3 13 L21 13 Q20 8 12 6 Z" fill="#FF7AC6" ${ink}/>
+      <path d="M12 6 L12 19" ${ink}/></g>`,
+    // a big top with a flag
+    funfair: `<g><path d="M12 4 L12 7" ${ink}/><path d="M12 4 L16 5.5 L12 7 Z" fill="${COLORS.gold}" ${ink}/>
+      <path d="M3 19 Q3 10 12 7 Q21 10 21 19 Z" fill="#FFF8F0" ${ink}/>
+      <path d="M8 8.6 L8 19 M12 7 L12 19 M16 8.6 L16 19" stroke="${COLORS.bubblegum}" stroke-width="1.6"/></g>`,
+    // a slide
+    playground: `<g><path d="M6 19 L6 8 Q6 6 8 6 L11 6" ${ink} fill="none"/>
+      <path d="M10 7 Q16 11 20 19 L13 19 Q11 12 8 9 Z" fill="${COLORS.teal}" ${ink}/>
+      <path d="M4 19 L8 19" ${ink}/></g>`,
+    // a cosy cottage
+    boohouse: `<g><path d="M3 12 L12 5 L21 12 Z" fill="${COLORS.lilac}" ${ink}/>
+      <rect x="5" y="12" width="14" height="8" fill="#FFF8F0" ${ink}/>
+      <rect x="10.4" y="15" width="3.6" height="5" fill="#8A5A2B" ${ink}/>
+      <circle cx="7.6" cy="15" r="1.4" fill="${COLORS.gold}" ${ink}/></g>`,
+    // a framed picture
+    gallery: `<g><rect x="3.5" y="5" width="17" height="14" rx="1.5" fill="${COLORS.gold}" ${ink}/>
+      <rect x="6" y="7.5" width="12" height="9" fill="#FFF8F0" ${ink}/>
+      <circle cx="9.5" cy="10.5" r="1.5" fill="${COLORS.gold}"/>
+      <path d="M6 16.5 L10 11.5 L13 15 L15.5 12.5 L18 16.5 Z" fill="${COLORS.teal}"/></g>`
+  };
+  const inner = G[key] || `<circle cx="12" cy="12" r="6" fill="${COLORS.teal}" ${ink}/>`;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
 }
 
 // ---- Build-a-Boo custom renderer (RUN3 C6) ----
