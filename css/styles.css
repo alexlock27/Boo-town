@@ -4415,3 +4415,27 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 
 
+
+/* ---- RUN8 v2 C1.3: calm grown-ups rescue screen -------------------------- */
+.rescue-net { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 24px; overflow-y: auto; background: linear-gradient(160deg, #2a1b4e 0%, #3b2a67 100%); z-index: 50; }
+.rescue-card { width: 100%; max-width: 520px; background: #fff8f0; color: #34254d; border-radius: 22px;
+  padding: 26px 24px 28px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.rescue-card h1 { font-size: 1.5rem; margin: 0 0 8px; }
+.rescue-lead { margin: 0 0 18px; line-height: 1.4; }
+.rescue-sub { font-size: 1.02rem; margin: 18px 0 8px; color: #6a4bb0; }
+.rescue-hint { font-size: .9rem; color: #6b5e86; margin: 4px 0 10px; line-height: 1.35; }
+.rescue-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.rescue-row .text-input { flex: 1 1 200px; }
+.rescue-file { width: 100%; }
+.rescue-snaps { display: flex; flex-direction: column; gap: 8px; }
+.rescue-snap-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: #f1e9ff; border-radius: 12px; padding: 8px 12px; }
+.rescue-snap-when { font-weight: 700; }
+.rescue-msg { display: block; min-height: 1.2em; margin: 8px 0; font-weight: 700; }
+.rescue-msg.ok { color: #2e9e6b; }
+.rescue-msg.err { color: #c0392b; }
+.rescue-card hr { border: none; border-top: 1px solid #e5dcf3; margin: 18px 0 14px; }
+.rescue-fresh { width: 100%; }
+.restore-banner { background: #dff6e8; color: #1f7a4d; }
+@media (max-width: 600px) { .rescue-card { padding: 20px 16px 22px; } .rescue-card h1 { font-size: 1.3rem; } }

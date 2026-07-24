@@ -4,8 +4,8 @@
 import * as State from './state.js';
 import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
-import { starField, clearConfetti, setBackAction, getBackAction } from './ui.js';
-import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker } from './resilience.js';
+import { starField, clearConfetti, setBackAction, getBackAction, el, clear } from './ui.js';
+import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker, showToast, listSnapshots, restoreSnapshot } from './resilience.js';
 import { setHapticsEnabled } from './haptics.js';
 
 const screenEl = document.getElementById('screen');
@@ -62,8 +62,6 @@ const registry = {
 const ctx = { go, music, refreshAudio: applyAudioSettings };
 
 export async function go(name, params = {}) {
-  console.log("GO CALLED:", name);
-  console.trace();
   if (current && current.api && typeof current.api.unmount === 'function') {
     try { current.api.unmount(); } catch (e) { console.warn(e); }
   }
@@ -122,14 +120,72 @@ function setupHardwareBack() {
   } catch (e) { console.warn('[main] history guard unavailable', e); }
 }
 
-function boot() {
+// Calm grown-ups restore screen (RUN8 v2 C1.3). Shown only when a save could not be
+// opened AND no on-device snapshot could stand in. No blame, no child-facing wording;
+// three ways back (a snapshot, a pasted code, a backup file) and a guarded fresh start.
+// While this is up the corrupt bytes are NEVER overwritten (state stays null).
+function showRescueScreen() {
+  const root = screenEl || document.getElementById('screen');
+  if (!root) return;
+  clear(root);
+  const msg = el('p', { class: 'rescue-msg' });
+  const finish = (res) => {
+    if (res && res.ok) { msg.className = 'rescue-msg ok'; msg.textContent = 'Restored! Bringing Boo Town back…'; setTimeout(() => { try { location.reload(); } catch {} }, 800); }
+    else { msg.className = 'rescue-msg err'; msg.textContent = (res && res.error) || 'That did not work — try another copy.'; }
+  };
+
+  const snapWrap = el('div', { class: 'rescue-snaps' });
+  const codeInput = el('input', { class: 'text-input', type: 'text', placeholder: 'Paste a Boo Town backup code', 'aria-label': 'Paste a Boo Town backup code' });
+  const codeBtn = el('button', { class: 'btn', text: 'Restore from code', onclick: () => finish(State.importCode(codeInput.value)) });
+  const fileInput = el('input', { class: 'rescue-file', type: 'file', accept: '.boo,.json,.txt', 'aria-label': 'Choose a backup file', onchange: async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { finish(State.importAny(await f.text())); } catch { finish({ ok: false, error: 'That file could not be read.' }); }
+  } });
+
+  const card = el('div', { class: 'rescue-card' }, [
+    el('h1', { text: 'Let’s bring Boo Town back' }),
+    el('p', { class: 'rescue-lead', text: 'This tablet’s save could not be opened this time. Nothing you have backed up is lost — pick a copy to restore from.' }),
+    el('h2', { class: 'rescue-sub', text: 'Safety copies on this tablet' }),
+    snapWrap,
+    el('h2', { class: 'rescue-sub', text: 'Have a backup elsewhere?' }),
+    el('p', { class: 'rescue-hint', text: 'Paste a saved code, or choose a backup file you sent to a grown-up’s phone or chat.' }),
+    el('div', { class: 'rescue-row' }, [codeInput, codeBtn]),
+    el('div', { class: 'rescue-row' }, [fileInput]),
+    msg,
+    el('hr', {}),
+    el('button', { class: 'btn soft rescue-fresh', text: 'Start Boo Town fresh instead', onclick: () => {
+      const go2 = confirm('Start a brand-new Boo Town? Only do this if you have no backup to restore — current progress on this tablet cannot be opened, and starting fresh replaces it.');
+      if (go2) { State.resetAll(); State.initNew('', null); location.reload(); }
+    } })
+  ]);
+  const wrap = el('div', { class: 'rescue-net' }, [card]);
+  root.appendChild(wrap);
+
+  (async () => {
+    let snaps = [];
+    try { snaps = await listSnapshots(); } catch {}
+    clear(snapWrap);
+    if (!snaps.length) { snapWrap.appendChild(el('p', { class: 'rescue-hint', text: 'No automatic snapshots were found on this tablet.' })); return; }
+    for (const sn of snaps) {
+      const when = (sn && sn.day) || 'a saved day';
+      snapWrap.appendChild(el('div', { class: 'rescue-snap-row' }, [
+        el('span', { class: 'rescue-snap-when', text: when }),
+        el('button', { class: 'btn soft', text: 'Restore this', onclick: () => finish(restoreSnapshot(sn.code)) })
+      ]));
+    }
+  })();
+}
+
+async function boot() {
   // Resilience nets first (RUN5 C0b): catch any error before it reaches a white
   // screen, and warn once if saving is blocked.
   installOopsNet();
   installSaveGuard();
   starField(document.getElementById('starfield'), 60);
   setupHardwareBack();
-  const save = State.load();
+  // Fail-safe loader (RUN8 v2 C1.3): never silent-fresh over recoverable data.
+  const result = await State.loadOrRescue();
+  const save = result.state;
   applyAudioSettings();
   // Rolling save snapshot, at most once per day of play (RUN5 C0b).
   if (save && save.name) { maybeRollingBackup().catch(() => {}); }
@@ -143,8 +199,17 @@ function boot() {
   };
   document.addEventListener('pointerdown', first, { once: false });
 
-  if (!save || !save.name) go('onboarding');
-  else go('hub');
+  if (result.status === 'rescue-needed') {
+    // Nothing recoverable on-device: a calm grown-ups restore screen. We never
+    // autosave over the key here, so the raw bytes stay put for a manual rescue.
+    showRescueScreen();
+  } else {
+    if (result.status === 'restored-snapshot' || result.status === 'restored-rescue') {
+      setTimeout(() => showToast('Restored from a safety copy!', { className: 'restore-banner', autoHideMs: 7000 }), 700);
+    }
+    if (!save || !save.name) go('onboarding');
+    else go('hub');
+  }
 
   // Register the service worker only off-localhost (spec §11.6: avoids stale-cache
   // pain during dev). On GitHub Pages it registers and enables full offline use.
