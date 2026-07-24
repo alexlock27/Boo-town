@@ -87,7 +87,10 @@ console.log('== unfound carries to tomorrow (no reminder) ==');
   await page.evaluate(() => window.BooTown.go('hub'));
   await page.waitForSelector('.hub');
   const hubText = await page.$eval('.hub', n => n.textContent);
-  assert(!/hide|seek|hiding/i.test(hubText), 'no reminder, no nag (rule 2)');
+  // The rule is "no hide-and-seek REMINDER on the hub", not "the substring hide never
+  // appears": RUN10 P19 added a Flash Boos card tagged "Look, hide, remember", which is a
+  // game name, not a nag. Assert on reminder phrasing instead. (RUN11 Q9.)
+  assert(!/hide[- ]and[- ]seek|hiding|find the hider|still hidden|go and look/i.test(hubText), 'no reminder, no nag (rule 2)');
   await ctx.close();
 }
 
