@@ -3,7 +3,7 @@
 
 import { el, clear, confetti, REDUCED } from './ui.js';
 import { getState, mutate } from './state.js';
-import { renderItem } from './art.js';
+import { renderItem, renderDeco } from './art.js';
 import { equippedArt } from './accessories.js';
 import { resolveItem } from './customs.js';
 import { personalityOf } from '../data/personalities.js';
@@ -212,7 +212,10 @@ export function openCare(item, options = {}) {
       brushEl.style.left = `${e.clientX - r.left}px`;
       brushEl.style.top = `${e.clientY - r.top}px`;
       if (lastPointer) {
-        dragDistance += Math.hypot(e.clientX - lastPointer.x, e.clientY - lastPointer.y);
+        const dx = e.clientX - lastPointer.x;
+        const dy = e.clientY - lastPointer.y;
+        brushEl.style.transform = `rotate(${Math.max(-45, Math.min(45, dx * 0.8))}deg) translate(-50%, -50%)`;
+        dragDistance += Math.hypot(dx, dy);
         if (dragDistance >= 60) { dragDistance = 0; registerStroke(e.clientX - r.left, e.clientY - r.top); }
       }
       lastPointer = { x: e.clientX, y: e.clientY };
@@ -257,6 +260,10 @@ export function openCare(item, options = {}) {
     if (foam) foam.className = `care-action-ui care-foam stage-${Math.ceil(scrubs / 2)}`;
     status.textContent = `${scrubs} of 6 sparkly scrubs`;
     sfx.tap();
+    for (let i = 0; i < 3; i++) {
+      const bx = side === 'right' ? 160 : 120;
+      stage.appendChild(el('div', { class: 'care-particle care-bubble', text: '🫧', style: { position: 'absolute', left: `${bx + Math.random()*40 - 20}px`, top: `${110 + Math.random()*40 - 20}px` } }));
+    }
     if (scrubs === 6) {
       boo.classList.add('care-giant-grin');
       stage.appendChild(el('div', { class: 'care-action-ui care-tooth-glint', text: '✦' }));
@@ -267,30 +274,36 @@ export function openCare(item, options = {}) {
 
   function play() {
     status.textContent = personalityFlavour('play', personalityOf(booId));
-    const pop = el('button', { class: 'care-action-ui care-peek-pop', text: '🙈', 'aria-label': `Found ${displayName}` });
-    stage.appendChild(pop);
-    pop.onclick = () => {
-      if (!pop.classList.contains('show')) return;
+    const obstacleHtml = renderDeco('deco_sofa', { size: 160 }) || renderDeco('bush', { size: 150 });
+    const obstacle = el('div', { class: 'care-action-ui care-hide-obstacle', html: obstacleHtml });
+    const target = el('button', { class: 'care-action-ui care-peek-target', 'aria-label': `Tap to find ${displayName}` });
+    stage.append(obstacle, target);
+    boo.classList.add('care-ducking');
+
+    target.onclick = () => {
+      if (!target.classList.contains('peeking')) return;
       playHits++;
-      pop.classList.remove('show');
+      target.classList.remove('peeking');
+      boo.className = 'care-boo care-found-jump';
       sfx.giggle();
-      if (!REDUCED) confetti({ count: 12, power: .35, origin: { x: .5, y: .45 } });
-      status.textContent = `Peekaboo! ${playHits} found`;
+      if (!REDUCED) confetti({ count: 18, power: .45, origin: { x: .5, y: .45 } });
+      status.textContent = `Peekaboo! Found ${displayName}! (${playHits} times)`;
     };
-    boo.classList.add(options.hasHideSpot ? 'care-behind-item' : 'care-cover-eyes');
-    const offsets = [[20,45],[72,28],[48,68]];
-    [1500, 4300, 7200].forEach((at, i) => later(() => {
-      pop.style.left = `${offsets[i][0]}%`;
-      pop.style.top = `${offsets[i][1]}%`;
-      pop.classList.add('show');
-      if (personalityOf(booId) === 'sporty') pop.classList.add('sporty');
+
+    const peekSides = ['peeking-left', 'peeking-right', 'peeking-top'];
+    [1200, 3800, 6400].forEach((at, i) => later(() => {
+      const side = peekSides[i % peekSides.length];
+      boo.className = `care-boo ${side}`;
+      target.className = `care-action-ui care-peek-target peeking ${side}`;
+      status.textContent = `Where is ${displayName}? Look!`;
     }, at));
+
     later(() => {
-      pop.classList.remove('show');
-      boo.classList.remove('care-behind-item', 'care-cover-eyes');
-      boo.classList.add('care-wave');
+      target.remove();
+      obstacle.remove();
+      boo.className = 'care-boo care-wave';
       complete('play');
-    }, 10000);
+    }, 9200);
   }
 
   function complete(action) {
@@ -306,17 +319,17 @@ export function openCare(item, options = {}) {
   }
 
   function showLevelUp(level) {
-    const reward = level === 2 ? `${displayName} learned a tap trick!`
-      : level === 3 ? `${displayName}'s collage sticker unlocked!`
-        : level === 4 ? `${displayName} earned a heart badge!`
-          : `${displayName} is your BEST FRIEND! A portrait is waiting at home.`;
+    const reward = level === 2 ? `${displayName} learned a tap trick! 🎶`
+      : level === 3 ? `${displayName}'s wearable accessory drop unlocked! 🎩`
+        : level === 4 ? `${displayName} is now your Cheerleader companion! 📣`
+          : `BEST FRIENDS FOREVER! 🖼️⭐ A Golden Framed Portrait was added to your Gallery Museum!`;
     const card = el('div', { class: 'care-levelup' }, [
-      el('strong', { text: `Friendship heart ${level}!` }),
+      el('strong', { text: `Friendship Heart ${level}! ♥` }),
       el('span', { text: reward })
     ]);
     stage.appendChild(card);
     if (level === 5) {
-      const line = (guideLine('L_CARE_BFF') || '{name} and {booName}... best friends FOREVER!').replace(/\{booName\}/g, displayName);
+      const line = `${displayName} and you... Best Friends FOREVER!`;
       status.textContent = line;
       speakMaybe(line);
       if (!REDUCED) confetti({ count: 55, power: .8 });

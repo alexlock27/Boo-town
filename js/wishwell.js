@@ -29,6 +29,11 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   ]);
   const hint = el('div', { class:'wish-ghost', 'aria-live':'polite' });
   const slots = el('div', { class:'wish-slots', 'aria-label':'Your wish' });
+  const wishBtn = el('button', {
+    class: 'btn big wish-main-btn',
+    text: '✨ Make Wish! ✨',
+    onclick: submit
+  });
   const magic = el('div', { class:'wish-magic' }, [el('div', { class:'wish-well-mini', text:'✦' })]);
   const suggestions = el('div', { class:'wish-suggestions' });
   const keyboard = el('div', { class:'wish-keyboard' });
@@ -39,9 +44,15 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     if (ri === 2) rowNode.appendChild(el('button', { class:'det-key wide', text:'⌫', 'aria-label':'Backspace', onclick:backspace }));
     keyboard.appendChild(rowNode);
   });
-  const drawer = createDrawer({ tabs:[{id:'letters',label:'Letters',node:keyboard}], ariaLabel:'Wish letters' });
-  drawer.setCurrent(el('span', { class:'wish-current', text:'Tap letters · then press WISH' }));
-  panel.append(top, hint, slots, magic, suggestions, drawer.root);
+  const drawer = createDrawer({
+    tabs: [
+      { id: 'letters', label: 'Letters', node: keyboard },
+      { id: 'cards', label: 'Wish Cards', node: suggestions }
+    ],
+    ariaLabel: 'Wish letters'
+  });
+  drawer.setCurrent(el('span', { class:'wish-current', text:'Tap letters or pick a Wish Card · then press WISH' }));
+  panel.append(top, hint, slots, wishBtn, magic, drawer.root);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('show'));
@@ -49,6 +60,14 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   renderSlots();
   renderSuggestions();
   speakMaybe(guideLine('L_WISH_OPEN'));
+  const onKeyDown = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key === 'enter') submit();
+    else if (key === 'backspace') backspace();
+    else if (/^[a-z]$/.test(key)) type(key);
+  };
+  document.addEventListener('keydown', onKeyDown);
 
   function renderSlots() {
     clear(slots);
@@ -58,10 +77,24 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   }
   function renderSuggestions() {
     clear(suggestions);
-    if (!['toddler','light'].includes(contentTier())) return;
-    SHORT_WISHES.slice(0, 10).forEach(word => suggestions.appendChild(el('button', {
-      class:'wish-chip', text:word.toUpperCase(), onclick:() => { current = word; renderSlots(); submit(); }
-    })));
+    const tier = contentTier();
+    const words = ['toddler','light'].includes(tier)
+      ? SHORT_WISHES.slice(0, 10)
+      : ['rainbow','castle','butterfly','flower','balloon','rocket','cake','crown','treasure','campfire','guitar','present','star','moon','sun'];
+    words.forEach(word => {
+      const item = wishItem(word);
+      const icon = (item && item.icon) || '✨';
+      suggestions.appendChild(el('button', {
+        class: 'wish-chip' + (current === word ? ' sel' : ''),
+        dataset: { word },
+        onclick: () => {
+          current = word;
+          renderSlots();
+          speakMaybe(`Wishing for ${word}!`);
+          submit();
+        }
+      }, [el('span', { text: `${icon} ${word.toUpperCase()}` })]));
+    });
   }
   function type(ch) {
     if (locked || current.length >= MAX) return;
@@ -110,6 +143,7 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     if (misses < 2) speakMaybe(line);
   }
   function close() {
+    document.removeEventListener('keydown', onKeyDown);
     clearTimeout(resetTimer);
     overlay.classList.remove('show');
     setTimeout(() => overlay.remove(), 220);
@@ -122,7 +156,7 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     value:() => current, misses:() => misses, hint:() => hint.textContent,
     unlocked:() => ({...((getState().wishes || {}).unlocked || {})}), close,
     usesDrawer:() => panel.querySelector('.boo-drawer') != null,
-    suggestions:() => [...suggestions.querySelectorAll('.wish-chip')].map(n => n.textContent.toLowerCase())
+    suggestions:() => ['toddler','light'].includes(contentTier()) ? [...suggestions.querySelectorAll('.wish-chip')].map(n => n.dataset.word || n.textContent.toLowerCase()) : []
   };
   return { close };
 }

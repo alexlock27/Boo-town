@@ -5,6 +5,7 @@
 // Swapping in a CC0 asset pack later means only replacing this file.
 
 import { BY_ID } from '../data/catalogue.js';
+import { escapeHTML } from './ui.js';
 
 export const COLORS = {
   // Boo body colours
@@ -310,7 +311,7 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
   if (worn.feet) accSvg += accessoryArt(worn.feet, booAnchor);
 
   const fxCls = item.fx ? ` fx-${item.fx}` : '';
-  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130/120}" class="boo-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
+  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130/120}" class="boo-svg${fxCls} ${cls}" role="img" aria-label="${escapeHTML(item.name)}" xmlns="http://www.w3.org/2000/svg">` +
     halo + color + g.extras + face + trinket + accSvg + fxSparkles(item.fx) +
   `</svg>`;
 }
@@ -401,7 +402,7 @@ export function renderGuide(guideIn, { size = 200, view = 'full', cls = '' } = {
   // Head view: overflow hidden so the body is cropped to a head-and-shoulders peek.
   const overflow = view === 'head' ? 'hidden' : 'visible';
   return `<svg viewBox="${box}" width="${w}" height="${(w * ar).toFixed(1)}" class="guide-svg ${cls}" ` +
-    `role="img" aria-label="${guide.name || 'guide'}" xmlns="http://www.w3.org/2000/svg" style="overflow:${overflow}">${inner}</svg>`;
+    `role="img" aria-label="${escapeHTML(guide.name || 'guide')}" xmlns="http://www.w3.org/2000/svg" style="overflow:${overflow}">${inner}</svg>`;
 }
 
 // Pattern overlay clipped to the body/head silhouette. Generic scatter/bands,
@@ -1085,7 +1086,7 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);
   }
-  return `<svg viewBox="0 0 120 130" width="${size}" height="${size*130/120}" class="deco-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+  return `<svg viewBox="0 0 120 130" width="${size}" height="${size*130/120}" class="deco-svg${fxCls} ${cls}" role="img" aria-label="${escapeHTML(item.name)}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
 }
 
 // ---- public: render an accessory item standalone -------------------------
@@ -1093,18 +1094,18 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
 export function renderAccessory(item, { size = 120, cls = '' } = {}) {
   const fxCls = item.fx ? ` fx-${item.fx}` : '';
   const art = accessoryArt(item.art, { cx: 60, topY: 58, eyeY: 66, earY: 64, R: 40 });
-  return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" class="acc-svg${fxCls} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
+  return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" class="acc-svg${fxCls} ${cls}" role="img" aria-label="${escapeHTML(item.name)}" xmlns="http://www.w3.org/2000/svg">` +
     `<circle cx="60" cy="60" r="52" fill="rgba(255,255,255,0.06)"/>` + art + `</svg>`;
 }
 
 export function renderWish(item, { size = 120, cls = '' } = {}) {
   const icon = String(item.icon || '⭐');
-  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130 / 120}" class="wish-svg wish-${item.word} ${cls}" role="img" aria-label="${item.name}" xmlns="http://www.w3.org/2000/svg">` +
+  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130 / 120}" class="wish-svg wish-${item.word} ${cls}" role="img" aria-label="${escapeHTML(item.name)}" xmlns="http://www.w3.org/2000/svg">` +
     `<ellipse cx="60" cy="110" rx="39" ry="9" fill="rgba(42,27,78,.18)"/>` +
     `<circle cx="60" cy="62" r="47" fill="#FFF8E4" stroke="${INK}" stroke-width="4"/>` +
     `<circle cx="60" cy="62" r="40" fill="#FFF1B8" stroke="#FFC93C" stroke-width="3" stroke-dasharray="4 5"/>` +
     `<text x="60" y="76" text-anchor="middle" font-size="48" font-family="Arial, sans-serif">${icon}</text>` +
-    `<text x="60" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="${INK}" font-family="Fredoka, sans-serif">${item.name}</text></svg>`;
+    `<text x="60" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="${INK}" font-family="Fredoka, sans-serif">${escapeHTML(item.name)}</text></svg>`;
 }
 
 // Generic render router used by collection/town.

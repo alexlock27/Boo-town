@@ -66,8 +66,10 @@ export function mount(container, params, ctx) {
     el('h2', { text: '🖌️ Paint a Boo' })
   ]);
 
-  const canvas = el('canvas', { class: 'paint-canvas', width: SIZE, height: SIZE });
+  const dpr = window.devicePixelRatio || 1;
+  const canvas = el('canvas', { class: 'paint-canvas', width: SIZE * dpr, height: SIZE * dpr, style: { width: `${SIZE}px`, height: `${SIZE}px` } });
   const cx = canvas.getContext('2d', { willReadFrequently: true });
+  cx.scale(dpr, dpr);
 
   const toddler = contentTier() === 'toddler';   // little-painter kit (RUN5 C7)
   const PALETTE = toddler ? COLOURS_TODDLER : COLOURS;
@@ -153,7 +155,7 @@ export function mount(container, params, ctx) {
     dirty = false;
   }
 
-  function snapshot() { try { undoStack.push(cx.getImageData(0, 0, SIZE, SIZE)); if (undoStack.length > 11) undoStack.shift(); } catch {} }
+  function snapshot() { try { undoStack.push(cx.getImageData(0, 0, canvas.width, canvas.height)); if (undoStack.length > 11) undoStack.shift(); } catch {} }
   function undo() { if (undoStack.length > 1) { undoStack.pop(); cx.putImageData(undoStack[undoStack.length - 1], 0, 0); } }
 
   // ---- painting ----
@@ -215,25 +217,28 @@ export function mount(container, params, ctx) {
   // Same scanline flood as floodFill, but collecting a MASK; then only the pattern's
   // pixels inside the mask take the colour (stripes at 45°, or a dot grid).
   function patternFill(sx, sy, colourStr, kind) {
-    const img = cx.getImageData(0, 0, SIZE, SIZE); const d = img.data;
-    const idx = (x, y) => (y * SIZE + x) * 4;
+    const dpr = window.devicePixelRatio || 1;
+    const pSize = canvas.width;
+    sx = Math.floor(sx * dpr); sy = Math.floor(sy * dpr);
+    const img = cx.getImageData(0, 0, pSize, pSize); const d = img.data;
+    const idx = (x, y) => (y * pSize + x) * 4;
     const s = idx(sx, sy);
     const tr = d[s], tg = d[s + 1], tb = d[s + 2];
     const fill = parseColour(colourStr);
-    const mask = new Uint8Array(SIZE * SIZE);
+    const mask = new Uint8Array(pSize * pSize);
     const match = (i) => near(d[i], d[i + 1], d[i + 2], tr, tg, tb, 40);
     const stack = [[sx, sy]];
     while (stack.length) {
-      const [x, y] = stack.pop(); if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) continue;
-      if (mask[y * SIZE + x]) continue;
+      const [x, y] = stack.pop(); if (x < 0 || y < 0 || x >= pSize || y >= pSize) continue;
+      if (mask[y * pSize + x]) continue;
       let i = idx(x, y); if (!match(i)) continue;
-      let xl = x; while (xl > 0 && !mask[y * SIZE + xl - 1] && match(idx(xl - 1, y))) xl--;
-      let xr = x; while (xr < SIZE - 1 && !mask[y * SIZE + xr + 1] && match(idx(xr + 1, y))) xr++;
-      for (let xx = xl; xx <= xr; xx++) { mask[y * SIZE + xx] = 1; if (y > 0) stack.push([xx, y - 1]); if (y < SIZE - 1) stack.push([xx, y + 1]); }
+      let xl = x; while (xl > 0 && !mask[y * pSize + xl - 1] && match(idx(xl - 1, y))) xl--;
+      let xr = x; while (xr < pSize - 1 && !mask[y * pSize + xr + 1] && match(idx(xr + 1, y))) xr++;
+      for (let xx = xl; xx <= xr; xx++) { mask[y * pSize + xx] = 1; if (y > 0) stack.push([xx, y - 1]); if (y < pSize - 1) stack.push([xx, y + 1]); }
     }
-    const STRIPE = 26, DOT_GRID = 34, DOT_R = 9;
-    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
-      if (!mask[y * SIZE + x]) continue;
+    const STRIPE = 26 * dpr, DOT_GRID = 34 * dpr, DOT_R = 9 * dpr;
+    for (let y = 0; y < pSize; y++) for (let x = 0; x < pSize; x++) {
+      if (!mask[y * pSize + x]) continue;
       let on = false;
       if (kind === 'stripes') on = (((x + y) / STRIPE) | 0) % 2 === 0;
       else { const gx = x % DOT_GRID - DOT_GRID / 2, gy = y % DOT_GRID - DOT_GRID / 2; on = gx * gx + gy * gy <= DOT_R * DOT_R; }
@@ -252,8 +257,11 @@ export function mount(container, params, ctx) {
 
   // scanline flood fill up to the outline (spec: flood fill tool)
   function floodFill(sx, sy, hexOrHsl) {
-    const img = cx.getImageData(0, 0, SIZE, SIZE); const d = img.data;
-    const idx = (x, y) => (y * SIZE + x) * 4;
+    const dpr = window.devicePixelRatio || 1;
+    const pSize = canvas.width;
+    sx = Math.floor(sx * dpr); sy = Math.floor(sy * dpr);
+    const img = cx.getImageData(0, 0, pSize, pSize); const d = img.data;
+    const idx = (x, y) => (y * pSize + x) * 4;
     const s = idx(sx, sy);
     const tr = d[s], tg = d[s + 1], tb = d[s + 2];
     const fill = parseColour(hexOrHsl);
@@ -261,11 +269,11 @@ export function mount(container, params, ctx) {
     const stack = [[sx, sy]];
     const match = (i) => near(d[i], d[i + 1], d[i + 2], tr, tg, tb, 40);
     while (stack.length) {
-      const [x, y] = stack.pop(); if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) continue;
+      const [x, y] = stack.pop(); if (x < 0 || y < 0 || x >= pSize || y >= pSize) continue;
       let i = idx(x, y); if (!match(i)) continue;
       let xl = x; while (xl > 0 && match(idx(xl - 1, y))) xl--;
-      let xr = x; while (xr < SIZE - 1 && match(idx(xr + 1, y))) xr++;
-      for (let xx = xl; xx <= xr; xx++) { const j = idx(xx, y); d[j] = fill.r; d[j + 1] = fill.g; d[j + 2] = fill.b; d[j + 3] = 255; if (y > 0 && match(idx(xx, y - 1))) stack.push([xx, y - 1]); if (y < SIZE - 1 && match(idx(xx, y + 1))) stack.push([xx, y + 1]); }
+      let xr = x; while (xr < pSize - 1 && match(idx(xr + 1, y))) xr++;
+      for (let xx = xl; xx <= xr; xx++) { const j = idx(xx, y); d[j] = fill.r; d[j + 1] = fill.g; d[j + 2] = fill.b; d[j + 3] = 255; if (y > 0 && match(idx(xx, y - 1))) stack.push([xx, y - 1]); if (y < pSize - 1 && match(idx(xx, y + 1))) stack.push([xx, y + 1]); }
     }
     cx.putImageData(img, 0, 0);
   }

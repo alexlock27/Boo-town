@@ -34,10 +34,31 @@ export function mount(container, params, ctx) {
   }
   function view(a) {
     const ov = el('div', { class: 'overlay gallery-view', onclick: (e) => { if (e.target === ov) ov.remove(); } });
+    
+    const shareBtn = el('button', { class: 'btn', text: '📤 Share / Save', onclick: async () => {
+      sfx.tap();
+      try {
+        const res = await fetch(a.png);
+        const blob = await res.blob();
+        const file = new File([blob], 'boo_town_art.png', { type: 'image/png' });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'My Boo-town Artwork', text: 'Look what I made in Boo-town!' });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url; anchor.download = 'boo_town_art.png';
+          anchor.click();
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) { console.warn('Share failed:', err); }
+    } });
+
     ov.appendChild(el('div', { class: 'gv-inner' }, [
       el('img', { src: a.png, class: 'gv-img', alt: 'artwork' }),
-      a.draft ? el('button', { class: 'btn', text: '▶ Keep painting', onclick: () => { ov.remove(); ctx.go('paint', { draft: true }); } }) : null,
-      el('button', { class: a.draft ? 'btn soft' : 'btn', text: 'Close', onclick: () => ov.remove() })
+      el('div', { class: 'gu-row', style: { justifyContent: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '8px' } }, [
+        a.draft ? el('button', { class: 'btn', text: '▶ Keep painting', onclick: () => { ov.remove(); ctx.go('paint', { draft: true }); } }) : shareBtn,
+        el('button', { class: 'btn soft', text: 'Close', onclick: () => ov.remove() })
+      ])
     ]));
     root.appendChild(ov);
     requestAnimationFrame(() => ov.classList.add('show'));
