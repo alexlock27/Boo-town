@@ -19,7 +19,12 @@ const ALL_ZONES_STARS = Math.max(...Object.values(AREA_UNLOCK_STARS));   // high
 
 // ---- named constants (C4) --------------------------------------------------
 export const MEDAL_TIERS = [['bronze', 5, '🥉'], ['silver', 15, '🥈'], ['gold', 30, '🥇']];
-const ROLL_COURSE_IDS = ['roll1', 'roll2', 'roll3', 'roll4', 'roll5', 'roll6'];   // Boo Roll (RUN9 C4)
+// Boo Roll course keys — RUN10 P8's three authored side-view courses. The RUN9 top-down
+// ids are retired; their records are preserved under booRoll.legacy and no longer gate
+// trophies (a player cannot earn medals on courses that no longer exist).
+const ROLL_COURSE_IDS = ['rolling-meadow', 'windy-hill', 'sunset-ridge'];
+const rollMedals = (s) => (s.booRoll && s.booRoll.medals) || {};
+const MEDAL_RANK = { bronze: 1, silver: 2, gold: 3 };
 export const STAR_MILESTONES = [100, 500, 1000];
 export const BOO_MILESTONES = [10, 25, 40];
 export const SHINY_MILESTONES = [1, 5, 10];
@@ -131,8 +136,13 @@ export function buildCatalog() {
     { key: 'trophy_sparkle_meadow', type: 'trophy', group: 'adventures', label: 'Sparkle Meadow Explorer', hint: 'Finish the first Boo Quest land…', icon: '🏆', earned: (s) => !!(s.quest && s.quest.lands && s.quest.lands.sparkle_meadow) },
     // Boo Roll medals (RUN9 C4) — the six course ids are roll1..roll6
     { key: 'trophy_roll_first', type: 'trophy', group: 'adventures', label: 'First Medal!', hint: 'Win any medal in Boo Roll…', icon: '🏅', earned: (s) => Object.keys((s.booRoll && s.booRoll.medals) || {}).length > 0 },
-    { key: 'trophy_roll_bronze', type: 'trophy', group: 'adventures', label: 'All Courses Rolled', hint: 'Earn a medal on every Boo Roll course…', icon: '🥉', earned: (s) => ROLL_COURSE_IDS.every(id => !!((s.booRoll && s.booRoll.medals) || {})[id]) },
-    { key: 'trophy_roll_gold', type: 'trophy', group: 'adventures', label: 'Golden Roller', hint: 'Earn GOLD on every Boo Roll course…', icon: '🥇', earned: (s) => ROLL_COURSE_IDS.every(id => (((s.booRoll && s.booRoll.medals) || {})[id]) === 'gold') }
+    // RUN10 P8 Boo Roll trophies: First Medal, All Bronze, All Gold — granted once each.
+    { key: 'trophy_roll_first', type: 'trophy', group: 'adventures', label: 'First Medal', hint: 'Earn your first Boo Roll medal…', icon: '🏅', earned: (s) => ROLL_COURSE_IDS.some(id => !!rollMedals(s)[id]) },
+    { key: 'trophy_roll_bronze', type: 'trophy', group: 'adventures', label: 'All Bronze', hint: 'Earn a medal on every Boo Roll course…', icon: '🥉', earned: (s) => ROLL_COURSE_IDS.every(id => (MEDAL_RANK[rollMedals(s)[id]] || 0) >= 1) },
+    { key: 'trophy_roll_gold', type: 'trophy', group: 'adventures', label: 'All Gold', hint: 'Earn GOLD on every Boo Roll course…', icon: '🥇', earned: (s) => ROLL_COURSE_IDS.every(id => rollMedals(s)[id] === 'gold') },
+    // RUN10 P15 Boo Expedition trophies (keys granted by the trail; shown here).
+    { key: 'exp_first', type: 'trophy', group: 'adventures', label: 'First Expedition', hint: 'Walk the whole Expedition trail…', icon: '🧭', earned: (s) => !!(s.trophies && s.trophies.exp_first) },
+    { key: 'exp_tier4', type: 'trophy', group: 'adventures', label: 'Tier 4 Master', hint: 'Reach tier four on every Expedition puzzle…', icon: '🏆', earned: (s) => !!(s.trophies && s.trophies.exp_tier4) }
   );
   return items;
 }

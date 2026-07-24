@@ -325,6 +325,23 @@ export function migrate(obj) {
     }
   };
   giftStores.forEach(remapWith);
+  // v14 (RUN11 Q6): RUN9's top-down Boo Roll courses (roll1..roll6) are retired by P8's
+  // three authored side-view courses. Their best times and medals are preserved verbatim
+  // under booRoll.legacy rather than deleted, and no longer gate trophies.
+  if (merged.booRoll && typeof merged.booRoll === 'object') {
+    const isLegacy = k => /^roll\d+$/.test(k);
+    const legacy = merged.booRoll.legacy || { best: {}, medals: {} };
+    for (const field of ['best', 'medals']) {
+      const store = merged.booRoll[field];
+      if (!store || typeof store !== 'object') continue;
+      for (const k of Object.keys(store)) {
+        if (!isLegacy(k)) continue;
+        (legacy[field] ||= {})[k] = store[k];
+        delete store[k];
+      }
+    }
+    if (Object.keys(legacy.best || {}).length || Object.keys(legacy.medals || {}).length) merged.booRoll.legacy = legacy;
+  }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);
   merged.partyGiftArchived = !!merged.partyGiftArchived || !!anyOpened;
