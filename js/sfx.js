@@ -254,18 +254,19 @@ function noiseHit(t0, dur, type, peak, freq, q) {
   src.start(t0); src.stop(t0 + dur + 0.02);
 }
 function pitchDrum(t, f0, f1, dur, peak) {
+  if (!ctx) return;
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
   g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + dur + 0.02);
 }
 const DRUMS = {
-  kick:   t => pitchDrum(t, 140, 48, 0.18, 0.7),
-  snare:  t => { noiseHit(t, 0.16, 'highpass', 0.32, 1400); pitchDrum(t, 220, 180, 0.12, 0.2); },
-  hihat:  t => noiseHit(t, 0.05, 'highpass', 0.18, 7000),
-  cymbal: t => noiseHit(t, 0.5, 'highpass', 0.16, 6000),
-  tom1:   t => pitchDrum(t, 200, 120, 0.24, 0.4),
-  tom2:   t => pitchDrum(t, 150, 90, 0.26, 0.4)
+  kick:   (t, v = 1) => pitchDrum(t, 140, 48, 0.18, 0.7 * v),
+  snare:  (t, v = 1) => { noiseHit(t, 0.16, 'highpass', 0.32 * v, 1400); pitchDrum(t, 220, 180, 0.12, 0.2 * v); },
+  hihat:  (t, v = 1) => noiseHit(t, 0.05, 'highpass', 0.18 * v, 7000),
+  cymbal: (t, v = 1) => noiseHit(t, 0.5, 'highpass', 0.16 * v, 6000),
+  tom1:   (t, v = 1) => pitchDrum(t, 200, 120, 0.24, 0.4 * v),
+  tom2:   (t, v = 1) => pitchDrum(t, 150, 90, 0.26, 0.4 * v)
 };
 export const DRUM_PADS = ['kick', 'snare', 'hihat', 'cymbal', 'tom1', 'tom2'];
 export const KEY_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];   // ten white keys C4→E5
@@ -274,29 +275,30 @@ export const GUITAR_CHORDS = ['C', 'G', 'Am', 'F'];
 // Xylophone (RUN9 C6): eight rainbow bars, a C-major scale, a bright bell-like tone.
 export const XYLO_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12];   // C D E F G A B C'
 export const band = {
-  drum(pad) { play(t => { (DRUMS[pad] || DRUMS.kick)(t); logEvent({ kind: 'note', t, freq: 0, dur: 0.2, bus: 'sfx', tag: 'drum:' + pad }); }); },
-  key(semi) { play(t => { const f = 261.63 * Math.pow(2, semi / 12); envTone(f, t, 0.9, 'triangle', 0.30, sfxGain, 'key'); envTone(f * 2, t, 0.5, 'sine', 0.09, sfxGain, 'key'); }); },
-  guitar(chord) { play(t => { (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), t + i * 0.06, 0.7, 'sawtooth', 0.13, sfxGain, 'guitar:' + chord)); }); },
+  drum(pad, { time, vel = 1 } = {}) { play(t => { (DRUMS[pad] || DRUMS.kick)(time !== undefined ? time : t, vel); logEvent({ kind: 'note', t: time !== undefined ? time : t, freq: 0, dur: 0.2, bus: 'sfx', tag: 'drum:' + pad }); }); },
+  key(semi, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; const f = 261.63 * Math.pow(2, semi / 12); envTone(f, rt, 0.9, 'triangle', 0.30 * vel, sfxGain, 'key'); envTone(f * 2, rt, 0.5, 'sine', 0.09 * vel, sfxGain, 'key'); }); },
+  guitar(chord, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), rt + i * 0.06, 0.7, 'sawtooth', 0.13 * vel, sfxGain, 'guitar:' + chord)); }); },
   // bright bell-like mallet tone: a high sine fundamental + an octave shimmer, quick decay
-  xylo(idx) { play(t => { const semi = XYLO_SEMIS[idx % XYLO_SEMIS.length]; const f = 523.25 * Math.pow(2, semi / 12); envTone(f, t, 0.55, 'sine', 0.30, sfxGain, 'xylo'); envTone(f * 2, t + 0.005, 0.30, 'sine', 0.10, sfxGain, 'xylo'); envTone(f * 3, t + 0.005, 0.15, 'triangle', 0.05, sfxGain, 'xylo'); }); }
+  xylo(idx, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; const semi = XYLO_SEMIS[idx % XYLO_SEMIS.length]; const f = 523.25 * Math.pow(2, semi / 12); envTone(f, rt, 0.55, 'sine', 0.30 * vel, sfxGain, 'xylo'); envTone(f * 2, rt + 0.005, 0.30 * vel, 'sine', 0.10 * vel, sfxGain, 'xylo'); envTone(f * 3, rt + 0.005, 0.15, 'triangle', 0.05 * vel, sfxGain, 'xylo'); }); }
 };
 
 // ---- Boo Beat voices (RUN6 C3): the melody her correct hits perform, plus a soft ----
 // backing (drums+bass on the music bus, so it ducks during TTS) and a miss thud.
 export const beatvoice = {
-  backingDrum(pad) { play(t => { (DRUMS[pad] || DRUMS.kick)(t); logEvent({ kind: 'note', t, freq: 0, dur: 0.2, bus: 'music', tag: 'beat-drum:' + pad }); }); },
-  bass(freq) { play(t => envTone(freq, t, 0.3, 'sawtooth', 0.12, musicGain, 'beat-bass')); },
-  melody(semi, { sparkle = false, shimmer = false } = {}) {
+  backingDrum(pad, { time, vel = 1 } = {}) { play(t => { (DRUMS[pad] || DRUMS.kick)(time !== undefined ? time : t, vel); logEvent({ kind: 'note', t: time !== undefined ? time : t, freq: 0, dur: 0.2, bus: 'music', tag: 'beat-drum:' + pad }); }); },
+  bass(freq, { time, vel = 1 } = {}) { play(t => envTone(freq, time !== undefined ? time : t, 0.3, 'sawtooth', 0.12 * vel, musicGain, 'beat-bass')); },
+  melody(semi, { sparkle = false, shimmer = false, time, vel = 1 } = {}) {
     play(t => {
+      const rt = time !== undefined ? time : t;
       const f = 392 * Math.pow(2, semi / 12);   // a bright lead around G4
-      envTone(f, t, 0.5, 'triangle', 0.30, sfxGain, 'melody');
-      if (sparkle) envTone(f * 2, t + 0.01, 0.4, 'sine', 0.16, sfxGain, 'sparkle');    // Perfect harmonic
-      if (shimmer) envTone(f * 1.5, t + 0.05, 0.5, 'triangle', 0.09, sfxGain, 'shimmer'); // combo-fever layer
+      envTone(f, rt, 0.5, 'triangle', 0.30 * vel, sfxGain, 'melody');
+      if (sparkle) envTone(f * 2, rt + 0.01, 0.4, 'sine', 0.16 * vel, sfxGain, 'sparkle');    // Perfect harmonic
+      if (shimmer) envTone(f * 1.5, rt + 0.05, 0.5, 'triangle', 0.09 * vel, sfxGain, 'shimmer'); // combo-fever layer
     });
   },
   thud() { play(t => { pitchDrum(t, 110, 60, 0.16, 0.4); logEvent({ kind: 'note', t, freq: 0, dur: 0.16, bus: 'sfx', tag: 'thud' }); }); },
   // off-beat chord stab (RUN9 C6 addendum backing): a short soft triad on the music bus
-  stab(chord) { play(t => { (CHORD[chord] || CHORD.C).slice(0, 3).forEach(s => envTone(261.63 * Math.pow(2, s / 12), t, 0.16, 'triangle', 0.07, musicGain, 'beat-stab:' + chord)); }); }
+  stab(chord, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; (CHORD[chord] || CHORD.C).slice(0, 3).forEach(s => envTone(261.63 * Math.pow(2, s / 12), rt, 0.16, 'triangle', 0.07 * vel, musicGain, 'beat-stab:' + chord)); }); }
 };
 
 // ---- Toddler Animal Sounds voices (RUN7 C4): a synthesised, clearly-distinct ----

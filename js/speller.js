@@ -79,7 +79,17 @@ export function makeSpeller(mountEl, word, { onCorrect, onWrongCheck } = {}) {
     if (firstEmpty() < 0) setTimeout(check, 200);
     return true;
   }
-  return { slotsWrap, trayWrap, hintNextLetter, isLocked: () => locked || finished };
+  function typeChar(ch) {
+    if (locked || finished) return;
+    const t = tiles.find(x => x.slot === null && x.letter === ch && !x.locked);
+    if (t) placeTile(t);
+  }
+  function backspace() {
+    if (locked || finished) return;
+    const i = firstEmpty() === -1 ? slots.length - 1 : firstEmpty() - 1;
+    if (i >= 0) returnTile(i);
+  }
+  return { slotsWrap, trayWrap, hintNextLetter, isLocked: () => locked || finished, typeChar, backspace };
 }
 
 // Headless helper for tests: fill a speller's slots to spell `w`.
