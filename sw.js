@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run8v2-p2-20260724';  // RUN8 v2 phase 2: export (Keep a copy / Send a copy)
+const BUILD_STAMP = 'run8v2-p3-20260724';  // RUN8 v2 phase 3: unified restore (preview + undo)
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

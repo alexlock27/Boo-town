@@ -127,6 +127,23 @@ export async function maybeRollingBackup() {
   } catch (e) { console.warn('[backup] snapshot failed', e); }
 }
 
+// Write a snapshot immediately, with a label, bypassing the once-per-day gate. Used for
+// the pre-restore undo point (RUN8 v2 C3) — labelled "before restore, {date}". It is the
+// newest snapshot, so it survives the keep-three rotation and undo is one tap away.
+export async function snapshotNow(label) {
+  if (!idbAvailable()) return null;
+  const s = getState();
+  if (!s) return null;
+  try {
+    const at = Date.now();
+    const rec = { id: 'snap-' + at, day: todayKey(), at, code: exportCode(), label: label || '' };
+    await idbPut(BACKUP_STORE, rec);
+    const all = (await idbGetAll(BACKUP_STORE)).sort((a, b) => b.at - a.at);
+    for (const old of all.slice(MAX_SNAPSHOTS)) await idbDelete(BACKUP_STORE, old.id);
+    return rec;
+  } catch (e) { console.warn('[backup] snapshotNow failed', e); return null; }
+}
+
 export async function listSnapshots() {
   if (!idbAvailable()) return [];
   try { return (await idbGetAll(BACKUP_STORE)).sort((a, b) => b.at - a.at); } catch { return []; }

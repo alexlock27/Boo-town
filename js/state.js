@@ -469,20 +469,40 @@ export function importCode(code) {
   return { ok: true };
 }
 
+// Parse a BOO1 code, a .boo envelope, or a raw save into a MIGRATED save object without
+// committing or touching the live state — for restore previews. Returns
+// { ok, save, envelope } or { ok:false, error } with a kind, specific message.
+export function readSaveText(text) {
+  if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'There was nothing to read.' };
+  const t = text.trim();
+  if (t.startsWith(BACKUP_PREFIX)) {
+    let raw;
+    try { raw = JSON.parse(b64decode(t.slice(BACKUP_PREFIX.length))); } catch { return { ok: false, error: 'That code is damaged or incomplete.' }; }
+    if (!raw || typeof raw !== 'object' || !('inventory' in raw)) return { ok: false, error: 'That code is not a valid Boo Town save.' };
+    return { ok: true, save: migrate(raw), envelope: null };
+  }
+  let obj;
+  try { obj = JSON.parse(t); } catch { return { ok: false, error: 'That backup is damaged or not a Boo Town file.' }; }
+  const envelope = obj && obj.format === 'boo-backup' ? obj : null;
+  const save = envelope ? envelope.save : (obj && typeof obj.save === 'object' && obj.save ? obj.save : obj);
+  if (!save || typeof save !== 'object' || !('inventory' in save)) return { ok: false, error: 'That file is not a Boo Town backup.' };
+  return { ok: true, save: migrate(save), envelope };
+}
+
+// Adopt an already-migrated save object as the live state and persist it.
+export function adoptSave(saveObj) {
+  if (!saveObj || typeof saveObj !== 'object') return { ok: false, error: 'That save could not be read.' };
+  state = migrate(saveObj);
+  commit();
+  return { ok: true };
+}
+
 // Restore from arbitrary pasted/read text: a BOO1 code, a .boo envelope, or a raw
 // save object. Returns { ok:true } or { ok:false, error }. Migrates + commits on success.
 export function importAny(text) {
-  if (typeof text !== 'string') return { ok: false, error: 'There was nothing to read.' };
-  const t = text.trim();
-  if (!t) return { ok: false, error: 'There was nothing to read.' };
-  if (t.startsWith(BACKUP_PREFIX)) return importCode(t);
-  let obj;
-  try { obj = JSON.parse(t); } catch { return { ok: false, error: 'That backup is damaged or not a Boo Town file.' }; }
-  const save = obj && typeof obj.save === 'object' && obj.save ? obj.save : obj;   // .boo envelope OR a raw save
-  if (!save || typeof save !== 'object' || !('inventory' in save)) return { ok: false, error: 'That file is not a Boo Town backup.' };
-  state = migrate(save);
-  commit();
-  return { ok: true };
+  const r = readSaveText(text);
+  if (!r.ok) return r;
+  return adoptSave(r.save);
 }
 
 export function resetAll() {

@@ -4439,3 +4439,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .rescue-fresh { width: 100%; }
 .restore-banner { background: #dff6e8; color: #1f7a4d; }
 @media (max-width: 600px) { .rescue-card { padding: 20px 16px 22px; } .rescue-card h1 { font-size: 1.3rem; } }
+
+/* ---- RUN8 v2 C3: unified restore preview ---------------------------------- */
+.gu-restore-filelabel { display: block; font-size: .9rem; margin: 8px 0 4px; color: #4a4a5a; font-weight: 600; }
+.gu-restore-file { display: block; margin-bottom: 10px; }
+.gu-restore-sub { margin: 16px 0 6px; }
+.gu-restore-preview.on { margin-top: 12px; }
+.gu-preview-card { background: #f6f1ff; border: 2px solid #cbb6f2; border-radius: 14px; padding: 14px 16px; margin-top: 8px; }
+.gu-preview-title { margin: 0 0 8px; font-size: 1.05rem; }
+.gu-preview-facts { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.gu-preview-facts li { font-weight: 600; }
