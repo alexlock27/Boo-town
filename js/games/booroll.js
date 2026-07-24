@@ -6,6 +6,7 @@ import { el, clear, backControl, REDUCED, confetti, sparkleAt } from '../ui.js';
 import { getState, mutate } from '../state.js';
 import { renderGuide } from '../art.js';
 import { sfx, music } from '../sfx.js';
+import { COURSES, getCourse } from '../../data/courses.js';
 
 export const GRAV = 0.55;
 export const SENS = 0.85;
@@ -91,17 +92,33 @@ export function mount(container, params, ctx) {
       el('label', {}, [el('span', { text: 'Tilt sensitivity ' }), sensitivityValue, slider]),
       el('label', { class: 'roll2-invert' }, [invert, el('span', { text: 'Invert tilt' })])
     ]);
+    let selectedCourseId = COURSES[0].id;
+    const coursePickerRow = el('div', { class: 'chip-row center', style: { margin: '10px 0' } });
+    COURSES.forEach(c => {
+      const btn = el('button', {
+        class: 'acc-chip' + (selectedCourseId === c.id ? ' sel' : ''),
+        text: c.name,
+        onclick: () => {
+          selectedCourseId = c.id;
+          coursePickerRow.querySelectorAll('.acc-chip').forEach(x => x.classList.remove('sel'));
+          btn.classList.add('sel');
+          sfx.tap();
+        }
+      });
+      coursePickerRow.appendChild(btn);
+    });
+
     const go = el('button', {
       class: 'btn big roll2-go',
       text: '✋ Hold flat, then GO',
-      onclick: () => startPermissionFlow(false)
+      onclick: () => startPermissionFlow(false, selectedCourseId)
     });
     const finger = el('button', {
       class: 'btn soft',
       text: '👆 Use finger tilt',
-      onclick: () => beginPlay('virtual')
+      onclick: () => beginPlay('virtual', selectedCourseId)
     });
-    card.append(settings, el('div', { class: 'roll2-start-actions' }, [go, finger]));
+    card.append(el('p', { class: 'sc-q', text: 'Select a course:' }), coursePickerRow, settings, el('div', { class: 'roll2-start-actions' }, [go, finger]));
     root.append(card, backControl(() => ctx.go('hub'), { floating: true }));
     window.__booroll = {
       onMap: () => false,
@@ -113,26 +130,26 @@ export function mount(container, params, ctx) {
     };
   }
 
-  async function startPermissionFlow() {
+  async function startPermissionFlow(bypass, courseId = 'crash') {
     const Orientation = globalThis.DeviceOrientationEvent;
     if (Orientation && typeof Orientation.requestPermission === 'function') {
       try {
         const answer = await Orientation.requestPermission();
-        beginPlay(answer === 'granted' ? 'sensor' : 'virtual');
+        beginPlay(answer === 'granted' ? 'sensor' : 'virtual', courseId);
       } catch {
-        beginPlay('virtual');
+        beginPlay('virtual', courseId);
       }
     } else {
-      beginPlay('sensor');
+      beginPlay('sensor', courseId);
     }
   }
 
-  function beginPlay(initialMode) {
+  function beginPlay(initialMode, courseId = 'crash') {
     cleanup();
     clear(root);
     music.play('game');
 
-    const course = CRASH_COURSE;
+    const course = getCourse(courseId);
     const guide = getState().guide || {};
     const ballColour = BODY_HEX[guide.body] || '#FF7AC6';
     const canvas = el('canvas', { class: 'roll2-canvas', width: VIEW_W, height: VIEW_H });
@@ -145,6 +162,8 @@ export function mount(container, params, ctx) {
     ]);
     const clock = el('span', { class: 'roll2-clock', text: '0.0s' });
     const starChip = el('span', { class: 'roll2-star-chip', text: '⭐ 0' });
+    let inOverview = false;
+    const overviewBtn = el('button', { class: 'roll2-overview-btn', 'aria-label': 'Toggle course overview', text: '🔍 Map', onclick: () => { inOverview = !inOverview; sfx.tap(); } });
     const recentre = el('button', { class: 'roll2-recentre', 'aria-label': 'Re-centre tilt', text: '🎯' });
     const debug = new URLSearchParams(location.search).has('tilt')
       ? el('pre', { class: 'roll2-debug' })
@@ -156,7 +175,7 @@ export function mount(container, params, ctx) {
       el('div', { class: 'roll2-stick-nub' })
     ]);
     const stage = el('div', { class: 'roll2-stage' }, [
-      canvas, progress, clock, starChip, recentre, paddleLeft, paddleRight, stick,
+      canvas, progress, clock, starChip, overviewBtn, recentre, paddleLeft, paddleRight, stick,
       ...(debug ? [debug] : []), toast
     ]);
     root.append(stage, backControl(() => showStart(), { floating: true }));
@@ -164,7 +183,7 @@ export function mount(container, params, ctx) {
     const fitCanvas = () => {
       const r = stage.getBoundingClientRect();
       if (!r.width || !r.height) return;
-      viewSpan = clamp(VIEW_H * r.width / r.height, 240, VIEW_W);
+      viewSpan = inOverview ? course.world : clamp(VIEW_H * r.width / r.height, 240, VIEW_W);
       canvas.width = Math.round(viewSpan);
       canvas.height = VIEW_H;
     };
@@ -255,9 +274,26 @@ export function mount(container, params, ctx) {
       toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
     }
 
-    function terrainAt(x) {
-      const seg = course.segments.find(s => x >= s.x1 && x <= s.x2);
-      if (!seg || seg.t === 'gap') return null;
+    function getActiveSegment(x, y) {
+      const active = course.segments.filter(s => x >= s.x1 && x <= s.x2);
+      if (!active.length) return null;
+      let best = null;
+      let minDist = Infinity;
+      for (const seg of active) {
+        if (seg.t === 'gap') continue;
+        const sy = segmentY(seg, x);
+        if (sy == null) continue;
+        if (y === undefined) return seg;
+        const dist = sy - (y + BALL_R);
+        if (dist >= -12 && dist < minDist) {
+          minDist = dist;
+          best = seg;
+        }
+      }
+      return best;
+    }
+
+    function segmentY(seg, x) {
       if (seg.mechanism === 'seesaw') {
         const mid = (seg.x1 + seg.x2) / 2;
         return seg.y1 + (x - mid) * Math.tan(seesawAngle * Math.PI / 180);
@@ -268,9 +304,15 @@ export function mount(container, params, ctx) {
       return seg.y1 + (seg.y2 - seg.y1) * t;
     }
 
-    function slopeAt(x) {
-      const seg = course.segments.find(s => x >= s.x1 && x <= s.x2);
-      if (!seg || seg.t === 'gap') return 0;
+    function terrainAt(x, y) {
+      const seg = getActiveSegment(x, y);
+      if (!seg) return null;
+      return segmentY(seg, x);
+    }
+
+    function slopeAt(x, y) {
+      const seg = getActiveSegment(x, y);
+      if (!seg) return 0;
       if (seg.mechanism === 'seesaw') return seesawAngle;
       return Math.atan2(seg.y2 - seg.y1, seg.x2 - seg.x1) * 180 / Math.PI;
     }
@@ -305,8 +347,8 @@ export function mount(container, params, ctx) {
       const target = Math.abs(rawTilt) <= DEADZONE ? 0 : clamp(rawTilt / 18, -1, 1);
       filteredTilt += (target - filteredTilt) * LOWPASS * dt;
       const tiltAcc = filteredTilt * SENS * sensitivity * inverted;
-      const groundBefore = terrainAt(bx);
-      const slope = onGround ? slopeAt(bx) : 0;
+      const groundBefore = terrainAt(bx, by);
+      const slope = onGround ? slopeAt(bx, by) : 0;
       vx += (tiltAcc + GRAV * Math.sin(slope * Math.PI / 180)) * dt;
       // A slope should feel like it releases the ball; use the same named rolling
       // friction with a gentler per-frame application while gravity is doing work.
@@ -319,7 +361,7 @@ export function mount(container, params, ctx) {
       spin += vx * .035 * dt;
 
       if (bx < BALL_R) { bx = BALL_R; vx = Math.abs(vx) * BOUNCE; }
-      const ground = terrainAt(bx);
+      const ground = terrainAt(bx, by);
       // While already rolling, follow a descending surface instead of treating each
       // sub-pixel drop as a jump. Genuine gaps still return null and launch the ball.
       const followsSurface = onGround && ground != null && by + BALL_R >= ground - 8;
@@ -410,59 +452,128 @@ export function mount(container, params, ctx) {
     }
 
     function drawClouds() {
-      cx.fillStyle = 'rgba(255,255,255,.65)';
-      for (let i = 0; i < 5; i++) {
-        const x = ((i * 260 - camera * .18) % 1300) - 120;
-        cx.beginPath(); cx.ellipse(x, 95 + (i % 2) * 60, 70, 22, 0, 0, Math.PI * 2); cx.fill();
+      // Parallax distant hills
+      cx.save();
+      const h1Offset = (camera * 0.15) % 800;
+      cx.fillStyle = '#6EBF5A';
+      cx.beginPath();
+      for (let x = -800; x < viewSpan + 800; x += 300) {
+        cx.ellipse(x - h1Offset, 510, 220, 110, 0, 0, Math.PI * 2);
+      }
+      cx.fill();
+
+      const h2Offset = (camera * 0.3) % 600;
+      cx.fillStyle = '#4E9F3D';
+      cx.beginPath();
+      for (let x = -600; x < viewSpan + 600; x += 220) {
+        cx.ellipse(x - h2Offset, 550, 160, 90, 0, 0, Math.PI * 2);
+      }
+      cx.fill();
+      cx.restore();
+
+      // Fluffy clouds
+      cx.fillStyle = 'rgba(255,255,255,.78)';
+      for (let i = 0; i < 6; i++) {
+        const x = ((i * 240 - camera * .12) % 1400) - 140;
+        cx.beginPath();
+        cx.ellipse(x, 75 + (i % 3) * 35, 65, 20, 0, 0, Math.PI * 2);
+        cx.ellipse(x + 25, 68 + (i % 3) * 35, 45, 18, 0, 0, Math.PI * 2);
+        cx.ellipse(x - 25, 78 + (i % 3) * 35, 45, 16, 0, 0, Math.PI * 2);
+        cx.fill();
       }
     }
 
     function drawTerrain() {
       for (const seg of course.segments) {
         if (seg.t === 'gap' || seg.mechanism) continue;
+        const deckH = 26;
+
+        // 1. Scaffold Support Pillars underneath elevated platforms
+        cx.save();
+        cx.strokeStyle = '#543016'; cx.lineWidth = 8; cx.lineCap = 'round';
+        const step = 90;
+        for (let px = seg.x1 + 30; px <= seg.x2 - 30; px += step) {
+          const tY = seg.y1 + (seg.y2 - seg.y1) * ((px - seg.x1) / (seg.x2 - seg.x1));
+          cx.beginPath(); cx.moveTo(px, tY); cx.lineTo(px, VIEW_H + 40); cx.stroke();
+          // Diagonal cross braces
+          if (px + step <= seg.x2 - 30) {
+            const nextY = seg.y1 + (seg.y2 - seg.y1) * ((px + step - seg.x1) / (seg.x2 - seg.x1));
+            cx.strokeStyle = '#3A1E0A'; cx.lineWidth = 4;
+            cx.beginPath(); cx.moveTo(px, tY + 20); cx.lineTo(px + step, nextY + 70); cx.stroke();
+            cx.beginPath(); cx.moveTo(px + step, nextY + 20); cx.lineTo(px, tY + 70); cx.stroke();
+            cx.strokeStyle = '#543016'; cx.lineWidth = 8;
+          }
+        }
+        cx.restore();
+
+        // 2. Girder Track Deck (Wood & Steel Frame)
+        cx.save();
         cx.beginPath();
         cx.moveTo(seg.x1, seg.y1);
         cx.lineTo(seg.x2, seg.y2);
-        cx.lineTo(seg.x2, VIEW_H + 80);
-        cx.lineTo(seg.x1, VIEW_H + 80);
+        cx.lineTo(seg.x2, seg.y2 + deckH);
+        cx.lineTo(seg.x1, seg.y1 + deckH);
         cx.closePath();
-        cx.fillStyle = seg.t === 'platform' ? '#B990D7' : '#70C85B';
+        
+        const trackGrad = cx.createLinearGradient(0, seg.y1, 0, seg.y1 + deckH);
+        trackGrad.addColorStop(0, '#A2653B');
+        trackGrad.addColorStop(0.5, '#7C4623');
+        trackGrad.addColorStop(1, '#543016');
+        cx.fillStyle = trackGrad;
         cx.fill();
-        cx.lineWidth = 7; cx.strokeStyle = '#2A1B4E';
-        cx.beginPath(); cx.moveTo(seg.x1, seg.y1); cx.lineTo(seg.x2, seg.y2); cx.stroke();
+        cx.lineWidth = 4; cx.strokeStyle = '#2A1B4E'; cx.stroke();
+
+        // Top Rail Highlight
+        cx.strokeStyle = '#E0A36D'; cx.lineWidth = 4;
+        cx.beginPath(); cx.moveTo(seg.x1, seg.y1 + 2); cx.lineTo(seg.x2, seg.y2 + 2); cx.stroke();
+
+        // End Cap Hazard Stripes
+        [seg.x1, seg.x2 - 14].forEach(ex => {
+          cx.fillStyle = '#FFC93C'; cx.fillRect(ex, seg.y1, 14, deckH);
+          cx.fillStyle = '#2A1B4E'; cx.beginPath();
+          cx.moveTo(ex, seg.y1); cx.lineTo(ex + 8, seg.y1); cx.lineTo(ex + 14, seg.y1 + deckH); cx.lineTo(ex + 6, seg.y1 + deckH);
+          cx.closePath(); cx.fill();
+        });
+        cx.restore();
       }
     }
 
     function near(x) { return Math.abs(bx - x) <= GLOW_DIST; }
 
     function drawMechanisms() {
-      // Seesaw
-      cx.save(); cx.translate(1070, 385); cx.rotate(seesawAngle * Math.PI / 180);
-      if (near(1070)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
-      roundedRect(cx, -150, -12, 300, 24, 10, '#FF9F68');
-      cx.restore();
-      roundedRect(cx, 1052, 385, 36, 58, 8, '#6B4BA8');
+      course.mechanisms.forEach(m => {
+        const seg = course.segments.find(s => m.x >= s.x1 && m.x <= s.x2);
+        const y = seg ? (seg.y1 + (seg.y2 - seg.y1) * ((m.x - seg.x1) / Math.max(1, seg.x2 - seg.x1))) : 400;
 
-      // Quarter girder
-      cx.save(); cx.translate(2025, 420); cx.rotate((girderTurns % 4) * Math.PI / 2);
-      if (near(2025)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
-      roundedRect(cx, -105, -12, 210, 24, 8, '#8FC7FF');
-      cx.restore();
-
-      // Lift
-      const ly = 440 - liftY;
-      cx.save();
-      if (near(2510)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
-      roundedRect(cx, 2320, ly - 18, 380, 24, 8, '#35D0BA');
-      cx.restore();
-      cx.strokeStyle = '#6B4BA8'; cx.lineWidth = 7;
-      cx.beginPath(); cx.moveTo(2350, 445); cx.lineTo(2350, ly); cx.moveTo(2670, 445); cx.lineTo(2670, ly); cx.stroke();
-
-      // Gate
-      cx.save(); cx.translate(3190, 440); cx.rotate(gateOpen ? -Math.PI / 2 : 0);
-      if (near(3190)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
-      roundedRect(cx, -10, -145, 20, 145, 6, '#FF7AC6');
-      cx.restore();
+        if (m.t === 'seesawPlank') {
+          cx.save(); cx.translate(m.x, y); cx.rotate(seesawAngle * Math.PI / 180);
+          if (near(m.x)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
+          roundedRect(cx, -150, -14, 300, 28, 10, '#FF9F68');
+          cx.fillStyle = '#2A1B4E'; cx.fillRect(-148, -14, 16, 28); cx.fillRect(132, -14, 16, 28);
+          cx.restore();
+          cx.beginPath(); cx.moveTo(m.x, y); cx.lineTo(m.x - 30, y + 60); cx.lineTo(m.x + 30, y + 60); cx.closePath();
+          cx.fillStyle = '#5A467C'; cx.fill(); cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 4; cx.stroke();
+          drawStar(cx, m.x, y, 8);
+        } else if (m.t === 'quarterGirder') {
+          cx.save(); cx.translate(m.x, y); cx.rotate((girderTurns % 4) * Math.PI / 2);
+          if (near(m.x)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
+          roundedRect(cx, -105, -14, 210, 28, 8, '#70B5FF');
+          cx.restore();
+        } else if (m.t === 'lift') {
+          const ly = y - liftY;
+          cx.save();
+          if (near(m.x)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
+          roundedRect(cx, m.x - 190, ly - 20, 380, 26, 8, '#35D0BA');
+          cx.restore();
+          cx.strokeStyle = '#5A467C'; cx.lineWidth = 7;
+          cx.beginPath(); cx.moveTo(m.x - 160, y + 50); cx.lineTo(m.x - 160, ly); cx.moveTo(m.x + 160, y + 50); cx.lineTo(m.x + 160, ly); cx.stroke();
+        } else if (m.t === 'gateFlap') {
+          cx.save(); cx.translate(m.x, y); cx.rotate(gateOpen ? -Math.PI / 2 : 0);
+          if (near(m.x)) { cx.shadowColor = '#FFC93C'; cx.shadowBlur = 22; }
+          roundedRect(cx, -10, -145, 20, 145, 6, '#FF7AC6');
+          cx.restore();
+        }
+      });
     }
 
     function drawFlagsAndStars() {
@@ -516,6 +627,15 @@ export function mount(container, params, ctx) {
       cx.beginPath(); cx.arc(-15, 7, 4, 0, Math.PI * 2); cx.arc(15, 7, 4, 0, Math.PI * 2); cx.fill();
       cx.strokeStyle = '#2A1B4E'; cx.lineWidth = 3;
       cx.beginPath(); cx.arc(0, 5, 7, .1 * Math.PI, .9 * Math.PI); cx.stroke();
+
+      // Glossy glass marble sheen highlight
+      cx.beginPath(); cx.arc(0, 0, BALL_R, 0, Math.PI * 2);
+      const sheenGrad = cx.createRadialGradient(-8, -8, 2, 0, 0, BALL_R);
+      sheenGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+      sheenGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
+      sheenGrad.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
+      cx.fillStyle = sheenGrad; cx.fill();
+
       cx.restore();
       if (state === 'bonk') {
         cx.fillStyle = '#FFC93C'; cx.font = '25px sans-serif';
@@ -539,11 +659,20 @@ export function mount(container, params, ctx) {
       state: () => ({ phase: state, elapsed, penalty, stars: stars.filter(Boolean).length, flagIdx, finished, mode: usingVirtual ? 'virtual' : 'sensor', rawTilt, filteredTilt }),
       field: () => ({ VIEW_W: viewSpan, VIEW_H, course }),
       constants: () => ({ GRAV, SENS, FRICTION, BOUNCE, MAX_SPEED, LOWPASS, DEADZONE, BONK_IMPACT, FALL_LIMIT, BONK_MS, CHUTE_MS, CLOCK_PENALTY, CAM_LERP, GLOW_DIST }),
-      setTilt: v => { usingVirtual = true; rawTilt = v * 18; },
+      onMap: () => inOverview,
+      toggleMap: () => { inOverview = !inOverview; fitCanvas(); },
+      calibrating: () => false,
+      courses: () => COURSES.map(c => c.id),
+      pos: () => ({ x: bx, y: by, vx, vy, state }),
+      flag: () => flagIdx,
+      stars: () => stars.slice(),
+      time: () => elapsed,
+      penalty: () => penalty,
+      setTilt: deg => { usingVirtual = true; rawTilt = typeof deg === 'number' ? deg * 18 : 0; },
       orient: (gamma, beta) => orientation({ gamma, beta }),
       recentre: () => { zeroTilt = null; rawTilt = 0; filteredTilt = 0; },
       step: ms => step(ms),
-      teleport: (x, y = (terrainAt(x) || FLOOR_Y) - BALL_R) => { bx = x; by = y; vx = 0; vy = 0; onGround = terrainAt(x) != null; },
+      teleport: (x, y = (terrainAt(x) || FLOOR_Y) - BALL_R) => { bx = x; by = y; vx = 0; vy = 0; onGround = terrainAt(x, y) != null; },
       velocity: v => { vx = v; },
       holdPaddle: dir => { paddle = dir; gateOpen = !!dir; if (dir) girderTurns = (girderTurns + 1) % 4; },
       releasePaddle: () => { paddle = 0; gateOpen = false; },

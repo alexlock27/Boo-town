@@ -68,6 +68,7 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen detective' });
   container.appendChild(root);
   let shell = null;
+  let cleanupKeydown = null;
   const rz = params && params.resume;
   if (rz) play(rz.mode || 4);
   else startCard();
@@ -130,6 +131,17 @@ export function mount(container, params, ctx) {
       kb.appendChild(rowEl);
     });
     shell.area.appendChild(el('div', { class: 'det-wrap' }, [grid, kb]));
+
+    if (cleanupKeydown) { cleanupKeydown(); cleanupKeydown = null; }
+    const onKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key === 'enter') submit();
+      else if (key === 'backspace') backspace();
+      else if (/^[a-z]$/.test(key)) typeCh(key);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    cleanupKeydown = () => { document.removeEventListener('keydown', onKeyDown); };
 
     renderCurrent();
 
@@ -233,6 +245,7 @@ export function mount(container, params, ctx) {
     }
     function finish() {
       const stars = starsFor(solved, guessesUsed, hinted);
+      if (cleanupKeydown) { cleanupKeydown(); cleanupKeydown = null; }
       setTimeout(() => {
         shell.cleanup();
         ctx.go('results', { game: 'detective', gameName: 'Word Detective', stars, level: null, cat: null, mix: false, replay: () => ctx.go('detective') });
@@ -240,5 +253,5 @@ export function mount(container, params, ctx) {
     }
   }
 
-  return { unmount() { if (shell) shell.cleanup(); } };
+  return { unmount() { if (shell) shell.cleanup(); if (cleanupKeydown) cleanupKeydown(); } };
 }

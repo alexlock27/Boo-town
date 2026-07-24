@@ -11,7 +11,7 @@ import { noteQuest } from '../quests.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide, renderItem } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
-import { sfx, music, beatvoice } from '../sfx.js';
+import { sfx, music, beatvoice, audioClockMs } from '../sfx.js';
 import { BOO_POP_HITS } from '../../data/songs.js';
 import { resolveItem } from '../customs.js';
 import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
@@ -150,7 +150,7 @@ export function mount(container, params, ctx) {
     const collector = createTrickyCollector(shell.area);
     if (steady) field.classList.add('steady');
 
-    const now = () => performance.now();
+    const now = () => audioClockMs();
     const curBeat = () => (now() - startTime) / beatMs;
 
     // ---- backing track (RUN9 C6 addendum — the specified pop backing, never optional):
@@ -159,25 +159,41 @@ export function mount(container, params, ctx) {
     // Runs on an eighth-note grid (beatMs/2 per step, 8 steps/bar), music bus (ducks w/ TTS).
     function startBacking() {
       if (backingTimer) return;
-      backingTimer = setInterval(() => {
-        if (document.hidden || ended) return;
-        const step = backingStep % 8;                        // eighth within the bar
+      sfx.tap(); // Wake up audio context if suspended
+      backingTimer = setInterval(scheduleBacking, 60);
+    }
+    
+    function scheduleBacking() {
+      if (document.hidden || ended) return;
+      const tNow = audioClockMs() / 1000;
+      const tStart = startTime / 1000;
+      let nextTime = tStart + (backingStep * beatMs / 2000);
+      
+      while (nextTime < tNow + 0.3) {
+        const step = backingStep % 8;
         const bar = Math.floor(backingStep / 8);
-        const fillBar = bar % 4 === 3;                       // every fourth bar carries the fill
-        // hats: every eighth; the fill swaps the last two hats for quick snares
-        if (fillBar && step >= 6) beatvoice.backingDrum('snare');
-        else beatvoice.backingDrum('hihat');
-        // kick on beats 1 & 3 (steps 0, 4); snare on 2 & 4 (steps 2, 6)
-        if (step === 0 || step === 4) beatvoice.backingDrum('kick');
-        if (step === 2 || step === 6) beatvoice.backingDrum('snare');
-        // bass: the chord root on each beat, a passing note on the bar's last eighth
+        const fillBar = bar % 4 === 3;
+        
+        const v = 0.85 + Math.random() * 0.3; // humanize
+        // hats
+        if (fillBar && step >= 6) beatvoice.backingDrum('snare', { time: nextTime, vel: v });
+        else beatvoice.backingDrum('hihat', { time: nextTime, vel: v * (step % 2 === 0 ? 1 : 0.6) });
+        
+        // kick / snare
+        if (step === 0 || step === 4) beatvoice.backingDrum('kick', { time: nextTime, vel: v });
+        if (step === 2 || step === 6) beatvoice.backingDrum('snare', { time: nextTime, vel: v });
+        
+        // bass
         const rootIdx = bar % track.bass.length;
-        if (step % 2 === 0) beatvoice.bass(98 * Math.pow(2, track.bass[rootIdx] / 12));
-        else if (step === 7) beatvoice.bass(98 * Math.pow(2, ((track.bass[rootIdx] + track.bass[(rootIdx + 1) % track.bass.length]) / 2) / 12));   // passing note toward the next root
-        // chord stabs landing OFF-beat (the "and" of beats 2 and 4)
-        if ((step === 3 || step === 7) && track.chords) beatvoice.stab(track.chords[rootIdx]);
+        if (step % 2 === 0) beatvoice.bass(98 * Math.pow(2, track.bass[rootIdx] / 12), { time: nextTime, vel: v });
+        else if (step === 7) beatvoice.bass(98 * Math.pow(2, ((track.bass[rootIdx] + track.bass[(rootIdx + 1) % track.bass.length]) / 2) / 12), { time: nextTime, vel: v });
+        
+        // stab
+        if ((step === 3 || step === 7) && track.chords) beatvoice.stab(track.chords[rootIdx], { time: nextTime, vel: v });
+        
         backingStep++;
-      }, beatMs / 2);
+        nextTime = tStart + (backingStep * beatMs / 2000);
+      }
     }
     function stopBacking() { if (backingTimer) { clearInterval(backingTimer); backingTimer = null; } }
     // ---- combo fever (C3): the highway blooms, a Boo crowd bounces, the melody shimmers ----
