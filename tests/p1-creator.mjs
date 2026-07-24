@@ -3,6 +3,7 @@
 // twice in a session with all progress, name and speech intact.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
+import { VERSION } from '../js/state.js';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 mkdirSync('screenshots', { recursive: true });
 const errors = []; let failed = false;
@@ -32,7 +33,7 @@ await page.waitForSelector('.hub', { timeout: 5000 });
 
 console.log('== old v1 save migrates losslessly ==');
 let s = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
-assert(s.version === 11, 'save version bumped to 11 (' + s.version + ')');   // v11: RUN10 P1 area-scoped town
+assert(s.version === VERSION, 'save version bumped to the current VERSION (' + s.version + ')');   // RUN11 Q9: assert the CURRENT version, never a frozen number
 assert(s.guide.species === 'giraffe', 'guide.species defaults to giraffe');
 assert(s.guide.body === 'lilac', 'body preserved');
 assert(s.guide.patternColour === 'pink', 'old patch -> patternColour preserved (' + s.guide.patternColour + ')');

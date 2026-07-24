@@ -6,6 +6,15 @@ import { sfx, music } from './sfx.js';
 import { listArtworks, GALLERY_CAP } from './studio.js';
 import { idbDelete } from './idb.js';
 
+// The zero-network guard for the share path (RUN11 Q9 / F-10). Exported so a suite can
+// assert it directly: a data: URL passes, anything addressable off-device throws.
+export function assertDataUrl(url) {
+  if (typeof url !== 'string' || !/^data:/i.test(url)) {
+    throw new Error('zero-network invariant: artwork must be a local data: URL, got ' + String(url).slice(0, 32));
+  }
+  return url;
+}
+
 export function mount(container, params, ctx) {
   music.play('calm');
   const root = el('div', { class: 'gallery-screen' });
@@ -38,6 +47,11 @@ export function mount(container, params, ctx) {
     const shareBtn = el('button', { class: 'btn', text: '📤 Share / Save', onclick: async () => {
       sfx.tap();
       try {
+        // ZERO-NETWORK INVARIANT (house law): this is the only fetch() in js/, and it may
+        // ONLY ever read a local data: URL — artwork already held on this device — so it
+        // never reaches the network. The guard makes that auditable: if a remote URL ever
+        // reaches here it throws instead of quietly making a request. (RUN11 Q9 / F-10.)
+        assertDataUrl(a.png);
         const res = await fetch(a.png);
         const blob = await res.blob();
         const file = new File([blob], 'boo_town_art.png', { type: 'image/png' });
