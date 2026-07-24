@@ -1,4 +1,4 @@
-// Lexie & Tyler's Twin Party Garden — a self-contained, saved birthday celebration.
+// Party Garden — a self-contained, saved celebration. RETIRED + ARCHIVED (RUN11 Q1): not loaded by the app.
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
 import { BY_ID, BIRTHDAY_BOOS } from '../data/catalogue.js';
@@ -13,16 +13,16 @@ export const PARTY_GUEST_MESSAGES = [
   'Make a giant wish!', 'The balloons know your name!', 'Birthday Boo reporting in!'
 ];
 export const PARTY_CONFIG = {
-  lexie: {
-    name:'LEXIE', colour:'#FF72C6', deep:'#8A3D91', soft:'#FFE0F4',
-    icon:'⭐', booId:'boo_birthday_lexie', booName:'Lexie Starshine',
-    booLine:'Crown bright, starry and made only for Lexie.',
+  party_a: {
+    name:'CONFETTI', colour:'#FF72C6', deep:'#8A3D91', soft:'#FFE0F4',
+    icon:'⭐', booId:'boo_party_gift_a', booName:'Confetti',
+    booLine:'Crown bright, starry and made only for Confetti.',
     cake:'Strawberry Star Cake', cakeIcon:'🍓', theme:'Starshine Palace'
   },
-  tyler: {
-    name:'TYLER', colour:'#28C9C1', deep:'#2566A8', soft:'#D9FBF8',
-    icon:'🚀', booId:'boo_birthday_tyler', booName:'Tyler Turbo',
-    booLine:'Fast, musical and made only for Tyler.',
+  party_b: {
+    name:'RIBBON', colour:'#28C9C1', deep:'#2566A8', soft:'#D9FBF8',
+    icon:'🚀', booId:'boo_party_gift_b', booName:'Ribbon',
+    booLine:'Fast, musical and made only for Ribbon.',
     cake:'Turbo Rocket Cake', cakeIcon:'🚀', theme:'Turbo Party Base'
   }
 };
@@ -30,8 +30,8 @@ export const PARTY_CONFIG = {
 export function mount(container, params, ctx) {
   music.play('fair');
   mutate(st => {
-    st.birthdayParty = st.birthdayParty || { opened:{lexie:false,tyler:false}, visits:0 };
-    st.birthdayParty.opened = st.birthdayParty.opened || { lexie:false,tyler:false };
+    st.birthdayParty = st.birthdayParty || { opened:{party_a:false,party_b:false}, visits:0 };
+    st.birthdayParty.opened = st.birthdayParty.opened || { party_a:false,party_b:false };
     st.birthdayParty.visits = (st.birthdayParty.visits || 0) + 1;
   });
   const root = el('div', { class:'birthday-party' });
@@ -39,7 +39,7 @@ export function mount(container, params, ctx) {
     backControl(() => ctx.go('worldmap')),
     el('div', { class:'birthday-title' }, [
       el('h2', { text:'Twin Party Garden' }),
-      el('p', { text:'Two parties. Two presents. One brilliant eleventh birthday.' })
+      el('p', { text:'Two parties. Two presents. One brilliant party day.' })
     ]),
     el('div', { class:'birthday-eleven', text:'11' })
   ]);
@@ -53,7 +53,7 @@ export function mount(container, params, ctx) {
 
   const zones = {};
   const timers = [];
-  const partyMoments = { lexie:new Set(), tyler:new Set() };
+  const partyMoments = { party_a:new Set(), party_b:new Set() };
   const ownedGuestIds = Object.keys(getState().inventory || {}).filter(id => {
     const item = resolveItem(id);
     return (getState().inventory[id] || 0) > 0 && item && item.kind === 'boo' && !item.birthdayOnly;
@@ -93,7 +93,7 @@ export function mount(container, params, ctx) {
     const marquee = el('div', { class:'party-marquee' }, [
       el('small', { text:config.theme }),
       el('strong', { text:config.name }),
-      el('span', { text:'HAPPY 11TH BIRTHDAY' })
+      el('span', { text:'HAPPY PARTY DAY' })
     ]);
     const cake = el('div', { class:'party-cake-wrap' }, [
       el('div', { class:'party-cake-label', text:`${config.cakeIcon} ${config.cake}` }),
@@ -168,7 +168,7 @@ export function mount(container, params, ctx) {
     sfx.fanfare();
     const rect = zone.getBoundingClientRect();
     if (!REDUCED) confetti({count:110,power:1.15,origin:{x:(rect.left+rect.width/2)/innerWidth,y:.35}});
-    const line = `Happy eleventh birthday, ${titleCase(key)}!`;
+    const line = `Happy party day, ${titleCase(key)}!`;
     zone.querySelector('.party-message').textContent = `${config.icon} ${line} ${config.icon}`;
     speakMaybe(line);
     timers.push(setTimeout(() => zone.classList.remove('celebrating'), 6000));
@@ -252,30 +252,30 @@ export function mount(container, params, ctx) {
 
   function refreshFinale() {
     const opened = getState().birthdayParty.opened;
-    const ready = opened.lexie && opened.tyler;
+    const ready = opened.party_a && opened.party_b;
     finale.disabled = !ready;
     finale.classList.toggle('ready', ready);
-    finale.querySelector('small').textContent = ready ? 'Both Birthday Boos are ready!' : `${Number(opened.lexie)+Number(opened.tyler)} of 2 presents opened`;
+    finale.querySelector('small').textContent = ready ? 'Both Birthday Boos are ready!' : `${Number(opened.party_a)+Number(opened.party_b)} of 2 presents opened`;
   }
 
   function showFinale() {
     const opened = getState().birthdayParty.opened;
-    if (!(opened.lexie && opened.tyler)) return;
+    if (!(opened.party_a && opened.party_b)) return;
     sfx.fanfare();
     if (!REDUCED) confetti({count:180,power:1.4,origin:{x:.5,y:.42}});
     const overlay = el('div', { class:'overlay twin-finale-overlay' });
     const card = el('div', { class:'twin-finale-card' }, [
       el('div', { class:'finale-eleven', text:'11' }),
-      el('h1', { text:'LEXIE + TYLER' }),
+      el('h1', { text:'CONFETTI + RIBBON' }),
       el('p', { text:'TWO BIRTHDAYS. TWO PARTY BOOS. ONE AMAZING TEAM.' }),
       el('div', { class:'finale-boos' }, BIRTHDAY_BOOS.map(item => el('div', { html:renderItem(item,{size:190}) }))),
       el('strong', { text:'HAPPY BIRTHDAY, TWINS! 🎉' }),
-      el('button', { class:'btn finale-again', text:'Celebrate again!', onclick:() => { overlay.remove(); celebrateParty('lexie'); celebrateParty('tyler'); } }),
+      el('button', { class:'btn finale-again', text:'Celebrate again!', onclick:() => { overlay.remove(); celebrateParty('party_a'); celebrateParty('party_b'); } }),
       el('button', { class:'btn soft', text:'Back to the parties', onclick:() => overlay.remove() })
     ]);
     overlay.appendChild(card); document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('show'));
-    speakMaybe('Happy eleventh birthday, Lexie and Tyler!');
+    speakMaybe('Happy party day, Confetti and Ribbon!');
   }
 
   function scrollToParty(key) {

@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 12;  // v12: lastBackupAt (RUN8 v2 backup reminder). Older field: birthday-party keepsakes.
+export const VERSION = 13;  // v13: retire the party feature — earned gift Boos keep neutral ids. v12: lastBackupAt.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -82,7 +82,7 @@ function freshSave() {
     care: { bonds: {}, treats: 0 },  // RUN10 P12: friendship only rises; treats cap at five
     bloom: { max: {} },              // RUN10 P19: five child-facing petals never shrink
     wishes: { unlocked: {} },        // RUN10 P20: word -> true, one permanent Build item each
-    birthdayParty: { opened: { lexie: false, tyler: false }, visits: 0 },
+    partyGiftArchived: false,   // v13 (RUN11 Q1): the party feature is retired; its earned Boos live on as gift Boos
     shinies: {},                // itemId -> shiny copy count within the owned stack (RUN4 C8)
     shinyDrops: 0,              // Boo drops since the last shiny (the hidden mercy counter, C8)
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
@@ -298,6 +298,35 @@ export function migrate(obj) {
       else { if (!Array.isArray(a.items)) a.items = []; if (!Array.isArray(a.paths)) a.paths = []; }
     }
   }
+  // v13 (RUN11 Q1): the party feature is retired. Its two earned Boos keep their art
+  // under neutral gift ids; carry ownership / shiny / bond / nickname / equip forward, and
+  // fold any old party-opened state into one neutral archived flag. Legacy ids are matched
+  // by their prefix and mapped deterministically by sorted suffix, so no retired name is
+  // referenced by literal here (privacy law G9).
+  const GIFT_IDS = ['boo_party_gift_a', 'boo_party_gift_b'];
+  const giftStores = [merged.inventory, merged.shinies, merged.nicknames, merged.equips, merged.care && merged.care.bonds];
+  // Build ONE id map from the union of legacy ids across every keyed store, so a store
+  // that holds only one of the two (e.g. a nickname on just one Boo) still maps to the
+  // same gift id everywhere. Deterministic by sorted suffix; no retired name referenced.
+  const legacyIds = new Set();
+  for (const st of giftStores) if (st && typeof st === 'object') for (const k of Object.keys(st)) if (k.startsWith('boo_birthday_')) legacyIds.add(k);
+  const idMap = {};
+  [...legacyIds].sort().forEach((oldId, i) => { idMap[oldId] = GIFT_IDS[i] || GIFT_IDS[GIFT_IDS.length - 1]; });
+  const remapWith = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    for (const oldId of Object.keys(obj)) {
+      const newId = idMap[oldId];
+      if (!newId) continue;
+      if (typeof obj[oldId] === 'number' && typeof obj[newId] === 'number') obj[newId] += obj[oldId];
+      else if (!(newId in obj)) obj[newId] = obj[oldId];
+      delete obj[oldId];
+    }
+  };
+  giftStores.forEach(remapWith);
+  const legacyParty = o.birthdayParty || merged.birthdayParty;
+  const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);
+  merged.partyGiftArchived = !!merged.partyGiftArchived || !!anyOpened;
+  delete merged.birthdayParty;   // never carry the retired sub-object forward
   merged.version = VERSION;
   return merged;
 }

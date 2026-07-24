@@ -153,10 +153,10 @@ export const CATALOGUE = [
   // --- Boo Quest exclusives (RUN6 C6): earned only by finishing a land, never in boxes ---
   { id: 'boo_scout', kind: 'boo', name: 'Scout', rarity: 'ultra', species: 'pip', colors: { body: 'teal' }, acc: 'explorerhat', questOnly: true, blurb: 'Map in paw, hat on head, always first to the horizon.' },
   { id: 'deco_questflag', kind: 'deco', name: 'Quest Flag', rarity: 'rare', deco: 'questflag', questOnly: true, blurb: 'Planted at the end of the Sparkle Meadow. You were here!' },
-  // --- Lexie & Tyler's 11th birthday keepsakes (local party feature) ---
+  // --- Party gift keepsakes (retired party feature, RUN11 Q1; earned Boos kept) ---
   // Free + birthdayOnly keeps them out of mystery boxes and the standard collection count.
-  { id: 'boo_birthday_lexie', kind: 'boo', name: 'Lexie Starshine', rarity: 'birthday', species: 'nova', colors: { body: 'bubblegum', belly: 'cream' }, acc: 'goldcrown', fx: 'twinkle', free: true, birthdayOnly: true, blurb: 'A crown-bright party Boo made specially for Lexie’s eleventh birthday.' },
-  { id: 'boo_birthday_tyler', kind: 'boo', name: 'Tyler Turbo', rarity: 'birthday', species: 'zippy', colors: { body: 'teal', wing: 'gold' }, acc: 'djheadphones', fx: 'shimmer', free: true, birthdayOnly: true, blurb: 'A music-powered party Boo made specially for Tyler’s eleventh birthday.' }
+  { id: 'boo_party_gift_a', kind: 'boo', name: 'Confetti', rarity: 'birthday', species: 'nova', colors: { body: 'bubblegum', belly: 'cream' }, acc: 'goldcrown', fx: 'twinkle', free: true, birthdayOnly: true, blurb: 'A crown-bright party Boo, full of sparkle and cheer.' },
+  { id: 'boo_party_gift_b', kind: 'boo', name: 'Ribbon', rarity: 'birthday', species: 'zippy', colors: { body: 'teal', wing: 'gold' }, acc: 'djheadphones', fx: 'shimmer', free: true, birthdayOnly: true, blurb: 'A music-loving party Boo with a beat in every step.' }
 ];
 
 // Convenience lookups.

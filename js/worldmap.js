@@ -35,17 +35,7 @@ export function mount(container, params, ctx) {
 
   const island = el('div', { class: 'map-island', html: renderIslandMap({}) });
   stage.appendChild(island);
-  const birthday = el('button', { class: 'map-birthday', 'aria-label': 'Lexie and Tyler birthday party', onclick: () => {
-    sfx.fanfare(); ctx.go('birthdayparty');
-  } }, [
-    el('span', { class: 'map-birthday-gift', text: '🎁' }),
-    el('span', { class: 'map-birthday-copy' }, [
-      el('strong', { text: 'TWIN PARTY' }),
-      el('small', { text: 'LEXIE ✦ TYLER · 11' })
-    ]),
-    el('span', { class: 'map-birthday-balloons', text: '🎈🎈' })
-  ]);
-  stage.appendChild(birthday);
+  // (RUN11 Q1: the birthday party entry point is retired — see archive/birthdayparty.js.)
 
   const badgeEls = {};
   let justUnlocked = new Set();
@@ -136,8 +126,7 @@ export function mount(container, params, ctx) {
       justUnlocked: () => [...justUnlocked],
       // RUN10 P5 QA hook: which area (if any) shows the hide-and-seek 👀 chip
       hidingArea: () => { const h = currentHide(); return h && h.spot ? h.spot.zone : null; },
-      hideChipShown: (key) => !!(badgeEls[key] && badgeEls[key].querySelector('.mb-hide-chip')),
-      birthdayParty: () => birthday.click()
+      hideChipShown: (key) => !!(badgeEls[key] && badgeEls[key].querySelector('.mb-hide-chip'))
     };
   }
 

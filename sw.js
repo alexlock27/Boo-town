@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run8v2-p4-20260724';  // RUN8 v2 phase 4: backup visibility + gentle reminder
+const BUILD_STAMP = 'run11-q1-20260724';  // RUN11 Q1: retire party feature, purge names, VERSION 13
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -81,7 +81,6 @@ const ASSETS = [
   'js/requests.js',
   'js/choreographer.js',
   'js/discohall.js',
-  'js/birthdayparty.js',
   'js/attrengine.js',
   'js/wishwell.js',
   'js/content.js',

@@ -102,7 +102,7 @@ is vindicated: 26/28 sound, 2 broken and shipped.
   (`r10p1/p2/p3/p4/p5/p12/p13/p20`, `p3-town`, `r4p5-town`, `r5p4-town`, `r6p1-town`,
   `r7p2-zones`, …) and 2 are Boo Roll via F-01 (`r9p4-booroll`, `r10p7-booroll2`);
   `r10p10-p11` (F-03) and `r10p19-brain` (F-04) fail independently. Passing RUN10 packet
-  suites: `r10p6-bandscenes`, `r10p18-disco` (+ `birthday-twins`). A residue of the fails
+  suites: `r10p6-bandscenes`, `r10p18-disco` (+ a party-gift retirement suite). A residue of the fails
   are frame-sampling suites (`r4p10-phone`, `r5p5-phone`, `r6p9-perf`, `r7p4-toddler`,
   `m3-pwa`, …) that CLAUDE.md flags as batch-load-flaky and that warrant a direct re-run
   before being treated as real; the 38 is therefore an upper bound, but the town/Boo Roll
