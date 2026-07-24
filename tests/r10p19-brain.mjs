@@ -1,7 +1,7 @@
 // Focused RUN10 P19 check: pure generators, both play loops and non-judgemental Bloom.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
-import { oddGrid, violatesOddPredicate, flashScene, flashQuestion, validateFlashQuestion } from '../js/attrengine.js';
+import { oddGrid, violatesOddPredicate, flashScene, flashQuestion, validateFlashQuestion } from '../js/brainhelpers.js';
 import { bloomStats, persistBloomMax } from '../data/bloom.js';
 
 let failed = false;
