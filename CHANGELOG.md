@@ -2,7 +2,7 @@
 
 All notable changes to Boo Town. Newest first.
 
-## Run 9: the depth run
+## Run 10: the depth run
 - **The tidy sweep**: Paint and Collage now use one shared bottom drawer with tabbed trays — Paint's
   Tools / Colours / Stamps, Collage's Boos / Party / Seaside / Nature / Sparkle / Letters / Backgrounds
   / Text. Collapsed, it shows the current selection large with a grab handle; tap or drag up to open.

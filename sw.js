@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run10-final-20260719';  // Run 10 release + twin birthday activities
+const BUILD_STAMP = 'run10-final-20260724';  // Run 10 release + twin birthday activities
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -110,6 +110,9 @@ const ASSETS = [
   'data/sorting.js',
   'data/sortingExtra.js',
   'data/quests.js',
+  'data/courses.js',
+  'data/puzzles.js',
+  'data/stories.js',
   'assets/fonts/Fredoka-Variable.woff2',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',

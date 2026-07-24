@@ -32,7 +32,7 @@ await page.waitForSelector('.hub', { timeout: 5000 });
 
 console.log('== old v1 save migrates losslessly ==');
 let s = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')));
-assert(s.version === 6, 'save version bumped to 6 (' + s.version + ')');   // v6: RUN10 P1 area-scoped town
+assert(s.version === 11, 'save version bumped to 11 (' + s.version + ')');   // v11: RUN10 P1 area-scoped town
 assert(s.guide.species === 'giraffe', 'guide.species defaults to giraffe');
 assert(s.guide.body === 'lilac', 'body preserved');
 assert(s.guide.patternColour === 'pink', 'old patch -> patternColour preserved (' + s.guide.patternColour + ')');
