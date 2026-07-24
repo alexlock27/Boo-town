@@ -4373,3 +4373,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .exp-snaffle { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--pop); }
 .exp-reward { display: grid; justify-items: center; gap: 6px; }
 .exp-complete { font-family: var(--font-display); font-weight: 700; color: var(--star); text-align: center; }
+
+/* RUN10 P17 (RUN11 Q5): caper signposts + detective notebook */
+.caper-town-sign { position: absolute; transform: translateX(-50%); background: #FFF3D0; color: #5A3E20; border: 3px solid #8A5A2B; border-radius: 8px; padding: 4px 10px; font-family: var(--font-display); font-weight: 700; font-size: 13px; white-space: nowrap; box-shadow: 0 3px 0 #6B4420; z-index: 6; }
+.trail-chip.caper .tc-ic { font-size: 22px; }

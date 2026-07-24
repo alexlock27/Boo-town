@@ -271,6 +271,12 @@ export function mount(container, params, ctx) {
     const jb = buildJumpbackChip();
     if (jb) railInner.appendChild(jb);
 
+    // RUN10 P17: the wanted-poster chip, only while a caper is open.
+    if (s.caper && s.caper.open) railInner.appendChild(el('button', { class: 'trail-chip caper', onclick: () => { sfx.tap(); ctx.go('caper'); } }, [
+      el('span', { class: 'tc-ic', text: '🔍' }),
+      el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: "Snaffle's Caper" }), el('span', { class: 'tc-sub', text: `${s.caper.clues || 0} clue${(s.caper.clues || 0) === 1 ? '' : 's'} in your notebook` })])
+    ]));
+
     // Quests chip (always present — three little things to try, 0–3 badge)
     railInner.appendChild(el('button', { class: 'trail-chip quests' + (qs.allDone ? ' done' : ''), onclick: () => { sfx.tap(); showQuests(); } }, [
       el('span', { class: 'tc-ic', text: '🎯' }),

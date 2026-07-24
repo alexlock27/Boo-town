@@ -5,6 +5,7 @@
 
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate } from './state.js';
+import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey } from './areas.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
@@ -568,6 +569,14 @@ export function mount(container, params, ctx) {
       }
     });
     renderPaths();   // ground layer, above grass, below row-0 items (RUN10 P3) — renderScenery wipes ground
+    // RUN10 P17: while a caper is open every outdoor area wears one silly signpost; the
+    // unmasking sweep closes the caper, so the signs revert on the next render.
+    const caperText = getState().caper && getState().caper.open && CAPER_SIGNS[AREA.key];
+    if (caperText) {
+      const sign = el('div', { class: 'caper-town-sign', text: caperText });
+      sign.style.left = (zoneW * .5) + 'px'; sign.style.top = (groundY - 56) + 'px';
+      ground.appendChild(sign);
+    }
   }
 
   // Room backdrop (RUN10 P4): a wall band (top 55%) + a floor band, no sky/hills/signpost —
