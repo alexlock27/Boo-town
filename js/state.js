@@ -475,7 +475,6 @@ async function requestPersist() {
   try {
     if (navigator.storage && navigator.storage.persist) {
       persistResult = await navigator.storage.persist();
-      console.log('[state] storage.persist ->', persistResult);
     }
   } catch (e) {
     console.warn('[state] persist error', e);

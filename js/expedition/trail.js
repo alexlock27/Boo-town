@@ -24,6 +24,7 @@ export function mount(container, params, ctx) {
     const grid = el('div', { class: 'exp-party-grid' });
     const count = el('p', { class: 'exp-counter' });
     const banner = el('p', { class: 'exp-guests' });
+    const gotoGames = el('button', { class: 'btn secondary exp-goto-games', text: 'Go and win some stars', hidden: true, onclick: () => ctx.go('hub') });
     const start = el('button', { class: 'btn big', text: 'Start the trail', onclick: () => {
       const explorers = partyFor(selected);
       mutate(save => { save.expedition = save.expedition || { tiers: {}, progress: {}, party: [] }; save.expedition.party = explorers.map(boo => boo.id); });
@@ -52,12 +53,24 @@ export function mount(container, params, ctx) {
         ]));
       }
       count.textContent = `${selected.size} / 8–12 explorers`;
-      banner.textContent = needsFriends ? 'The trail needs more variety — friends are joining!' : '';
+      // First-run: a player who has not met eight Boos yet would otherwise face an empty
+      // grid and a dead Start button with no idea why. Say so warmly and point at the one
+      // useful action — go and win some stars. (Audit; house law: never a bare blank.)
+      const shortBy = 8 - own.length;
+      if (shortBy > 0) {
+        banner.textContent = own.length === 0
+          ? 'The trail needs eight friends. Win some stars and Boos will come to live here!'
+          : `${shortBy} more ${shortBy === 1 ? 'friend' : 'friends'} and the trail can set off!`;
+        gotoGames.hidden = false;
+      } else {
+        banner.textContent = needsFriends ? guideLine('L_EXP_GUESTS') : '';
+        gotoGames.hidden = true;
+      }
       start.disabled = selected.size < 8;
     };
     root.append(el('div', { class: 'exp-picker card' }, [
       el('h2', { text: 'Boo Expedition' }), el('p', { text: 'Choose a party for the trail.' }),
-      count, banner, grid, start
+      count, banner, grid, start, gotoGames
     ]), backControl(() => ctx.go('hub'), { floating: true }));
     draw();
   }

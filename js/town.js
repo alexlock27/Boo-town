@@ -1872,7 +1872,11 @@ export function mount(container, params, ctx) {
     const counts = DRAWER_TABS_SPEC.map(() => 0);
     for (const id of ids) {
       const item = resolveItem(id);
+      // A drawer chip is pure artwork, so without a label a screen reader announces a bare
+      // "button". Name it after the item (its nickname when she has given one). (Audit.)
+      const chipName = getDisplayName(id) || (item && item.name) || 'item';
       const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
+        'aria-label': free[id] > 1 ? `${chipName} (${free[id]})` : chipName,
         onclick: () => selectHold(id) }, [
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
         free[id] > 1 ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
