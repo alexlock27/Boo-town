@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run11-q2-20260724';  // RUN11 Q2: Word Detective GO key + tile badges
+const BUILD_STAMP = 'run11-q3-20260724';  // RUN11 Q3: real P14 attrengine + P19 brainhelpers split
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -82,6 +82,7 @@ const ASSETS = [
   'js/choreographer.js',
   'js/discohall.js',
   'js/attrengine.js',
+  'js/brainhelpers.js',
   'js/wishwell.js',
   'js/content.js',
   'js/games/bubblepop.js',

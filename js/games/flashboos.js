@@ -7,7 +7,7 @@ import { contentTier } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { recordResult } from '../state.js';
 import { speakMaybe } from '../guide.js';
-import { flashScene, flashQuestion } from '../attrengine.js';
+import { flashScene, flashQuestion } from '../brainhelpers.js';
 
 export const FLASH_INTRO = [
   { text: 'Watch the Boos before the curtain closes.' },

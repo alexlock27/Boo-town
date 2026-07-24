@@ -1,141 +1,215 @@
-// RUN10 P19's small, pure attribute engine. It deliberately owns generation only:
-// the held P14 authoring tools are not pulled into this recovery packet.
-export const BRAIN_COLOURS = ['indigo', 'lilac', 'teal', 'bubblegum', 'gold', 'aqua'];
-export const BRAIN_SPECIES = ['bloop', 'pip', 'munch', 'twirl', 'sunny', 'nova'];
-export const FEATURES = ['colour', 'species', 'hat', 'shine'];
-export const TIER_ARITY = { toddler: 1, light: 1, medium: 2, full: 3 };
+// RUN10 P14 — the DOM-free attribute brain used by Expedition, Caper and games.
+// Rules deliberately describe only things that are visibly present in the supplied
+// group.  That keeps every puzzle discoverable from play rather than from a secret.
 
-const pick = (a, rng = Math.random) => a[Math.floor(rng() * a.length)];
-const other = (a, value, rng) => pick(a.filter(x => x !== value), rng);
-const boolOther = v => !v;
-const shuffled = (values, rng) => {
-  const out = [...values];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
+const PATHS = ['species', 'colour', 'accessory', 'shiny'];
+const LABELS = {
+  species: 'species', colour: 'colour', accessory: 'wearing an accessory', shiny: 'shiny'
 };
 
-export function randomBrainBoo(rng = Math.random) {
+export function features(boo = {}) {
   return {
-    colour: pick(BRAIN_COLOURS, rng),
-    species: pick(BRAIN_SPECIES, rng),
-    hat: rng() < .45,
-    shine: rng() < .35
+    species: boo.species || boo.kind || 'boo',
+    colour: boo.colour || boo.color || boo.colors?.body || 'unknown',
+    accessory: Boolean(boo.accessory || boo.acc || boo.equip || boo.equips),
+    shiny: Boolean(boo.shiny || boo.isShiny)
   };
 }
 
-function invert(boo, feature, rng) {
-  if (feature === 'colour') boo.colour = other(BRAIN_COLOURS, boo.colour, rng);
-  else if (feature === 'species') boo.species = other(BRAIN_SPECIES, boo.species, rng);
-  else boo[feature] = boolOther(boo[feature]);
+export function featuresOf(obj = {}) { return features(obj); }
+
+export function partition(list, pred) {
+  const yes = [], no = [];
+  for (const item of list || []) (pred(item) ? yes : no).push(item);
+  return { yes, no };
 }
 
-export function oddGrid(tier = 'light', rng = Math.random, options = {}) {
-  const count = tier === 'full' ? 12 : tier === 'medium' ? 9 : 4;
-  const base = randomBrainBoo(rng);
-  const oddIndex = Math.floor(rng() * count);
-  const oddFeature = FEATURES.includes(options.oddFeature) ? options.oddFeature : pick(FEATURES, rng);
-  const distractorFeatures = shuffled(FEATURES.filter(feature => feature !== oddFeature), rng)
-    .slice(0, TIER_ARITY[tier] || 1);
-
-  // Build repeated visual families, then change one feature on one Boo. Other
-  // differences remain interesting but always occur in groups of 2+, so none can
-  // masquerade as a second answer. Medium uses 3 families; Full uses 4.
-  const familySize = tier === 'light' ? 2 : 3;
-  const familyCount = count / familySize;
-  const families = Array.from({ length: familyCount }, () => ({ ...base }));
-  distractorFeatures.forEach((feature, featureIndex) => {
-    const alternate = { ...base };
-    invert(alternate, feature, rng);
-    families.forEach((family, familyIndex) => {
-      if ((familyIndex + featureIndex) % 2 === 1) family[feature] = alternate[feature];
-    });
-  });
-  const positions = shuffled(Array.from({ length: count }, (_, index) => index), rng);
-  const familyForIndex = new Map(positions.map((index, position) => [index, Math.floor(position / familySize)]));
-  const items = Array.from({ length: count }, (_, index) => ({
-    ...families[familyForIndex.get(index)], id:`odd-${index}`
-  }));
-  invert(items[oddIndex], oddFeature, rng);
-  const predicateFeatures = [oddFeature];
-  return {
-    items, oddIndex, oddFeature, predicateFeatures, distractorFeatures,
-    expected: { [oddFeature]: base[oddFeature] }
-  };
-}
-
-export function violatesOddPredicate(boo, grid) {
-  return grid.predicateFeatures.some(feature => boo[feature] !== grid.expected[feature]);
-}
-
-const FLASH_PROPS = ['ball', 'hat-stand', 'swing', 'bench'];
-export function flashScene(tier = 'light', rng = Math.random, { toddler = false } = {}) {
-  const count = toddler ? 2 : tier === 'full' ? 6 : tier === 'medium' ? 5 : tier === 'light' ? 4 : 3;
-  const boos = Array.from({ length: count }, (_, index) => ({
-    ...randomBrainBoo(rng), id: `flash-${index}`, position: index,
-    name: ['Pip','Dot','Momo','Fizz','Tink','Bop'][index]
-  }));
-  // Position/identity questions need visible differences.
-  boos.forEach((boo, i) => { boo.colour = BRAIN_COLOURS[i % BRAIN_COLOURS.length]; boo.species = BRAIN_SPECIES[i % BRAIN_SPECIES.length]; });
-  // Count questions always have visible evidence to circle on the reveal-again.
-  boos[0].hat = true;
-  boos[Math.min(1, boos.length - 1)].shine = true;
-  const propCount = toddler ? 1 : Math.floor(rng() * 3);
-  const props = FLASH_PROPS.slice().sort(() => rng() - .5).slice(0, propCount);
-  const links = {};
-  props.forEach((prop, i) => { links[prop] = boos[i % boos.length].id; });
-  // Always make every exact template possible; only visible props are drawn.
-  if (!links.ball) links.ball = boos[Math.floor(rng() * boos.length)].id;
-  if (!links.swing) links.swing = boos[0].id;
-  if (!links.bench) links.bench = boos[boos.length - 1].id;
-  return { boos, props, links };
-}
-
-function countNear(correct, n) {
-  const candidates = [correct - 1, correct + 1, correct + 2, correct - 2].filter(x => x >= 0 && x <= n && x !== correct);
-  while (candidates.length < 2) candidates.push((correct + candidates.length + 1) % (n + 1));
-  return [...new Set(candidates)].slice(0, 2);
-}
-
-export function flashQuestion(scene, rng = Math.random) {
-  const templates = ['countWearing:hat', 'countWearing:shine', 'colourOfPosition:leftmost', 'colourOfPosition:rightmost', 'howManyTotal'];
-  if (scene.props.includes('swing')) templates.push('whichSatOn:swing');
-  if (scene.props.includes('bench')) templates.push('whichSatOn:bench');
-  if (scene.props.includes('ball')) templates.push('whoHeldThe:ball');
-  const template = pick(templates, rng);
-  const [kind, arg] = template.split(':');
-  let prompt, correct, near, answerType, targetId = null;
-  if (kind === 'countWearing') {
-    correct = scene.boos.filter(b => b[arg]).length;
-    near = countNear(correct, scene.boos.length);
-    prompt = `How many wore ${arg === 'hat' ? 'hats' : 'a shine'}?`;
-    answerType = 'number';
-  } else if (kind === 'howManyTotal') {
-    correct = scene.boos.length; near = countNear(correct, 7);
-    prompt = 'How many Boos were there?'; answerType = 'number';
-  } else if (kind === 'colourOfPosition') {
-    const target = arg === 'leftmost' ? scene.boos[0] : scene.boos.at(-1);
-    correct = target.colour; targetId = target.id;
-    const neighbour = arg === 'leftmost' ? scene.boos[1] : scene.boos.at(-2);
-    near = [neighbour.colour, BRAIN_COLOURS.find(c => c !== correct && c !== neighbour.colour)];
-    prompt = `What colour was the ${arg} Boo?`; answerType = 'colour';
-  } else {
-    const prop = kind === 'whichSatOn' ? arg : 'ball';
-    targetId = scene.links[prop];
-    correct = targetId;
-    near = scene.boos.filter(b => b.id !== correct).slice(0, 2).map(b => b.id);
-    prompt = kind === 'whichSatOn' ? `Who sat on the ${prop}?` : 'Who held the ball?';
-    answerType = 'boo';
+function plain(path, value, negated) {
+  if (path === 'accessory' || path === 'shiny') {
+    const hasIt = negated ? !value : !!value;
+    return hasIt ? LABELS[path] : `not ${LABELS[path]}`;
   }
-  const answers = [correct, ...near].sort(() => rng() - .5);
-  return { template, prompt, correct, answers, answerType, targetId };
+  return `${negated ? 'not ' : ''}${value} ${LABELS[path]}`;
 }
 
-export function validateFlashQuestion(scene, q) {
-  return q.answers.length === 3 && new Set(q.answers).size === 3 && q.answers.includes(q.correct) &&
-    (q.answerType !== 'boo' || scene.boos.some(b => b.id === q.correct)) &&
-    (q.answerType !== 'colour' || BRAIN_COLOURS.includes(q.correct)) &&
-    (q.answerType !== 'number' || Number.isInteger(q.correct));
+function ruleFor(parts, { swap = false } = {}) {
+  const pred = item => parts.every(part => {
+    const same = featuresOf(item)[part.path] === part.value;
+    return part.negated ? !same : same;
+  });
+  const text = parts.map(part => plain(part.path, part.value, part.negated)).join(' and ');
+  const rule = {
+    pred,
+    text,
+    describe: () => text,
+    featurePath: parts.length === 1 ? parts[0].path : parts.map(part => part.path),
+    negated: parts.some(part => part.negated),
+    arity: parts.length
+  };
+  // Tier four has one harmless, explicit mid-scene change: flip the first condition.
+  if (swap) rule.swap = () => ruleFor(parts.map((part, index) => index ? { ...part } : { ...part, negated: !part.negated }), { swap: true });
+  return rule;
+}
+
+function bucketRule(path, values, domain, { swap = false } = {}) {
+  const chosen = new Set(values);
+  const pred = item => chosen.has(featuresOf(item)[path]);
+  const words = values.map(value => (path === 'accessory' || path === 'shiny') ? (value ? LABELS[path] : `not ${LABELS[path]}`) : String(value));
+  const text = (path === 'accessory' || path === 'shiny') ? words.join(' or ') : `${words.join(' or ')} ${LABELS[path]}`;
+  const rule = { pred, text, describe: () => text, featurePath: path, negated: false, arity: 1 };
+  if (swap) rule.swap = () => bucketRule(path, domain.filter(value => !chosen.has(value)), domain, { swap: true });
+  return rule;
+}
+
+function valueParts(list, exclude = []) {
+  const parts = [];
+  for (const path of PATHS) {
+    if (exclude.includes(path)) continue;
+    for (const value of new Set((list || []).map(item => featuresOf(item)[path]))) parts.push({ path, value, negated: false });
+  }
+  return parts;
+}
+
+function isUseful(list, rule) {
+  const split = partition(list, rule.pred);
+  return split.yes.length >= 3 && split.no.length >= 3;
+}
+
+// Generate the first deterministic valid rule.  Callers can top up a thin party when
+// this returns null, rather than presenting a rule the child cannot infer.
+export function genRule(list, { tier = 1, exclude = [] } = {}) {
+  if (!Array.isArray(list) || list.length < 6) return null;
+  const parts = valueParts(list, exclude);
+  const singles = [];
+  for (const part of parts) {
+    const equal = ruleFor([part], { swap: tier >= 4 });
+    if (isUseful(list, equal)) singles.push(equal);
+    if (tier >= 2) {
+      const notEqual = ruleFor([{ ...part, negated: true }], { swap: tier >= 4 });
+      if (isUseful(list, notEqual)) singles.push(notEqual);
+    }
+  }
+  if (tier >= 3) {
+    for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+      if (parts[i].path === parts[j].path) continue;
+      const both = ruleFor([parts[i], parts[j]], { swap: tier >= 4 });
+      if (isUseful(list, both)) return both;
+    }
+  }
+  return singles[0] || null;
+}
+
+// n exact feature buckets are the clearest exclusive rules.  Each bucket must contain
+// at least three members, which preserves the Expedition's "try and compare" play.
+export function genExclusiveRules(list, n, { tier = 1 } = {}) {
+  if (!Array.isArray(list) || list.length < n || n < 2) return null;
+  // Enumerate observable condition groups (one feature at early tiers, a conjunction
+  // once the puzzles are ready for it).  We then find a true partition, rather than
+  // assuming one feature happens to have enough values for every room/bridge.
+  const parts = valueParts(list);
+  const maxArity = tier >= 3 ? 2 : 1;
+  const candidates = [];
+  const add = (rule) => {
+    const mask = list.reduce((bits, item, index) => rule.pred(item) ? bits | (1 << index) : bits, 0);
+    if (!mask || mask === (1 << list.length) - 1) return;
+    candidates.push({ rule, mask, size: list.filter(rule.pred).length });
+  };
+  for (const part of parts) {
+    add(ruleFor([part], { swap: tier >= 4 }));
+    add(ruleFor([{ ...part, negated: true }], { swap: tier >= 4 }));
+  }
+  // A visible feature may have more values than rooms. Grouping those values into
+  // explicit “A or B” buckets gives a simple exact cover (especially for Hotel).
+  for (const path of PATHS) {
+    const values = [...new Set(list.map(item => featuresOf(item)[path]))];
+    if (values.length < n) continue;
+    const buckets = Array.from({ length: n }, () => []);
+    values.forEach((value, index) => buckets[index % n].push(value));
+    buckets.forEach(valuesInBucket => add(bucketRule(path, valuesInBucket, values, { swap: tier >= 4 })));
+  }
+  if (maxArity > 1) for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+    if (parts[i].path !== parts[j].path) add(ruleFor([parts[i], parts[j]], { swap: tier >= 4 }));
+  }
+  // Multiple predicates may describe exactly the same group; keep the simplest wording.
+  const unique = new Map();
+  for (const candidate of candidates) {
+    const old = unique.get(candidate.mask);
+    if (!old || candidate.rule.arity < old.rule.arity || candidate.rule.text < old.rule.text) unique.set(candidate.mask, candidate);
+  }
+  const all = (1 << list.length) - 1;
+  const groups = [...unique.values()].sort((a, b) => Math.abs(a.size - list.length / n) - Math.abs(b.size - list.length / n) || a.rule.arity - b.rule.arity || a.rule.text.localeCompare(b.rule.text));
+  const solve = (covered, chosen) => {
+    if (chosen.length === n) return covered === all ? chosen : null;
+    const remainingSlots = n - chosen.length;
+    const first = list.findIndex((_, index) => !(covered & (1 << index)));
+    if (first < 0) return null;
+    for (const candidate of groups) {
+      if (!(candidate.mask & (1 << first)) || (candidate.mask & covered)) continue;
+      const nextCovered = covered | candidate.mask;
+      const left = list.length - nextCovered.toString(2).replace(/0/g, '').length;
+      if (left < remainingSlots - 1) continue;
+      const answer = solve(nextCovered, [...chosen, candidate.rule]);
+      if (answer) return answer;
+    }
+    return null;
+  };
+  return solve(0, []);
+}
+
+function truthfulRules(culprit, pool) {
+  const f = featuresOf(culprit);
+  const rules = [];
+  for (const path of PATHS) {
+    rules.push(ruleFor([{ path, value: f[path], negated: false }]));
+    rules.push(ruleFor([{ path, value: f[path], negated: true }]));
+  }
+  for (let i = 0; i < PATHS.length; i++) for (let j = i + 1; j < PATHS.length; j++) {
+    rules.push(ruleFor([{ path: PATHS[i], value: f[PATHS[i]], negated: false }, { path: PATHS[j], value: f[PATHS[j]], negated: false }]));
+  }
+  return rules.filter(rule => rule.pred(culprit) && partition(pool, rule.pred).yes.length > 0);
+}
+
+// Pick the predicate that eliminates the most remaining suspects at each step.  The
+// returned sequence is true of the culprit, and its final conjunction is unique whenever
+// the supplied pool contains enough visible diversity.
+export function cluesFor(culprit, pool, n = 4) {
+  if (!culprit || !Array.isArray(pool) || !pool.length || n < 1) return [];
+  const candidates = truthfulRules(culprit, pool);
+  const clues = [];
+  let possible = pool.slice();
+  while (clues.length < n && candidates.length) {
+    const unused = candidates.filter(rule => !clues.some(old => old.text === rule.text));
+    const source = unused.length ? unused : candidates;
+    source.sort((a, b) => partition(possible, a.pred).yes.length - partition(possible, b.pred).yes.length || a.text.localeCompare(b.text));
+    const next = source[0];
+    clues.push(next);
+    possible = possible.filter(next.pred);
+    if (possible.length === 1) break;
+  }
+  // A card fan always has n cards. Prefer a fresh truthful observation after the culprit
+  // is already identified; repeat only when the data itself has no fourth visible fact.
+  for (const candidate of candidates) {
+    if (clues.length >= n) break;
+    if (!clues.some(old => old.text === candidate.text)) clues.push(candidate);
+  }
+  while (clues.length < n && clues.length) clues.push(clues[clues.length - 1]);
+  return clues;
+}
+
+// The candidate carrying the most balanced set of visible feature groups is the most
+// informative next experiment. History accepts either objects or ids.
+export function informativeNext(list, history = []) {
+  const tried = new Set((history || []).map(item => typeof item === 'object' ? item.id : item));
+  const choices = (list || []).filter(item => !tried.has(item.id));
+  let best = null, bestScore = -Infinity;
+  for (const item of choices) {
+    const f = featuresOf(item);
+    let score = 0;
+    for (const path of PATHS) {
+      const same = (list || []).filter(other => featuresOf(other)[path] === f[path]).length;
+      score += Math.min(same, (list || []).length - same);
+    }
+    if (score > bestScore) { best = item; bestScore = score; }
+  }
+  return best;
 }

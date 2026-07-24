@@ -6,7 +6,7 @@ import { sfx, music } from '../sfx.js';
 import { contentTier } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { recordResult } from '../state.js';
-import { oddGrid, violatesOddPredicate } from '../attrengine.js';
+import { oddGrid, violatesOddPredicate } from '../brainhelpers.js';
 
 export const ODD_INTRO = [
   { text: 'Most Boos match one secret rule.' },
