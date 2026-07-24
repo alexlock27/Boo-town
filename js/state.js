@@ -2,6 +2,8 @@
 // One localStorage key. Debounced autosave. Persistent-storage request.
 // Backup codes = base64 of the JSON with a BOO1. prefix.
 
+import { idbGetAll, idbAvailable } from './idb.js';
+
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
@@ -101,20 +103,136 @@ export function hasSave() {
   try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
 }
 
-// Load (and migrate) the save, or return null if there is none.
+// ---- fail-safe loader (RUN8 v2 C1.3) ----------------------------------------
+// Law: a parse/migrate failure must NEVER silently start fresh and then autosave
+// over recoverable data. Instead we (a) keep the raw bytes under a rolling rescue
+// key, (b) try the newest on-device IndexedDB snapshot, and only (c) fall back to a
+// calm grown-ups restore screen — never overwriting the key. boot() drives this via
+// loadOrRescue(); load() stays a synchronous best-effort used by tests and helpers.
+export const RESCUE_PREFIX = 'bootown.rescue.';
+const MAX_RESCUE = 3;
+const FRESH_WINDOW_MS = 48 * 60 * 60 * 1000;   // "created under 48h old"
+
+function rescueKeys() {
+  try { return Object.keys(localStorage).filter(k => k.startsWith(RESCUE_PREFIX)).sort(); } catch { return []; }
+}
+// Preserve a raw save string, keeping only the newest MAX_RESCUE copies.
+export function stashRescue(raw) {
+  if (typeof raw !== 'string') return;
+  try {
+    localStorage.setItem(RESCUE_PREFIX + Date.now(), raw);
+    const keys = rescueKeys();
+    while (keys.length > MAX_RESCUE) { try { localStorage.removeItem(keys.shift()); } catch {} }
+  } catch {}
+}
+export function clearRescue() { for (const k of rescueKeys()) { try { localStorage.removeItem(k); } catch {} } }
+export function hasRescue() { return rescueKeys().length > 0; }
+
+// A save that looks brand-new: no stars AND created within the last 48h (or unset).
+function looksFresh(s) {
+  const total = (s && s.stars && s.stars.total) || 0;
+  const created = (s && s.created) || 0;
+  return total === 0 && (Date.now() - created) < FRESH_WINDOW_MS;
+}
+// Migrate a stashed raw JSON string (rescue copy) into a state object, or null.
+function stateFromRaw(raw) {
+  if (typeof raw !== 'string') return null;
+  try { const o = JSON.parse(raw); if (!o || typeof o !== 'object') return null; return migrate(o); } catch { return null; }
+}
+function newestRescueState() {
+  const keys = rescueKeys();
+  for (let i = keys.length - 1; i >= 0; i--) {
+    let raw = null; try { raw = localStorage.getItem(keys[i]); } catch {}
+    const s = stateFromRaw(raw);
+    if (s) return s;
+  }
+  return null;
+}
+// Migrate a backup CODE (BOO1.<b64>) into a state object, or null.
+function stateFromCode(code) {
+  if (typeof code !== 'string' || !code.startsWith(BACKUP_PREFIX)) return null;
+  try {
+    const o = JSON.parse(b64decode(code.slice(BACKUP_PREFIX.length)));
+    if (!o || typeof o !== 'object' || !('inventory' in o)) return null;
+    return migrate(o);
+  } catch { return null; }
+}
+// Newest usable IndexedDB rolling snapshot as a migrated state object, or null.
+async function newestSnapshotState() {
+  if (!idbAvailable()) return null;
+  try {
+    const all = (await idbGetAll('backups')) || [];
+    all.sort((a, b) => (b.at || 0) - (a.at || 0));
+    for (const snap of all) { const s = stateFromCode(snap && snap.code); if (s) return s; }
+  } catch {}
+  return null;
+}
+
+// Synchronous best-effort load (tests + helpers). On corruption it preserves the raw
+// bytes as a rescue copy and returns null WITHOUT wiping the key — never silent-fresh.
 export function load() {
   let raw;
   try { raw = localStorage.getItem(SAVE_KEY); } catch { raw = null; }
   if (!raw) { state = null; return null; }
   try {
-    const parsed = JSON.parse(raw);
-    state = migrate(parsed);
+    state = migrate(JSON.parse(raw));
     return state;
   } catch (e) {
-    console.warn('[state] corrupt save, ignoring', e);
+    console.warn('[state] corrupt save; preserved for rescue', e);
+    stashRescue(raw);
     state = null;
     return null;
   }
+}
+
+// The boot loader. Returns { status, state? }:
+//   'ok'                – healthy save loaded
+//   'empty'             – genuinely no save (→ onboarding)
+//   'restored-snapshot' – recovered from an IndexedDB day-snapshot (show banner)
+//   'restored-rescue'   – recovered from a preserved rescue copy (show banner)
+//   'rescue-needed'     – nothing recoverable; show calm restore screen, DO NOT autosave
+export async function loadOrRescue() {
+  let raw;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch { raw = null; }
+
+  if (!raw) {
+    // localStorage empty: a fresh device, or one whose storage was cleared. Prefer an
+    // on-device snapshot (IndexedDB lives in a separate bucket that can outlive a
+    // localStorage clear) before assuming a brand-new player.
+    const snap = await newestSnapshotState();
+    if (snap && !looksFresh(snap)) { state = snap; commit(); clearRescue(); return { status: 'restored-snapshot', state }; }
+    const rescued = newestRescueState();
+    if (rescued && !looksFresh(rescued)) { state = rescued; commit(); clearRescue(); return { status: 'restored-rescue', state }; }
+    state = null;
+    return { status: 'empty' };
+  }
+
+  let parsed = null, threw = false;
+  try { parsed = JSON.parse(raw); state = migrate(parsed); }
+  catch (e) { threw = true; console.warn('[state] corrupt save; entering rescue', e); }
+
+  if (threw) {
+    stashRescue(raw);                                  // (a) preserve the raw bytes
+    const snap = await newestSnapshotState();           // (b) newest IndexedDB snapshot
+    if (snap) { state = snap; commit(); clearRescue(); return { status: 'restored-snapshot', state }; }
+    const rescued = newestRescueState();                // an older rescue copy may still parse
+    if (rescued) { state = rescued; commit(); return { status: 'restored-rescue', state }; }
+    state = null;                                       // (c) calm screen; never autosave over the key
+    return { status: 'rescue-needed' };
+  }
+
+  // Parsed cleanly. Fresh-save resurrection: if this save looks brand-new yet a rescue
+  // copy or snapshot with real progress exists, a prior wipe/fresh-start slipped through —
+  // restore the real progress and clear the rescue trail.
+  if (looksFresh(state)) {
+    const rescued = newestRescueState();
+    if (rescued && !looksFresh(rescued)) { state = rescued; commit(); clearRescue(); return { status: 'restored-rescue', state }; }
+    const snap = await newestSnapshotState();
+    if (snap && !looksFresh(snap)) { state = snap; commit(); clearRescue(); return { status: 'restored-snapshot', state }; }
+  } else if (hasRescue()) {
+    clearRescue();   // healthy real save — drop any stale rescue copies
+  }
+  return { status: 'ok', state };
 }
 
 // Ensure a loaded object has every current field (forward-compatible defaults),
@@ -350,8 +468,25 @@ export function importCode(code) {
   return { ok: true };
 }
 
+// Restore from arbitrary pasted/read text: a BOO1 code, a .boo envelope, or a raw
+// save object. Returns { ok:true } or { ok:false, error }. Migrates + commits on success.
+export function importAny(text) {
+  if (typeof text !== 'string') return { ok: false, error: 'There was nothing to read.' };
+  const t = text.trim();
+  if (!t) return { ok: false, error: 'There was nothing to read.' };
+  if (t.startsWith(BACKUP_PREFIX)) return importCode(t);
+  let obj;
+  try { obj = JSON.parse(t); } catch { return { ok: false, error: 'That backup is damaged or not a Boo Town file.' }; }
+  const save = obj && typeof obj.save === 'object' && obj.save ? obj.save : obj;   // .boo envelope OR a raw save
+  if (!save || typeof save !== 'object' || !('inventory' in save)) return { ok: false, error: 'That file is not a Boo Town backup.' };
+  state = migrate(save);
+  commit();
+  return { ok: true };
+}
+
 export function resetAll() {
   try { localStorage.removeItem(SAVE_KEY); } catch {}
+  clearRescue();   // a deliberate reset must not be silently resurrected from a rescue copy
   state = null;
 }
 

@@ -105,12 +105,19 @@ const BACKUP_STORE = 'backups';
 export const MAX_SNAPSHOTS = 3;
 
 // Snapshot the save at most once per local day of play. Keeps the last three.
+// RUN8 v2 C1.4: the once-per-day gate is skipped when NO snapshot exists yet, so a
+// returning player's very first safety copy is written on their next session instead of
+// only after a calendar day rolls over (the cause of a real device showing "no
+// automatic snapshots yet" despite many play-days).
 export async function maybeRollingBackup() {
   if (!idbAvailable()) return;
   const s = getState();
   if (!s) return;
   const day = todayKey();
-  if (s.seen && s.seen.lastBackupDay === day) return;
+  const sameDay = !!(s.seen && s.seen.lastBackupDay === day);
+  let existing = [];
+  try { existing = (await idbGetAll(BACKUP_STORE)) || []; } catch {}
+  if (sameDay && existing.length > 0) return;   // already covered today and a copy exists
   try {
     const at = Date.now();
     await idbPut(BACKUP_STORE, { id: 'snap-' + at, day, at, code: exportCode() });
