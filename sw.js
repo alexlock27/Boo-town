@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run11-clear-20260724';  // RUN11 follow-up: all blocks cleared + SW registration fix
+const BUILD_STAMP = 'run11-audit-20260725';  // audit pass: offline query-string fix + polish
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -161,8 +161,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return; // never touch cross-origin (there are none)
 
   event.respondWith(
-    // match ONLY this build's cache — never leak files across versions
-    caches.open(CACHE).then((c) => c.match(req)).then((cached) => {
+    // Match ONLY this build's cache — never leak files across versions.
+    // ignoreSearch because the app appends cache-busting queries to a couple of modules
+    // (e.g. js/hub.js?v=5) while ASSETS lists the bare paths: without it those requests
+    // MISSED the precache and 504'd offline, so the hub never loaded on a cold cache.
+    // The build stamp already versions the whole cache, so a query is never meaningful here.
+    caches.open(CACHE).then((c) => c.match(req, { ignoreSearch: true })).then((cached) => {
       if (cached) return cached;
       return fetch(req).then((resp) => {
         // runtime-cache any same-origin GET we didn't precache (defensive)
