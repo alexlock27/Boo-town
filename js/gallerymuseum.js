@@ -83,7 +83,7 @@ export function mount(container, params, ctx) {
       framed.forEach(id => {
         const item = resolveItem(id);
         if (item) shelf.appendChild(el('div', { class: 'gm-portrait', dataset: { boo: id }, title: item.name }, [
-          el('div', { html: renderBffPortrait(id, 92) }),
+          el('div', { class: 'gm-frame', style: { width: '92px', height: '92px', border: '6px solid #FFC93C', borderRadius: '12px', background: '#FFF1B8', boxShadow: '0 4px 8px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }, html: renderBffPortrait(id, 76) }),
           el('span', { text: item.name })
         ]));
       });
