@@ -9,7 +9,7 @@ import { setRequestsEnabled } from './requests.js';
 import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
-import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected } from './backup.js';
+import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected, needsBackupReminder, storageStatus, lastBackupInfo, isIOSStandalone } from './backup.js';
 import { bloomStats } from '../data/bloom.js';
 
 // Rough platform sniff, only to word the "where did it save?" helper text. Never gates
@@ -202,8 +202,45 @@ export function mount(container, params, ctx) {
   ]);
   refreshSize();
 
+  // ---- status panel + gentle reminder (RUN8 v2 C4) ----
+  const statusPanel = el('div', { class: 'gu-backup-status' });
+  (async () => {
+    clearNode(statusPanel);
+    const st = await storageStatus();
+    const lb = lastBackupInfo(s);
+    const rows = [];
+    if (st.persisted === true) rows.push(el('p', { class: 'gu-status-row ok', text: '🔒 Protected against automatic clearing: yes' }));
+    else if (st.persisted === false) rows.push(el('div', { class: 'gu-status-row warn' }, [
+      el('span', { text: '🔓 Protected against automatic clearing: no' }),
+      el('span', { class: 'gu-status-tip', text: 'The browser may clear storage under pressure — keep a backup so nothing is lost.' })
+    ]));
+    if (typeof st.usage === 'number') rows.push(el('p', { class: 'gu-status-row', text: `💾 Space used on this tablet: ${formatBytes(st.usage)}` }));
+    rows.push(el('p', { class: 'gu-status-row', text: `🗂️ Last backup: ${lb.text}` }));
+    if (isIOSStandalone()) rows.push(el('p', { class: 'gu-status-row note', text: 'On iPad: deleting the app icon deletes its progress — send a backup first.' }));
+    rows.push(el('p', { class: 'gu-status-row note', text: 'Clearing browser data erases progress; a backup is the protection.' }));
+    rows.forEach(r => statusPanel.appendChild(r));
+  })();
+
+  const reminderBanner = el('div', { class: 'gu-backup-reminder' });
+  if (needsBackupReminder(s)) {
+    reminderBanner.classList.add('on');
+    const rMsg = el('span', { class: 'gu-msg' });
+    reminderBanner.appendChild(el('div', { class: 'gu-reminder-inner' }, [
+      el('span', { class: 'gu-reminder-text', text: 'No recent backup. Tap to keep a copy on this tablet.' }),
+      el('button', { class: 'btn gu-reminder-btn', text: 'Keep a copy now', onclick: async () => {
+        rMsg.classList.remove('err'); rMsg.textContent = 'Saving…';
+        const r = await keepCopy({});
+        if (r.ok) { rMsg.textContent = 'Saved ✓'; reminderBanner.classList.remove('on'); const dot = tabBtns.data && tabBtns.data.querySelector('.gu-tab-dot'); if (dot) dot.remove(); }
+        else { rMsg.classList.add('err'); rMsg.textContent = r.error || 'Could not save.'; }
+      } }),
+      rMsg
+    ]));
+  }
+
   const backup = el('div', { class: 'gu-card' }, [
     el('h3', { text: 'Keep her progress safe' }),
+    reminderBanner,
+    statusPanel,
     exportBlock,
     el('hr', {}),
     el('h4', { class: 'gr-sub', text: 'Or copy a backup code' }),
@@ -274,14 +311,18 @@ export function mount(container, params, ctx) {
     }
     panels.scrollTop = 0;
   }
+  const reminderActive = needsBackupReminder(s);
   for (const t of TABS) {
-    const btn = el('button', { class: 'gu-tab', role: 'tab', dataset: { tab: t.id }, text: t.label,
-      onclick: () => showTab(t.id) });
+    const btn = el('button', { class: 'gu-tab', role: 'tab', dataset: { tab: t.id }, onclick: () => showTab(t.id) }, [
+      el('span', { class: 'gu-tab-label', text: t.label })
+    ]);
+    if (t.id === 'data' && reminderActive) btn.appendChild(el('span', { class: 'gu-tab-dot', 'aria-label': 'backup needed' }));
     tabBtns[t.id] = btn; tabbar.appendChild(btn);
     const panel = el('div', { class: 'gu-panel', role: 'tabpanel', dataset: { tab: t.id } }, t.cards);
     panelEls[t.id] = panel; panels.appendChild(panel);
   }
-  showTab('settings');
+  // When a backup is overdue, open straight to the Backup tab so the grown-up sees the nudge.
+  showTab(reminderActive ? 'data' : 'settings');
   root.append(header, tabbar, panels);
   container.appendChild(root);
 

@@ -149,6 +149,43 @@ export function backupCodeWithSummary() {
   return { code: exportCode(), summary: backupSummary(save) };
 }
 
+// ---- Visibility + reminder (RUN8 v2 C4) ------------------------------------
+export const REMINDER_STARS = 50, REMINDER_DAYS = 30;
+
+export async function storageStatus() {
+  let persisted = null, usage = null, quota = null;
+  try { if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted(); } catch {}
+  try { if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); usage = e.usage; quota = e.quota; } } catch {}
+  return { persisted, usage, quota };
+}
+
+export function lastBackupInfo(save) {
+  const s = save || getState() || {};
+  const at = s.lastBackupAt || 0;
+  if (!at) return { at: 0, text: 'never' };
+  const days = Math.floor((Date.now() - at) / (24 * 60 * 60 * 1000));
+  return { at, days, text: days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago` };
+}
+
+// Grown-ups-only nudge: real progress worth protecting AND no recent backup.
+export function needsBackupReminder(save) {
+  const s = save || getState() || {};
+  const stars = (s.stars && s.stars.total) || 0;
+  if (stars <= REMINDER_STARS) return false;
+  const at = s.lastBackupAt || 0;
+  if (!at) return true;
+  return (Date.now() - at) > REMINDER_DAYS * 24 * 60 * 60 * 1000;
+}
+
+export function isIOSStandalone() {
+  try {
+    const ua = navigator.userAgent || '';
+    const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const standalone = navigator.standalone === true || (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    return iOS && !!standalone;
+  } catch { return false; }
+}
+
 // ---- Restore (RUN8 v2 C3) --------------------------------------------------
 // A preview block for a candidate save, shown before anything is applied.
 export function previewFor(save, envelope) {
