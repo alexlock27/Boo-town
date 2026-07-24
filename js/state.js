@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 11;  // v11: Lexie & Tyler birthday-party keepsakes.
+export const VERSION = 12;  // v12: lastBackupAt (RUN8 v2 backup reminder). Older field: birthday-party keepsakes.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -90,7 +90,8 @@ function freshSave() {
     seen: {},                   // one-time flags (game intros, town first, etc.)
     settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light', haptics: true, voiceName: null, rollSensitivity: 1, rollInvert: false }, // content: Light/Medium/Full picker filter (C9); haptics + chosen voice (RUN9 C7/C6b); Boo Roll input tuning (RUN10 P7)
     created: 0,
-    lastPlayed: 0
+    lastPlayed: 0,
+    lastBackupAt: 0             // v12 (RUN8 v2 C2): epoch ms of the last exported backup, either path
   };
 }
 

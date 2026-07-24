@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run8v2-p1-20260724';  // RUN8 v2 phase 1: stabilise + fail-safe loader
+const BUILD_STAMP = 'run8v2-p2-20260724';  // RUN8 v2 phase 2: export (Keep a copy / Send a copy)
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -12,6 +12,7 @@ const ASSETS = [
   'css/styles.css',
   'js/main.js',
   'js/state.js',
+  'js/backup.js',
   'js/ui.js',
   'js/drawer.js',
   'js/haptics.js',
