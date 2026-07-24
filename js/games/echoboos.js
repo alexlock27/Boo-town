@@ -8,7 +8,7 @@
 // the light pattern carries it. Toddler tier gets it too, capped at gentler lengths.
 
 import { el, clear, backControl, REDUCED, confetti } from '../ui.js';
-import { getState, mutate } from '../state.js';
+import { getState, mutate, commit } from '../state.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music, band } from '../sfx.js';
@@ -192,11 +192,18 @@ export function mount(container, params, ctx) {
       if (ended) return; ended = true; inputPhase = false; clearTimers();
       status.textContent = msg;
       const stars = starsFor(bestLen);
-      if (bestLen > echoBest()) mutate(s => {
-        s.seen = s.seen || {};
-        if (lightning) s.seen.echoBestLightning = bestLen;
-        else s.seen.echoBest = bestLen;
-      });
+      // Standard and Lightning keep entirely separate bests (RUN10 P11) — a Lightning run
+      // never overwrites the Standard record, or the other way round. A new personal best
+      // is committed straight away rather than waiting on the debounce, so closing the
+      // tablet the moment a record lands can never lose it (RUN11 Q8 / F-03).
+      if (bestLen > echoBest()) {
+        mutate(s => {
+          s.seen = s.seen || {};
+          if (lightning) s.seen.echoBestLightning = bestLen;
+          else s.seen.echoBest = bestLen;
+        });
+        commit();
+      }
       if (!REDUCED && bestLen >= 5) confetti({ count: 50, power: 1 });
       after(1600, () => ctx.go('results', { game: 'echoboos', gameName: lightning ? 'Echo Boos: Lightning' : 'Echo Boos', stars, level: null, cat: null, mix: false, replay: () => ctx.go('echoboos', { resume: true, lightning }) }));
     }

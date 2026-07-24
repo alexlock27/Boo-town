@@ -111,6 +111,11 @@ const wrongIndex = oddIndex === 0 ? 1 : 0;
 await page.locator('.odd-choice').nth(wrongIndex).click();
 ok(await page.locator('.odd-found').count() === 0 && await page.evaluate(() => window.__oddboo.round()) === 0, 'wrong tap wobbles kindly without revealing or advancing');
 await page.screenshot({ path:'screenshots/r10p19/oddboo-390x844.png' });
+// A wrong tap deliberately locks the board for 1.5s and reshuffles (the anti-brute-force
+// rule added to close audit finding F1-A: without it a child could tap all nine in
+// seconds). P19 never promised a tap DURING that lockout registers, so wait it out — this
+// is what a real player experiences — then tap the odd one.  (RUN11 Q8 / F-04.)
+await page.waitForFunction(() => window.__oddboo.locked && window.__oddboo.locked() === false, null, { timeout: 5000 });
 await page.locator('.odd-choice').nth(oddIndex).click();
 await page.waitForFunction(() => window.__oddboo.round() === 1);
 
