@@ -173,9 +173,16 @@ export function renderPrimitive(kind, spec) {
 }
 const INK = '#2A1B4E';
 
+function drawBoard(W, H) {
+  return `<rect x="2" y="2" width="${W-4}" height="${H-4}" rx="16" fill="#1E143A" stroke="#3A2863" stroke-width="4"/>` + 
+         `<pattern id="tgrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/></pattern>` +
+         `<rect x="2" y="2" width="${W-4}" height="${H-4}" rx="16" fill="url(#tgrid)"/>`;
+}
+
 function placeValueSVG(spec) {
   const cols = spec.cols; const cw = 90, gap = 16, W = cols.length * (cw + gap) + gap, H = 220;
-  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:38vh" xmlns="http://www.w3.org/2000/svg">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:38vh; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(W, H);
   const colours = ['#FF7AC6', '#35D0BA', '#FFC93C', '#C6A9F0'];
   cols.forEach((col, i) => {
     const x = gap + i * (cw + gap);
@@ -196,7 +203,8 @@ function numberLineSVG(spec) {
   const from = spec.from, to = spec.to, W = 520, H = 150, pad = 40;
   const span = to - from;
   const xOf = (v) => pad + (v - from) / span * (W - 2 * pad);
-  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:34vh" xmlns="http://www.w3.org/2000/svg">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:34vh; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(W, H);
   s += `<line x1="${pad}" y1="100" x2="${W - pad}" y2="100" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`;
   for (let v = from; v <= to; v++) {
     const x = xOf(v); const major = (v === from || v === to || v % 5 === 0);
@@ -217,7 +225,8 @@ function numberLineSVG(spec) {
 
 function fractionCircleSVG(spec) {
   const parts = spec.parts, shaded = spec.shaded, cx = 90, cy = 90, r = 74;
-  let s = `<svg viewBox="0 0 180 180" width="100%" style="max-height:34vh" xmlns="http://www.w3.org/2000/svg">`;
+  let s = `<svg viewBox="0 0 180 180" width="100%" style="max-height:34vh; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(180, 180);
   for (let i = 0; i < parts; i++) {
     const a0 = (i / parts) * Math.PI * 2 - Math.PI / 2, a1 = ((i + 1) / parts) * Math.PI * 2 - Math.PI / 2;
     const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0), x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
@@ -231,7 +240,8 @@ function fractionCircleSVG(spec) {
 function arraySVG(spec) {
   const rows = spec.rows, cols = spec.cols, cell = 34, pad = 16;
   const W = cols * cell + 2 * pad, H = rows * cell + 2 * pad + 24;
-  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:34vh" xmlns="http://www.w3.org/2000/svg">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:34vh; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(W, H);
   for (let r = 0; r < rows; r++) for (let cN = 0; cN < cols; cN++) {
     s += `<circle cx="${pad + cN * cell + cell / 2}" cy="${pad + r * cell + cell / 2}" r="11" fill="#35D0BA" stroke="${INK}" stroke-width="2.5"/>`;
   }
@@ -244,7 +254,8 @@ function clockSVG(spec) {
   const cx = 90, cy = 90, r = 78, h = spec.h % 12, m = spec.m;
   const hourA = ((h + m / 60) / 12) * Math.PI * 2 - Math.PI / 2;
   const minA = (m / 60) * Math.PI * 2 - Math.PI / 2;
-  let s = `<svg viewBox="0 0 180 190" width="100%" style="max-height:36vh" xmlns="http://www.w3.org/2000/svg">`;
+  let s = `<svg viewBox="0 0 180 190" width="100%" style="max-height:36vh; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(180, 190);
   s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#FFF8F0" stroke="${INK}" stroke-width="4"/>`;
   for (let i = 1; i <= 12; i++) { const a = (i / 12) * Math.PI * 2 - Math.PI / 2; s += `<text x="${(cx + (r - 16) * Math.cos(a)).toFixed(1)}" y="${(cy + (r - 16) * Math.sin(a) + 6).toFixed(1)}" text-anchor="middle" font-family="Fredoka,sans-serif" font-size="15" font-weight="700" fill="${INK}">${i}</text>`; }
   s += `<line x1="${cx}" y1="${cy}" x2="${(cx + r * 0.5 * Math.cos(hourA)).toFixed(1)}" y2="${(cy + r * 0.5 * Math.sin(hourA)).toFixed(1)}" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>`;

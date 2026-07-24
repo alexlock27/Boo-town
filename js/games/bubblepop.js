@@ -189,11 +189,16 @@ export function mount(container, params, ctx) {
 
     function startLoop() {
       stopLoop();
-      const stepFrame = () => {
+      let lastNow = performance.now();
+      const stepFrame = (now) => {
+        if (!now) now = performance.now();
+        const ms = Math.min(now - lastNow, 38);
+        lastNow = now;
+        const dt = Math.max(0.1, ms / 16.667);
         if (!document.hidden) {
           const H = field.clientHeight || 500;
           for (const b of bubbles) {
-            b.y += b.speed;
+            b.y += b.speed * dt;
             if (b.y > H + b.size) respawn(b);
             place(b);
           }
@@ -222,7 +227,7 @@ export function mount(container, params, ctx) {
       if (b.correct) {
         locked = true;
         streak++;
-        sfx.pop();
+        sfx.ping ? sfx.ping(streak) : sfx.pop();
         recordResult(target.key, true);
         const r = b.node.getBoundingClientRect();
         const px = r.left + r.width / 2, py = r.top + r.height / 2;

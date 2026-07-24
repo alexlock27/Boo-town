@@ -34,7 +34,7 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen oddboo' });
   const tier = contentTier();
   const featureOffset = Math.floor(Math.random() * FEATURE_ROTATION.length);
-  let index = 0, wrong = 0, streak = 0, locked = false, grid;
+  let index = 0, wrong = 0, streak = 0, locked = false, grid, timer = null;
   const shell = createGameShell({
     title: 'Odd Boo Out', rounds: ROUNDS, accent: 'var(--zing)', hideHearts: true,
     onBack: () => ctx.go('hub'), onHint: () => shell.react('Look for colour, shape, hats or shine.'),
@@ -71,6 +71,13 @@ export function mount(container, params, ctx) {
       wrong++; streak = 0; recordResult(key, false);
       wobble(button); sfx.oops();
       shell.react(`Good looking — compare their ${FEATURE_LABEL[grid.oddFeature]}!`);
+      locked = true;
+      timer = setTimeout(() => {
+        locked = false;
+        Array.from(board.children).forEach(child => {
+          child.style.order = Math.floor(Math.random() * 100);
+        });
+      }, 1500);
       return;
     }
     locked = true; streak++; recordResult(key, true); sfx.star();
@@ -80,7 +87,7 @@ export function mount(container, params, ctx) {
     if (streak >= 3) button.classList.add('odd-streak');
     const found = `Yes — the ${FEATURE_LABEL[grid.oddFeature]} was different!`;
     shell.react(streak >= 3 ? `${found} ${streak} in a row!` : found);
-    setTimeout(() => {
+    timer = setTimeout(() => {
       index++; shell.advance();
       if (index >= ROUNDS) finish(); else next();
     }, 720);
@@ -94,5 +101,5 @@ export function mount(container, params, ctx) {
     violators: () => grid.items.map((b, i) => violatesOddPredicate(b, grid) ? i : -1).filter(i => i >= 0),
     choose, round: () => index, wrong: () => wrong
   };
-  return { unmount() { shell.cleanup(); delete window.__oddboo; } };
+  return { unmount() { clearTimeout(timer); shell.cleanup(); delete window.__oddboo; } };
 }

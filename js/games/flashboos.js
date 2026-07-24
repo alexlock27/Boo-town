@@ -1,7 +1,7 @@
 // RUN10 P19 — Flash Boos: reveal, recall, then reveal again with proof.
 import { el, clear } from '../ui.js';
 import { createGameShell } from '../gameshell.js';
-import { renderBoo } from '../art.js';
+import { renderBoo, renderDeco } from '../art.js';
 import { sfx, music } from '../sfx.js';
 import { contentTier } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
@@ -15,11 +15,15 @@ export const FLASH_INTRO = [
   { text: 'Answer, then peek again to check!' }
 ];
 const ROUNDS = 8;
-const PROP_ICON = { ball: '⚽', 'hat-stand': '🎩', swing: '🪢', bench: '🪵' };
+const DECO_MAP = { ball: 'deco_ball', 'hat-stand': 'deco_coatstand', swing: 'deco_swings', bench: 'deco_bench' };
 const COLOUR_HEX = { indigo:'#55409A', lilac:'#C6A9F0', teal:'#35D0BA', bubblegum:'#FF7AC6', gold:'#FFC93C', aqua:'#69DDE0' };
 
 function booHTML(boo, size = 112) {
   return renderBoo({ species: boo.species, colors: { body: boo.colour }, acc: boo.hat ? 'cap' : null, fx: boo.shine ? 'shimmer' : null }, { size });
+}
+function propHTML(prop, size = 36) {
+  const id = DECO_MAP[prop] || 'deco_bench';
+  return renderDeco(id, { size });
 }
 
 export function mount(container, params, ctx) {
@@ -62,7 +66,7 @@ export function mount(container, params, ctx) {
       const node = el('div', { class: 'flash-boo' + (circled.has(boo.id) ? ' answer-ring' : ''), dataset: { id: boo.id } }, [
         el('span', { class: 'flash-boo-art', html: booHTML(boo) }),
         el('small', { text: boo.name }),
-        el('span', { class: 'flash-owned-props', text: ownedProps.map(prop => PROP_ICON[prop]).join(' ') })
+        el('span', { class: 'flash-owned-props', html: ownedProps.map(p => `<span class="flash-prop-icon">${propHTML(p, 36)}</span>`).join('') })
       ]);
       booRow.appendChild(node);
     });

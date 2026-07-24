@@ -166,7 +166,7 @@ export function mount(container, params, ctx) {
     }
 
     function attachDrag(food, item) {
-      let dragging = false, ox = 0, oy = 0, startRect = null;
+      let dragging = false, ox = 0, oy = 0, startRect = null, scale = 1;
       food.addEventListener('pointerdown', e => {
         if (locked) return;
         dragging = true;
@@ -174,13 +174,15 @@ export function mount(container, params, ctx) {
         startRect = food.getBoundingClientRect();
         ox = e.clientX - (startRect.left + startRect.width / 2);
         oy = e.clientY - (startRect.top + startRect.height / 2);
+        const pt = tray.getBoundingClientRect();
+        scale = pt.width / (tray.offsetWidth || 1);
         food.classList.add('dragging');
       });
       food.addEventListener('pointermove', e => {
         if (!dragging) return;
         const parent = tray.getBoundingClientRect();
-        const x = e.clientX - ox - (parent.left + parent.width / 2);
-        const y = e.clientY - oy - (parent.top + parent.height / 2);
+        const x = (e.clientX - ox - (parent.left + parent.width / 2)) / scale;
+        const y = (e.clientY - oy - (parent.top + parent.height / 2)) / scale;
         food.style.transform = `translate(${x}px, ${y}px) scale(1.05)`;
         highlight(e.clientX, e.clientY);
       });
@@ -227,7 +229,9 @@ export function mount(container, params, ctx) {
       recordResult(ledgerId, true);
       const fz = feederEls[bucket];
       arcToMouth(food, fz, () => {
-        fz.classList.add('nom'); setTimeout(() => fz.classList.remove('nom'), 500);
+        fz.classList.add('nom');
+        let flips = 0;
+        const chew = setInterval(() => { fz.classList.toggle('chew'); if (++flips > 5) { clearInterval(chew); fz.classList.remove('nom', 'chew'); } }, 90);
         if (nomStreak >= NOM_STREAK) drumTable();   // a happy nom-streak → both Boos drum the table (C5)
         setTimeout(() => { idx++; shell.advance(); locked = false; showItem(); }, 280);
       });

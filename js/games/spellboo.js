@@ -71,6 +71,7 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen spellboo' });
   container.appendChild(root);
   let shell = null;
+  let cleanupKeydown = null;
 
   // Jump back in / level-up (RUN5 C0b): mix, twins, or a known set; else the card.
   const rz = params && params.resume;
@@ -159,6 +160,18 @@ export function mount(container, params, ctx) {
     const collector = createTrickyCollector(shell.area);
     let curItemHooks = null;            // hooks for whichever item is active (tests)
 
+    if (cleanupKeydown) { cleanupKeydown(); cleanupKeydown = null; }
+    const onKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (curItemHooks && curItemHooks.speller) {
+        if (key === 'backspace') curItemHooks.speller.backspace();
+        else if (/^[a-z]$/.test(key)) curItemHooks.speller.typeChar(key);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    cleanupKeydown = () => document.removeEventListener('keydown', onKeyDown);
+
     // shared hint budget across the round
     function canHint() { return hintsUsed < MAX_HINTS; }
     function spendHint() { hintsUsed++; if (hintsUsed >= MAX_HINTS) shell.enableHint(false); }
@@ -215,7 +228,7 @@ export function mount(container, params, ctx) {
       function say() { if (clue) speakMaybe(clue.replace(/_+/g, 'blank')); else speakMaybe(`Can you spell... ${word}?`); }
       if (!clue) reveal();            // auto-look (free) for normal words
       say();
-      curItemHooks = { kind: 'word', word: () => word, peekVisible: () => peekWord.style.visibility === 'visible', typeCorrect: () => typeInto(area, word), typeWrong: () => typeInto(area, word.split('').reverse().join('')), peekHint };
+      curItemHooks = { kind: 'word', word: () => word, peekVisible: () => peekWord.style.visibility === 'visible', typeCorrect: () => typeInto(area, word), typeWrong: () => typeInto(area, word.split('').reverse().join('')), peekHint, speller };
     }
 
     // --- a Sound Twins item ---
@@ -251,6 +264,7 @@ export function mount(container, params, ctx) {
           onCorrect: () => { mutate(s => { s.spellingMastery[item.answer] = (s.spellingMastery[item.answer] || 0) + 1; }); shell.react('Sound Twin sorted! 🌟', { voice: false, hold: 1400 }); setTimeout(itemDone, 1200); },
           onWrongCheck: () => { wrong++; shell.dimHeart(); }
         });
+        if (curItemHooks) curItemHooks.speller = speller;
         curHint = () => { if (canHint() && speller.hintNextLetter()) { spendHint(); shell.react(guideLine('hintSpell')); } };
       }
       curItemHooks = { kind: 'twin', item: () => item, phase: () => phase, options: () => item.options.slice(), pick, typeCorrect: () => typeInto(area, item.answer) };
@@ -258,6 +272,7 @@ export function mount(container, params, ctx) {
 
     function finish() {
       tts.cancel(); shell.cleanup();
+      if (cleanupKeydown) { cleanupKeydown(); cleanupKeydown = null; }
       const stars = starsFor(wrong, hintsUsed);
       recordBest('spellboo', badgeKey, stars);
       const gameName = choice === TWINS_KEY ? 'Sound Twins' : choice === MIX_KEY ? 'Smart Mix' : 'Spell Boo';
@@ -302,7 +317,7 @@ export function mount(container, params, ctx) {
     return chosen;
   }
 
-  return { unmount() { if (shell) shell.cleanup(); tts.cancel(); } };
+  return { unmount() { if (shell) shell.cleanup(); tts.cancel(); if (cleanupKeydown) cleanupKeydown(); } };
 }
 
 function twinMissItem(item) {
