@@ -50,7 +50,7 @@ main. Vanilla HTML/JS/CSS. No frameworks. No build step. ~1MB total.
   improvise an alternative design; never idle; never pause to ask permission
   mid-run unless a brief says otherwise.
 - Push auth failure → queue commits, keep building, record the exact ask in
-  NEEDS_ALEX.md. (Alex holds a fine-grained PAT in his password manager.)
+  NEEDS_ALEX.md. (The maintainer holds a fine-grained PAT in their password manager.)
 
 ## Testing
 - Suite: ./_runall.sh (Playwright, serial). New tests join tests/ so the glob finds
