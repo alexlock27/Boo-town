@@ -9,7 +9,7 @@ import { setRequestsEnabled } from './requests.js';
 import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
-import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes } from './backup.js';
+import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected } from './backup.js';
 import { bloomStats } from '../data/bloom.js';
 
 // Rough platform sniff, only to word the "where did it save?" helper text. Never gates
@@ -107,35 +107,61 @@ export function mount(container, params, ctx) {
     setTimeout(() => copyMsg.textContent = '', 2500);
   }
 
-  const restoreInput = el('textarea', { class: 'gu-code', rows: '3', placeholder: 'Paste a backup code here…', 'aria-label': 'Paste backup code to restore' });
+  // ---- Unified Restore (RUN8 v2 C3): file / code / snapshot → one preview → undo-safe ----
   const restoreMsg = el('span', { class: 'gu-msg' });
-  const restoreBtn = el('button', { class: 'btn secondary', text: 'Restore from code', onclick: () => {
-    const res = importCode(restoreInput.value);
-    if (res.ok) { restoreMsg.textContent = 'Restored! Reloading…'; ctx.refreshAudio && ctx.refreshAudio(); setTimeout(() => location.reload(), 700); }
-    else { restoreMsg.textContent = res.error || 'Could not restore.'; restoreMsg.classList.add('err'); }
-  }});
+  const previewWrap = el('div', { class: 'gu-restore-preview' });
+  function clearPreview() { clearNode(previewWrap); previewWrap.classList.remove('on'); }
+  function showPreview(inspect) {
+    clearNode(previewWrap);
+    if (!inspect || !inspect.ok) { restoreMsg.classList.add('err'); restoreMsg.textContent = (inspect && inspect.error) || 'That backup could not be read.'; return; }
+    restoreMsg.classList.remove('err'); restoreMsg.textContent = '';
+    const p = inspect.preview;
+    const card = el('div', { class: 'gu-preview-card' }, [
+      el('h5', { class: 'gu-preview-title', text: p.name ? `${p.name}’s Boo Town` : 'A Boo Town save' }),
+      el('ul', { class: 'gu-preview-facts' }, [
+        el('li', { text: `⭐ ${p.stars} stars` }),
+        el('li', { text: `👻 ${p.uniqueBoos} Boos` }),
+        el('li', { text: `🏆 ${p.trophies} trophies` }),
+        el('li', { text: `📅 saved ${p.savedDate}` }),
+        el('li', { text: p.creations ? '🎨 includes drawings & jams' : '🎨 no creations included' }),
+        ...(p.voices ? [el('li', { text: '🎙️ includes voice recordings' })] : [])
+      ]),
+      el('p', { class: 'gu-note', text: 'Restoring first keeps a “before restore” safety copy on this tablet, so you can undo it.' }),
+      el('div', { class: 'gu-row' }, [
+        el('button', { class: 'btn gu-restore-go', text: 'Restore this', onclick: async () => {
+          restoreMsg.classList.remove('err'); restoreMsg.textContent = 'Restoring…';
+          const r = await restoreInspected(inspect);
+          if (r.ok) { restoreMsg.textContent = 'Restored! Reloading…'; setTimeout(() => location.reload(), 800); }
+          else { restoreMsg.classList.add('err'); restoreMsg.textContent = r.error || 'Could not restore that backup.'; }
+        } }),
+        el('button', { class: 'btn soft', text: 'Cancel', onclick: clearPreview })
+      ])
+    ]);
+    previewWrap.appendChild(card); previewWrap.classList.add('on');
+  }
 
-  // Rolling snapshots (RUN5 C0b): the app auto-backs up once per day of play; here
-  // they can be restored by date. Populated asynchronously from IndexedDB.
+  const restoreFile = el('input', { class: 'gu-restore-file', type: 'file', accept: '.boo,.json', 'aria-label': 'Choose a backup file', onchange: async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { showPreview(inspectText(await f.text())); } catch { showPreview({ ok: false, error: 'That file could not be read.' }); }
+    e.target.value = '';
+  } });
+  const restoreInput = el('textarea', { class: 'gu-code', rows: '3', placeholder: 'Paste a backup code here…', 'aria-label': 'Paste backup code to restore' });
+  const restoreBtn = el('button', { class: 'btn secondary', text: 'Preview this code', onclick: () => showPreview(inspectText(restoreInput.value)) });
+
+  // Rolling snapshots (RUN5 C0b): auto-backups + any "before restore" undo point. Each
+  // opens the same preview card before it is applied.
   const snapWrap = el('div', { class: 'gu-snaps' });
-  const snapMsg = el('span', { class: 'gu-msg' });
   (async () => {
     let snaps = [];
     try { snaps = await listSnapshots(); } catch {}
     clearNode(snapWrap);
     if (!snaps.length) { snapWrap.appendChild(el('p', { class: 'gu-note', text: 'No automatic snapshots yet — one is taken each day she plays.' })); return; }
     for (const sn of snaps) {
-      const when = snapshotLabel(sn);
       snapWrap.appendChild(el('div', { class: 'gu-snap-row' }, [
-        el('span', { class: 'gu-snap-when', text: when }),
-        el('button', { class: 'btn soft gu-snap-restore', text: 'Restore', onclick: () => {
-          const res = restoreSnapshot(sn.code);
-          if (res && res.ok) { snapMsg.classList.remove('err'); snapMsg.textContent = 'Restored! Reloading…'; setTimeout(() => location.reload(), 700); }
-          else { snapMsg.classList.add('err'); snapMsg.textContent = (res && res.error) || 'Could not restore that snapshot.'; }
-        } })
+        el('span', { class: 'gu-snap-when', text: snapshotLabel(sn) }),
+        el('button', { class: 'btn soft gu-snap-restore', text: 'Preview', onclick: () => showPreview(inspectSnapshot(sn)) })
       ]));
     }
-    snapWrap.appendChild(el('div', { class: 'gu-row' }, [snapMsg]));
   })();
 
   // ---- Keep a copy / Send a copy (RUN8 v2 C2): account-free file backups ----
@@ -185,12 +211,16 @@ export function mount(container, params, ctx) {
     codeBox,
     el('div', { class: 'gu-row' }, [copyBtn, copyMsg]),
     el('hr', {}),
+    el('h4', { class: 'gr-sub', text: 'Bring a backup back' }),
+    el('p', { class: 'gu-note', text: 'Restore from a backup file, a pasted code, or an automatic snapshot — you’ll see what it holds before anything changes, and the current save is kept as an undo point.' }),
+    el('label', { class: 'gu-restore-filelabel', text: 'Choose a backup file (.boo or .json)' }),
+    restoreFile,
     restoreInput,
-    el('div', { class: 'gu-row' }, [restoreBtn, restoreMsg]),
-    el('hr', {}),
-    el('h4', { class: 'gr-sub', text: 'Automatic snapshots' }),
-    el('p', { class: 'gu-note', text: 'Boo Town keeps the last three days’ snapshots on this device, just in case.' }),
-    snapWrap
+    el('div', { class: 'gu-row' }, [restoreBtn]),
+    el('h5', { class: 'gu-restore-sub', text: 'Automatic snapshots (last three days + undo points)' }),
+    snapWrap,
+    previewWrap,
+    el('div', { class: 'gu-row' }, [restoreMsg])
   ]);
 
   // ---- reset ----
@@ -269,6 +299,7 @@ export function mount(container, params, ctx) {
   }
   function clearNode(n) { while (n.firstChild) n.removeChild(n.firstChild); }
   function snapshotLabel(sn) {
+    if (sn && sn.label) return sn.label;                 // e.g. "before restore, 2026-07-24" (undo point)
     const at = sn && sn.at;
     if (at) return friendlyDate(at);
     return (sn && sn.day) || 'a snapshot';

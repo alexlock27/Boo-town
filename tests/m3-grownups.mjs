@@ -46,7 +46,10 @@ assert(music === false, 'music toggled off in save');
 console.log('== restore from a backup code ==');
 await page.click('.gu-tab[data-tab="data"]');  // backup/restore live on the Backup & data tab (RUN6 C0.2)
 await page.fill('.gu-code:not([readonly])', backupCode); // original code had music ON
-await page.click('button:has-text("Restore from code")');
+// RUN8 v2 C3: restore now previews first (undo-safe), then applies.
+await page.click('button:has-text("Preview this code")');
+await page.waitForSelector('.gu-preview-card', { timeout: 5000 });
+await page.click('.gu-restore-go');
 await page.waitForTimeout(1200); // it reloads
 await page.waitForSelector('.hub', { timeout: 5000 });
 const restored = await page.evaluate(() => window.BooTown.State.getState());

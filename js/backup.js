@@ -3,8 +3,9 @@
 // leaves the app is a file the grown-up explicitly hands to the OS share sheet — which
 // house law permits and which is not an app network request. No fetch/XHR anywhere here.
 
-import { getState, exportCode, mutate, BACKUP_PREFIX } from './state.js';
-import { idbGetAll, idbAvailable } from './idb.js';
+import { getState, exportCode, mutate, readSaveText, adoptSave, BACKUP_PREFIX } from './state.js';
+import { idbGetAll, idbPut, idbAvailable } from './idb.js';
+import { snapshotNow } from './resilience.js';
 
 export const BOO_FORMAT = 'boo-backup';
 export const BOO_FORMAT_VERSION = 1;
@@ -146,4 +147,49 @@ export function backupCodeWithSummary() {
   const save = getState();
   if (!save) return { code: '', summary: null };
   return { code: exportCode(), summary: backupSummary(save) };
+}
+
+// ---- Restore (RUN8 v2 C3) --------------------------------------------------
+// A preview block for a candidate save, shown before anything is applied.
+export function previewFor(save, envelope) {
+  const sum = backupSummary(save);
+  // For a .boo file the meaningful date is when the backup was made; else last played.
+  const when = (envelope && envelope.createdAt) || (save && save.lastPlayed) || (save && save.created) || 0;
+  return {
+    ...sum,
+    savedDate: when ? dateStamp(new Date(when)) : 'unknown',
+    creations: !!(envelope && ((envelope.artworks && envelope.artworks.length) || (envelope.jams && envelope.jams.length))),
+    voices: !!(envelope && envelope.voices && envelope.voices.length)
+  };
+}
+
+// Inspect pasted text or a file's text WITHOUT applying it. Returns
+// { ok, save, envelope, preview } or { ok:false, error }.
+export function inspectText(text) {
+  const r = readSaveText(text);
+  if (!r.ok) return r;
+  return { ok: true, save: r.save, envelope: r.envelope, preview: previewFor(r.save, r.envelope) };
+}
+// Inspect a rolling snapshot record ({ code, ... }).
+export function inspectSnapshot(snap) {
+  if (!snap || !snap.code) return { ok: false, error: 'That snapshot could not be read.' };
+  const r = inspectText(snap.code);
+  if (r.ok && snap.label) r.preview.savedDate = snap.label;
+  return r;
+}
+
+// Apply an inspection: first auto-snapshot the CURRENT state (undo point), then adopt the
+// new save and, from a full envelope, return artworks / jams / voices to their stores.
+export async function restoreInspected(inspect) {
+  if (!inspect || !inspect.ok || !inspect.save) return { ok: false, error: 'There was nothing to restore.' };
+  try { await snapshotNow('before restore, ' + dateStamp()); } catch {}
+  const res = adoptSave(inspect.save);
+  if (!res.ok) return res;
+  const env = inspect.envelope;
+  if (env && idbAvailable()) {
+    try { for (const a of (env.artworks || [])) await idbPut('artworks', a); } catch {}
+    try { for (const j of (env.jams || [])) await idbPut('jams', j); } catch {}
+    try { for (const v of (env.voices || [])) await idbPut('audio', v); } catch {}
+  }
+  return { ok: true };
 }
