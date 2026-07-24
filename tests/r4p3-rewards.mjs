@@ -5,6 +5,7 @@
 // UI string ever framing a round as worth less. Plus: the v4→v5 save migration is
 // lossless and the backup code round-trips.
 import { chromium } from 'playwright';
+import { VERSION } from '../js/state.js';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
@@ -68,7 +69,7 @@ console.log('== v5 migration ==');
 {
   const { ctx, page } = await fresh(SAVE({ stars: { total: 137, byGame: {} }, inventory: { boo_inky: 2, deco_pond: 1 } }));
   const s = await page.evaluate(() => window.BooTown.State.getState());
-  assert(s.version === 11, 'save migrates to the current version (' + s.version + ')');   // RUN10 P1 bumped VERSION 5->11
+  assert(s.version === VERSION, 'save migrates to the current version (' + s.version + ')');   // RUN11 Q9: current VERSION, not a frozen number
   assert(s.stars.total === 137 && s.inventory.boo_inky === 2 && s.inventory.deco_pond === 1, 'migration is lossless (stars + inventory intact)');
   assert(s.threeStars && typeof s.threeStars === 'object', 'threeStars field present');
   assert(s.brave && 'day' in s.brave && 'cats' in s.brave, 'brave claims field present');
@@ -102,7 +103,7 @@ console.log('== v5 migration ==');
   await page.click('.creator-btns .btn.big');
   await page.waitForSelector('.intro-block');
   const s = await page.evaluate(() => window.BooTown.State.getState());
-  assert(s.version === 11 && s.chest && s.chest.welcome === false, 'a brand-new save gets no welcome chest (anchor 0)');
+  assert(s.version === VERSION && s.chest && s.chest.welcome === false, 'a brand-new save gets no welcome chest (anchor 0)');
   await ctx.close();
 }
 

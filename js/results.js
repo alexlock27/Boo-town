@@ -1,7 +1,7 @@
 // js/results.js — end-of-round results (spec §5.4).
 
 import { el, clear, confetti, giftSVG, backControl } from './ui.js';
-import { getState, mutate, takeRoundTally, todayKey } from './state.js';
+import { getState, mutate, takeRoundTally, todayKey, commit } from './state.js';
 import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
@@ -44,6 +44,10 @@ export function mount(container, params, ctx) {
   // Dev-only runtime assertion (RUN5 C0): a finished round increments the total by
   // exactly its stars. Silent no-op on the live build; fails loudly on localhost.
   assertCredit(beforeTotal, getState().stars.total, stars);
+  // A finished round is a milestone: commit it straight away rather than leaving the
+  // stars, ledger and clue in the 2s autosave window, where closing the tablet the moment
+  // a round ends would lose them. (RUN11 Q9.)
+  commit();
   const treatGrant = grantRoundTreat();
 
   // Jump back in (RUN5 C0b): remember her last game and mode so the hub can replay

@@ -119,8 +119,6 @@ const ASSETS = [
   'data/sorting.js',
   'data/sortingExtra.js',
   'data/quests.js',
-  'data/puzzles.js',
-  'data/stories.js',
   'assets/fonts/Fredoka-Variable.woff2',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',
