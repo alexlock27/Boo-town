@@ -2,7 +2,8 @@
 
 Outcome report for RUN11, executed against `main`. Strictly technical; no personal data.
 Baseline at the start of the run: `run8v2-p4-20260724`, board **69 PASS / 24 FAIL of 88**,
-save VERSION 12. Final state: **99 PASS / 5 FAIL of 104**, VERSION 14.
+save VERSION 12. Final state: **106 of 106 suites passing, zero blocks**, VERSION 14,
+live at `run11-clear-20260724`.
 
 ---
 
@@ -19,28 +20,34 @@ save VERSION 12. Final state: **99 PASS / 5 FAIL of 104**, VERSION 14.
 | **Q7** P21 delight pack | **ADOPTED + COMPLETED** | +`r10p21-delights`, +`r11q7-cameo` |
 | **Q8** S2 register (F-03, F-04, F-08, F-11) | **COMPLETED** | `r10p19-brain` red→green, `r10p10-p11` red→green |
 | **Q9** S3 register (F-09, F-10) + residual board | **COMPLETED** | +`r11q9-zeronet`; 8 residual suites red→green |
-| **Q10** Full board | **COMPLETED, 4 declared blocks** | 69/24 of 88 → **99/5 of 104** |
-| **Q11** Feel pass | **PARTIAL** | fresh evidence at 3 viewports for 12 surfaces; 2 presentation fixes shipped |
+| **Q10** Full board | **COMPLETED, zero blocks** | 69/24 of 88 → **106/106** |
+| **Q11** Feel pass | **COMPLETED** | evidence at 3 viewports for 12 surfaces; the world map rebuilt; 3 presentation fixes shipped |
 | **Q12** This report | **COMPLETED** | — |
 
-13 suites were added by this run; the board grew from 88 to 104 suites.
+18 suites were added by this run; the board grew from 88 to 106 suites.
 
 ---
 
 ## 2. Final board
 
-**99 PASS / 5 FAIL of 104.** `p6-beat` fails only inside a long serial batch and passes on
-a direct re-run (the batch-load flake CLAUDE.md documents), so the effective standing is
-**100 pass / 4 declared blocks**. Every block is in `BLOCKED.md` with a repro:
+**106 of 106 suites pass. Nothing is blocked.** (Baseline: 69 PASS / 24 FAIL of 88. The
+board grew by 18 suites this run.)
 
-| Suite | Reason it is not green |
+Counts come from chunked runs with a direct re-run of every failure, per CLAUDE.md's flake
+rule — this machine cannot finish a 106-suite serial batch without unrelated suites timing
+out on a `.hub` wait under accumulated load. Four suites failed inside a batch during the
+final pass (`r4p12-reach`, `r4p5-town`, `r4p7-boopop`, `r8p4-visibility`) and every one
+passed on a direct re-run.
+
+All four suites that were previously declared blocked are now green, and two of them turned
+out to be real defects rather than stale tests:
+
+| Suite | Outcome |
 |---|---|
-| `m3-pwa` (offline-reload section) | `main.js` deliberately unregisters service workers on localhost (§11.6), so the offline guarantee is unprovable in the local harness. The precache contract itself passes (119 files). |
-| `r5p4-town` (min-spacing half) | The suite derives a "too close" tap from a fixed +62px offset; P20's pre-placed Wish Well changed the Meadow, so that point can now be genuinely free ground. Test-fixture problem, not a regression. |
-| `r5p1-quickwins` | A later `.hub` wait. The oops-net → Restart → hub flow it asserts was verified working in isolation; the failing section was not isolated before the run ended. |
-| `r9p7-garnish` (2 assertions) | Both need a **product ruling**, not a test edit: whether a wall graze should buzz (P7 specifies haptics for BONK, not every contact), and a voice-count expectation that predates P11's en-GB filter. |
-
----
+| `m3-pwa` | **Green — and it uncovered a production bug** (see §7). Now served from `app.localhost` so the worker survives the app's dev-only unregistration, and asserts what the worker actually guarantees: with the network down, `index.html`, the app shell and a lazily imported game module all resolve from cache. |
+| `r5p1-quickwins` | Green. A regression of mine — RUN8 v2 C3 made snapshot restore preview-then-apply and this suite still expected one click; its seeding was also being overwritten by the app's own save flush. |
+| `r5p4-town` | Green. It asserted "refuse + wobble", which RUN10 P2 deliberately replaced with `nearestLegalSpot`. It now asserts the rule that still holds: no piling. |
+| `r9p7-garnish` | Green. One real gap — RUN9 C7 promises "gentle bumps on Boo Roll wall hits" and the roller adopted in RUN8 had lost it (restored) — and one expectation that predated P11's en-GB voice filter. |
 
 ## 3. The F-01..F-11 register — final dispositions
 
@@ -129,22 +136,34 @@ viewports.
 
 ---
 
-## 6. Remaining known gaps for the next run
+## 6. The production bug the last block uncovered
 
-1. ~~The world map's art~~ — **DONE** in the follow-up pass (see §5). The remaining nicety
-   would be a Boo actually wandering the island; the map now has clouds and river shimmer
-   but no inhabitants.
-2. **The four declared blocks** in `BLOCKED.md`, one of which (`r9p7-garnish`) needs a
-   product ruling on haptics for wall contact.
-3. **Expedition depth** — the trail, budgets, stars, hint, tiers and rewards are all built
-   and tested, but the four puzzles have not been driven through a headless optimal-strategy
+Making `boot()` async in RUN8 v2 (it awaits the fail-safe loader, which touches IndexedDB)
+meant it could attach its `window.addEventListener('load', …)` **after** the load event had
+already fired — in which case `navigator.serviceWorker.register()` never ran and **offline
+support silently never armed on a real device**. Nothing caught it because `m3-pwa`
+registered a worker itself, and the app's own registration path was never exercised.
+
+`js/main.js` now registers immediately when `document.readyState === 'complete'` and
+otherwise waits for load as before. Verified end to end on a non-localhost origin: the worker
+registers, activates, controls the page, and serves `index.html`, the app shell and a lazily
+imported game module with the network disconnected.
+
+---
+
+## 7. Remaining known gaps for the next run
+
+Nothing from this pack is outstanding. What is left is scope that was never in it:
+
+1. **Expedition depth** — the trail, budgets, stars, hint, tiers and rewards are built and
+   tested, but the four puzzles have not been driven through a headless optimal-strategy
    solve at all four tiers with per-beat choreography frames. The engine guarantees behind
    them are proven (`r10p14`: exclusive covers 500/500, clue uniqueness 189/189).
-4. **The Snaffle reveal scene** is a one-time card rather than the full authored animation.
-5. **Guest top-up copy** — `L_EXP_GUESTS` exists and the picker tops up a thin party, but
-   the VISITOR sash treatment is minimal.
-6. **Git history still contains the retired names** (F-07). The working tree is clean and
-   guarded; rewriting history was explicitly out of scope.
-7. **Board stability** — this machine cannot finish a 104-suite serial run without suites
-   timing out on `.hub` under accumulated load. Counts in this report come from chunked runs
-   with direct re-runs of every failure, per CLAUDE.md's flake rule.
+2. **The Snaffle reveal** is a one-time card rather than the full authored animation.
+3. **Guest top-up** — `L_EXP_GUESTS` exists and the picker tops up a thin party, but the
+   VISITOR sash treatment is minimal.
+4. **Git history still contains the retired names** (F-07). The working tree is clean and
+   guarded by a permanent suite; rewriting history was explicitly out of scope.
+5. **Board stability on this machine** — a 106-suite serial run still sheds unrelated suites
+   to `.hub` timeouts under accumulated load. Every such failure passes on a direct re-run,
+   but a future run may want the board sharded rather than serial.
