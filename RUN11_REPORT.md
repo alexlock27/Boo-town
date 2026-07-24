@@ -97,14 +97,31 @@ fails" rule:
   authored 3-second flutter-away. The wish spawn is now excluded; a *placed* butterfly still
   hovers.
 
-**Honest critique still outstanding — the world map.** P1's feel goal is "looking at home
-from a hilltop", with "menu pretending to be a map" as the anti-pattern. The map genuinely
-avoids the anti-pattern: it reads as an island with a river, a beach and green land rather
-than a list. But it does **not** yet reach the feel goal. The landmarks are emoji inside
-plain white circles — closer to UI chips than to places — and two interiors render as blank
-cream rectangles. There is no parallax, no drifting cloud, no Boo wandering the island. It
-is a competent plan-view diagram rather than a view from a hilltop. Fixing that is a
-scenery/art job beyond a presentation tweak, so it is recorded here rather than attempted.
+**The world map — critique, then fixed (follow-up pass, stamp `run11-map-20260724`).**
+The original critique: the map avoided P1's "menu pretending to be a map" anti-pattern (it
+reads as an island with a river and a beach), but did **not** reach "looking at home from a
+hilltop" — the landmarks were **emoji** inside plain white circles, closer to UI chips than
+to places, the two interiors rendered as blank cream rectangles, and nothing moved.
+
+That has now been addressed:
+- `art.js` gained `renderAreaGlyph(key)` — a house-style sticker per area on a shared 24-box
+  (meadow flower, riverside bridge, hilltop-and-sun, beach parasol, big top, slide, cottage,
+  framed picture). The badges render those instead of emoji, which the art contract forbids
+  as scene art. All eight glyphs are distinct.
+- The two interiors became real little buildings (door, lit windows, a hung picture), and the
+  scenery motifs were scaled back so they read as background texture *supporting* the badges
+  rather than competing with them — and moved inside the phone-safe band, since the island's
+  `slice` crop shows only x 27..73 at 390px.
+- Quiet life: two drifting clouds and a shimmer on the river, transform/opacity only with a
+  reduced-motion path. Evidence: 7 distinct cloud positions over 3.4s.
+- Guarded by a new permanent suite, `r11map-art` (SVG stickers not emoji, eight distinct
+  glyphs, the locked state still honest, cloud drift, reduced motion).
+
+**Bonus: a real router race was found while shooting that evidence.** Screens are lazily
+imported, so a second `go()` starting while the first was still awaiting its module let the
+slower import mount ITS screen over the newer one — a fast tap during boot could land on the
+wrong screen, and it is the likely cause of much of the board's `.hub` flakiness. `go()` now
+takes a navigation ticket and a superseded navigation drops its result instead of painting it.
 
 The remaining surfaces (Gallery, Band Room, Boo Roll, Blocks, Expedition trail, Disco floor,
 Odd Boo Out, Flash Boos, Word Detective, collection) render cleanly and on-spec at all three
@@ -114,7 +131,9 @@ viewports.
 
 ## 6. Remaining known gaps for the next run
 
-1. **The world map's art** — see the critique above; the single biggest delight gap.
+1. ~~The world map's art~~ — **DONE** in the follow-up pass (see §5). The remaining nicety
+   would be a Boo actually wandering the island; the map now has clouds and river shimmer
+   but no inhabitants.
 2. **The four declared blocks** in `BLOCKED.md`, one of which (`r9p7-garnish`) needs a
    product ruling on haptics for wall contact.
 3. **Expedition depth** — the trail, budgets, stars, hint, tiers and rewards are all built
