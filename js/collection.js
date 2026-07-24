@@ -201,9 +201,11 @@ export function mount(container, params, ctx) {
     ]);
     // shared rarity VFX (C2): the FULL effect on the focused card
     applyRarityFx(detailArt, item, { context: 'full', shiny: ((s.shinies && s.shinies[item.id]) || 0) > 0 });
+    const canShiny = isBoo && (s.stardust || 0) >= 10 && ((s.shinies && s.shinies[item.id]) || 0) === 0;
     const buttons = isBoo
       ? [
           { label: '👒 Dress up', value: 'dress' },
+          ...(canShiny ? [{ label: '✨ Upgrade Shiny (10 Stardust)', value: 'shiny' }] : []),
           ...(micEnabled() ? [{ label: '🎤 Give a voice', value: 'voice', kind: 'soft' }] : []),
           { label: '✏️ Nickname', value: 'rename', kind: 'soft' },
           { label: 'Close', value: 'close', kind: 'soft' }
@@ -211,6 +213,11 @@ export function mount(container, params, ctx) {
       : [{ label: 'Close', value: 'close', kind: 'soft' }];
     dialog({ title: nick + (isBoo ? heartBadge(item.id) : ''), body, buttons, dismissable: true }).then(v => {
       if (v === 'dress') openDressUp(item, { onDone: () => ctx.go('collection') });
+      else if (v === 'shiny') {
+        import('./shiny.js').then(m => m.addShinyCopy(item.id));
+        import('./state.js').then(m => m.mutate(st => st.stardust -= 10));
+        ctx.go('collection');
+      }
       else if (v === 'rename') openRename(item.id, { onDone: () => ctx.go('collection') });
       else if (v === 'voice') openVoiceRecorder(item.id, nick);
     });

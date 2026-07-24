@@ -46,6 +46,7 @@ function freshSave() {
     },
     meter: 0,
     boxes: 0,
+    stardust: 0,
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
     inventory: {},               // itemId -> count
@@ -237,7 +238,7 @@ export function mutate(fn) {
 
 export function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(commit, 400);
+  saveTimer = setTimeout(commit, 2000);
 }
 
 // ---- mistake ledger (RUN3 C2) ------------------------------------------------

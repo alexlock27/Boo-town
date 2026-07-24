@@ -7,7 +7,7 @@ import { rollShiny, addShinyCopy } from './shiny.js';
 
 export const METER_CAP = 6;          // meter holds 6 points
 export const THREE_STAR_BONUS = 1;   // a perfect round banks 4 (3 + 1)
-export const DUPLICATE_POINTS = 2;   // a duplicate converts to +2 meter points
+// export const DUPLICATE_POINTS = 2; // Removed: duplicates now grant Stardust instead of points
 export const PITY_THRESHOLD = 8;     // 8 straight Commons forces Rare or better
 export const SECRET_MIN_OWNED = 10;  // Secret can only drop after owning 10+ items
 
@@ -138,11 +138,9 @@ export function openOneBox() {
 
     let bonusPoints = 0, extraBoxes = 0;
     if (duplicate) {
-      bonusPoints = DUPLICATE_POINTS;
-      st.meter += DUPLICATE_POINTS;
-      while (st.meter >= METER_CAP) { st.meter -= METER_CAP; st.boxes += 1; extraBoxes += 1; }
+      st.stardust = (st.stardust || 0) + 1;
     }
-    result = { item, rarity, duplicate, isCustom, shiny, bonusPoints, extraBoxes, meter: st.meter, boxes: st.boxes };
+    result = { item, rarity, duplicate, isCustom, shiny, bonusPoints, extraBoxes, meter: st.meter, boxes: st.boxes, stardust: st.stardust };
   });
   if (result && result.shiny) addShinyCopy(result.item.id);
   return result;
