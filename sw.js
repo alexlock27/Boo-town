@@ -110,7 +110,6 @@ const ASSETS = [
   'data/sorting.js',
   'data/sortingExtra.js',
   'data/quests.js',
-  'data/courses.js',
   'data/puzzles.js',
   'data/stories.js',
   'assets/fonts/Fredoka-Variable.woff2',
