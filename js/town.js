@@ -4,7 +4,7 @@
 // navigation lives in worldmap.js; this file only ever renders one already-unlocked area.
 
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
-import { getState, mutate } from './state.js';
+import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey } from './areas.js';
 import { renderItem } from './art.js';
@@ -2168,6 +2168,7 @@ export function mount(container, params, ctx) {
       const target = items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === place.row);
       if (target) target.scale = +next.toFixed(2);
     });
+    commit();   // a deliberate town edit: persist now, not on the 2s debounce (RUN11 Q9)
     closeMenu();
     renderPlaced();
     hint.textContent = `${resolveItem(place.item)?.name || getDisplayName(place.item)} size: ${Math.round(next * 100)}%`;

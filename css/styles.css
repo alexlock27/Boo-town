@@ -4299,7 +4299,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .roll2-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ---- Animated Living Items in Town & Meadow ---- */
-.t-item[data-item*="butterfly"], .wish-made.wish-butterfly, .wish-town-spawn[data-word="butterfly"] {
+/* A PLACED butterfly hovers forever; a WISHED one must flutter away over 3s (RUN10 P20).
+   The wish spawn is deliberately excluded here — this rule's !important was overriding
+   the authored flutter-away with an endless hover. (RUN11 Q9.) */
+.t-item[data-item*="butterfly"], .wish-made.wish-butterfly {
   animation: floatButterfly 2.8s ease-in-out infinite alternate !important;
   transform-origin: center;
 }
