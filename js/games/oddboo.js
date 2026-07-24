@@ -99,7 +99,8 @@ export function mount(container, params, ctx) {
   window.__oddboo = {
     grid: () => grid,
     violators: () => grid.items.map((b, i) => violatesOddPredicate(b, grid) ? i : -1).filter(i => i >= 0),
-    choose, round: () => index, wrong: () => wrong
+    choose, round: () => index, wrong: () => wrong,
+    locked: () => locked   // QA: the 1.5s anti-brute-force lockout after a wrong tap
   };
   return { unmount() { clearTimeout(timer); shell.cleanup(); delete window.__oddboo; } };
 }
