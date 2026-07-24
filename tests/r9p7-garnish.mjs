@@ -76,8 +76,10 @@ console.log('== Boo Roll wall-hit bump ==');
   await page.waitForSelector('.roll-canvas');
   await page.waitForFunction(() => window.__booroll.playing && window.__booroll.playing());
   await clearVibes(page);
-  // drive the ball hard into the right wall
-  await page.evaluate(() => window.__booroll.teleport(950, 300));
+  // Drive the ball hard into the RIGHT wall. The wall sits at the course's world width,
+  // which P8 re-authored (6000 for Rolling Meadow), so take it from the course rather than
+  // the old RUN9 field size. (RUN11.)
+  await page.evaluate(() => { const f = window.__booroll.field(); window.__booroll.teleport(f.FW - 40, 300); });
   for (let i = 0; i < 25; i++) { await page.evaluate(() => window.__booroll.setTilt(1.2, 0)); await sleep(20); }
   const v = await vibes(page);
   assert(v.some(p => Array.isArray(p) && p[0] === 10), `hitting a wall fires a gentle bump (${v.length} buzzes)`);
@@ -138,7 +140,11 @@ console.log('== voice picker (Settings) ==');
   await page.evaluate(() => window.BooTown.go('grownups'));
   await page.waitForSelector('.grownups');
   const names = await page.$$eval('.gu-voice-list .gv-name', ns => ns.map(n => n.textContent));
-  assert(names.length === 3, `the picker lists the installed English voices (${names.length})`);
+  // RUN10 P11 narrowed the picker to en-GB ONLY, so the stubbed en-US voice is correctly
+  // filtered out and two remain. Assert the filter itself, which is the current rule.
+  // (RUN11: the count of three predates P11.)
+  assert(names.length === 2, `the picker lists the installed en-GB voices (${names.length})`);
+  assert(!names.some(n => /Alex \(US\)|\(US\)/.test(n)), `a non-en-GB voice is filtered out (${names.join(', ')})`);
   assert(/Daniel/.test(names[0]) && !/☁/.test(names[0]), 'local voices are listed first (Daniel UK, no cloud marker)');
   // preview button speaks "Hello {name}!" (stub speechSynthesis.speak to capture it)
   await page.evaluate(() => { window.__spoke = null; window.speechSynthesis.speak = (u) => { window.__spoke = u && u.text; }; });
