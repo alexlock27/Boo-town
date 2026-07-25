@@ -11,29 +11,30 @@ const ok = (condition, message) => {
 };
 
 console.log('== pure generators ==');
-ok(['colour','hat','species','shine'].every(feature => oddGrid('full', Math.random, {oddFeature:feature}).oddFeature === feature),
-  'the live game can rotate all four visible answer features without repeats');
+// RUN12 S3 supersedes P19 here: 'shine' left the answer pool entirely (sparkle is
+// decoration OR the answer, never ambiguously both), so the rotation is three features.
+ok(['colour','hat','species'].every(feature => oddGrid('full', Math.random, {oddFeature:feature}).oddFeature === feature),
+  'the live game can rotate all three visible answer features without repeats');
+ok(oddGrid('full', Math.random, {oddFeature:'shine'}).oddFeature !== 'shine',
+  'shine can no longer be requested as the odd feature');
+// RUN12 S3 supersedes P19's "repeated visual families" design. P19 built 2-4 families so
+// that incidental differences occurred in groups of 2+; in practice that meant every light
+// grid carried an exact 2-2 split and every full grid carried three simultaneous 6-6 splits,
+// so nothing was uniquely odd BY LOOKING. The spec of record is now: all non-odd items are
+// identical on every feature, and exactly one differs on exactly one. This assertion is
+// updated to the new contract rather than deleted; r12s3-oddboo proves it at 1000 grids.
 for (const tier of ['light', 'medium', 'full']) {
-  let valid = true, visuallyClear = true;
+  let valid = true, uniform = true;
   for (let i = 0; i < 500; i++) {
     const grid = oddGrid(tier);
     const count = grid.items.filter(item => violatesOddPredicate(item, grid)).length;
     if (count !== 1 || grid.items.length !== ({ light:4, medium:9, full:12 })[tier]) { valid = false; break; }
-    const singletonFeatures = ['colour','species','hat','shine'].filter(feature => {
-      const counts = Object.values(grid.items.reduce((all, boo) => {
-        const value = String(boo[feature]); all[value] = (all[value] || 0) + 1; return all;
-      }, {}));
-      return counts.includes(1);
-    });
-    const signatures = grid.items.reduce((all, boo) => {
-      const signature = ['colour','species','hat','shine'].map(feature => boo[feature]).join('|');
-      all[signature] = (all[signature] || 0) + 1; return all;
-    }, {});
-    const repeatedFamilies = Object.values(signatures).filter(n => n > 1).length;
-    if (singletonFeatures.length !== 1 || singletonFeatures[0] !== grid.oddFeature ||
-        repeatedFamilies < (tier === 'light' ? 1 : 2)) visuallyClear = false;
+    const others = grid.items.filter((_, ix) => ix !== grid.oddIndex);
+    const differing = ['colour','species','hat','shine'].filter(f => new Set(others.map(o => String(o[f]))).size > 1);
+    const oddDiffs = ['colour','species','hat','shine'].filter(f => grid.items[grid.oddIndex][f] !== others[0][f]);
+    if (differing.length !== 0 || oddDiffs.length !== 1 || oddDiffs[0] !== grid.oddFeature) { uniform = false; break; }
   }
-  ok(valid && visuallyClear, `${tier}: 500 grids mix repeated visual groups with one unambiguous singleton`);
+  ok(valid && uniform, `${tier}: 500 grids are uniform except for exactly one item differing on exactly one feature`);
 }
 for (const tier of ['light', 'medium', 'full']) {
   let valid = true, genuineNear = true;
@@ -91,8 +92,11 @@ await page.evaluate(() => window.BooTown.go('oddboo'));
 await page.waitForFunction(() => window.__oddboo);
 ok(await page.locator('.odd-choice').count() === 9, 'medium Odd Boo Out presents a readable 9-Boo grid');
 ok((await page.evaluate(() => window.__oddboo.violators())).length === 1, 'live grid exposes exactly one true violator');
+// RUN12 S3 supersedes P19's live-grid shape too: "repeated distractor groups" is exactly
+// the ambiguity that shipped. The live grid is now ONE repeated family plus one singleton.
 ok(await page.evaluate(() => {
   const grid = window.__oddboo.grid();
+  const others = grid.items.filter((_, ix) => ix !== grid.oddIndex);
   const singletonFeatures = ['colour','species','hat','shine'].filter(feature => {
     const counts = Object.values(grid.items.reduce((all, boo) => {
       const value = String(boo[feature]); all[value] = (all[value] || 0) + 1; return all;
@@ -103,9 +107,10 @@ ok(await page.evaluate(() => {
     const signature = ['colour','species','hat','shine'].map(feature => boo[feature]).join('|');
     all[signature] = (all[signature] || 0) + 1; return all;
   }, {}));
+  const uniformOthers = ['colour','species','hat','shine'].every(f => new Set(others.map(o => String(o[f]))).size === 1);
   return singletonFeatures.length === 1 && singletonFeatures[0] === grid.oddFeature &&
-    signatures.filter(count => count > 1).length >= 2;
-}), 'the live puzzle includes repeated distractor groups but only one singleton feature');
+    uniformOthers && signatures.filter(count => count > 1).length === 1;
+}), 'the live puzzle is one uniform family plus exactly one singleton feature');
 const oddIndex = await page.evaluate(() => window.__oddboo.grid().oddIndex);
 const wrongIndex = oddIndex === 0 ? 1 : 0;
 await page.locator('.odd-choice').nth(wrongIndex).click();

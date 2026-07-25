@@ -6,7 +6,7 @@ import { sfx, music } from '../sfx.js';
 import { contentTier } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { recordResult } from '../state.js';
-import { oddGrid, violatesOddPredicate } from '../brainhelpers.js';
+import { oddGrid, violatesOddPredicate, ODD_FEATURES } from '../brainhelpers.js';
 
 export const ODD_INTRO = [
   { text: 'Most Boos match one secret rule.' },
@@ -14,18 +14,16 @@ export const ODD_INTRO = [
   { text: 'A wrong tap just means keep looking!' }
 ];
 const ROUNDS = 10;
-const FEATURE_ROTATION = ['colour','hat','species','shine'];
-const FEATURE_LABEL = {
-  colour: 'colour',
-  species: 'shape',
-  hat: 'hat',
-  shine: 'sparkle'
-};
+// The rotation is the generator's own answer pool — 'shine' is deliberately not in it
+// (RUN12 S3.3: sparkle is decoration OR the answer, never ambiguously both).
+const FEATURE_ROTATION = ODD_FEATURES;
 
 function booHTML(boo) {
   return renderBoo({
     species: boo.species, colors: { body: boo.colour },
-    acc: boo.hat ? 'cap' : null, fx: boo.shine ? 'shimmer' : null
+    // no accessory variety inside a grid: every hatted Boo wears the identical cap, and
+    // shimmer never renders here at all, so nothing decorative can look like the answer
+    acc: boo.hat ? 'cap' : null, fx: null
   }, { size: 128, cls: 'odd-boo-svg' });
 }
 
@@ -37,7 +35,7 @@ export function mount(container, params, ctx) {
   let index = 0, wrong = 0, streak = 0, locked = false, grid, timer = null;
   const shell = createGameShell({
     title: 'Odd Boo Out', rounds: ROUNDS, accent: 'var(--zing)', hideHearts: true,
-    onBack: () => ctx.go('hub'), onHint: () => shell.react('Look for colour, shape, hats or shine.'),
+    onBack: () => ctx.go('hub'), onHint: () => shell.react("Look at their colours, their hats — and each Boo's own little details."),
     onHelp: () => replayIntro('oddboo', ODD_INTRO)
   });
   const title = el('div', { class: 'odd-find', text: 'WHICH BOO BREAKS THE PATTERN?' });
@@ -60,7 +58,6 @@ export function mount(container, params, ctx) {
         'aria-label': `Boo ${i + 1}`, onclick: e => choose(i, e.currentTarget)
       }, [el('span', { class: 'odd-art', html: booHTML(boo) })]);
       if (boo.hat) button.classList.add('has-hat');
-      if (boo.shine) button.classList.add('has-shine');
       board.appendChild(button);
     });
   }
@@ -70,7 +67,7 @@ export function mount(container, params, ctx) {
     if (i !== grid.oddIndex) {
       wrong++; streak = 0; recordResult(key, false);
       wobble(button); sfx.oops();
-      shell.react(`Good looking — compare their ${FEATURE_LABEL[grid.oddFeature]}!`);
+      shell.react(`Good looking — compare their ${grid.oddLabel}!`);
       locked = true;
       timer = setTimeout(() => {
         locked = false;
@@ -85,7 +82,7 @@ export function mount(container, params, ctx) {
     const r = button.getBoundingClientRect();
     sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
     if (streak >= 3) button.classList.add('odd-streak');
-    const found = `Yes — the ${FEATURE_LABEL[grid.oddFeature]} was different!`;
+    const found = `Yes — the ${grid.oddLabel} was different!`;
     shell.react(streak >= 3 ? `${found} ${streak} in a row!` : found);
     timer = setTimeout(() => {
       index++; shell.advance();

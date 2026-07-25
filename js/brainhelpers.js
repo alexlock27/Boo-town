@@ -32,36 +32,85 @@ function invert(boo, feature, rng) {
   else boo[feature] = boolOther(boo[feature]);
 }
 
-export function oddGrid(tier = 'light', rng = Math.random, options = {}) {
-  const count = tier === 'full' ? 12 : tier === 'medium' ? 9 : 4;
-  const base = randomBrainBoo(rng);
-  const oddIndex = Math.floor(rng() * count);
-  const oddFeature = FEATURES.includes(options.oddFeature) ? options.oddFeature : pick(FEATURES, rng);
-  const distractorFeatures = shuffled(FEATURES.filter(feature => feature !== oddFeature), rng)
-    .slice(0, TIER_ARITY[tier] || 1);
+// ---- Odd Boo Out's grid (RUN12 S3) ---------------------------------------------------
+// One uniform background, exactly one difference. Every non-odd Boo is IDENTICAL on every
+// feature; the odd Boo differs on exactly one. The previous design built 2–4 visual
+// "families", which meant a light grid always carried a 2-2 split and a full grid carried
+// three simultaneous 6-6 splits — nothing was uniquely odd by looking, only by knowing
+// which feature the generator had picked.
+//
+// 'shine' is NOT in the pool: sparkle is decoration or the answer, never ambiguously both,
+// and the simplest compliant rule is to exclude it entirely and never render it in a grid.
+export const ODD_FEATURES = ['colour', 'species', 'hat'];
+export const ODD_GRID_SIZE = { toddler: 4, light: 4, medium: 9, full: 12 };
 
-  // Build repeated visual families, then change one feature on one Boo. Other
-  // differences remain interesting but always occur in groups of 2+, so none can
-  // masquerade as a second answer. Medium uses 3 families; Full uses 4.
-  const familySize = tier === 'light' ? 2 : 3;
-  const familyCount = count / familySize;
-  const families = Array.from({ length: familyCount }, () => ({ ...base }));
-  distractorFeatures.forEach((feature, featureIndex) => {
-    const alternate = { ...base };
-    invert(alternate, feature, rng);
-    families.forEach((family, familyIndex) => {
-      if ((familyIndex + featureIndex) % 2 === 1) family[feature] = alternate[feature];
-    });
-  });
-  const positions = shuffled(Array.from({ length: count }, (_, index) => index), rng);
-  const familyForIndex = new Map(positions.map((index, position) => [index, Math.floor(position / familySize)]));
-  const items = Array.from({ length: count }, (_, index) => ({
-    ...families[familyForIndex.get(index)], id:`odd-${index}`
-  }));
-  invert(items[oddIndex], oddFeature, rng);
-  const predicateFeatures = [oddFeature];
+// Species rounds use an authored pair table so the EXPLANATION can name the part a child
+// actually saw rather than an internal category. Each label was verified against the
+// rendered SVG from js/art.js speciesGeom():
+//   pip    — the only species with tall rabbit ears        -> "ears"
+//   twirl  — the only one with a curly antenna             -> "antenna"
+//   nova   — the only one with a swirly tail               -> "tail"
+//   sunny  — the only one with star eyes                   -> "eyes"
+//   munch  — a wide toothy grin against bloop's small fangs-> "mouth"
+// The grid always wears `bloop`, whose own signature is the smallest in the set (two tiny
+// fangs), so the odd Boo's signature is what stands out. For `munch` the mouth is the only
+// difference of any substance at all — bloop is 43x43 against munch's 45x41, two pixels.
+export const ODD_BASE_SPECIES = 'bloop';
+export const ODD_SPECIES_PAIRS = [
+  { odd: 'pip',   label: 'ears',    subtle: false },
+  { odd: 'twirl', label: 'antenna', subtle: false },
+  { odd: 'nova',  label: 'tail',    subtle: false },
+  { odd: 'sunny', label: 'eyes',    subtle: true },
+  { odd: 'munch', label: 'mouth',   subtle: true }
+];
+// Colours a child would call nearly the same. Higher tiers get subtler, never ambiguous.
+export const ODD_NEAR_COLOURS = [['teal', 'aqua'], ['indigo', 'lilac'], ['lilac', 'bubblegum']];
+const ODD_SUBTLETY = { toddler: 'loud', light: 'loud', medium: 'any', full: 'subtle' };
+
+export function oddGrid(tier = 'light', rng = Math.random, options = {}) {
+  const count = ODD_GRID_SIZE[tier] || 4;
+  const subtlety = ODD_SUBTLETY[tier] || 'loud';
+  const oddFeature = ODD_FEATURES.includes(options.oddFeature) ? options.oddFeature : pick(ODD_FEATURES, rng);
+  const oddIndex = Math.floor(rng() * count);
+
+  const base = {
+    colour: pick(BRAIN_COLOURS, rng),
+    // a species round needs the authored base; otherwise the whole grid may be any
+    // single species, which varies the picture without varying the answer
+    species: oddFeature === 'species' ? ODD_BASE_SPECIES : pick(BRAIN_SPECIES, rng),
+    hat: rng() < 0.5,
+    shine: false                                  // never rendered inside a grid
+  };
+
+  let oddValue, oddLabel;
+  if (oddFeature === 'colour') {
+    const near = ODD_NEAR_COLOURS.filter(pair => pair.includes(base.colour)).flat();
+    if (subtlety === 'subtle') {
+      const pair = shuffled(pick(ODD_NEAR_COLOURS, rng), rng);
+      base.colour = pair[0]; oddValue = pair[1];
+    } else if (subtlety === 'loud') {
+      const far = BRAIN_COLOURS.filter(c => c !== base.colour && !near.includes(c));
+      oddValue = pick(far.length ? far : BRAIN_COLOURS.filter(c => c !== base.colour), rng);
+    } else {
+      oddValue = other(BRAIN_COLOURS, base.colour, rng);
+    }
+    oddLabel = 'colour';
+  } else if (oddFeature === 'species') {
+    const pool = subtlety === 'any' ? ODD_SPECIES_PAIRS
+      : ODD_SPECIES_PAIRS.filter(p => p.subtle === (subtlety === 'subtle'));
+    const chosen = pick(pool.length ? pool : ODD_SPECIES_PAIRS, rng);
+    oddValue = chosen.odd; oddLabel = chosen.label;
+  } else {
+    oddValue = !base.hat; oddLabel = 'hat';       // every other Boo wears the identical cap
+  }
+
+  const odd = { ...base, [oddFeature]: oddValue };
+  const items = Array.from({ length: count }, (_, index) =>
+    ({ ...(index === oddIndex ? odd : base), id: `odd-${index}` }));
   return {
-    items, oddIndex, oddFeature, predicateFeatures, distractorFeatures,
+    items, oddIndex, oddFeature, oddLabel,
+    predicateFeatures: [oddFeature],
+    distractorFeatures: [],                        // there are none, by design, any more
     expected: { [oddFeature]: base[oddFeature] }
   };
 }
