@@ -4,6 +4,7 @@ Thumbs.db
 *.log
 /test-results/
 /screenshots/tmp/
+.tmp/
 
 .claude/
 
@@ -29,6 +30,12 @@ RUN8.md
 RUN9.md
 RUN10.md
 RUN11.md
+RUN12.md
+RUN13.md
+RUN14.md
+RUN15.md
+RUN16.md
+RUN17.md
 
 # Private audit / working-state docs — never published to the public repo
 AUDIT_23.07.26.md
