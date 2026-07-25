@@ -290,7 +290,7 @@ export function mount(container, params, ctx) {
       if (b.label != null) {                              // a wrong brick's answer-hit: count + re-home
         wrongBricks++; sfx.oops();
         recordResult(question.key, false);
-        collector.add(choiceMiss({ id: question.key, game: 'bounce', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
+        collector.addAttempted(choiceMiss({ id: question.key, game: 'bounce', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
         shell.react('Hmm!', { voice: false, hold: 1200 });
       }
       destroyBrick(b);                                    // re-homes its label (if any) + keeps invariants
@@ -448,6 +448,9 @@ export function mount(container, params, ctx) {
 
     function finish() {
       if (ended) return; ended = true; stop(); shell.cleanup();
+      // The wall-clear limit can end the round on top of a live question. She never got to
+      // answer it, so it is a non-event, not a miss (RUN12 S2).
+      if (questionsAnswered < QUESTIONS) collector.noteUnattempted();
       const stars = starsForBounce(wrongBricks, ballLosses);
       ctx.go('results', { game: 'bounce', gameName: 'Boo Bounce', stars, level, cat: autoMix ? null : category, mix: autoMix, tricky: collector.items(), replay: () => ctx.go('bounce') });
     }

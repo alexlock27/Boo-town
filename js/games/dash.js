@@ -205,7 +205,7 @@ export function mount(container, params, ctx) {
         // soft bonk: wobble, heart dims, streak resets, the SAME question stays
         bonks++; streak = 0;
         recordResult(question.key, false);
-        collector.add(missFor(question));
+        collector.addAttempted(missFor(question));
         sfx.oops();
         g.node.classList.remove('bonked'); void g.node.offsetWidth; g.node.classList.add('bonked');
         booInner.classList.remove('bonk'); void booInner.offsetWidth; booInner.classList.add('bonk');

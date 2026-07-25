@@ -196,7 +196,7 @@ export function mount(container, params, ctx) {
       setTimeout(() => card.remove(), 1400);
     }
 
-    function onMiss(id, missItem) { wrong++; shell.dimHeart(); recordResult(id, false); if (missItem) collector.add(missItem); }
+    function onMiss(id, missItem) { wrong++; shell.dimHeart(); recordResult(id, false); if (missItem) collector.addAttempted(missItem); }
     function onHitLedger(id) { recordResult(id, true); }
 
     // --- a normal / mix word item ---

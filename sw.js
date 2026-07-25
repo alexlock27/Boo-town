@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run12-s1-20260725';  // RUN12 S1: Wish Well crash + route-parameter smoke
+const BUILD_STAMP = 'run12-s2-20260725';  // RUN12 S2: unattempted questions are non-events
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
