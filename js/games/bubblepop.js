@@ -25,6 +25,8 @@ const GOLDEN_CAP = 2;          // ...capped this many times per round (+1 meter 
 const DROPLETS = 7;            // droplets a pop bursts into
 
 const rand = (n) => (Math.random() * n) | 0;
+// RUN12 S12: the play field's own inset. Bubbles never leave it, in either direction.
+const FIELD_PAD = 6;
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen bubblepop' });
@@ -99,7 +101,10 @@ export function mount(container, params, ctx) {
     shell = createGameShell({
       title: mix ? 'Smart Mix' : 'Bubble Pop', rounds: ROUNDS, accent: 'var(--pop)',
       onHelp: () => replayIntro('bubblepop'),
-      onBack: () => { stopLoop(); ctx.go('hub'); },
+      // RUN12 S11: leaving mid-round banks what she actually got right, through results —
+      // the single crediting path (RUN5 C0), so nothing else has to know about stars.
+      bank: () => ({ correct: solved, of: ROUNDS }),
+      onBack: (b) => { stopLoop(); if (b && b.stars > 0) ctx.go('results', { game: 'bubblepop', gameName: mix ? 'Smart Mix' : 'Bubble Pop', stars: b.stars, level, cat: mix ? null : catKey, mix, tricky: collector.items(), partial: b, replay: () => ctx.go('bubblepop') }); else ctx.go('hub'); },
       onHint: doHint,
       hintEnabled: true
     });
@@ -122,6 +127,20 @@ export function mount(container, params, ctx) {
       field.appendChild(node);
       bubbles.push(b);
     }
+    // RUN12 S12 — the play field must EXCLUDE the chrome, not just the HUD. The question
+    // card is laid over the same absolutely-positioned area, so bubbles drifted behind it
+    // and a hit-test at their centre landed on .target-card. The field's top inset is
+    // measured from the card, so the answer is never behind the question.
+    function fitField() {
+      const area = shell.area.getBoundingClientRect();
+      const card = targetCard.getBoundingClientRect();
+      const top = Math.max(0, Math.round(card.bottom - area.top) + 8);
+      if (field.style.top !== top + 'px') { field.style.top = top + 'px'; resetPositions(); }
+    }
+    requestAnimationFrame(fitField);
+    const onFieldResize = () => fitField();
+    window.addEventListener('resize', onFieldResize);
+
     layoutValues();
     resetPositions();
     startLoop();
@@ -170,7 +189,8 @@ export function mount(container, params, ctx) {
         b.size = 74 + rand(16);
         b._pi = i;
         b.x = (i + 0.5) / BUBBLE_COUNT * W - b.size / 2 + (Math.random() * 24 - 12);
-        b.y = (i / BUBBLE_COUNT) * (H - 40) + Math.random() * 30; // spread across the field
+        // spread across the field, entirely INSIDE it (S12)
+        b.y = FIELD_PAD + (i / BUBBLE_COUNT) * Math.max(0, H - b.size - FIELD_PAD * 2);
         b.speed = 0.6 + Math.random() * 0.5;                       // gentle upward drift
         b.phase = Math.random() * Math.PI * 2;
         place(b);
@@ -178,9 +198,12 @@ export function mount(container, params, ctx) {
     }
 
     function place(b) {
-      const W = field.clientWidth || 600;
+      const W = field.clientWidth || 600, H = field.clientHeight || 500;
       const sway = Math.sin((b.y + b.phase * 80) / 90) * 14;
-      const px = Math.max(6, Math.min(W - b.size - 6, b.x + sway));
+      const px = Math.max(FIELD_PAD, Math.min(W - b.size - FIELD_PAD, b.x + sway));
+      // hard containment: whatever the drift does, the bubble stays inside the play field,
+      // so every answer on screen is a whole answer and every centre is tappable (S12)
+      b.y = Math.max(FIELD_PAD, Math.min(H - b.size - FIELD_PAD, b.y));
       b.node.style.width = b.node.style.height = b.size + 'px';
       b.node.style.left = px + 'px';
       b.node.style.bottom = b.y + 'px';
@@ -200,7 +223,15 @@ export function mount(container, params, ctx) {
           const H = field.clientHeight || 500;
           for (const b of bubbles) {
             b.y += b.speed * dt;
-            if (b.y > H + b.size) respawn(b);
+            // RUN12 S12 — a bubble is RETIRED when its top edge reaches the top of the play
+            // field and respawned from the bottom, fully inside. It used to drift on until
+            // it was completely past the field (b.y > H + b.size) and respawn from
+            // b.y = -size - up to 60 more: for seconds at a time the answer was outside the
+            // play area entirely, clipped from view but still in the DOM, so a hit-test at
+            // its centre hit the screen behind it. Measured at 390x844: bubbles crossed into
+            // the HUD's band in 10 of 12 samples, worst overlap 164px, and one bubble was
+            // genuinely untappable.
+            if (b.y + b.size >= H - FIELD_PAD) respawn(b);
             place(b);
           }
         }
@@ -211,8 +242,10 @@ export function mount(container, params, ctx) {
     function stopLoop() { if (loopId) cancelAnimationFrame(loopId); loopId = null; }
 
     function respawn(b) {
-      b.y = -b.size - Math.random() * 60;
+      b.y = FIELD_PAD;                       // back at the bottom of the field, fully inside
       b.x = Math.random() * ((field.clientWidth || 600) - b.size - 12) + 6;
+      // a short fade so a retired bubble reads as a new one arriving, not a teleport
+      b.node.classList.remove('bp-fresh'); void b.node.offsetWidth; b.node.classList.add('bp-fresh');
       if (!b.correct) {
         // fresh distractor value, keeping exactly one correct on the board
         const onBoard = new Set(bubbles.map(x => x.value));
@@ -308,11 +341,16 @@ export function mount(container, params, ctx) {
       popWrong: () => { const b = bubbles.find(x => !x.correct && !x.hidden); if (b) onPop(b); },
       hasGolden: () => bubbles.some(b => b.golden && !b.hidden),
       droplets: () => document.querySelectorAll('.bp-droplet').length,
+      // RUN12 S12 QA: the field's own box and every bubble's, for the containment sweep
+      fieldRect: () => { const r = field.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; },
+      bubbleRects: () => bubbles.filter(b => !b.hidden).map(b => { const r = b.node.getBoundingClientRect(); return { correct: b.correct, top: r.top, bottom: r.bottom, left: r.left, right: r.right, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }),
+      pad: () => FIELD_PAD,
       goldPops: () => document.querySelectorAll('.bp-goldpop').length
     };
 
     function finish() {
       stopLoop();
+      window.removeEventListener('resize', onFieldResize);
       shell.cleanup();
       const stars = starsFor(wrongPops, hintsUsed);
       recordBest('bubblepop', mix ? MIX_KEY : catKey, stars);

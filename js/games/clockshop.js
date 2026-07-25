@@ -78,7 +78,9 @@ export function mount(container, params, ctx) {
     // set time state
     let sh12 = 12, sm = 0;          // hour 1..12, minutes 0..59
 
-    shell = createGameShell({ title: 'Clock Shop', rounds: ORDERS, accent: 'var(--zing)', onBack: () => { ctx.go('hub'); }, onHint: doHint, onHelp: () => replayIntro('clockshop') });
+    shell = createGameShell({ title: 'Clock Shop', rounds: ORDERS, accent: 'var(--zing)', bank: () => ({ correct: idx, of: ORDERS }),
+      onBack: (b) => { if (b && b.stars > 0) ctx.go('results', { game: 'clockshop', gameName: 'Clock Shop', stars: b.stars, level, cat: 'clock', partial: b, replay: () => ctx.go('clockshop') }); else ctx.go('hub'); },
+      onHint: doHint, onHelp: () => replayIntro('clockshop') });
     root.appendChild(shell.root);
 
     // ---- counter with the ordering Boo ----

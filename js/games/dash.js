@@ -95,7 +95,9 @@ export function mount(container, params, ctx) {
     let runFromZ = 0, runT = 0, runDur = RUN_MS, lastRunMs = 0;
     let boLane = 0;               // which lane the Boo is drifting through (-1/0/1)
 
-    shell = createGameShell({ title: mix ? 'Smart Mix' : 'Boo Dash', rounds: GATES, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('dash') });
+    shell = createGameShell({ title: mix ? 'Smart Mix' : 'Boo Dash', rounds: GATES, accent: 'var(--pop)', bank: () => ({ correct: gate, of: GATES }),
+      onBack: (b) => { stop(); if (b && b.stars > 0) ctx.go('results', { game: 'dash', gameName: mix ? 'Smart Mix' : 'Boo Dash', stars: b.stars, level, cat: mix ? null : catKey, mix, tricky: collector.items(), partial: b, replay: () => ctx.go('dash') }); else ctx.go('hub'); },
+      hintEnabled: false, onHelp: () => replayIntro('dash') });
     root.appendChild(shell.root);
 
     // ---- scene ------------------------------------------------------------

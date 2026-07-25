@@ -130,7 +130,9 @@ export function mount(container, params, ctx) {
     let startTime = 0, backingTimer = null, backingStep = 0;
 
     music.stop();   // the backing track IS the music in Boo Beat now (C3)
-    shell = createGameShell({ title: 'Boo Beat', rounds: PHRASES, accent: 'var(--star)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('beat') });
+    shell = createGameShell({ title: 'Boo Beat', rounds: PHRASES, accent: 'var(--star)', bank: () => ({ correct, of: PHRASES }),
+      onBack: (b) => { stop(); if (b && b.stars > 0) ctx.go('results', { game: 'beat', gameName: 'Boo Beat', stars: b.stars, level, cat: auto ? null : category, mix: auto, tricky: collector.items(), partial: b, replay: () => ctx.go('beat') }); else ctx.go('hub'); },
+      hintEnabled: false, onHelp: () => replayIntro('beat') });
     root.appendChild(shell.root);
 
     const qCard = el('div', { class: 'beat-question' });

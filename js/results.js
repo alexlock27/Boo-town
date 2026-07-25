@@ -15,7 +15,7 @@ import { grantRoundTreat } from './care.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
-          cat = null, level = null, mix = false, extraCosy = false } = params || {};
+          cat = null, level = null, mix = false, extraCosy = false, partial = null } = params || {};
   const s = getState();
   // The Tricky Pile is already "collected"; persist immediately so an early exit keeps them.
   if (tricky.length) persistUnrescued(tricky.map(t => t.id));
@@ -29,10 +29,12 @@ export function mount(container, params, ctx) {
     const g = st.stars.byGame[game];
     if (g) { g.plays += 1; g.best = Math.max(g.best, stars); g.earned = (g.earned || 0) + stars; }  // C0 Star Ledger tally
     st.stars.total += stars;
-    if (stars >= 3) { st.gameThrees = st.gameThrees || {}; st.gameThrees[game] = (st.gameThrees[game] || 0) + 1; }  // C4 medal tally
+    // RUN12 S11: a round LEFT EARLY still pays for the work she did, but it is not a
+    // finished round — it does not earn a medal tally or a personal best it never reached.
+    if (stars >= 3 && !partial) { st.gameThrees = st.gameThrees || {}; st.gameThrees[game] = (st.gameThrees[game] || 0) + 1; }  // C4 medal tally
     // RUN10 P17: a completed learning round posts one clue card to an open notebook,
     // at most three a day, capped at the four clues that pin the culprit.
-    if (st.caper && st.caper.open) {
+    if (st.caper && st.caper.open && !partial) {   // a clue is for a COMPLETED round
       const day = todayKey();
       if (st.caper.clueDay !== day) { st.caper.clueDay = day; st.caper.cluesToday = 0; }
       if ((st.caper.cluesToday || 0) < 3) {
@@ -65,7 +67,7 @@ export function mount(container, params, ctx) {
     ? { points: meterOverride, brave: false, cosy: false, above: false, comfort: 0 }
     : meterPointsFor({ game, cat, level, mix, stars, roundKeys, extraCosy });
   const banked = addMeterPoints(verdict.points);
-  const lineKey = stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
+  const lineKey = partial ? 'leftEarly' : stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
 
   // daily quests + Journal (RUN3 C4) + occasional requests (RUN3 C8)
   noteQuest('roundEnd', { game, stars });

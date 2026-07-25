@@ -10,24 +10,38 @@ import { speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { createRoundTimers } from './intro.js';
 
-export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true, onHelp = null, hideHearts = false, hideProgress = false }) {
+export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true, onHelp = null, hideHearts = false, hideProgress = false, bank = null, maxStars = 3 }) {
   beginRoundTally();   // RUN4 C3: collect this round's ledger items for the cosy check
   const s = getState();
   const guide = (s && s.guide) || { body: 'sunshine', patch: 'cocoa', acc: 'none' };
   let hearts = maxHearts;
   let progress = 0;
 
-  // the shared back control (DASH_PATCH job 3), keeping the leave-round confirm
+  // ---- banking on exit (RUN12 S11) -----------------------------------------------------
+  // Leaving mid-round used to forfeit everything: "Your stars won't be saved." A child who
+  // got seven right and then had to stop for tea lost all seven. A round now banks stars in
+  // proportion to what she actually got RIGHT, rounded down, never more than the round could
+  // have paid — and the dialog says so before she decides.
+  //
+  // `bank` is supplied by the game as () => ({ correct, of }). Without it the shell falls
+  // back to the progress dots, which every question-round game advances on a correct answer.
+  function bankedStars() {
+    const b = (typeof bank === 'function' ? bank() : null) || { correct: progress, of: rounds };
+    const of = Math.max(1, b.of || rounds);
+    const correct = Math.max(0, Math.min(of, b.correct || 0));
+    return { correct, of, stars: Math.max(0, Math.min(maxStars, Math.floor(maxStars * correct / of))) };
+  }
   const backBtn = backControl(async () => {
+    const b = bankedStars();
     const leave = await dialog({
       title: 'Leave this round?',
-      body: "Your stars won't be saved.",
+      body: "You'll keep the stars you've earned so far.",
       buttons: [
         { label: 'Keep playing', value: false, kind: 'secondary' },
         { label: 'Leave', value: true, kind: 'soft' }
       ]
     });
-    if (leave) onBack && onBack();
+    if (leave) onBack && onBack(b);
   }, { label: 'Leave round' });
 
   const dots = el('div', { class: 'progress-dots' });
@@ -96,6 +110,7 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
     // setTimeout's own signature, so converting a game is a one-word change per call site
     timeout: clock.timeout,
     paused: clock.paused,
+    banked: () => bankedStars(),   // QA + the games' own leave routing
     pausedMs: clock.pausedMs,   // for games on an external clock (Boo Beat rides the audio clock)
     // a rAF loop that simply does not call back while the round is suspended
     loop(fn) {

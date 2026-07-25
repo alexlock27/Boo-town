@@ -1136,6 +1136,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   padding: 10px 26px; box-shadow: var(--card-shadow);
 }
 .target-eq { font-family: var(--font-display); font-weight: 700; font-size: 34px; color: var(--ink); white-space: nowrap; }
+/* RUN12 S12: `top` is set by js/games/bubblepop.js from the measured question card, so
+   the play field genuinely excludes the chrome above it. */
 .bubble-field { position: absolute; inset: 0; overflow: hidden; }
 .bubble {
   position: absolute; border-radius: 50%; border: 4px solid var(--ink);
@@ -4499,3 +4501,20 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
    last answer left them. Transform-only, with a reduced-motion path (house law). */
 .clock-wrap.resetting .hour-hand, .clock-wrap.resetting .minute-hand { transition: transform 480ms cubic-bezier(.4,0,.2,1); }
 @media (prefers-reduced-motion: reduce) { .clock-wrap.resetting .hour-hand, .clock-wrap.resetting .minute-hand { transition: none; } }
+
+
+/* RUN12 S11 — the treats pocket on the hub top bar, matching the chip inside Boo Care. */
+.hub-pocket {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 4px 12px;
+  border: 2px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink);
+  font: 800 16px var(--font-display); cursor: pointer; flex: 0 0 auto;
+}
+.hub-pocket .cp-ic { font-size: 17px; line-height: 1; }
+@media (max-width: 600px) { .hub-pocket { min-height: 38px; padding: 3px 9px; font-size: 15px; } }
+
+
+/* RUN12 S12 — a retired bubble fades back in at the bottom of the field rather than
+   sliding in from outside it. Transform/opacity only, with a reduced-motion path. */
+.bubble.bp-fresh { animation: bpFresh 260ms ease-out; }
+@keyframes bpFresh { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .bubble.bp-fresh { animation: none; } }

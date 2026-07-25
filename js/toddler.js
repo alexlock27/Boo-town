@@ -256,7 +256,8 @@ export function mount(container, params, ctx) {
   const shell = createGameShell({
     title: meta.word, rounds: roundCount, accent: 'var(--pop)',
     hideHearts: true, hintEnabled: false,
-    onBack: () => ctx.go('hub'),
+    bank: () => ({ correct: done, of: roundCount }),
+    onBack: (b) => { if (b && b.stars > 0) ctx.go('results', { game: meta.id, gameName: meta.word, stars: b.stars, meterOverride: Math.max(TODDLER_METER_MIN, b.stars), partial: b, replay: () => ctx.go('toddlergame', { game }) }); else ctx.go('hub'); },
     // RUN12 S9: the "?" replays the intro AND repeats the spoken prompt behind it
     onHelp: () => runIntro(meta.id, { steps: INTRO_SCRIPTS[meta.id], onDone: () => { if (api && typeof api.sayAgain === 'function') api.sayAgain(); } })
   });

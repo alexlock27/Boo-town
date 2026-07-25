@@ -100,7 +100,16 @@ export function mount(container, params, ctx) {
   // The Star Chest (RUN4 C8) now lives as a Today-rail chip (RUN7 C3), decluttering
   // the header down to the core star economy: speaker + total + meter + gift.
   const meterWrap = el('div', { class: 'meter-wrap' });
-  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap]);
+  // RUN12 S11 — the treats pocket. RUN10 P12 specified it beside the meter and it was only
+  // ever built inside Boo Care, so the one place a child could see how many cookies she had
+  // was the one place she had already gone looking. It sits with the meter now: same chip,
+  // same reading, tapping it goes to the Boos it feeds.
+  const treats = Number((s.care && s.care.treats) || 0);
+  const pocketChip = el('button', {
+    class: 'care-pocket hub-pocket', 'aria-label': `Treats: ${treats}`,
+    onclick: () => { sfx.tap(); ctx.go('town', { area: 'meadow' }); }
+  }, [el('span', { class: 'cp-ic', text: '🍪' }), el('span', { class: 'cp-n', text: String(treats) })]);
+  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap, pocketChip]);
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
