@@ -89,10 +89,77 @@ export function markIntroSeen(game) {
   mutate(st => { st.seen = st.seen || {}; st.seen.introSeen = st.seen.introSeen || {}; st.seen.introSeen[game] = true; });
 }
 
+// ---- round suspension (RUN12 S6) ------------------------------------------------------
+// The intro teaches; it must never run the game behind its own back. Flash Boos was
+// revealing and hiding its scene while the child was still reading step one, and Boo Beat
+// dropped two hearts before she had finished the instructions.
+//
+// Anything with a round to freeze registers here. js/gameshell.js does it for every game,
+// so a game only has to take its timers and its clock from the shell to be covered.
+const suspendables = new Set();
+let suspendDepth = 0;
+export function registerSuspendable(api) {
+  suspendables.add(api);
+  // A game shell can be built AFTER the overlay is already up (several games call
+  // maybeIntro() at mount and only reach play() from a start card). Catch it up.
+  if (suspendDepth > 0) { try { api.suspend(); } catch (e) { console.warn(e); } }
+  return () => suspendables.delete(api);
+}
+export function roundSuspended() { return suspendDepth > 0; }
+function suspendRound() {
+  if (++suspendDepth !== 1) return;                    // nested intros suspend once
+  for (const s of suspendables) { try { s.suspend(); } catch (e) { console.warn(e); } }
+}
+function resumeRound() {
+  if (suspendDepth === 0 || --suspendDepth !== 0) return;
+  for (const s of suspendables) { try { s.resume(); } catch (e) { console.warn(e); } }
+}
+
+// A paused-aware clock + timer set. `now()` simply does not advance while an intro is up,
+// and a pending timer banks its remaining time across the pause instead of burning through
+// it. Used by js/gameshell.js for every shelled game and directly by Echo Boos, which
+// predates the shell. One implementation, so the two cannot drift.
+export function createRoundTimers() {
+  let paused = false, pausedAt = 0, lostMs = 0;
+  const pending = new Set();
+  const now = () => (paused ? pausedAt : performance.now()) - lostMs;
+  function after(ms, fn) {
+    const t = { fn, dueAt: now() + ms, id: null };
+    pending.add(t);
+    if (!paused) t.id = setTimeout(() => { pending.delete(t); fn(); }, ms);
+    return t;
+  }
+  function cancel(t) { if (!t) return; if (t.id) clearTimeout(t.id); pending.delete(t); }
+  function clearAll() { for (const t of pending) if (t.id) clearTimeout(t.id); pending.clear(); }
+  const unregister = registerSuspendable({
+    suspend() {
+      if (paused) return;
+      paused = true; pausedAt = performance.now();
+      for (const t of pending) { if (t.id) { clearTimeout(t.id); t.id = null; } }
+    },
+    resume() {
+      if (!paused) return;
+      lostMs += performance.now() - pausedAt;
+      paused = false;
+      for (const t of pending) {
+        const left = Math.max(0, t.dueAt - now());
+        t.id = setTimeout(() => { pending.delete(t); t.fn(); }, left);
+      }
+    }
+  });
+  return {
+    now, after, cancel, clearAll,
+    timeout: (fn, ms) => after(ms, fn),          // setTimeout's own signature
+    paused: () => paused,
+    pausedMs: () => lostMs,
+    dispose() { clearAll(); unregister(); }
+  };
+}
+
 // steps: [{ text, demo?: (demoArea) => cleanupFn }]. onDone runs after finish or Skip.
 // speak: read each step aloud when voice is available.
 export function runIntro(game, { steps = [], onDone = null, speak = true } = {}) {
-  if (!steps.length) { markIntroSeen(game); if (onDone) onDone(); return { close() {} }; }
+  if (!steps.length) { markIntroSeen(game); if (onDone) onDone(); return { close() {} }; }   // nothing shown, nothing suspended
   const s = getState();
   const guide = (s && s.guide) || { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none' };
 
@@ -110,6 +177,7 @@ export function runIntro(game, { steps = [], onDone = null, speak = true } = {})
   const overlay = el('div', { class: 'intro-overlay', role: 'dialog', 'aria-label': 'How to play' }, [panel]);
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('show'));
+  suspendRound();       // the round behind this overlay stops dead until it closes
 
   let idx = 0, demoCleanup = null, closed = false;
   function render() {
@@ -131,6 +199,7 @@ export function runIntro(game, { steps = [], onDone = null, speak = true } = {})
   function finish() {
     if (closed) return; closed = true;
     if (demoCleanup) { try { demoCleanup(); } catch {} }
+    resumeRound();      // and picks up exactly where it was, not where it would have been
     markIntroSeen(game);
     overlay.classList.remove('show');
     setTimeout(() => overlay.remove(), 220);

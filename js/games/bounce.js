@@ -334,7 +334,8 @@ export function mount(container, params, ctx) {
     function step(now) {
       animNow = now;
       const dt = Math.min(2.4, (now - last) / 16.6); last = now;
-      if (!document.hidden && !ended) update(dt);
+      if (shell.paused()) last = now;                      // the paused stretch is not elapsed time
+      else if (!document.hidden && !ended) update(dt);      // frozen behind an intro (RUN12 S6)
       draw();
       raf = requestAnimationFrame(step);
     }

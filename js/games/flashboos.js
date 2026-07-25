@@ -54,8 +54,10 @@ export function mount(container, params, ctx) {
     renderScene();
     curtain.classList.remove('down');
     stage.classList.add('revealing');
-    clearTimeout(timer);
-    timer = setTimeout(hideAndAsk, revealMs);
+    // RUN12 S6: the reveal is the whole game. It must not start — let alone finish —
+    // behind the first-play intro, which is exactly what shipped.
+    shell.cancel(timer);
+    timer = shell.after(revealMs, hideAndAsk);
   }
   function renderScene(circleIds = []) {
     clear(sceneNode);
@@ -74,7 +76,7 @@ export function mount(container, params, ctx) {
   }
   function hideAndAsk() {
     phase = 'question'; curtain.classList.add('down'); stage.classList.remove('revealing');
-    setTimeout(renderQuestion, 600);
+    shell.after(600, renderQuestion);
   }
   function renderQuestion() {
     clear(questionNode);
@@ -114,10 +116,10 @@ export function mount(container, params, ctx) {
     stage.classList.add('answer-reveal');
     clear(questionNode);
     questionNode.appendChild(el('div', { class: 'flash-proof', text: `The answer was ${answerLabel(question.correct)}!` }));
-    timer = setTimeout(() => {
+    timer = shell.after(1450, () => {
       round++; shell.advance();
       if (round >= ROUNDS) finish(); else begin();
-    }, 1450);
+    });
   }
   function answerLabel(answer) {
     if (question.answerType === 'boo') return scene.boos.find(b => b.id === answer).name;
@@ -131,5 +133,5 @@ export function mount(container, params, ctx) {
     scene: () => scene, question: () => question, phase: () => phase,
     hide: hideAndAsk, answer: answerQuestion, revealMs, round: () => round
   };
-  return { unmount() { clearTimeout(timer); shell.cleanup(); delete window.__flashboos; } };
+  return { unmount() { shell.cancel(timer); shell.cleanup(); delete window.__flashboos; } };
 }

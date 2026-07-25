@@ -56,6 +56,14 @@ export const LINES = {
     "THREE STARS?! {name}, you legend!",
     "Perfect round! The Boos are going wild!"
   ],
+  // RUN12 S5 — the ceremony describes the thing she actually won. One authored line per
+  // kind; no Boo flavour ever lands on a hat, a bed or a palm tree. Single-entry arrays so
+  // the exact authored words are what she hears, every time.
+  dropBoo: ["A new Boo just dropped!"],
+  dropAccessory: ["A new thing to wear!"],
+  dropCostume: ["A whole outfit!"],
+  dropFurniture: ["Something new for the house!"],
+  dropTown: ["Something new for your town!"],
   boxCommon: [
     "A new Boo just dropped!",
     "Aww, look at its little face!"

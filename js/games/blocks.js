@@ -96,7 +96,7 @@ function blocksSqueezeDemo(area) {
   demo.append(grid, boost, question);
   area.appendChild(demo);
   let timers = [], alive = true;
-  const later = (fn, ms) => timers.push(setTimeout(() => alive && fn(), ms));
+  const later = (fn, ms) => timers.push(setTimeout(() => alive && fn(), ms));   // the intro's own demo loop, not a round
   function run() {
     cells.forEach(c => c.className = 'blk-demo-square');
     boost.classList.remove('squeeze');
@@ -441,7 +441,7 @@ export function mount(container, params, ctx) {
       score += cellList.length * SPECIAL_CELL_POINTS;
       updateScore();
       lineFlourish(0, label);
-      setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 40 : Math.max(200, delay + 100));
+      shell.timeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 40 : Math.max(200, delay + 100));
       shell.react(label, { voice: false, hold: 1300 });
     }
     function fireBeam(orient, r, c) {
@@ -493,7 +493,7 @@ export function mount(container, params, ctx) {
       renderCascade();
       fullRows.forEach(r => { for (let c = 0; c < N; c++) board[r][c] = 0; });
       fullCols.forEach(c => { for (let r = 0; r < N; r++) board[r][c] = 0; });
-      setTimeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 60 : Math.max(240, delay + 120));
+      shell.timeout(() => { renderBoard(); checkAllClear(); }, REDUCED ? 60 : Math.max(240, delay + 120));
     }
     function checkAllClear() {
       let empty = true;
@@ -562,7 +562,7 @@ export function mount(container, params, ctx) {
         node.classList.add('right');
         awardSpecial();
         boostsLeft--;                                            // consumed only on a correct answer
-        setTimeout(() => closeBoost(true), 420);
+        shell.timeout(() => closeBoost(true), 420);
       } else {
         sfx.oops(); recordResult(boostQuestion.key, false);
         wobble(node); node.classList.add('wrongflash');
@@ -619,7 +619,7 @@ export function mount(container, params, ctx) {
       // stuck: pieces remain but none fit AND no Boost left to rescue with a blast
       if (tray.some(Boolean) && !anyLegal() && boostsLeft <= 0) {
         shell.react("Board's full, brilliant building!", { voice: true, hold: 2600 });
-        setTimeout(() => finish("Board's full, brilliant building!"), 1400); return true;
+        shell.timeout(() => finish("Board's full, brilliant building!"), 1400); return true;
       }
       return false;
     }

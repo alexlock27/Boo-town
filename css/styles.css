@@ -89,7 +89,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   border: none;
   border-radius: 40px;
   background: var(--pop);
-  color: var(--card);
+  /* RUN12 S4 (G7): cream on --pop measures 2.25:1 — the primary button of the whole
+     app failed AA. Ink on the same pink is 6.47:1 and keeps the palette. .ghost and
+     any dark-backed variant still set their own light colour explicitly. */
+  color: var(--ink);
   box-shadow: 0 5px 0 rgba(0,0,0,0.18), var(--card-shadow);
   cursor: pointer;
   transition: transform 150ms ease-out, box-shadow 150ms ease-out, filter 150ms ease-out;
@@ -208,7 +211,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   border-radius: 16px; padding: 8px 14px; font-family: var(--font-display); font-size: 16px; cursor: pointer;
   min-height: 44px;
 }
-.acc-chip.sel { background: var(--pop); border-color: var(--card); }
+.acc-chip.sel { background: var(--pop); border-color: var(--ink); }
 .text-input.small { font-size: 20px; padding: 8px 14px; width: 200px; }
 .creator-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 /* denser layout for the fuller 7-option creator */
@@ -299,7 +302,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes giftbounce { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-8px) rotate(3deg); } }
 .gift-btn:not(.ready) { opacity: 0.5; }
 .box-badge {
-  position: absolute; top: -4px; right: -6px; background: var(--pop); color: #fff;
+  position: absolute; top: -4px; right: -6px; background: var(--pop); color: var(--ink);
   font-family: var(--font-display); font-size: 14px; padding: 1px 7px; border-radius: 12px; border: 2px solid var(--ink);
 }
 
@@ -351,8 +354,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .trail-chip .tc-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .trail-chip .tc-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); white-space: nowrap; }
 .trail-chip .tc-sub { font-family: var(--font-body); font-size: 12.5px; color: #6b5ca0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px; }
-.trail-chip .tc-sub.open { color: var(--star); font-weight: 700; }
-.trail-chip .tc-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: #fff; font-family: var(--font-display); font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+/* RUN12 S4 (G7): --star on the chip's pale cream is 1.43:1. A deeper amber keeps the
+   "it's ready!" signal and measures 5.5:1. */
+.trail-chip .tc-sub.open { color: #8A5A00; font-weight: 700; }
+.trail-chip .tc-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: var(--ink); font-family: var(--font-display); font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
 .trail-chip.quests.done .tc-badge { background: var(--star); color: var(--ink); }
 .trail-chip .tc-x { position: absolute; top: 5px; right: 6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(42,27,78,0.09); color: #6b5ca0; font-size: 14px; font-weight: 700; line-height: 1; }
 .trail-chip .tc-x::before { content: '\00D7'; }
@@ -427,7 +432,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   padding: 8px 14px; font-family: var(--font-display); font-weight: 600; font-size: 16px; cursor: pointer;
   min-height: 46px; display: flex; flex-direction: column; align-items: center; gap: 1px;
 }
-.picker-choice.sel { background: var(--pop); border-color: var(--ink); color: #fff; }
+.picker-choice.sel { background: var(--pop); border-color: var(--ink); color: var(--ink); }
 .pc-badge { display: flex; }
 .pc-badge .star-ic { width: 14px; height: 14px; }
 .picker-levels { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
@@ -853,7 +858,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .echo-best.lightning { border-color: var(--pop); background: rgba(255,122,198,.13); }
 .echo-mode { min-height: 48px; padding: 9px 16px; border: 3px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); font: 700 16px var(--font-display); }
 .echo-mode.sel { background: var(--star); box-shadow: 0 0 0 3px #fff, 0 0 16px rgba(255,201,60,.5); }
-.echo-mode.lightning.sel { background: var(--pop); color: #fff; }
+.echo-mode.lightning.sel { background: var(--pop); color: var(--ink); }
 .echo-board { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(14px, 4vh, 34px); }
 .echo-podium { display: flex; flex-direction: column; align-items: center; }
 .echo-boo { width: clamp(84px, 20vw, 150px); height: clamp(84px, 20vw, 150px); border-radius: 50%; border: none; background: none; padding: 0;
@@ -1037,7 +1042,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 .beat-field.combo { box-shadow: inset 0 0 40px rgba(255,201,60,0.35), inset 0 2px 12px rgba(0,0,0,0.3); }
 .beat-lane { flex: 1; position: relative; border-radius: 12px; background: rgba(255,255,255,0.04); overflow: hidden; touch-action: none; cursor: pointer; }
-.beat-lane:nth-child(1) { --lane: var(--pop); } .beat-lane:nth-child(2) { --lane: var(--zing); } .beat-lane:nth-child(3) { --lane: var(--star); }
+/* RUN12 S4 (G7): keyed on the lane's OWN data attribute, never on sibling order. The
+   nth-child rules silently went off by one when .beat-road joined the field as its first
+   child, so the third lane got no --lane at all: its note background resolved transparent
+   and the ink number sat on the dark road at 1.37:1. Each lane also declares its own tinted
+   background so the three read apart before any note arrives. Ink on all three note
+   colours is verified AA-large by tests/r12s4-contrast.mjs. */
+.beat-lane[data-lane="0"] { --lane: var(--pop);  background: rgba(255,122,198,0.16); }
+.beat-lane[data-lane="1"] { --lane: var(--zing); background: rgba(53,208,186,0.16); }
+.beat-lane[data-lane="2"] { --lane: var(--star); background: rgba(255,201,60,0.16); }
 .beat-lane:active { background: rgba(255,255,255,0.10); }
 .beat-note {
   position: absolute; top: 0; left: 50%; margin-left: -34px; width: 68px; height: 52px; border-radius: 14px;
@@ -1245,8 +1258,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .spell-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
 
 /* ---- Smart Mix picker card + Tricky Pile (RUN3 C2) ---- */
-.picker-choice.mix { background: linear-gradient(120deg, var(--pop), var(--star)); color: var(--card); font-weight: 700; }
-.picker-choice.mix .pc-name { color: var(--card); }
+.picker-choice.mix { background: linear-gradient(120deg, var(--pop), var(--star)); color: var(--ink); font-weight: 700; }
+.picker-choice.mix .pc-name { color: var(--ink); }   /* RUN12 S4: cream on the pink-to-gold gradient measured 1.56:1 */
 
 /* ---- "Pick for me!" + kid-readable set cards (RUN4 C2) ---- */
 .picker-choice.pickforme {
@@ -1260,7 +1273,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes pfm-wiggle { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-14deg); } 94% { transform: rotate(12deg); } 98% { transform: rotate(-6deg); } }
 @media (prefers-reduced-motion: reduce) { .pfm-dice { animation: none; } }
 .pc-sub { font-family: var(--font-body); font-weight: 600; font-size: 12.5px; color: #6B5E93; }
-.picker-choice.sel .pc-sub { color: rgba(255,255,255,0.85); }
+.picker-choice.sel .pc-sub { color: rgba(42,27,78,0.82); }   /* RUN12 S4: near-white on --pop measured 2.09:1 */
 .picker-group { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; }
 .pg-head {
   border: 3px solid rgba(42,27,78,0.14); border-radius: 14px;
@@ -1280,7 +1293,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
    cards, the beat/dash steady toggle, the age card) they were white-on-cream and
    unreadable — picker clarity fix, same phase. */
 .card .acc-chip { color: var(--ink); background: rgba(42,27,78,0.06); border-color: rgba(42,27,78,0.18); }
-.card .acc-chip.sel { background: var(--pop); border-color: var(--ink); color: #fff; }
+.card .acc-chip.sel { background: var(--pop); border-color: var(--ink); color: var(--ink); }
 .pg-arrow { transition: transform 0.18s ease-out; }
 .pg-head[data-open="true"] .pg-arrow { transform: rotate(90deg); }
 .pg-body { display: none; flex-wrap: wrap; gap: 8px; justify-content: center; }
@@ -1611,7 +1624,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .choreo-label { font-family: var(--font-display); color: var(--ink); margin: 4px 0 0; }
 .choreo-strip { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 46px; align-items: center; background: #F3ECFF; border-radius: 12px; padding: 6px; width: 100%; }
 .choreo-slot { position: relative; width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--ink); background: var(--card); font-size: 22px; }
-.cs-num { position: absolute; bottom: -6px; right: -4px; font-size: 10px; background: var(--pop); color: var(--card); border-radius: 999px; padding: 0 4px; }
+.cs-num { position: absolute; bottom: -6px; right: -4px; font-size: 10px; background: var(--pop); color: var(--ink); border-radius: 999px; padding: 0 4px; }
 .choreo-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
 .choreo-move { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--card); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 4px; }
 .cm-emoji { font-size: 24px; } .cm-name { font-size: 12px; color: var(--ink); }
@@ -1698,7 +1711,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* Boo Journal (RUN3 C4) */
 .coll-tabs { display: flex; gap: 8px; justify-content: center; padding: 8px 0; }
 .coll-tab { background: rgba(255,255,255,0.12); color: var(--card); border-radius: 999px; padding: 8px 18px; font-family: var(--font-display); font-weight: 700; font-size: 16px; }
-.coll-tab.sel { background: var(--pop); color: var(--card); }
+.coll-tab.sel { background: var(--pop); color: var(--ink); }
 .journal-view { padding: 10px; }
 .journal-page { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; max-width: 700px; margin: 0 auto; }
 .journal-stamp { background: var(--card); border: 3px dashed var(--star); border-radius: 16px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; transform: rotate(-1.5deg); }
@@ -1743,7 +1756,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .result-bubble::after { display: none; }
 .result-meter .meter-seg { background: #E6DEF7; border-color: #D3C7EE; }
 .result-meter .meter-seg.on { background: var(--star); border-color: #E0A81E; }
-.rm-label { font-family: var(--font-display); color: #5a4d84; font-size: 15px; margin-bottom: 4px; }
+.rm-label { font-family: var(--font-display); color: var(--ink); font-size: 15px; margin-bottom: 4px; }   /* RUN12 S4: was 3.13:1 where it lands on the pink meter */
 .result-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
 .result-gift { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .result-gift.drop { animation: giftdrop 500ms ease-out; }
@@ -1799,7 +1812,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-card hr { border: none; border-top: 1px solid #E4DCF3; margin: 14px 0; }
 .gu-seg { display: flex; gap: 6px; background: #EDE7FA; border-radius: 12px; padding: 4px; }
 .gu-seg-btn { flex: 1; padding: 10px; border-radius: 9px; background: transparent; font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 16px; }
-.gu-seg-btn.sel { background: var(--pop); color: var(--card); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+.gu-seg-btn.sel { background: var(--pop); color: var(--ink); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
 
 /* Grown-ups tabs (RUN6 C0.2): Settings first; each tab a short, phone-friendly panel. */
 .gu-tabs { display: flex; gap: 6px; flex-wrap: wrap; position: sticky; top: 0; z-index: 3; padding: 6px 0 8px; background: linear-gradient(var(--sky-mid) 78%, transparent); }
@@ -1894,7 +1907,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .coll-art.mystery { filter: brightness(0) saturate(0); opacity: 0.28; }
 .coll-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); text-align: center; }
 .coll-tile.locked .coll-name { color: rgba(255,255,255,0.45); }
-.coll-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: #fff; font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
+.coll-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: var(--ink); font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
 .coll-season { position: absolute; top: 6px; left: 8px; font-size: 18px; filter: grayscale(0) brightness(1.1); }
 .coll-tile.locked .coll-name { font-size: 12px; }
 .coll-footer { display: flex; justify-content: center; padding: 8px 0 10px; }
@@ -2039,9 +2052,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media (prefers-reduced-motion: reduce) {
   .map-cloud, .map-shimmer path { animation: none; }
 }
+/* RUN12 S4 (G7): 12px cream with a soft shadow over a bright green island is exactly the
+   "small text on green" the brief names. Plated instead: an opaque deep-sky pill carries the
+   label at 12.8:1 whatever scenery scrolls under it, and the type goes up a step. */
 .mb-label {
   position: absolute; top: 100%; margin-top: 4px; white-space: nowrap; font-family: var(--font-display);
-  font-weight: 700; font-size: 12px; color: var(--card); text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+  font-weight: 700; font-size: 13px; color: var(--card);
+  background: rgba(30,21,80,0.86); padding: 2px 8px; border-radius: 10px;
 }
 .mb-chip {
   font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--ink);
@@ -2352,7 +2369,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .guitar-hint { color: var(--card); margin: 0; }
 .chord-row { display: flex; gap: 10px; }
 .chord-btn { width: 68px; height: 60px; border-radius: 14px; border: 3px solid var(--ink); background: var(--card); color: var(--ink); font-family: var(--font-display); font-weight: 700; font-size: 20px; cursor: pointer; }
-.chord-btn.sel { background: var(--pop); color: var(--card); box-shadow: 0 0 12px rgba(255,122,198,0.7); }
+.chord-btn.sel { background: var(--pop); color: var(--ink); box-shadow: 0 0 12px rgba(255,122,198,0.7); }
 .strum-strip { width: min(96%, 460px); height: 76px; border-radius: 16px; border: 3px dashed var(--star); background: rgba(255,201,60,0.14); display: flex; align-items: center; justify-content: center; color: var(--card); font-family: var(--font-display); font-weight: 700; touch-action: none; cursor: pointer; }
 .strum-strip.strummed { background: rgba(255,201,60,0.4); }
 .band-backing { text-align: center; }
@@ -3310,8 +3327,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .drawer-item { position: relative; border: 3px solid var(--ink); background: var(--card); border-radius: 16px; padding: 4px; cursor: pointer; flex-shrink: 0; touch-action: none; }
 .drawer-item.holding { border-color: var(--star); box-shadow: 0 0 12px rgba(255,201,60,0.6); }
 .drawer-art { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
-.drawer-badge { position: absolute; top: -6px; right: -6px; background: var(--pop); color: #fff; font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
-.drawer-empty { color: rgba(255,255,255,0.75); font-size: 16px; padding: 0 10px; }
+.drawer-badge { position: absolute; top: -6px; right: -6px; background: var(--pop); color: var(--ink); font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
+/* RUN12 S4 (G7): this was white-on-cream — 1.04:1 against the drawer's actual
+   #FFF8F0 strip, i.e. genuinely invisible. #5A4D84 measures 7.04:1 there. */
+.drawer-empty { color: #5A4D84; font-size: 16px; padding: 0 10px; }
 .drag-ghost { position: fixed; transform: translate(-50%,-50%); pointer-events: none; z-index: 9500; width: 80px; height: 80px; transition: filter 0.1s ease; }
 .drag-ghost svg { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 /* illegal-drop preview (RUN10 P2): a red tint on the dragged ghost/item + a ghost ring at
@@ -3506,7 +3525,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .trophy-room { display: flex; flex-direction: column; gap: 10px; padding: 6px 12px 20px; }
 .trophy-chips { justify-content: center; }
 .troph-chip { color: var(--card); background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); }
-.troph-chip.sel { background: var(--pop); border-color: var(--card); }
+.troph-chip.sel { background: var(--pop); border-color: var(--ink); }
 .trophy-cabinet {
   background: linear-gradient(180deg, #8A5A44, #6E4534);
   border: 6px solid #59372A; border-radius: 22px;
@@ -3902,7 +3921,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .map-stage { margin-inline: 7px; border-radius: 18px; }
   .map-badge { width: 72px; height: 72px; border-width: 3px; }
   .mb-dot { font-size: 23px; }
-  .mb-label { width: 98px; white-space: normal; line-height: 1.05; text-align: center; font-size: 11px; }
+  .mb-label { width: 98px; white-space: normal; line-height: 1.05; text-align: center; font-size: 12px; }
   .mb-chip { font-size: 10px; padding-inline: 6px; }
 
   /* hub cards stack single column, icon beside the words */
@@ -4202,7 +4221,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   cursor: pointer; color: var(--ink); transition: transform 120ms, background 120ms;
 }
 .t-tool-btn:active { transform: scale(0.94); }
-.t-tool-btn.sel { background: var(--pop); color: #fff; border-color: var(--card); box-shadow: 0 0 0 3px var(--ink); }
+.t-tool-btn.sel { background: var(--pop); color: var(--ink); border-color: var(--ink); box-shadow: 0 0 0 3px var(--ink); }
 .t-tool-btn .tool-ic { font-size: 24px; line-height: 1; }
 .t-tool-btn .tool-lbl { font-family: var(--font-display); font-size: 12px; font-weight: 700; line-height: 1.1; text-align: center; }
 
@@ -4292,7 +4311,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 .roll2-paddle {
   position: absolute; bottom: 20px; z-index: 50; width: 84px; height: 84px;
-  border-radius: 50%; background: var(--pop); border: 3px solid #FFF; color: #FFF;
+  border-radius: 50%; background: var(--pop); border: 3px solid #FFF; color: var(--ink);
   font-size: 36px; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 0 rgba(0,0,0,0.3); cursor: pointer; user-select: none;
 }

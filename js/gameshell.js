@@ -8,6 +8,7 @@ import { getState, beginRoundTally } from './state.js';
 import { renderGuide } from './art.js';
 import { speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
+import { createRoundTimers } from './intro.js';
 
 export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', maxHearts = 3, onBack, onHint, hintEnabled = true, onHelp = null, hideHearts = false, hideProgress = false }) {
   beginRoundTally();   // RUN4 C3: collect this round's ledger items for the cosy check
@@ -81,9 +82,32 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
     peekTimer = setTimeout(() => peek.classList.remove('show'), hold);
   }
 
+  // ---- round suspension (RUN12 S6) ---------------------------------------------------
+  // A game that takes its clock and its timers from here is automatically frozen whenever
+  // an intro or a "?" replay is on screen, and resumes exactly where it was — not where it
+  // would have drifted to.
+  const clock = createRoundTimers();
+
   return {
     root, area,
     react,
+    // the paused-aware round clock and timers
+    now: clock.now, after: clock.after, cancel: clock.cancel,
+    // setTimeout's own signature, so converting a game is a one-word change per call site
+    timeout: clock.timeout,
+    paused: clock.paused,
+    pausedMs: clock.pausedMs,   // for games on an external clock (Boo Beat rides the audio clock)
+    // a rAF loop that simply does not call back while the round is suspended
+    loop(fn) {
+      let raf = null, stopped = false;
+      const tick = () => {
+        if (stopped) return;
+        raf = requestAnimationFrame(tick);
+        if (!clock.paused() && !document.hidden) fn(clock.now());
+      };
+      raf = requestAnimationFrame(tick);
+      return { stop() { stopped = true; if (raf) cancelAnimationFrame(raf); raf = null; } };
+    },
     setProgress(n) { progress = n; renderDots(); },
     advance() { progress = Math.min(progress + 1, rounds); renderDots(); },
     dimHeart() {
@@ -93,6 +117,9 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
     },
     heartsLeft() { return hearts; },
     enableHint(on) { hintBtn.disabled = !on; },
-    cleanup() { if (peekTimer) clearTimeout(peekTimer); }
+    cleanup() {
+      if (peekTimer) clearTimeout(peekTimer);
+      clock.dispose();
+    }
   };
 }

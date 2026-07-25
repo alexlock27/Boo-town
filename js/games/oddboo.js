@@ -69,7 +69,7 @@ export function mount(container, params, ctx) {
       wobble(button); sfx.oops();
       shell.react(`Good looking — compare their ${grid.oddLabel}!`);
       locked = true;
-      timer = setTimeout(() => {
+      timer = shell.timeout(() => {
         locked = false;
         Array.from(board.children).forEach(child => {
           child.style.order = Math.floor(Math.random() * 100);
@@ -84,7 +84,7 @@ export function mount(container, params, ctx) {
     if (streak >= 3) button.classList.add('odd-streak');
     const found = `Yes — the ${grid.oddLabel} was different!`;
     shell.react(streak >= 3 ? `${found} ${streak} in a row!` : found);
-    timer = setTimeout(() => {
+    timer = shell.timeout(() => {
       index++; shell.advance();
       if (index >= ROUNDS) finish(); else next();
     }, 720);
@@ -99,5 +99,5 @@ export function mount(container, params, ctx) {
     choose, round: () => index, wrong: () => wrong,
     locked: () => locked   // QA: the 1.5s anti-brute-force lockout after a wrong tap
   };
-  return { unmount() { clearTimeout(timer); shell.cleanup(); delete window.__oddboo; } };
+  return { unmount() { shell.cancel(timer); shell.cleanup(); delete window.__oddboo; } };
 }

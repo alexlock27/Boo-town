@@ -71,7 +71,7 @@ export function mount(container, params, ctx) {
 
     runNext();
     function runNext() { if (idx >= items.length) return finish(); clear(stage); curHint = null; const it = items[idx]; ({ word: runWord, twin: runTwin, choice: runChoice }[it.kind])(it); }
-    function itemDone() { idx++; shell.advance(); setTimeout(runNext, 250); }
+    function itemDone() { idx++; shell.advance(); shell.timeout(runNext, 250); }
 
     function runWord(it) {
       const clue = it.clue;
@@ -85,7 +85,7 @@ export function mount(container, params, ctx) {
       if (!canHint()) peekBtn.disabled = true;
       promptCard.append(el('div', { class: 'spell-guide', html: renderGuide(guide, { view: 'head', size: 72 }) }), el('div', { class: 'spell-say' }, [el('span', { text: 'Golden word — spell it!' }), speaker]), peekBtn);
       stage.append(promptCard, peekWord, clueEl, area);
-      const speller = makeSpeller(area, it.word, { onCorrect: () => { shell.react('Golden! 🌟', { voice: false, hold: 1400 }); speakMaybe(`${it.word}. Brilliant!`); setTimeout(itemDone, 1200); }, onWrongCheck: () => { wrong++; shell.dimHeart(); } });
+      const speller = makeSpeller(area, it.word, { onCorrect: () => { shell.react('Golden! 🌟', { voice: false, hold: 1400 }); speakMaybe(`${it.word}. Brilliant!`); shell.timeout(itemDone, 1200); }, onWrongCheck: () => { wrong++; shell.dimHeart(); } });
       curHint = () => { if (canHint() && speller.hintNextLetter()) { spendHint(); shell.react(guideLine('hintSpell')); if (!canHint()) peekBtn.disabled = true; } };
       function peekHint() { if (!canHint() || speller.isLocked()) return; spendHint(); sfx.tap(); reveal(); if (!canHint()) peekBtn.disabled = true; }
       function reveal() { peekWord.textContent = it.word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); clearTimeout(reveal._t); reveal._t = setTimeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
@@ -115,12 +115,12 @@ export function mount(container, params, ctx) {
         wrong++; sfx.oops(); shell.dimHeart();
         explainEl.textContent = `'${it.word}' is the one that fits here.`; explainEl.style.display = '';
         [...btnRow.querySelectorAll('.twin-opt')].forEach(b => { b.disabled = true; b.classList.toggle('right', b.textContent === it.word); });
-        setTimeout(() => toSpell(true), 1500);
+        shell.timeout(() => toSpell(true), 1500);
       }
       function toSpell(afterWrong) {
         phase = 'spell'; btnRow.style.display = 'none'; area.style.display = '';
         shell.react(afterWrong ? 'Now spell it!' : 'Right! Now spell it.', { voice: false, hold: 1400 });
-        const speller = makeSpeller(area, it.word, { onCorrect: () => { shell.react('Golden! 🌟', { voice: false, hold: 1400 }); setTimeout(itemDone, 1200); }, onWrongCheck: () => { wrong++; shell.dimHeart(); } });
+        const speller = makeSpeller(area, it.word, { onCorrect: () => { shell.react('Golden! 🌟', { voice: false, hold: 1400 }); shell.timeout(itemDone, 1200); }, onWrongCheck: () => { wrong++; shell.dimHeart(); } });
         curHint = () => { if (canHint() && speller.hintNextLetter()) { spendHint(); shell.react(guideLine('hintSpell')); } };
       }
       window.__golden && (window.__golden._cur = { kind: 'twin', phase: () => phase, pick, answer: () => it.word, typeCorrect: () => typeInto(area, it.word) });
@@ -138,7 +138,7 @@ export function mount(container, params, ctx) {
       speakMaybe(it.q);
       curHint = null; // choice questions have no letter hint
       function choose(o, btn) {
-        if (o === it.right) { sfx.correct(); btn.classList.add('right'); [...opts.querySelectorAll('.gc-opt')].forEach(b => b.disabled = true); setTimeout(itemDone, 700); }
+        if (o === it.right) { sfx.correct(); btn.classList.add('right'); [...opts.querySelectorAll('.gc-opt')].forEach(b => b.disabled = true); shell.timeout(itemDone, 700); }
         else { wrong++; sfx.oops(); shell.dimHeart(); btn.classList.add('wrong'); btn.disabled = true; }
       }
       window.__golden && (window.__golden._cur = { kind: 'choice', right: it.right, choose: (o) => { const btn = [...opts.querySelectorAll('.gc-opt')].find(b => b.textContent === o); if (btn) choose(o, btn); } });

@@ -4,7 +4,7 @@ import { el, dialog, backControl } from './ui.js';
 import { getState } from './state.js';
 import { renderItem, renderGuide } from './art.js';
 import { applyRarityFx } from './rarityfx.js';
-import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY, BIRTHDAY_BOOS } from '../data/catalogue.js';
+import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY, BIRTHDAY_BOOS, dropKind, KIND_ONELINER } from '../data/catalogue.js';
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
@@ -195,7 +195,14 @@ export function mount(container, params, ctx) {
     const body = el('div', { class: 'item-detail' }, [
       detailArt,
       showsNick ? el('div', { class: 'item-detail-official', text: officialName(item.id) }) : null,
-      el('div', { class: 'item-detail-rarity', text: (RARITY[item.rarity] || { label: 'Your very own Boo!' }).label + (count > 1 ? ` · you have ${count}` : '') }),
+      // RUN12 S5: the same kind-aware vocabulary as the ceremony. A rarity-less item shows
+      // no badge at all rather than being told it is "Your very own Boo!".
+      (() => {
+        const rar = RARITY[item.rarity] || null;
+        const dupe = count > 1 ? ` · you have ${count}` : '';
+        const label = rar ? rar.label + dupe : (KIND_ONELINER[dropKind(item)] || '') + dupe;
+        return label.trim() ? el('div', { class: 'item-detail-rarity', text: label }) : null;
+      })(),
       el('p', { class: 'item-detail-blurb', text: item.blurb }),
       careBox
     ]);

@@ -4,7 +4,7 @@ import { el, clear, confetti, backControl } from './ui.js';
 import { haptic } from './haptics.js';
 import { getState } from './state.js';
 import { renderItem } from './art.js';
-import { RARITY } from '../data/catalogue.js';
+import { RARITY, dropKind, KIND_BANNER, KIND_ONELINER, KIND_GUIDE_LINE, KIND_ACTION } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx, music } from './sfx.js';
 import { openOneBox } from './rewards.js';
@@ -16,15 +16,9 @@ import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
 import { tickGrowth } from './growth.js';
 
-// Reveal cards announce what the item is (spec RUN2 C2). Furniture (RUN10 P4) reads the
-// same as a decoration reveal — it drops from the same 'deco' box pool at the same odds.
-const TYPE_BANNER = { boo: 'A BOO!', deco: 'A DECORATION!', furniture: 'A DECORATION!', accessory: 'AN ACCESSORY!' };
-const TYPE_LINE = {
-  boo: 'Boos live in your town!',
-  deco: 'Place it in your town!',
-  furniture: 'Place it in your town!',
-  accessory: 'Dress up any Boo, or your own character!'
-};
+// RUN12 S5: the reveal card and the guide both describe the thing she actually won. The
+// vocabulary lives beside the items in data/catalogue.js (dropKind + KIND_*) so the
+// ceremony, the collection card and the Star Chest cannot drift apart.
 
 export function mount(container, params, ctx) {
   const chestMode = !!(params && params.chest);   // the Star Chest golden variant (RUN4 C8)
@@ -82,7 +76,8 @@ export function mount(container, params, ctx) {
     });
 
     function reveal() {
-      const rar = RARITY[result.rarity] || { label: 'Your very own Boo!' };
+      // no rarity is not "Your very own Boo!" — it is no badge at all (RUN12 S5)
+      const rar = RARITY[result.rarity] || null;
       sfx.fanfare();
       try { haptic('open'); } catch {}   // a tiny double-buzz on a box / chest opening (RUN9 C7)
       confetti({ count: result.isCustom || result.rarity === 'secret' ? 160 : result.rarity === 'ultra' ? 120 : 80, power: result.isCustom || result.rarity === 'secret' ? 1.3 : 1 });
@@ -91,16 +86,19 @@ export function mount(container, params, ctx) {
       clear(root);
       root.appendChild(backB);
 
-      const kind = result.item.kind;
+      const kind = dropKind(result.item);
       const glowClass = (result.isCustom ? 'glow-secret' : 'glow-' + result.rarity) + (result.shiny ? ' shiny' : '');
-      const banner = result.shiny ? '✨ A SHINY BOO! ✨' : result.isCustom ? "IT'S YOUR BOO! 🎨" : (TYPE_BANNER[kind] || 'A TREASURE!');
+      const banner = (result.shiny && kind === 'boo') ? '✨ A SHINY BOO! ✨'
+        : result.isCustom ? "IT'S YOUR BOO! 🎨"
+        : (KIND_BANNER[kind] || 'A TREASURE!');
+      const rarityText = (result.shiny ? 'SHINY · ' : '') + (rar ? rar.label : '');
       const revealArt = el('div', { class: 'reveal-art', html: renderItem(result.item, { size: 172, cls: result.item.fx ? '' : 'art-idle' }) });
       const card = el('div', { class: 'reveal-card ' + glowClass }, [
         el('div', { class: 'reveal-banner type-' + kind + (result.shiny ? ' shiny-banner' : ''), text: banner }),
         revealArt,
-        el('div', { class: 'reveal-rarity', text: (result.shiny ? 'SHINY · ' : '') + rar.label }),
+        rarityText.trim() ? el('div', { class: 'reveal-rarity', text: rarityText }) : null,
         el('h2', { class: 'reveal-name', text: result.duplicate ? `Another ${result.item.name}!` : result.item.name }),
-        el('p', { class: 'reveal-oneliner', text: TYPE_LINE[kind] || '' }),
+        el('p', { class: 'reveal-oneliner', text: KIND_ONELINER[kind] || '' }),
         result.chestAcc ? el('p', { class: 'chest-acc', text: `…and a ${result.chestAcc.name}! 🎀` }) : null,
         el('p', { class: 'reveal-blurb', text: result.item.blurb })
       ]);
@@ -131,25 +129,26 @@ export function mount(container, params, ctx) {
         flyStars(card);
         buttons.appendChild(el('button', { class: 'btn big', text: 'Yay! 🎉', onclick: next }));
       } else {
+        // Kind first, always. The rarity and Boo-flavoured lines below it are only ever
+        // reached by an actual Boo — a bed does not get told it has a little face.
         const seasonLine = { summer: 'summerReveal', spooky: 'spookyReveal', winter: 'winterReveal' };
-        const key = result.shiny ? 'boxShiny'
-          : chestMode ? 'chestOpen'
+        const key = chestMode ? 'chestOpen'
           : result.isCustom ? 'boxCustom'
+          : kind !== 'boo' ? KIND_GUIDE_LINE[kind]
+          : result.shiny ? 'boxShiny'
           : result.item.id === 'boo_twiglet' ? 'twigletReveal'
-          : kind === 'accessory' ? 'revealAccessory'
           : result.item.season ? seasonLine[result.item.season]
           : result.rarity === 'secret' ? 'boxSecret' : result.rarity === 'ultra' ? 'boxUltra'
-          : result.rarity === 'rare' ? 'boxRare' : 'boxCommon';
+          : result.rarity === 'rare' ? 'boxRare' : 'dropBoo';
         guideBubble.textContent = guideLine(key);
         speakMaybe(guideBubble.textContent);
         // A matching action button that lands where it says.
-        if (kind === 'accessory') {
-          buttons.appendChild(el('button', { class: 'btn big', text: 'Wear it 👒', onclick: () => {
+        if (kind === 'accessory' || kind === 'costume') {
+          buttons.appendChild(el('button', { class: 'btn big', text: KIND_ACTION[kind], onclick: () => {
             sfx.tap(); openEquipPicker(result.item, { onDone: next });
           } }));
         } else {
-          const label = kind === 'boo' ? 'Meet them 🏡' : 'Place it 🏡';
-          buttons.appendChild(el('button', { class: 'btn big', text: label, onclick: () => { sfx.tap(); ctx.go('town', { place: result.item.id, from: 'ceremony' }); } }));
+          buttons.appendChild(el('button', { class: 'btn big', text: KIND_ACTION[kind] || 'Place it 🏡', onclick: () => { sfx.tap(); ctx.go('town', { place: result.item.id, from: 'ceremony' }); } }));
         }
         buttons.appendChild(el('button', { class: 'btn soft', text: 'Keep for later', onclick: next }));
       }

@@ -233,7 +233,7 @@ export function mount(container, params, ctx) {
         let flips = 0;
         const chew = setInterval(() => { fz.classList.toggle('chew'); if (++flips > 5) { clearInterval(chew); fz.classList.remove('nom', 'chew'); } }, 90);
         if (nomStreak >= NOM_STREAK) drumTable();   // a happy nom-streak → both Boos drum the table (C5)
-        setTimeout(() => { idx++; shell.advance(); locked = false; showItem(); }, 280);
+        shell.timeout(() => { idx++; shell.advance(); locked = false; showItem(); }, 280);
       });
     }
     // A fed item arcs through the air into the Boo's mouth (C5).
@@ -245,7 +245,7 @@ export function mount(container, params, ctx) {
       if (REDUCED) { food.classList.add('eaten'); done(); return; }
       food.style.setProperty('--tx', dx.toFixed(0) + 'px'); food.style.setProperty('--ty', dy.toFixed(0) + 'px');
       food.classList.add('arc');
-      setTimeout(done, NOM_ARC_MS);
+      shell.timeout(done, NOM_ARC_MS);
     }
     function drumTable() {
       feederEls.forEach(f => { f.classList.remove('drum'); void f.offsetWidth; f.classList.add('drum'); setTimeout(() => f.classList.remove('drum'), 1200); });

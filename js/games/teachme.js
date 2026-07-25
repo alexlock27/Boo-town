@@ -130,14 +130,14 @@ export function mount(container, params, ctx) {
         sfx.correct();
         node.classList.add('right');
         const r = node.getBoundingClientRect(); if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
-        setTimeout(nextCard, 420);
+        shell.timeout(nextCard, 420);
       } else {
         sfx.oops();
         node.classList.add('wrong');
         if (firstTry[idx]) { slips++; firstTry[idx] = false; useVariant[idx] = true; }
         // route back to the relevant explanation card, guide encourages, then re-ask
         shell.react(guideLine('encourage'), { hold: 1800 });
-        setTimeout(() => { cardIdx = (c.backTo != null ? c.backTo : cardIdx); renderCard(); }, 700);
+        shell.timeout(() => { cardIdx = (c.backTo != null ? c.backTo : cardIdx); renderCard(); }, 700);
       }
     }
 

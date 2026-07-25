@@ -193,9 +193,10 @@ export function mount(container, params, ctx) {
       const stepFrame = (now) => {
         if (!now) now = performance.now();
         const ms = Math.min(now - lastNow, 38);
-        lastNow = now;
+        if (shell.paused()) lastNow = now;   // do not bank the paused stretch as one huge dt
         const dt = Math.max(0.1, ms / 16.667);
-        if (!document.hidden) {
+        // RUN12 S6: bubbles do not drift on behind an intro or a "?" replay
+        if (!document.hidden && !shell.paused()) {
           const H = field.clientHeight || 500;
           for (const b of bubbles) {
             b.y += b.speed * dt;
@@ -238,7 +239,7 @@ export function mount(container, params, ctx) {
         b.node.classList.add('burst');
         solved++;
         shell.setProgress(solved);
-        setTimeout(() => {
+        shell.timeout(() => {
           if (solved >= ROUNDS) return finish();
           target = nextTarget(solved);
           prevKey = target.key;
