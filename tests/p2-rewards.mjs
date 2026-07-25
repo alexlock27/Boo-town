@@ -50,7 +50,7 @@ console.log('== first pick is always a chosen Boo ==');
 
 // ---- 2) Typed reveal cards + matching action (part E #3) ----
 console.log('== reveal cards state type + action lands correctly ==');
-async function revealCase(rand, expectBanner, expectBtn) {
+async function revealCase(rand, expectKind) {
   const { ctx, page } = await ctxPage(1000, 625, rand);
   await page.goto(BASE + '/index.html', { waitUntil: 'load' });
   await page.evaluate((s) => localStorage.setItem('bootown.save.v1', JSON.stringify(s)),
@@ -61,25 +61,42 @@ async function revealCase(rand, expectBanner, expectBtn) {
   await page.waitForSelector('.gift-box');
   for (let i = 0; i < 3; i++) { await page.click('.gift-box', { force: true }); await page.waitForTimeout(180); }
   await page.waitForSelector('.reveal-card', { timeout: 4000 });
+  // RUN12 S5 supersedes the frozen strings here. The ceremony's copy is chosen by the
+  // item's KIND now (boo / accessory / costume / furniture / town), because a bed used to be
+  // announced as "A DECORATION!" and told "A new Boo just dropped!". The real assertion —
+  // the banner matches the thing she won, and the action button lands where it says — is
+  // unchanged; it just reads the expected copy from the same authored table the product does,
+  // instead of pinning one string per dice roll.
+  const seen = await page.evaluate(async () => {
+    const { CATALOGUE, ACCESSORIES, dropKind, KIND_BANNER, KIND_ACTION } = await import('./data/catalogue.js');
+    const name = (document.querySelector('.reveal-name')?.textContent || '').replace(/^Another /, '').replace(/!$/, '');
+    const item = [...CATALOGUE, ...ACCESSORIES].find(i => i.name === name);
+    const kind = item ? dropKind(item) : null;
+    return { kind, wantBanner: KIND_BANNER[kind], wantAction: KIND_ACTION[kind] };
+  });
   const banner = await page.$eval('.reveal-banner', e => e.textContent);
   const oneliner = await page.$eval('.reveal-oneliner', e => e.textContent);
-  const hasBtn = await page.locator(`.reveal-btns .btn:has-text("${expectBtn}")`).count();
-  assert(banner === expectBanner, `banner "${banner}" == "${expectBanner}"`);
+  // the accessory pool contains costume SETS, which S5 gives their own copy; either is a
+  // correct outcome for that roll, so accept the family rather than pinning the sub-kind
+  const family = (k) => (k === 'costume' ? 'accessory' : k === 'town' ? 'town' : k);
+  assert(family(seen.kind) === family(expectKind), `a ${expectKind} dropped (got ${seen.kind})`);
+  assert(banner === seen.wantBanner, `banner "${banner}" is the authored line for a ${seen.kind}`);
   assert(oneliner.length > 0, 'one-liner present (' + oneliner + ')');
-  assert(hasBtn > 0, `action button "${expectBtn}" present`);
+  const hasBtn = await page.locator(`.reveal-btns .btn:has-text("${seen.wantAction}")`).count();
+  assert(hasBtn > 0, `action button "${seen.wantAction}" present`);
   // action lands where it says
-  await page.click(`.reveal-btns .btn:has-text("${expectBtn}")`);
+  await page.click(`.reveal-btns .btn:has-text("${seen.wantAction}")`);
   await page.waitForTimeout(400);
-  if (expectBtn === 'Wear it') {
-    assert(await page.locator('.acc-chooser').count() > 0, 'Wear it -> equip picker');
+  if (seen.kind === 'accessory' || seen.kind === 'costume') {
+    assert(await page.locator('.acc-chooser').count() > 0, `${seen.wantAction} -> equip picker`);
   } else {
-    assert(await page.locator('.town2').count() > 0, `${expectBtn} -> town place mode`);
+    assert(await page.locator('.town2').count() > 0, `${seen.wantAction} -> town place mode`);
   }
   await ctx.close();
 }
-await revealCase(0.30, 'A BOO!', 'Meet them');
-await revealCase(0.78, 'A DECORATION!', 'Place it');
-await revealCase(0.92, 'AN ACCESSORY!', 'Wear it');
+await revealCase(0.30, 'boo');
+await revealCase(0.78, 'furniture');
+await revealCase(0.92, 'accessory');
 
 // ---- 3) Accessory drop rule: gated until 3 Boos owned ----
 console.log('== accessories never drop until 3 Boos owned ==');

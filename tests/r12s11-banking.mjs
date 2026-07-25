@@ -74,6 +74,13 @@ for (const correct of [0, 3, 7]) {
   const banked = await page.evaluate(() => window.__gameshellBank ? null : null);
   const solved = await page.evaluate(() => window.__bubblepop.state().solved);
   assert(solved === correct, `the fixture really answered ${correct} (${solved})`);
+  // Snapshot again HERE: anything the round itself banked while she was playing (a daily
+  // quest ticking over, say) belongs to the round, not to the exit. Measuring across the
+  // exit alone is what the assertion is actually about.
+  const atExit = await page.evaluate(() => {
+    const s = window.BooTown.State.getState();
+    return { stars: s.stars.total, meter: s.meter, boxes: s.boxes };
+  });
   await page.evaluate(() => document.querySelector('.game-topbar .back-btn').click());
   await page.waitForTimeout(600);
   await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Leave')?.click());
@@ -85,9 +92,10 @@ for (const correct of [0, 3, 7]) {
   });
   // 10-question round, 3 stars max, floor(3 * correct / 10)
   const expected = Math.floor(3 * correct / 10);
-  assert(after.stars - before.stars === expected,
-    `${correct}/10 correct banks ${expected} star${expected === 1 ? '' : 's'} (got ${after.stars - before.stars})`);
-  const meterGained = (after.meter - before.meter) + (after.boxes - before.boxes) * 10;
+  assert(after.stars - atExit.stars === expected,
+    `${correct}/10 correct banks ${expected} star${expected === 1 ? '' : 's'} (got ${after.stars - atExit.stars})`);
+  assert(before.stars === atExit.stars, 'and playing the round itself credited nothing — results is still the only crediting path');
+  const meterGained = (after.meter - atExit.meter) + (after.boxes - atExit.boxes) * 10;
   if (expected === 0) {
     assert(after.screen.includes('hub'), 'nothing earned → straight back to the hub, no ceremony for nothing');
     assert(meterGained === 0, `and no meter points (${meterGained})`);
