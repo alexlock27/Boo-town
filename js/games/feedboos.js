@@ -131,7 +131,8 @@ export function mount(container, params, ctx) {
     shell = createGameShell({
       title: mix ? 'Smart Mix' : 'Feed the Boos', rounds: roundData.length, accent: 'var(--zing)',
       onHelp: () => replayIntro('feedboos'),
-      onBack: () => ctx.go('hub'),
+      bank: () => ({ correct: idx, of: roundData.length }),
+      onBack: (b) => { if (b && b.stars > 0) ctx.go('results', { game: 'feedboos', gameName: mix ? 'Smart Mix' : 'Feed the Boos', stars: b.stars, level: template.level, cat: mix ? null : (badgeKey || 'maths'), mix, tricky: collector.items(), partial: b, replay: () => ctx.go('feedboos') }); else ctx.go('hub'); },
       onHint: manualHint
     });
     root.appendChild(shell.root);

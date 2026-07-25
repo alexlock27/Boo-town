@@ -35,7 +35,8 @@ export function mount(container, params, ctx) {
   let index = 0, wrong = 0, streak = 0, locked = false, grid, timer = null;
   const shell = createGameShell({
     title: 'Odd Boo Out', rounds: ROUNDS, accent: 'var(--zing)', hideHearts: true,
-    onBack: () => ctx.go('hub'), onHint: () => shell.react("Look at their colours, their hats — and each Boo's own little details."),
+    bank: () => ({ correct: index, of: ROUNDS }),
+    onBack: (b) => { if (b && b.stars > 0) ctx.go('results', { game: 'oddboo', gameName: 'Odd Boo Out', stars: b.stars, partial: b, replay: () => ctx.go('oddboo') }); else ctx.go('hub'); }, onHint: () => shell.react("Look at their colours, their hats — and each Boo's own little details."),
     onHelp: () => replayIntro('oddboo', ODD_INTRO)
   });
   const title = el('div', { class: 'odd-find', text: 'WHICH BOO BREAKS THE PATTERN?' });

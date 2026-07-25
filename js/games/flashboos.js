@@ -34,7 +34,8 @@ export function mount(container, params, ctx) {
   let round = 0, wrong = 0, scene, question, timer = null, phase = 'idle';
   const shell = createGameShell({
     title: 'Flash Boos', rounds: ROUNDS, accent: 'var(--pop)', hideHearts: true,
-    onBack: () => ctx.go('hub'), onHint: () => shell.react('Picture the scene, then choose what you remember.'),
+    bank: () => ({ correct: round, of: ROUNDS }),
+    onBack: (b) => { if (b && b.stars > 0) ctx.go('results', { game: 'flashboos', gameName: 'Flash Boos', stars: b.stars, partial: b, replay: () => ctx.go('flashboos') }); else ctx.go('hub'); }, onHint: () => shell.react('Picture the scene, then choose what you remember.'),
     onHelp: () => replayIntro('flashboos', FLASH_INTRO)
   });
   const stage = el('section', { class: 'flash-stage' });

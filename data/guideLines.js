@@ -48,6 +48,11 @@ export const LINES = {
     "Round done! Every star counts.",
     "One star closer to a Boo!"
   ],
+  // RUN12 S11 — she stopped part way and kept what she had earned. Warm, never a telling-off.
+  leftEarly: [
+    "Stopping there? You keep every star you earned. 🌟",
+    "Off you go — those stars are yours to keep."
+  ],
   twoStars: [
     "Two stars! So close to three I can taste it.",
     "Nice work, {name}! One less slip next time and that's three."

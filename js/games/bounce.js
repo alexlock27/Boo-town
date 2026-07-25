@@ -98,7 +98,9 @@ export function mount(container, params, ctx) {
     let hops = [];             // in-flight sparkle-hops {fx,fy,tx,ty,bornAt,text,correct}
     let animNow = performance.now();
 
-    shell = createGameShell({ title: 'Boo Bounce', rounds: QUESTIONS, accent: 'var(--pop)', onBack: () => { stop(); ctx.go('hub'); }, hintEnabled: false, onHelp: () => replayIntro('bounce') });
+    shell = createGameShell({ title: 'Boo Bounce', rounds: QUESTIONS, accent: 'var(--pop)', bank: () => ({ correct: questionsAnswered, of: QUESTIONS }),
+      onBack: (b) => { stop(); if (b && b.stars > 0) ctx.go('results', { game: 'bounce', gameName: 'Boo Bounce', stars: b.stars, level, cat: autoMix ? null : category, mix: autoMix, tricky: collector.items(), partial: b, replay: () => ctx.go('bounce') }); else ctx.go('hub'); },
+      hintEnabled: false, onHelp: () => replayIntro('bounce') });
     root.appendChild(shell.root);
 
     const qCard = el('div', { class: 'bounce-question' });
