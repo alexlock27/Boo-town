@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run11-privacy-20260725';  // privacy guard: no literal names/canary in source
+const BUILD_STAMP = 'run12-s1-20260725';  // RUN12 S1: Wish Well crash + route-parameter smoke
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

@@ -220,8 +220,12 @@ let countMax = 5;
 let pairsCleared = 0;
 
 export function mount(container, params, ctx) {
-  const game = (params && params.game) || 'count';
-  const meta = TODDLER_GAMES.find(g => g.key === game) || TODDLER_GAMES[0];
+  // `meta` has always fallen back to the first game for an unknown key, but the mount
+  // table below was still keyed on the RAW param, so `go('toddlergame')` with a missing or
+  // stale key threw "is not a function" and took the screen down. Normalise once, up here,
+  // so every consumer agrees on which game is running (RUN12 S1).
+  const meta = TODDLER_GAMES.find(g => g.key === (params && params.game)) || TODDLER_GAMES[0];
+  const game = meta.key;
   const root = el('div', { class: 'screen toddler td-' + game });
   container.appendChild(root);
   music.play('game');
