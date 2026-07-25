@@ -4477,3 +4477,25 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   100% { transform: translateX(6vw) scaleX(1); }
 }
 @media (prefers-reduced-motion: reduce) { .map-wanderer { animation: none; transform: translateX(30vw); } }
+
+
+/* RUN12 S9 — "hear it again". One control, the same in every toddler game with a spoken
+   prompt: bottom centre, comfortably over the 64px the brief asks for, unlimited and free.
+   It repeats something she has already been given, so it can never cost anything. */
+.td-replay {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  min-width: 132px; min-height: 68px; display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 20px 8px 14px; border: 3px solid var(--ink); border-radius: 999px;
+  background: var(--star); color: var(--ink); font: 700 20px var(--font-display);
+  box-shadow: 0 5px 0 rgba(42,27,78,0.28); z-index: 6; cursor: pointer;
+}
+.td-replay:active { transform: translateX(-50%) translateY(3px); box-shadow: 0 2px 0 rgba(42,27,78,0.28); }
+.td-replay-ic { display: inline-flex; }
+@media (max-width: 600px) { .td-replay { min-width: 118px; min-height: 64px; font-size: 18px; bottom: 10px; } }
+@media (prefers-reduced-motion: reduce) { .td-replay:active { transform: translateX(-50%); } }
+
+
+/* RUN12 S10 — the hands sweep back to 12:00 between orders instead of staying where the
+   last answer left them. Transform-only, with a reduced-motion path (house law). */
+.clock-wrap.resetting .hour-hand, .clock-wrap.resetting .minute-hand { transition: transform 480ms cubic-bezier(.4,0,.2,1); }
+@media (prefers-reduced-motion: reduce) { .clock-wrap.resetting .hour-hand, .clock-wrap.resetting .minute-hand { transition: none; } }
