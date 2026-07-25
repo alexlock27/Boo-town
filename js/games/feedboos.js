@@ -12,6 +12,7 @@ import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { contentTier, filterLevels, FEED_GROUPS, feedGroupOf } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
+import { nameWithValue, readAloudButton, readAloudOn } from '../a11y.js';
 
 const MAX_HINTS = 2;
 const rand = (n) => (Math.random() * n) | 0;
@@ -161,7 +162,9 @@ export function mount(container, params, ctx) {
       if (idx >= items.length) return finish();
       queueTag.textContent = `${items.length - idx} to go`;
       const item = items[idx];
-      const food = el('div', { class: 'food-item', html: foodHTML(item), 'aria-label': 'food to feed a Boo', dataset: { bucket: String(item.bucket) } });
+      // RUN12 S13.4: the draggable says what it is, not just that it is food
+      const food = el('div', { class: 'food-item', html: foodHTML(item), role: 'img',
+        'aria-label': nameWithValue('food', itemLabel(item)), dataset: { bucket: String(item.bucket) } });
       tray.appendChild(food);
       attachDrag(food, item);
     }

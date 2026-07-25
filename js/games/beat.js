@@ -18,6 +18,7 @@ import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.j
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
 import { pickForMeButton } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
+import { nameWithValue, readAloudButton, readAloudOn } from '../a11y.js';
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
@@ -225,6 +226,7 @@ export function mount(container, params, ctx) {
     function renderQuestion() {
       clear(qCard);
       qCard.appendChild(el('div', { class: 'beat-prompt', text: question.prompt }));
+      if (readAloudOn()) qCard.appendChild(readAloudButton(() => question && question.prompt));
       if (question.speak) speakMaybe(question.speak);
       if (typeof window !== 'undefined') window.__booQuestion = question;
     }
@@ -237,7 +239,8 @@ export function mount(container, params, ctx) {
       const lanes = shuffle([0, 1, 2]);
       question.options.forEach((text, i) => {
         const lane = lanes[i];
-        const node = el('div', { class: 'beat-note', text: String(text) });
+        // RUN12 S13.4: a lane note announces the answer it carries
+        const node = el('div', { class: 'beat-note', text: String(text), role: 'img', 'aria-label': nameWithValue('note', text) });
         laneEls[lane].appendChild(node);
         notes.push({ lane, text, correct: i === question.correct, spawnBeat, node, judged: false });
       });

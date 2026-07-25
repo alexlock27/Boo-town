@@ -209,11 +209,14 @@ export function mount(container, params, ctx) {
       const area = el('div', { class: 'spell-area' });
       const speaker = el('button', { class: 'icon-btn speak-btn', 'aria-label': 'Say the word again', html: speakerIcon(), onclick: () => say() });
       const peekBtn = el('button', { class: 'btn soft peek-btn', text: '👀 Peek (hint)', onclick: () => peekHint() });
+      // free, unlimited, never disabled: it only repeats what she was already given
+      const hearBtn = el('button', { class: 'btn soft hear-btn', 'aria-label': 'Hear the word again — always free',
+        text: '🔊 Hear it again', onclick: () => sayWordAgain() });
       if (!canHint()) peekBtn.disabled = true;
       promptCard.append(
         el('div', { class: 'spell-guide', html: renderGuide(guide, { view: 'head', size: 72 }) }),
         el('div', { class: 'spell-say' }, [el('span', { text: 'Can you spell it?' }), speaker]),
-        peekBtn
+        peekBtn, hearBtn
       );
       stage.append(promptCard, peekWord, clueEl, area);
 
@@ -223,6 +226,11 @@ export function mount(container, params, ctx) {
       });
 
       curHint = () => { if (canHint() && speller.hintNextLetter()) { spendHint(); shell.react(guideLine('hintSpell')); if (!canHint()) peekBtn.disabled = true; } };
+      // RUN12 S13.5 — HEARING the word again is free; SEEING it spelled is the hint.
+      // The peek control does both, so it splits: the spoken repeat costs nothing and is
+      // unlimited, and only revealing the letters spends a hint. Star maths for
+      // answer-revealing hints is untouched.
+      function sayWordAgain() { sfx.tap(); speakMaybe(word); shell.react('Have another listen!', { voice: false, hold: 1200 }); }
       function peekHint() { if (!canHint() || speller.isLocked()) return; spendHint(); sfx.tap(); reveal(); shell.react('A peek! That counts as a hint.', { voice: false, hold: 1400 }); if (!canHint()) peekBtn.disabled = true; }
       function reveal() { peekWord.textContent = word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); clearTimeout(reveal._t); reveal._t = setTimeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
       function say() { if (clue) speakMaybe(clue.replace(/_+/g, 'blank')); else speakMaybe(`Can you spell... ${word}?`); }

@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run12-s11s12-20260726';  // RUN12 S11-S12: banking on exit + bubble containment
+const BUILD_STAMP = 'run12-s13-20260726';  // RUN12 S13: the accessibility pack
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -12,6 +12,7 @@ const ASSETS = [
   'css/styles.css',
   'js/main.js',
   'js/state.js',
+  'js/a11y.js',
   'js/backup.js',
   'js/ui.js',
   'js/drawer.js',

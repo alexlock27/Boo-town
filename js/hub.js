@@ -1,6 +1,6 @@
 // js/hub.js — the home screen (spec §2, §5.2).
 
-import { el, clear, giftSVG, starsRow, REDUCED, suppressContextMenu } from './ui.js';
+import { el, clear, giftSVG, starsRow, REDUCED, suppressContextMenu, dialog } from './ui.js';
 import { getState, mutate, todayKey } from './state.js';
 import { createGuideBubble, guideLine } from './guide.js';
 import { music, sfx } from './sfx.js';
@@ -529,7 +529,9 @@ function makeCog(onOpen) {
         stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="119.4" transform="rotate(-90 22 22)"/>
       <g transform="translate(22,22)"><path d="M-2-9h4l1 3 3 1 3-2 3 3-2 3 1 3 3 1v4l-3 1-1 3 2 3-3 3-3-2-3 1-1 3h-4l-1-3-3-1-3 2-3-3 2-3-1-3-3-1v-4l3-1 1-3-2-3 3-3 3 2 3-1z" fill="var(--card)" opacity="0.85"/><circle r="3.2" fill="var(--sky-mid)"/></g>
     </svg>`;
-  const btn = el('button', { class: 'bar-btn cog-btn', 'aria-label': 'Grown-ups corner (press and hold)', html: ring });
+  const btn = el('button', { class: 'bar-btn cog-btn',
+    'aria-label': 'Grown-ups corner — press and hold, or press Enter',
+    html: ring });
   suppressContextMenu(btn);   // hold target: suppress Silk/Safari native context menu on the 3s hold (C0.1)
   const prog = () => btn.querySelector('.cog-prog');
   let raf = null, start = 0, done = false;
@@ -555,6 +557,23 @@ function makeCog(onOpen) {
   btn.addEventListener('pointerup', cancel);
   btn.addEventListener('pointerleave', cancel);
   btn.addEventListener('pointercancel', cancel);
+  // RUN12 S13.3 — a press-and-hold cannot be performed with a keyboard or a screen reader,
+  // so the corner was unreachable without a touchscreen. Enter/Space opens the SAME
+  // confirmation the hold protects it with: a deliberate second step, not a shortcut.
+  // Long-press is untouched for touch.
+  btn.addEventListener('keydown', async (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    e.preventDefault();
+    const ok = await dialog({
+      title: 'Grown-ups corner',
+      body: 'This part is for a grown-up. Open it?',
+      buttons: [
+        { label: 'Not now', value: false, kind: 'secondary' },
+        { label: 'Open', value: true, kind: 'soft' }
+      ]
+    });
+    if (ok) onOpen();
+  });
   return btn;
 }
 

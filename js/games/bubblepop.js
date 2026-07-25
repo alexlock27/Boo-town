@@ -13,6 +13,7 @@ import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { filterCategories, filterLevels } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
+import { nameWithValue, readAloudButton, readAloudOn } from '../a11y.js';
 import { addMeterPoints } from '../rewards.js';
 
 const ROUNDS = 10;
@@ -112,6 +113,8 @@ export function mount(container, params, ctx) {
 
     // target card
     const targetCard = el('div', { class: 'target-card', html: targetHTML(target) });
+    // RUN12 S13.2 — a control, never autoplay: it speaks the question she is looking at now.
+    if (readAloudOn()) targetCard.appendChild(readAloudButton(() => target.display));
     const field = el('div', { class: 'bubble-field bp-glass' });
     shell.area.append(targetCard, field);
     updateSky();   // backdrop evolves with level (C5)
@@ -121,6 +124,8 @@ export function mount(container, params, ctx) {
     const bubbles = [];
     for (let i = 0; i < BUBBLE_COUNT; i++) {
       const b = { value: 0, correct: false, x: 0, y: 0, vx: 0, speed: 0, size: 0, hidden: false, node: null, _pi: i };
+      // RUN12 S13.4: the name carries the VALUE — "bubble" alone tells a screen-reader
+      // user nothing they can act on. Repainted with the value in paint().
       const node = el('button', { class: 'bubble', 'aria-label': 'bubble' });
       node.addEventListener('click', () => onPop(b));
       b.node = node;
@@ -175,6 +180,7 @@ export function mount(container, params, ctx) {
 
     function paint(b) {
       b.node.textContent = fmt()(b.value);
+      b.node.setAttribute('aria-label', nameWithValue('bubble', fmt()(b.value)));
       b.node.classList.remove('burst');
       b.node.style.visibility = b.hidden ? 'hidden' : 'visible';
       b.node.style.pointerEvents = b.hidden ? 'none' : 'auto';
