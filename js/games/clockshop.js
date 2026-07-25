@@ -119,6 +119,16 @@ export function mount(container, params, ctx) {
       hourHand.setAttribute('transform', `rotate(${hourAngle().toFixed(2)} 100 100)`);
       minHand.setAttribute('transform', `rotate(${minAngle().toFixed(2)} 100 100)`);
     }
+    // RUN12 S10 — the hands used to stay wherever the LAST order left them, so every order
+    // after the first started from someone else's answer. They now sweep back to a neutral
+    // 12:00, and the sweep is visible so she can see it happen rather than find it done.
+    const RESET_H = 12, RESET_M = 0;
+    function resetHands() {
+      sh12 = RESET_H; sm = RESET_M;
+      clockWrap.classList.add('resetting');
+      applyHands();
+      shell.timeout(() => clockWrap.classList.remove('resetting'), REDUCED ? 0 : 520);
+    }
 
     function snapMinutes(raw) {
       const set = cfg.minutes;
@@ -134,20 +144,30 @@ export function mount(container, params, ctx) {
       let a = Math.atan2(clientX - cx, cy - clientY) * 180 / Math.PI;   // 0 = 12 o'clock, clockwise
       return (a + 360) % 360;
     }
-    let dragHand = null;
+    // RUN12 S10 — the grab is chosen ONCE, at pointerdown, and is sticky for the whole
+    // drag: no hand-off part way through, whatever the hands do as she moves. When the two
+    // hands overlap (12:00 is now every order's starting position, so they overlap a lot)
+    // the minute hand wins — it is the one a child is reaching for. The hour hand still
+    // advances proportionally with the minutes, which is the point of the lesson.
+    const OVERLAP_DEG = 6;          // "overlapping" for grab purposes
+    let dragHand = null, dragging = false;
+    function pickHand(a) {
+      const dm = angDist(a, minAngle()), dh = angDist(a, hourAngle());
+      if (Math.abs(dm - dh) <= OVERLAP_DEG) return 'min';   // overlapped: minute wins
+      return dm <= dh ? 'min' : 'hour';
+    }
     function attachDrag() {
       svg.style.touchAction = 'none';
       svg.addEventListener('pointerdown', e => {
         if (locked || ended) return;
         svg.setPointerCapture(e.pointerId);
-        // choose the nearer hand by angular distance to its current position
         const a = angleAt(e.clientX, e.clientY);
-        const dm = angDist(a, minAngle()), dh = angDist(a, hourAngle());
-        dragHand = dm <= dh ? 'min' : 'hour';
+        dragHand = pickHand(a);
+        dragging = true;
         moveTo(a);
       });
-      svg.addEventListener('pointermove', e => { if (dragHand && (e.buttons || e.pressure > 0)) moveTo(angleAt(e.clientX, e.clientY)); });
-      const end = () => { dragHand = null; };
+      svg.addEventListener('pointermove', e => { if (dragging && dragHand && (e.buttons || e.pressure > 0)) moveTo(angleAt(e.clientX, e.clientY)); });
+      const end = () => { dragHand = null; dragging = false; };
       svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
     }
     function moveTo(a) {
@@ -164,7 +184,14 @@ export function mount(container, params, ctx) {
       wrong++; sfx.oops();
       clockWrap.classList.remove('wiggle'); void clockWrap.offsetWidth; clockWrap.classList.add('wiggle');
       shell.dimHeart();
-      shell.react('Not quite — try again!', { voice: false, hold: 1600 });
+      // RUN12 S10 — the pedagogically-correct rejection stays, and now SAYS why: at half
+      // past, the hour hand has moved on and no longer points at its own number.
+      // she has the hour right but has left the big hand at the top: the clock reads
+      // "7 o'clock" while the order asked for half past 7
+      const parkedOnTheHour = order.m === 30 && sm === 0 && sh12 === order.h12;
+      shell.react(parkedOnTheHour
+        ? 'At half past, the hour hand sits BETWEEN the numbers.'
+        : 'Not quite — try again!', { voice: false, hold: parkedOnTheHour ? 2600 : 1600 });
     }
     function onCorrect() {
       locked = true; sfx.correct();
@@ -176,7 +203,9 @@ export function mount(container, params, ctx) {
         clockWrap.classList.remove('served');
         if (ended) return;
         if (idx >= ORDERS) return finish();
-        order = makeOrder(level); locked = false; showOrder();
+        order = makeOrder(level);
+        resetHands();                 // RUN12 S10: every order starts from 12:00, visibly
+        locked = false; showOrder();
       }, 900);
     }
 
@@ -208,7 +237,20 @@ export function mount(container, params, ctx) {
       state: () => ({ sh12, sm, hourAngle: +hourAngle().toFixed(2), minAngle: +minAngle().toFixed(2) }),
       serve, hint: doHint,
       ghostShown: () => ghostG.classList.contains('show'),
-      dragMinuteTo: (mins) => { dragHand = 'min'; moveTo(mins * 6); dragHand = null; },
+      dragMinuteTo: (mins) => { dragHand = 'min'; dragging = true; moveTo(mins * 6); dragHand = null; dragging = false; },
+      // RUN12 S10 QA: a whole gesture — press at an angle, move, release — so the STICKINESS
+      // of the grab is exercised rather than a single teleport.
+      dragFrom: (fromDeg, toDegs) => {
+        dragHand = pickHand(fromDeg); dragging = true;
+        moveTo(fromDeg);
+        for (const d of [].concat(toDegs)) moveTo(d);
+        const held = dragHand;
+        dragHand = null; dragging = false;
+        return held;
+      },
+      grabAt: (deg) => pickHand(deg),
+      resetHands, resetTo: () => ({ h12: RESET_H, m: RESET_M }),
+      resetting: () => clockWrap.classList.contains('resetting'),
       ended: () => ended, stats: () => ({ idx, wrong, hintsUsed }),
       _state: { sh12, sm }
     };

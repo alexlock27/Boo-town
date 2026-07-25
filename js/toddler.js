@@ -22,6 +22,20 @@ export const BIGSMALL_ITEMS = 12;      // Big and Small: twelve items a round (>
 export const PAIRS_GROW_AFTER = 2;     // Animal Pairs: grow 6→8 cards after two cleared boards
 
 const rand = (n) => (Math.random() * n) | 0;
+
+// The replay control's face: a little Boo with a sound horn, in the house sticker style.
+function speakerBooSVG() {
+  const INK = '#2A1B4E';
+  return `<svg viewBox="0 0 64 56" width="44" height="38" aria-hidden="true">
+    <ellipse cx="26" cy="32" rx="20" ry="18" fill="#C6A9F0" stroke="${INK}" stroke-width="3"/>
+    <ellipse cx="12" cy="18" rx="6" ry="9" fill="#C6A9F0" stroke="${INK}" stroke-width="3"/>
+    <ellipse cx="40" cy="18" rx="6" ry="9" fill="#C6A9F0" stroke="${INK}" stroke-width="3"/>
+    <circle cx="20" cy="30" r="3.6" fill="${INK}"/><circle cx="32" cy="30" r="3.6" fill="${INK}"/>
+    <path d="M21 40 q5 5 10 0" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+    <path d="M48 24 q7 8 0 16" fill="none" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M55 19 q11 13 0 26" fill="none" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>
+  </svg>`;
+}
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export const TODDLER_GAMES = [
@@ -238,11 +252,13 @@ export function mount(container, params, ctx) {
       : TODDLER_ROUNDS;
 
   let misses = 0, done = 0, ended = false;
+  let api = null;                 // set below; the shell's onHelp closes over it
   const shell = createGameShell({
     title: meta.word, rounds: roundCount, accent: 'var(--pop)',
     hideHearts: true, hintEnabled: false,
     onBack: () => ctx.go('hub'),
-    onHelp: () => runIntro(meta.id, { steps: INTRO_SCRIPTS[meta.id] })
+    // RUN12 S9: the "?" replays the intro AND repeats the spoken prompt behind it
+    onHelp: () => runIntro(meta.id, { steps: INTRO_SCRIPTS[meta.id], onDone: () => { if (api && typeof api.sayAgain === 'function') api.sayAgain(); } })
   });
   root.appendChild(shell.root);
 
@@ -266,8 +282,23 @@ export function mount(container, params, ctx) {
     ctx.go('results', { game: meta.id, gameName: meta.word, stars, meterOverride, replay: () => ctx.go('toddlergame', { game }) });
   }
 
-  const api = { count: mountCount, colour: mountColour, shape: mountShape, letter: mountLetter,
+  api = { count: mountCount, colour: mountColour, shape: mountShape, letter: mountLetter,
     animals: mountAnimals, pairs: () => mountPairs(pairCount), bigsmall: mountBigSmall }[game](shell.area);
+
+  // ---- hear it again (RUN12 S9) --------------------------------------------------------
+  // Every toddler game states its question out loud once and then goes quiet. A three-year-
+  // old who looked away had no way back to it. Every game with a spoken prompt now carries
+  // the SAME big speaker button, bottom centre: unlimited, free, and it never touches the
+  // score — it only repeats something she has already been given. The "?" control repeats
+  // it too, so the two obvious places to ask both work.
+  if (typeof api.sayAgain === 'function') {
+    const replay = el('button', {
+      class: 'td-replay', 'aria-label': 'Hear it again',
+      onclick: () => { sfx.tap(); api.sayAgain(); }
+    }, [el('span', { class: 'td-replay-ic', html: speakerBooSVG() }), el('span', { class: 'td-replay-lbl', text: 'Again' })]);
+    shell.area.appendChild(replay);
+    if (typeof window !== 'undefined') window.__toddlerReplay = { node: replay, fire: () => replay.click() };
+  }
 
   // invisible QA hooks
   if (typeof window !== 'undefined') window.__toddler = Object.assign({
@@ -299,10 +330,11 @@ export function mount(container, params, ctx) {
       for (let i = 0; i < n; i++) out += `<i class="td-dot${i <= lit ? ' lit' : ''}" style="width:${size}px;height:${size}px"></i>`;
       return out + '</span>';
     }
+    const sayTarget = () => { if (target) speakMaybe(`Pop ${target}!`); return !!target; };
     function newTarget() {
       target = 1 + rand(Math.min(10, countMax));
       targetCard.innerHTML = `<span class="td-big-num">${target}</span>` + dotsHTML(target, 15);
-      speakMaybe(`Pop ${target}!`);
+      sayTarget();
       layoutValues();
     }
     function layoutValues() {
@@ -375,12 +407,14 @@ export function mount(container, params, ctx) {
       pop: (correct) => { const b = correct ? bubbles.find(x => x.n === target) : bubbles.find(x => x.n !== target); if (b) onPop(b); },
       target: () => target,
       values: () => bubbles.map(b => b.n),
+      sayAgain: () => sayTarget(),
       cleanup: () => { if (raf) cancelAnimationFrame(raf); }
     };
   }
 
   // ================= the drag engine shared by Colour Feast + Shape Sort =================
   function makeDragGame(area, { buckets, bucketHTML, itemHTML, matches, sayTask }) {
+    let lastTask = null;   // RUN12 S9: what the replay control repeats
     const feedersWrap = el('div', { class: 'feeders td-feeders' });
     const feederEls = buckets.map((b, i) => {
       const zone = el('div', { class: 'feeder td-feeder', dataset: { bucket: String(i) } }, []);
@@ -400,6 +434,7 @@ export function mount(container, params, ctx) {
       itemArea.appendChild(curNode);
       attachDrag(curNode);
       sayTask(current);
+      lastTask = current;
     }
     function attachDrag(node) {
       let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
@@ -439,6 +474,7 @@ export function mount(container, params, ctx) {
     function hit(f, x, y) { const r = f.getBoundingClientRect(); return x >= r.left - 24 && x <= r.right + 24 && y >= r.top - 24 && y <= r.bottom + 24; }
 
     return { start: (items) => { queue = items.slice(); next(); }, feederEls,
+      sayAgain: () => { if (!lastTask) return false; sayTask(lastTask); return true; },
       dropOn: (idx) => {   // test hook: resolve the current item onto bucket idx
         if (!current) return false;
         if (matches(current, buckets[idx])) { curNode.remove(); progress(); if (done < roundCount) next(); return true; }
@@ -461,7 +497,7 @@ export function mount(container, params, ctx) {
     });
     speakMaybe('Feed each Boo its matching colour!');
     eng.start(round.items);
-    return { round, dropOn: eng.dropOn, current: eng.current, correctIndex: () => round.colours.findIndex(c => c.key === (eng.current() || {}).colour?.key) };
+    return { round, dropOn: eng.dropOn, current: eng.current, sayAgain: eng.sayAgain, correctIndex: () => round.colours.findIndex(c => c.key === (eng.current() || {}).colour?.key) };
   }
 
   // ================= Shape Sort (Feed the Boos engine) =================
@@ -476,7 +512,7 @@ export function mount(container, params, ctx) {
     });
     speakMaybe('Match each shape to its hole!');
     eng.start(round.items);
-    return { round, dropOn: eng.dropOn, current: eng.current, correctIndex: () => round.buckets.indexOf((eng.current() || {}).shape) };
+    return { round, dropOn: eng.dropOn, current: eng.current, sayAgain: eng.sayAgain, correctIndex: () => round.buckets.indexOf((eng.current() || {}).shape) };
   }
 
   // ================= Letter Pop =================
@@ -492,6 +528,7 @@ export function mount(container, params, ctx) {
     const speakAnchor = (ch) => {
       const [word] = LETTER_ANCHORS[ch];
       speakMaybe(ch === 'X' ? `${ch}! x is in ${word}` : `${ch}! ${ch.toLowerCase()} for ${word}`);
+      return true;
     };
 
     function next() {
@@ -538,6 +575,7 @@ export function mount(container, params, ctx) {
     next();
     return {
       letters, currentLetter: () => cur,
+      sayAgain: () => (cur ? speakAnchor(cur) : false),
       tap: (correct) => { const tiles = [...tileRow.querySelectorAll('.td-letter-tile')]; const t = tiles.find(x => (x.textContent[0] === cur) === correct); if (t) t.click(); },
       lowerShown: () => !!targetCard.querySelector('.td-lower')
     };
@@ -553,9 +591,30 @@ export function mount(container, params, ctx) {
     // portrait target shows when sound OR voice is off → the game becomes find-the-match
     const showPortrait = () => !getState().settings.sound || !getState().settings.voice;
 
+    // RUN12 S9 — the call used to fire 240ms after the cards appeared and never again: a
+    // three-year-old who looked away missed the whole question and had no way back to it.
+    const LEAD_IN_MS = 900;        // a beat of quiet before the call, so it is not a surprise
+    const AUTO_REPEAT_MS = 6000;   // one gentle repeat if no tap arrives
+    let repeatTimer = null, autoRepeated = false;
+    function sayCall({ spoken = true } = {}) {
+      if (!cur) return false;
+      animal.call(cur);
+      if (spoken) shell.timeout(() => speakMaybe(ANIMAL_WORDS[cur] + '!'), 700);   // call first, word after
+      return true;
+    }
+    function armAutoRepeat() {
+      shell.cancel(repeatTimer);
+      repeatTimer = shell.timeout(() => {
+        if (locked || ended || autoRepeated) return;
+        autoRepeated = true;                       // exactly once per question
+        shell.react('Listen again!', { hold: 1800 });
+        sayCall();
+      }, AUTO_REPEAT_MS);
+    }
     function next() {
       idx++;
       if (idx >= roundAnimals.length) return;
+      autoRepeated = false;
       cur = roundAnimals[idx];
       if (showPortrait()) { targetCard.style.display = ''; targetCard.innerHTML = `<div class="td-animal-portrait">${animalSVG(cur, 100)}</div>`; }
       else { targetCard.style.display = 'none'; targetCard.innerHTML = ''; }
@@ -568,10 +627,11 @@ export function mount(container, params, ctx) {
         card.addEventListener('click', () => onTap(k, card));
         cardRow.appendChild(card);
       }
-      shell.timeout(() => { animal.call(cur); speakMaybe(ANIMAL_WORDS[cur] + '!'); }, 240);
+      shell.timeout(() => { sayCall(); armAutoRepeat(); }, LEAD_IN_MS);
     }
     async function onTap(k, card) {
       if (locked || ended) return;
+      shell.cancel(repeatTimer);                    // she answered; stop waiting for her
       if (k !== cur) { oops(card); return; }
       locked = true;
       card.classList.add('td-anim-win');
@@ -587,7 +647,10 @@ export function mount(container, params, ctx) {
     next();
     return {
       animals: roundAnimals, current: () => cur, portraitShown: () => showPortrait() && !!targetCard.querySelector('.td-animal-portrait'),
-      tap: (correct) => { const cs = [...cardRow.querySelectorAll('.td-animal-card')]; const t = cs.find(c => (c.getAttribute('aria-label') === cur) === correct); if (t) t.click(); }
+      tap: (correct) => { const cs = [...cardRow.querySelectorAll('.td-animal-card')]; const t = cs.find(c => (c.getAttribute('aria-label') === cur) === correct); if (t) t.click(); },
+      // RUN12 S9: unlimited, free, no penalty — it only repeats something she already had
+      sayAgain: () => sayCall(),
+      autoRepeated: () => autoRepeated, leadInMs: () => LEAD_IN_MS, autoRepeatMs: () => AUTO_REPEAT_MS
     };
   }
 
@@ -627,6 +690,7 @@ export function mount(container, params, ctx) {
     speakMaybe('Find the matching animals!');
     return {
       pairCount: pairs, cardCount: N,
+      sayAgain: () => { speakMaybe('Find the matching animals!'); return true; },
       flipAt: (i) => flip(cards[i]),
       faceUp: () => cards.filter(c => c.classList.contains('flipped') || c.classList.contains('done')).length,
       matchedPairs: () => matched,
@@ -661,7 +725,7 @@ export function mount(container, params, ctx) {
     speakMaybe('Big things to the big paw, small ones to the small paw!');
     eng.start(items);
     return {
-      items, dropOn: eng.dropOn, current: eng.current,
+      items, dropOn: eng.dropOn, current: eng.current, sayAgain: eng.sayAgain,
       correctIndex: () => { const c = eng.current(); return c ? (c.big ? 0 : 1) : -1; },
       sizeSplit: () => ({ big: items.filter(x => x.big).length, small: items.filter(x => !x.big).length }),
       colourCheck: () => { const byC = {}; for (const it of items) { (byC[it.colour] = byC[it.colour] || new Set()).add(it.big ? 'big' : 'small'); } return Object.values(byC).some(s => s.size > 1); }
