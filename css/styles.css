@@ -855,6 +855,28 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .echo-status { font-family: var(--font-display); font-weight: 700; color: var(--card); font-size: 24px; min-height: 30px; }
 .echo-best { background: rgba(255,201,60,0.16); border: 2px solid var(--star); border-radius: 14px; padding: 8px 16px; font-family: var(--font-display); font-weight: 700; color: var(--ink); }
 .echo-bests, .echo-mode-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* RUN12 S8 — ONE row of two clearly different cards, replacing the two near-identical rows
+   ("🎵 Standard | ⚡ Lightning" sitting directly above "🎵 Standard — | ⚡ Lightning —").
+   Each card carries its name, a one-line description of what it actually is, and its own
+   best-streak chip. */
+.echo-modes { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 4px 0 2px; }
+.echo-mode-card {
+  flex: 1 1 190px; max-width: 240px; min-height: 118px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 14px; border: 3px solid var(--ink); border-radius: 18px;
+  background: #fff; color: var(--ink); text-align: center; cursor: pointer;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+.echo-mode-card .emc-name { font: 700 19px var(--font-display); }
+.echo-mode-card .emc-desc { font: 400 13.5px var(--font-body); color: #5A4D84; line-height: 1.25; }
+.echo-mode-card .emc-best { margin-top: auto; font: 700 13px var(--font-display); color: var(--ink);
+  background: rgba(42,27,78,0.08); border-radius: 999px; padding: 3px 10px; }
+.echo-mode-card.sel { background: var(--star); box-shadow: 0 0 0 3px #fff, 0 0 18px rgba(255,201,60,.55); transform: translateY(-2px); }
+.echo-mode-card.lightning.sel { background: var(--pop); box-shadow: 0 0 0 3px #fff, 0 0 18px rgba(255,122,198,.55); }
+.echo-mode-card.sel .emc-desc { color: var(--ink); }
+.echo-mode-card.sel .emc-best { background: rgba(255,255,255,0.55); }
+@media (prefers-reduced-motion: reduce) { .echo-mode-card { transition: none; } .echo-mode-card.sel { transform: none; } }
 .echo-best.lightning { border-color: var(--pop); background: rgba(255,122,198,.13); }
 .echo-mode { min-height: 48px; padding: 9px 16px; border: 3px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); font: 700 16px var(--font-display); }
 .echo-mode.sel { background: var(--star); box-shadow: 0 0 0 3px #fff, 0 0 16px rgba(255,201,60,.5); }
@@ -862,13 +884,25 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .echo-board { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(14px, 4vh, 34px); }
 .echo-podium { display: flex; flex-direction: column; align-items: center; }
 .echo-boo { width: clamp(84px, 20vw, 150px); height: clamp(84px, 20vw, 150px); border-radius: 50%; border: none; background: none; padding: 0;
-  filter: brightness(0.82) saturate(0.85); transition: filter 120ms, transform 120ms; touch-action: manipulation; }
+  filter: brightness(0.82) saturate(0.85); transition: filter 120ms, transform 120ms, box-shadow 120ms; touch-action: manipulation; }
 .echo-boo .echo-face { display: block; width: 100%; height: 100%; }
-.echo-boo.lit { filter: brightness(1.35) saturate(1.3) drop-shadow(0 0 18px var(--boo)); transform: scale(1.06) translateY(-4px); }
+/* RUN12 S8 — the lit state has to be unmissable with the sound off. It previously rendered
+   NOTHING: js/ui.js el() dropped the inline --boo, so drop-shadow(... var(--boo)) was an
+   invalid value and the whole `filter` declaration was thrown away, leaving the dimmed
+   unlit look untouched. With --boo actually set, this is a full-saturation colour flash, a
+   1.15x pop, a white rim and a coloured halo — the Boo's OWN colour kept throughout so the
+   four stay apart. .dimmed pulls the other three back during playback so attention lands. */
+.echo-boo.lit {
+  filter: brightness(1.5) saturate(1.9) drop-shadow(0 0 26px var(--boo, #fff));
+  transform: scale(1.15) translateY(-6px);
+  box-shadow: 0 0 0 6px #fff, 0 0 0 11px var(--boo, #fff), 0 0 30px 6px var(--boo, #fff);
+}
+.echo-boo.dimmed { filter: brightness(0.5) saturate(0.4); }
 .echo-boo.flourish { animation: echoFlourish 0.4s ease; }
 @keyframes echoFlourish { 0%,100% { transform: scale(1); } 50% { transform: scale(1.16) translateY(-8px); } }
 .echo-base { width: 60%; height: 12px; border-radius: 0 0 12px 12px; background: rgba(0,0,0,0.28); margin-top: -4px; }
-@media (prefers-reduced-motion: reduce) { .echo-boo, .echo-boo.lit { transition: none; } .echo-boo.flourish { animation: none; } }
+/* reduced motion keeps the colour flash and the rim; only the scale pop goes (S8) */
+@media (prefers-reduced-motion: reduce) { .echo-boo, .echo-boo.lit { transition: none; } .echo-boo.lit { transform: none; } .echo-boo.flourish { animation: none; } }
 
 /* "?" help button in the game shell (RUN5 C1/C5) */
 .help-btn { width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: rgba(255,255,255,0.16); color: var(--card);
@@ -2806,7 +2840,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .disco-poster:nth-child(odd) { transform:rotate(1deg); }
 .disco-poster small { font:700 10px var(--font-display); }
 .disco-stage { position:absolute; inset:25% 9% 9%; }
-.disco-dancers { position:absolute; z-index:8; inset:0 3% 38%; display:flex; align-items:end; justify-content:center; gap:clamp(4px,2vw,22px); }
+/* RUN12 S7: the bottom inset is set by js/discohall.js from the MEASURED floor rect —
+   38% was a guess that stood every dancer 76px above the dance floor. The value here is
+   only the pre-measure fallback for the first frame. */
+.disco-dancers { position:absolute; z-index:8; inset:0 3% 20%; display:flex; align-items:end; justify-content:center; gap:clamp(4px,2vw,22px); }
 .disco-dancer { width:clamp(68px,10vw,112px); display:grid; place-items:center; transform-origin:center bottom; filter:drop-shadow(0 8px 5px rgba(0,0,0,.35)); }
 .disco-dancer svg { max-width:100%; height:auto; }
 .disco-dancers.routine { display:grid; grid-template-columns:repeat(6,minmax(52px,90px)); grid-template-rows:repeat(2,1fr); align-items:end; justify-content:center; gap:0 12px; }
@@ -2835,7 +2872,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .disco-track { right:8px; top:108px; min-width:150px; font-size:12px; }
   .disco-now { right:8px; top:158px; width:150px; }
   .disco-stage { inset:31% 1% 7%; }
-  .disco-dancers { inset:0 0 42%; gap:0; flex-wrap:wrap; align-content:end; }
+  /* the bottom inset is overwritten by the measured value; only the sides/wrap matter here */
+  .disco-dancers { inset:0 0 20%; gap:0; flex-wrap:wrap; align-content:end; }
   .disco-dancer { width:64px; margin-inline:-3px; }
   .disco-dancers.routine { grid-template-columns:repeat(6,52px); gap:0; }
 }

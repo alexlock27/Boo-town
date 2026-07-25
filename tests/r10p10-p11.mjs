@@ -98,9 +98,14 @@ console.log('== P11 exact pace curve and separate Lightning best ==');
   ok(pace.lightning[0] === 298 && pace.lightning.at(-1) === 200, `Lightning uses its 330/200 pace (${pace.lightning.join(', ')})`);
   ok(pace.toddler[0] === 794 && pace.toddler[1] === 664, 'Toddler timings remain on the original 820/560/26 formula');
   await page.evaluate(() => window.BooTown.go('echoboos'));
-  await page.waitForSelector('.echo-mode.lightning');
-  ok(await page.locator('.echo-best').count() === 2, 'start card shows both independent best chips');
-  await page.click('.echo-mode.lightning');
+  // RUN12 S8 replaced the two near-identical rows (a Standard/Lightning button pair sitting
+  // directly above a Standard/Lightning chip pair) with ONE row of two differentiated cards,
+  // each carrying its own best. The BEHAVIOUR this section guards — two independently
+  // persisted bests — is unchanged; only the markup it reaches for is.
+  await page.waitForSelector('.echo-mode-card.lightning');
+  ok(await page.locator('.echo-mode-card .emc-best').count() === 2, 'the setup screen shows both independent bests, one per mode card');
+  ok(await page.locator('.echo-mode-row, .echo-bests').count() === 0, 'and the duplicated second row is gone');
+  await page.click('.echo-mode-card.lightning');
   await page.click('.start-card .btn.big');
   await page.waitForFunction(() => window.__echo && window.__echo.state().inputPhase);
   await page.evaluate(() => { window.__echo.setBestForTest(6); window.__echo.finishForTest(); });
