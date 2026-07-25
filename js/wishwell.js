@@ -8,7 +8,10 @@ import { guideLine, speakMaybe } from './guide.js';
 import { showToast } from './resilience.js';
 import { sfx } from './sfx.js';
 import { WISH_WORDS, SHORT_WISHES, nearestWish, wishItem } from '../data/wishes.js';
+import { keyRows, readAloudButton, nameWithValue } from './a11y.js';
 
+// RUN12 S13.1 — the layout is a setting now, A-Z by default below age 8.
+// (The frozen constant stays as the QWERTY fallback shape.)
 const KEYROWS = ['qwertyuiop','asdfghjkl','zxcvbnm'];
 // The brief says a 3–8 tile tray but also includes BUTTERFLY (9 letters).
 // Keep eight empty tiles normally and reveal one overflow tile only for a ninth letter.
@@ -37,7 +40,7 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   const magic = el('div', { class:'wish-magic' }, [el('div', { class:'wish-well-mini', text:'✦' })]);
   const suggestions = el('div', { class:'wish-suggestions' });
   const keyboard = el('div', { class:'wish-keyboard' });
-  KEYROWS.forEach((row, ri) => {
+  keyRows().forEach((row, ri) => {
     const rowNode = el('div', { class:'det-kb-row' });
     if (ri === 2) rowNode.appendChild(el('button', { class:'det-key wide wish-enter', text:'WISH', 'aria-label':'Make wish', onclick:submit }));
     [...row].forEach(ch => rowNode.appendChild(el('button', { class:'det-key', text:ch.toUpperCase(), dataset:{key:ch}, onclick:() => type(ch) })));

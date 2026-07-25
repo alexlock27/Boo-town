@@ -11,6 +11,7 @@ import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
 import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected, needsBackupReminder, storageStatus, lastBackupInfo, isIOSStandalone } from './backup.js';
 import { bloomStats } from '../data/bloom.js';
+import { alphaKeysOn, alphaKeysDefault, setAlphaKeys, readAloudOn, setReadAloud } from './a11y.js';
 
 // Rough platform sniff, only to word the "where did it save?" helper text. Never gates
 // behaviour — the buttons feature-detect (canShareFiles) regardless.
@@ -43,6 +44,19 @@ export function mount(container, params, ctx) {
     ...(hapticsSupported() ? [toggle('Gentle buzzes (haptics)', s.settings.haptics !== false, v => { mutate(st => st.settings.haptics = v); setHapticsEnabled(v); if (v) haptic('tick'); })] : []),
     el('p', { class: 'gu-note', text: tts.available() ? 'A voice is available on this device.' : 'No speech voice found — the Peek button covers spelling.' }),
     voiceSection()
+  ]);
+
+  // ---- getting in (RUN12 S13) ----------------------------------------------------------
+  // Two switches that change how a child reaches the app rather than what it teaches.
+  // Both are device-local; the A-Z default follows the content tier until it is set here.
+  const accessCard = el('div', { class: 'gu-card' }, [
+    el('h3', { text: 'Getting in' }),
+    toggle('A-Z letter keyboard', alphaKeysOn(), v => setAlphaKeys(v)),
+    el('p', { class: 'gu-note', text: alphaKeysDefault()
+      ? 'On by default at this age — letters in alphabet order rather than QWERTY.'
+      : 'Letters in alphabet order rather than QWERTY. Off by default at this age.' }),
+    toggle('Read questions aloud (a speaker button)', readAloudOn(), v => setReadAloud(v)),
+    el('p', { class: 'gu-note', text: 'Adds a small speaker beside each question. It only speaks when she presses it — never on its own.' })
   ]);
 
   // ---- voice picker (RUN9 C6b): choose from the device's installed English voices ----
@@ -293,7 +307,7 @@ export function mount(container, params, ctx) {
 
   // ---- tabs (RUN6 C0.2): Settings first, so no setting hides behind the editors ----
   const TABS = [
-    { id: 'settings', label: 'Settings',      cards: [toggles, contentCard, micCard, requestsCard] },
+    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, contentCard, micCard, requestsCard] },
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },

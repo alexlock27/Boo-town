@@ -4505,12 +4505,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 
 /* RUN12 S11 — the treats pocket on the hub top bar, matching the chip inside Boo Care. */
 .hub-pocket {
-  display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 4px 12px;
+  /* 44px minimum touch target, the same bar r11audit holds every control to */
+  display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 4px 12px;
   border: 2px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink);
   font: 800 16px var(--font-display); cursor: pointer; flex: 0 0 auto;
 }
 .hub-pocket .cp-ic { font-size: 17px; line-height: 1; }
-@media (max-width: 600px) { .hub-pocket { min-height: 38px; padding: 3px 9px; font-size: 15px; } }
+@media (max-width: 600px) { .hub-pocket { min-height: 44px; padding: 3px 9px; font-size: 15px; } }
 
 
 /* RUN12 S12 — a retired bubble fades back in at the bottom of the field rather than
@@ -4518,3 +4519,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .bubble.bp-fresh { animation: bpFresh 260ms ease-out; }
 @keyframes bpFresh { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .bubble.bp-fresh { animation: none; } }
+
+/* RUN12 S13 — the read-aloud control that sits beside a question. A control, never
+   autoplay: it speaks only when pressed, and only the question she is looking at. */
+.read-aloud-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; min-width: 44px; margin-left: 8px; vertical-align: middle;
+  border: 2px solid var(--ink); border-radius: 50%;
+  background: var(--card); color: var(--ink); cursor: pointer;
+}
+.read-aloud-btn:active { transform: scale(0.94); }
+@media (prefers-reduced-motion: reduce) { .read-aloud-btn:active { transform: none; } }
+.hear-btn { margin-left: 8px; }

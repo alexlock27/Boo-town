@@ -16,8 +16,11 @@ import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { runIntro, introSeen } from '../intro.js';
 import { LISTS } from '../../data/detective.js';
+import { keyRows, readAloudButton, nameWithValue } from '../a11y.js';
 
 const GUESSES = 5;
+// RUN12 S13.1 — the layout is a setting now, A-Z by default below age 8.
+// (The frozen constant stays as the QWERTY fallback shape.)
 const KEYROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
 
@@ -124,7 +127,7 @@ export function mount(container, params, ctx) {
     const kb = el('div', { class: 'det-kb' });
     const keyEls = {};
     let goKey = null, goTaught = false;   // RUN10 P9: the big GO key + its once-per-round taught line
-    KEYROWS.forEach((krow, ri) => {
+    keyRows().forEach((krow, ri) => {
       const rowEl = el('div', { class: 'det-kb-row' });
       if (ri === 2) { goKey = el('button', { class: 'det-key wide det-go', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }); rowEl.appendChild(goKey); }
       for (const ch of krow) { const k = el('button', { class: 'det-key', text: ch.toUpperCase(), dataset: { key: ch }, onclick: () => typeCh(ch) }); rowEl.appendChild(k); keyEls[ch] = k; }

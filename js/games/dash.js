@@ -22,6 +22,7 @@ import { sfx, music } from '../sfx.js';
 import { BUBBLE_BY_KEY, BUBBLE_CATEGORIES, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
+import { nameWithValue, readAloudButton, readAloudOn } from '../a11y.js';
 import { mixPlan } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { filterCategories, filterLevels } from '../content.js';
@@ -114,6 +115,7 @@ export function mount(container, params, ctx) {
       el('div', { class: 'd2-shadow' })
     ]);
     const factCard = el('div', { class: 'dash-fact' });
+    if (readAloudOn()) factCard.appendChild(readAloudButton(() => question && question.display));
     scene.append(sky, clouds, hills, ground, roadWrap, propsEl, gatesEl, boo, factCard);
     shell.area.appendChild(scene);
     const road = roadWrap.firstChild;
@@ -172,7 +174,8 @@ export function mount(container, params, ctx) {
       const opts = shuffle([{ v: question.answer, correct: true }, ...pickWrong(question).map(x => ({ v: x, correct: false }))]);
       const row = { z: stopZ, open: false, passed: false, gates: [] };
       opts.forEach((o, lane) => {
-        const g = el('button', { class: 'd2-gate lane' + lane, 'aria-label': 'answer gate' }, [
+        // RUN12 S13.4: the gate says which answer it IS
+        const g = el('button', { class: 'd2-gate lane' + lane, 'aria-label': nameWithValue('answer gate', fmt(o.v)) }, [
           el('div', { class: 'g-frame' }, [
             el('div', { class: 'g-top' }),
             el('div', { class: 'g-door left' }), el('div', { class: 'g-door right' }),

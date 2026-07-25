@@ -102,7 +102,9 @@ const FIXTURES = {
     ["golden round with a meter override", "({ game: 'golden', gameName: 'Golden Round', stars: 3, meterOverride: 4, golden: true, replay: () => {} })"],
     ["score game", "({ game: 'blocks', gameName: 'Boo Blocks', stars: 2, level: null, cat: null, mix: true, score: 1200, replay: () => {} })"],
     ["cosy bonus", "({ game: 'boopop', gameName: 'Boo Pop', stars: 2, level: 1, cat: 'pop', extraCosy: 1, replay: () => {} })"],
-    ["toddler round", "({ game: 'tanimal', gameName: 'Animals', stars: 3, meterOverride: 2, replay: () => {} })"]
+    ["toddler round", "({ game: 'tanimal', gameName: 'Animals', stars: 3, meterOverride: 2, replay: () => {} })"],
+    // RUN12 S11: a round LEFT EARLY, banking what she had earned
+    ["a round left early (banked)", "({ game: 'bubblepop', gameName: 'Bubble Pop', stars: 2, level: 1, cat: 'add', mix: false, tricky: [], partial: { correct: 7, of: 10, stars: 2 }, replay: () => {} })"]
   ]
 };
 // Param names a fixture is not required to exercise separately (they only ever ride along
