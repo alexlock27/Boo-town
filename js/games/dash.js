@@ -200,7 +200,7 @@ export function mount(container, params, ctx) {
         boo.style.left = (50 + boLane * 26) + '%';
         gate++; shell.setProgress(gate);
         phase = 'open';
-        setTimeout(() => { if (!ended) continueRun(); }, steady ? 100 : OPEN_MS);
+        shell.timeout(() => { if (!ended) continueRun(); }, steady ? 100 : OPEN_MS);
       } else {
         // soft bonk: wobble, heart dims, streak resets, the SAME question stays
         bonks++; streak = 0;
@@ -241,7 +241,7 @@ export function mount(container, params, ctx) {
       let last = performance.now();
       const step = (now) => {
         const dt = Math.min(64, now - last); last = now;
-        if (!document.hidden && !ended) update(dt);
+        if (!document.hidden && !ended && !shell.paused()) update(dt);   // frozen behind an intro (RUN12 S6)
         raf = requestAnimationFrame(step);
       };
       raf = requestAnimationFrame(step);

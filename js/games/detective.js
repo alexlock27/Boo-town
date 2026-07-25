@@ -199,7 +199,7 @@ export function mount(container, params, ctx) {
         if (REDUCED) paint(); else setTimeout(paint, i * STEP);
       });
       const revealMs = REDUCED ? 30 : score.length * STEP + 260;
-      setTimeout(() => {
+      shell.timeout(() => {
         locked = false; cur = '';
         if (guess === target) return win(r);
         if (mash) shell.react('Funny word! 😄 But it still gives clues!', { voice: false, hold: 1800 });

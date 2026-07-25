@@ -13,7 +13,17 @@ export function el(tag, props = {}, children = []) {
     if (k === 'class') n.className = v;
     else if (k === 'html') n.innerHTML = v;
     else if (k === 'text') n.textContent = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+    // Object.assign onto a CSSStyleDeclaration SILENTLY DROPS custom properties: --foo is
+    // not a settable IDL attribute, only setProperty() reaches it. Fourteen call sites were
+    // passing --accent / --boo / --cols / --petal / --i this way and getting nothing, which
+    // is why Echo Boos' lit state rendered no colour flash at all (RUN12 S0/S4).
+    else if (k === 'style' && typeof v === 'object') {
+      for (const [prop, val] of Object.entries(v)) {
+        if (val === null || val === undefined) continue;
+        if (prop.startsWith('--')) n.style.setProperty(prop, String(val));
+        else n.style[prop] = val;
+      }
+    }
     else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === 'dataset') Object.assign(n.dataset, v);
     else if (v !== null && v !== undefined && v !== false) n.setAttribute(k, v === true ? '' : v);

@@ -172,7 +172,7 @@ export function mount(container, params, ctx) {
       clockWrap.classList.add('served');
       shell.react('Perfect! ⏰', { voice: false, hold: 1400 });
       idx++; shell.setProgress(idx);
-      setTimeout(() => {
+      shell.timeout(() => {
         clockWrap.classList.remove('served');
         if (ended) return;
         if (idx >= ORDERS) return finish();

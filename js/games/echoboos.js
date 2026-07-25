@@ -12,7 +12,7 @@ import { getState, mutate, commit } from '../state.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music, band } from '../sfx.js';
-import { runIntro, introSeen } from '../intro.js';
+import { runIntro, introSeen, createRoundTimers } from '../intro.js';
 import { contentTier } from '../content.js';
 
 // The four Boos: colour + a fixed note (semitones on the band's C-major voice).
@@ -51,9 +51,12 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   const toddler = contentTier() === 'toddler';
   let lightning = !toddler && !!(params && params.lightning);
-  let timers = [];
-  const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
-  const after = (ms, fn) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+  // RUN12 S6: Echo Boos predates the game shell, so it takes the same paused-aware timers
+  // directly. Its playback sequence now freezes with the intro instead of playing its tune
+  // to a child who is still reading step one.
+  const clock = createRoundTimers();
+  const clearTimers = () => clock.clearAll();
+  const after = (ms, fn) => clock.after(ms, fn);
 
   if (params && params.resume) play();
   else startCard();

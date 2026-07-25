@@ -255,7 +255,7 @@ export function mount(container, params, ctx) {
     sfx.oops();
     shell.react('Try again!', { hold: 1400 });   // spoken when voice is on
   }
-  function progress() { done++; shell.setProgress(done); if (done >= roundCount) setTimeout(finish, REDUCED ? 300 : 900); }
+  function progress() { done++; shell.setProgress(done); if (done >= roundCount) shell.timeout(finish, REDUCED ? 300 : 900); }
   function finish() {
     if (ended) return; ended = true;
     if (game === 'pairs') pairsCleared++;   // a cleared board counts toward the 6→8 growth
@@ -568,7 +568,7 @@ export function mount(container, params, ctx) {
         card.addEventListener('click', () => onTap(k, card));
         cardRow.appendChild(card);
       }
-      setTimeout(() => { animal.call(cur); speakMaybe(ANIMAL_WORDS[cur] + '!'); }, 240);
+      shell.timeout(() => { animal.call(cur); speakMaybe(ANIMAL_WORDS[cur] + '!'); }, 240);
     }
     async function onTap(k, card) {
       if (locked || ended) return;

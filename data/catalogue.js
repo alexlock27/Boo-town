@@ -16,6 +16,42 @@ export const RARITY = {
 // Rarity roll weights (percent). Picked first, then uniform within tier.
 export const RARITY_WEIGHTS = { common: 60, rare: 30, ultra: 9, secret: 1 };
 
+// ---- what a drop IS (RUN12 S5) ------------------------------------------------------
+// The ceremony used to announce "A new Boo just dropped!" for a bed, a hat and a palm
+// tree alike, because the guide line was chosen by RARITY and only Boos had ever been
+// considered. One classification, used by the ceremony, the collection card and the Star
+// Chest, so all three describe the thing she actually won.
+//   boo | accessory | costume (a whole outfit: an accessory whose slot is 'set')
+//   furniture (indoors, the Boo House) | town (decorations and landscape)
+export function dropKind(item) {
+  if (!item) return 'boo';
+  if (item.kind === 'accessory') return item.slot === 'set' ? 'costume' : 'accessory';
+  if (item.kind === 'furniture') return 'furniture';
+  if (item.kind === 'deco' || item.kind === 'landscape') return 'town';
+  return 'boo';
+}
+export const KIND_BANNER = {
+  boo: 'A BOO!', accessory: 'AN ACCESSORY!', costume: 'A WHOLE OUTFIT!',
+  furniture: 'FOR THE HOUSE!', town: 'FOR YOUR TOWN!'
+};
+export const KIND_ONELINER = {
+  boo: 'Boos live in your town!',
+  accessory: 'Dress up any Boo, or your own character!',
+  costume: 'A whole look — hat, face and all!',
+  furniture: 'Place it inside your Boo House!',
+  town: 'Place it in your town!'
+};
+// The guide's spoken line, keyed into data/guideLines.js.
+export const KIND_GUIDE_LINE = {
+  boo: 'dropBoo', accessory: 'dropAccessory', costume: 'dropCostume',
+  furniture: 'dropFurniture', town: 'dropTown'
+};
+// What the "take me to it" button should say for each kind.
+export const KIND_ACTION = {
+  boo: 'Meet them 🏡', accessory: 'Wear it 👒', costume: 'Try it on 👒',
+  furniture: 'Put it in the house 🏡', town: 'Place it 🏡'
+};
+
 export const CATALOGUE = [
   // --- Common Boos (12): flat single colour, indigo or lilac ---
   { id: 'boo_inky',   kind: 'boo', name: 'Inky',   rarity: 'common', species: 'bloop', colors: { body: 'indigo' }, blurb: 'Rolls everywhere because round is the only shape it trusts.' },

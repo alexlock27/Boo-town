@@ -443,7 +443,7 @@ export function mount(container, params, ctx) {
     function restartIdle() {
       if (idleTimer) clearTimeout(idleTimer);
       if (ended) return;
-      idleTimer = setTimeout(() => { softGlow(); }, IDLE_HINT_MS);
+      idleTimer = shell.timeout(() => { softGlow(); }, IDLE_HINT_MS);
     }
     function softGlow() {   // free — appears on its own after 6 idle seconds
       const mv = findValidMove();

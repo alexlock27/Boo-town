@@ -150,7 +150,9 @@ export function mount(container, params, ctx) {
     const collector = createTrickyCollector(shell.area);
     if (steady) field.classList.add('steady');
 
-    const now = () => audioClockMs();
+    // RUN12 S6: the round clock skips whatever the intro overlay held it for, so a note
+    // that was two beats away when the child opened the intro is still two beats away.
+    const now = () => audioClockMs() - shell.pausedMs();
     const curBeat = () => (now() - startTime) / beatMs;
 
     // ---- backing track (RUN9 C6 addendum — the specified pop backing, never optional):
@@ -164,7 +166,7 @@ export function mount(container, params, ctx) {
     }
     
     function scheduleBacking() {
-      if (document.hidden || ended) return;
+      if (document.hidden || ended || shell.paused()) return;   // audio scheduling held too
       const tNow = audioClockMs() / 1000;
       const tStart = startTime / 1000;
       let nextTime = tStart + (backingStep * beatMs / 2000);
@@ -241,7 +243,7 @@ export function mount(container, params, ctx) {
     }
 
     function loop() {
-      if (!document.hidden && !ended) update();
+      if (!document.hidden && !ended && !shell.paused()) update();   // frozen behind an intro
       raf = requestAnimationFrame(loop);
     }
     function update() {
@@ -319,7 +321,7 @@ export function mount(container, params, ctx) {
     }
     function missOrReask(attempted) {
       resolving = true;
-      if (!reAsked) { reAsked = true; shell.react(guideLine('oops'), { voice: false, hold: 1400 }); setTimeout(() => { if (!ended) scheduleNotes(2); }, 700); }
+      if (!reAsked) { reAsked = true; shell.react(guideLine('oops'), { voice: false, hold: 1400 }); shell.after(700, () => { if (!ended) scheduleNotes(2); }); }
       else {
         misses++;                                  // star maths unchanged either way
         if (attempted) {
@@ -336,9 +338,9 @@ export function mount(container, params, ctx) {
       reAsked = false;
       phraseIdx++;
       shell.setProgress(phraseIdx);
-      if (phraseIdx >= PHRASES) return setTimeout(finish, 500);
+      if (phraseIdx >= PHRASES) return shell.after(500, finish);
       question = auto ? autoQuestion(question.key, 3, true) : makeBeatQuestion(category, level, question.key);
-      setTimeout(() => { if (ended) return; renderQuestion(); scheduleNotes(2); }, 450);
+      shell.after(450, () => { if (ended) return; renderQuestion(); scheduleNotes(2); });
     }
 
     function finish() {

@@ -184,7 +184,7 @@ export function mount(container, params, ctx) {
       const item = items[idx];
       if (item.kind === 'twin') runTwinItem(item); else runWordItem(item);
     }
-    function itemDone() { idx++; shell.advance(); setTimeout(runNext, 200); }
+    function itemDone() { idx++; shell.advance(); shell.timeout(runNext, 200); }
     // The guide holds the spelled word up proudly on completion (C5).
     function showWordCard(word) {
       const card = el('div', { class: 'spell-wordcard' }, [
@@ -218,7 +218,7 @@ export function mount(container, params, ctx) {
       stage.append(promptCard, peekWord, clueEl, area);
 
       const speller = makeSpeller(area, word, {
-        onCorrect: () => { onHitLedger(word); mutate(s => { s.spellingMastery[word] = (s.spellingMastery[word] || 0) + 1; }); showWordCard(word); shell.react('Spelled it! 🌟', { voice: false, hold: 1500 }); speakMaybe(`${word}. Brilliant!`); setTimeout(itemDone, 1300); },
+        onCorrect: () => { onHitLedger(word); mutate(s => { s.spellingMastery[word] = (s.spellingMastery[word] || 0) + 1; }); showWordCard(word); shell.react('Spelled it! 🌟', { voice: false, hold: 1500 }); speakMaybe(`${word}. Brilliant!`); shell.timeout(itemDone, 1300); },
         onWrongCheck: () => onMiss(word, wordMiss(word))
       });
 
@@ -255,13 +255,13 @@ export function mount(container, params, ctx) {
         explainEl.textContent = TWIN_EXPLAIN[item.answer] || ''; explainEl.style.display = '';
         speakMaybe(TWIN_EXPLAIN[item.answer] || '');
         [...btnRow.querySelectorAll('.twin-opt')].forEach(b => { b.disabled = true; b.classList.toggle('right', b.textContent === item.answer); });
-        setTimeout(() => toSpell(true), 1500);
+        shell.timeout(() => toSpell(true), 1500);
       }
       function toSpell(afterWrong) {
         phase = 'spell'; btnRow.style.display = 'none'; area.style.display = '';
         shell.react(afterWrong ? 'Now spell it!' : 'Right! Now spell it from memory.', { voice: false, hold: 1400 });
         const speller = makeSpeller(area, item.answer, {
-          onCorrect: () => { mutate(s => { s.spellingMastery[item.answer] = (s.spellingMastery[item.answer] || 0) + 1; }); shell.react('Sound Twin sorted! 🌟', { voice: false, hold: 1400 }); setTimeout(itemDone, 1200); },
+          onCorrect: () => { mutate(s => { s.spellingMastery[item.answer] = (s.spellingMastery[item.answer] || 0) + 1; }); shell.react('Sound Twin sorted! 🌟', { voice: false, hold: 1400 }); shell.timeout(itemDone, 1200); },
           onWrongCheck: () => { wrong++; shell.dimHeart(); }
         });
         if (curItemHooks) curItemHooks.speller = speller;
