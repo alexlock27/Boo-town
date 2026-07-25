@@ -9,6 +9,7 @@ import { personalityOf } from '../data/personalities.js';
 import { BOO_POP_HITS } from '../data/songs.js';
 import { audioClockMs, band, music, sfx } from './sfx.js';
 import { applyMove, MOVES, STEP_MS } from './choreographer.js';
+import { VENUE_SOCKETS } from '../data/sockets.js';
 
 export const DISCO_MOVES = {
   bouncy: 'bounce',
@@ -180,7 +181,28 @@ export function mount(container, params, ctx) {
   updateTrackCopy();
   restartBars();
 
+  // ---- pixel contact (RUN12 S7) --------------------------------------------------------
+  // The dance floor is a 3D-rotated plane, so where its surface actually LANDS on screen
+  // depends on the stage height. .disco-dancers used a fixed `bottom: 38%` and put every
+  // dancer 76px in the air at 1280x720. Measure the floor and stand them on it instead.
+  const SOCKET = VENUE_SOCKETS.discohall;
+  function seatDancers() {
+    const stageRect = stage.getBoundingClientRect();
+    const floorRect = floor.getBoundingClientRect();
+    if (!stageRect.height || !floorRect.height) return;
+    const surfaceY = floorRect.top + floorRect.height * SOCKET.surfaceFrac;
+    dancers.style.bottom = Math.max(0, Math.round(stageRect.bottom - surfaceY)) + 'px';
+  }
+  requestAnimationFrame(seatDancers);
+  const onResize = () => seatDancers();
+  window.addEventListener('resize', onResize);
+
   window.__disco = {
+    seatDancers,
+    floorSurfaceY: () => {
+      const f = floor.getBoundingClientRect();
+      return f.top + f.height * SOCKET.surfaceFrac;
+    },
     track: () => BOO_POP_HITS[trackIndex].id,
     cycleTrack,
     barMs,
@@ -197,6 +219,7 @@ export function mount(container, params, ctx) {
 
   return {
     unmount() {
+      window.removeEventListener('resize', onResize);
       if (barTimer) clearTimeout(barTimer);
       routineTimers.forEach(clearTimeout);
       delete window.__disco;

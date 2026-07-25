@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run12-s3-20260725';  // RUN12 S3: Odd Boo Out uniqueness + honest labels
+const BUILD_STAMP = 'run12-s7s8-20260726';  // RUN12 S7-S8: socket contact + Echo Boos feedback
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

@@ -73,27 +73,32 @@ export function mount(container, params, ctx) {
     const s = getState();
     const standardBest = echoBest(false);
     const lightningBest = echoBest(true);
-    const modeRow = toddler ? null : el('div', { class: 'echo-mode-row' }, [
-      el('button', {
-        class: `echo-mode${lightning ? '' : ' sel'}`,
-        text: '🎵 Standard',
-        onclick: () => { lightning = false; startCard(); }
-      }),
-      el('button', {
-        class: `echo-mode lightning${lightning ? ' sel' : ''}`,
-        text: '⚡ Lightning',
-        onclick: () => { lightning = true; startCard(); }
-      })
+    // RUN12 S8 — ONE row of two clearly differentiated cards. It used to be two
+    // near-identical rows: a "🎵 Standard | ⚡ Lightning" pair of buttons sitting directly
+    // above a "🎵 Standard — | ⚡ Lightning —" pair of chips, which read as the same control
+    // printed twice. Each card now says what the mode IS and carries its own best.
+    const modeCard = (fast, name, desc, best) => el('button', {
+      class: `echo-mode-card${fast ? ' lightning' : ''}${(lightning === fast) ? ' sel' : ''}`,
+      'aria-pressed': (lightning === fast) ? 'true' : 'false',
+      onclick: () => { lightning = fast; sfx.tap(); startCard(); }
+    }, [
+      el('span', { class: 'emc-name', text: name }),
+      el('span', { class: 'emc-desc', text: desc }),
+      el('span', { class: 'emc-best', text: best > 0 ? `Best ${best}` : 'No best yet' })
+    ]);
+    const modeRow = toddler ? null : el('div', { class: 'echo-modes' }, [
+      modeCard(false, '🎵 Standard', 'A comfy pace. The tune waits for you.', standardBest),
+      modeCard(true, '⚡ Lightning', 'The same tune, faster every round.', lightningBest)
     ]);
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 104 }) }),
       el('h2', { text: '🎵 Echo Boos' }),
       el('p', { class: 'sc-intro', text: 'Listen to the tune, then echo it back!' }),
       modeRow,
-      el('div', { class: 'echo-bests' }, [
-        el('span', { class: 'echo-best', text: standardBest > 0 ? `🎵 Best ${standardBest}` : '🎵 Standard —' }),
-        ...(toddler ? [] : [el('span', { class: 'echo-best lightning', text: lightningBest > 0 ? `⚡ Best ${lightningBest}` : '⚡ Lightning —' })])
-      ]),
+      // the bests live ON the cards now; toddler mode has no cards, so it keeps a single chip
+      ...(toddler ? [el('div', { class: 'echo-bests' }, [
+        el('span', { class: 'echo-best', text: standardBest > 0 ? `🎵 Best ${standardBest}` : '🎵 Ready when you are' })
+      ])] : []),
       el('button', { class: 'btn big', text: '▶ Play', onclick: () => { sfx.tap(); play(); } })
     ]);
     card.appendChild(el('div', { class: 'star-rule' }, [
@@ -135,6 +140,10 @@ export function mount(container, params, ctx) {
       // drive a full correct echo of the current sequence (QA)
       echoAll: () => { if (!inputPhase) return false; const seq = sequence.slice(); seq.forEach(i => onTap(i)); return true; },
       isLit: (i) => podiums[i].boo.classList.contains('lit'),
+      dimmedCount: () => podiums.filter(p => p.boo.classList.contains('dimmed')).length,
+      inPlayback: () => !inputPhase,
+      litLook: (i) => { const c = getComputedStyle(podiums[i].boo); return { filter: c.filter, transform: c.transform, boxShadow: c.boxShadow, booVar: c.getPropertyValue('--boo').trim() }; },
+      litHoldMs: () => LIT_HOLD_MS,
       anyLit: () => podiums.some(p => p.boo.classList.contains('lit')),
       gap: (len) => gapFor(len), minGap: () => (toddler ? TOD_MIN_GAP : (lightning ? LIGHTNING_MIN_GAP : MIN_GAP)),
       stars: () => starsFor(bestLen),
@@ -145,10 +154,19 @@ export function mount(container, params, ctx) {
     function gapFor(len) {
       return echoGap(len, { lightning, toddler });
     }
+    // RUN12 S8: a 260ms minimum hold so the flash is readable even on a fast tune, and the
+    // other three pull back while one is lit so attention lands where the tune is.
+    const LIT_HOLD_MS = 260;
+    let litToken = 0;
     function light(i, dur) {
       const boo = podiums[i].boo;
+      const token = ++litToken;   // the newest light owns the dimming; a stale release must not steal it
+      podiums.forEach((p, j) => p.boo.classList.toggle('dimmed', j !== i));
       boo.classList.add('lit'); band.key(BOOS[i].semi);   // note obeys the sound mute; the glow always shows
-      after(dur, () => boo.classList.remove('lit'));
+      after(Math.max(LIT_HOLD_MS, dur), () => {
+        boo.classList.remove('lit');
+        if (token === litToken) podiums.forEach(p => p.boo.classList.remove('dimmed'));
+      });
     }
     function startPlayback(slow) {
       inputPhase = false; awaiting = false; pos = 0;
