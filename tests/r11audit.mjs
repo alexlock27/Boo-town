@@ -18,7 +18,11 @@ const SAVE = (inv, stars) => JSON.stringify({ version: 14, name: 'Ada', ageAsked
   seen: { trophyRetro: true, lastStarsShown: stars },
   settings: { sound:false, music:false, voice:false, content:'full' } });
 
-const browser = await chromium.launch();
+// app.localhost must reach THIS dev server. It is only a loopback alias, so anything else
+// bound to the port (Docker Desktop binds 0.0.0.0:8000 on this machine) can answer first and
+// serve 404s from the wrong directory. Pin the resolution so the suite is not hostage to it.
+const RESOLVE = ['--host-resolver-rules=MAP app.localhost 127.0.0.1'];
+const browser = await chromium.launch({ args: RESOLVE });
 
 console.log('== cache-busted module URLs are served from the precache offline ==');
 {
