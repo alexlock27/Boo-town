@@ -344,7 +344,7 @@ export function mount(container, params, ctx) {
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
     if (params && params.enterPan) setTimeout(() => panAcrossZone(0, 1600), REDUCED ? 0 : 200);
-    if (params && params.openWishWell) setTimeout(() => openWishWellOverlay(), 350);
+    if (params && params.openWishWell) setTimeout(() => openWellHere(), 350);
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
     // finished while she was away, the next town open plays the reveal.
     const gt = tickGrowth();
@@ -2019,17 +2019,35 @@ export function mount(container, params, ctx) {
       showCareArc(wrap, place, item);
       return;
     }
-    if (item.id === 'deco_wishwell') {
-      sfx.chime(2);
-      openWishWell({ onSpawn: (word, wished) => {
-        spawnWishBesideWell(wrap, word, wished);
-        renderDrawer();
-        updateBuildUI();
-      } });
-      return;
-    }
+    if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);
+  }
+
+  // The one way into the Wish Well overlay. Every entry point routes through here — the
+  // Today-rail card (`params.openWishWell`), tapping the well in the scene, and the QA hook —
+  // so a rename can never again leave one of them calling a function that does not exist
+  // (RUN12 S1: `params.openWishWell` called `openWishWellOverlay()`, which never existed).
+  // `wellWrap` is optional: the card route opens the well even if the landmark has been put
+  // away, and the wish then spawns beside the well only when there is a well to spawn beside.
+  function openWellHere(wellWrap = null) {
+    const well = wellWrap || ground.querySelector('.t-item[data-item="deco_wishwell"]');
+    sfx.chime(2);
+    openWishWell({
+      onSpawn: (word, wished) => {
+        if (well) spawnWishBesideWell(well, word, wished);
+        renderDrawer();
+        updateBuildUI();
+      },
+      // Back to the town exactly as she left it: the drawer and build strip may both be
+      // stale (a wish can unlock a new item), and the well keeps the focus ring.
+      onClose: () => {
+        renderDrawer();
+        updateBuildUI();
+        if (well && typeof well.focus === 'function') { try { well.focus({ preventScroll: true }); } catch {} }
+      }
+    });
+    return !!well;
   }
 
   function spawnWishBesideWell(wellWrap, word, wished = wishItem(word)) {
@@ -2938,12 +2956,7 @@ export function mount(container, params, ctx) {
       // in the current area (e.g. Landscape is hidden indoors by design).
       forceHold: (id) => { holding = id; placeMode = true; renderDrawer(); },
       placeAt: (fx, fy) => { const r = viewport.getBoundingClientRect(); placeAtClient(r.left + r.width * fx, r.top + r.height * fy); },
-      openWishWell: () => {
-        const well = ground.querySelector('.t-item[data-item="deco_wishwell"]');
-        if (!well) return false;
-        openWishWell({ onSpawn: (word, wished) => { spawnWishBesideWell(well, word, wished); renderDrawer(); updateBuildUI(); } });
-        return true;
-      },
+      openWishWell: () => openWellHere(),
       wishSpawns: () => [...ground.querySelectorAll('.wish-town-spawn')].map(n => ({ word:n.dataset.word, cls:n.className, animation:getComputedStyle(n).animationName })),
       drawerTabs: () => [...drawer.querySelectorAll('.bd-tab')].filter(n => getComputedStyle(n).display !== 'none').map(n => n.textContent),
       // RUN10 P5 QA hooks: personalities + hide-and-seek 2.0.

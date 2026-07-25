@@ -41,8 +41,11 @@ export function raftValid(seats) {
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen exp-puzzle' });
   container.appendChild(root);
-  const node = params?.node || 'bridges';
-  const spec = NODES.find(entry => entry.key === node) || NODES[0];
+  // Same trap as js/toddler.js: `spec` fell back for an unknown key but every BUDGETS /
+  // WONDER / BUDGET_KEY lookup below still used the RAW param, so a stale node key threw
+  // rather than degrading. Normalise once (RUN12 S1).
+  const spec = NODES.find(entry => entry.key === params?.node) || NODES[0];
+  const node = spec.key;
   const ex = getState().expedition || {};
   const tier = Math.max(1, Math.min(4, (ex.tiers || {})[node] || 1));
   const people = party();
