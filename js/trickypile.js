@@ -37,16 +37,30 @@ function misspellings(word) {
 }
 
 // A round-scoped collector: a Puzzled Boo holding up to PUZZLED_CAP missed items.
+//
+// FAIRNESS CONTRACT (RUN12 S2). A child who pauses to think must never be punished for
+// thinking. The Tricky Pile records only what she ATTEMPTED and got wrong. A question that
+// simply ran out — a note passing the line, a bubble floating away, a round ending mid-
+// question — is a non-event, not a miss, and never reaches the pile or the ledger.
+//
+// The API enforces that rather than trusting call sites to remember: there is no generic
+// `add`. `addAttempted` is the only path that records anything, and `noteUnattempted` is a
+// deliberate, greppable no-op so an expiry path has somewhere honest to go (and so a test
+// can prove the expiry ran AND recorded nothing).
 export function createTrickyCollector(area) {
   const items = [];
+  let unattempted = 0;
   const boo = el('div', { class: 'puzzled-boo', style: { display: 'none' }, 'aria-hidden': 'true' }, [
     el('div', { class: 'pb-face', html: puzzledFace() }),
     el('div', { class: 'pb-count', text: '0' })
   ]);
   if (area) area.appendChild(boo);
-  return {
+  // One collector is live per round, so a single shared QA hook covers every game — the
+  // fairness suite can read the pile mid-round without having to finish one.
+  const api = {
     node: boo,
-    add(item) {
+    // The child chose an answer and it was wrong. This is the ONLY thing the pile keeps.
+    addAttempted(item) {
       if (!item || !item.id || items.length >= PUZZLED_CAP) return;
       if (items.some(x => x.id === item.id)) return;   // one per identity per round
       items.push(item);
@@ -54,8 +68,14 @@ export function createTrickyCollector(area) {
       boo.querySelector('.pb-count').textContent = String(items.length);
       boo.classList.remove('pop'); void boo.offsetWidth; boo.classList.add('pop');
     },
-    items: () => items.slice()
+    // The question expired, floated away, or the round ended on top of it. Deliberately
+    // records NOTHING — it is counted only so the fairness suite can prove the path ran.
+    noteUnattempted() { unattempted++; },
+    items: () => items.slice(),
+    unattemptedCount: () => unattempted
   };
+  if (typeof window !== 'undefined') window.__tricky = api;
+  return api;
 }
 
 // Persist unrescued item ids so the next Smart Mix round can prioritise them.

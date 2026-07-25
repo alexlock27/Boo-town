@@ -256,7 +256,7 @@ export function mount(container, params, ctx) {
       wrongDrops++; missesThisItem++; nomStreak = 0;
       sfx.oops();
       recordResult(ledgerId, false);
-      if (missesThisItem === 1) collector.add(choiceMiss({ id: ledgerId + ':' + idx, game: 'feedboos', prompt: `Where does ${itemLabel(item)} go?`, options: buckets, answer: buckets[item.bucket] }));
+      if (missesThisItem === 1) collector.addAttempted(choiceMiss({ id: ledgerId + ':' + idx, game: 'feedboos', prompt: `Where does ${itemLabel(item)} go?`, options: buckets, answer: buckets[item.bucket] }));
       const fz = feederEls[bucket];
       const react = WRONG_REACTIONS[rand(WRONG_REACTIONS.length)];   // varied friendly reactions (C5)
       fz.classList.add(react);

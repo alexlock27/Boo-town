@@ -307,17 +307,29 @@ export function mount(container, params, ctx) {
     function wrongTap() {
       breakCombo();
       beatvoice.thud(); shell.dimHeart();   // a miss is a soft thud, never silence (C3)
-      missOrReask();
+      missOrReask(true);
     }
+    // A note passing the hit line with no tap. The child did not answer wrongly — she did
+    // not answer at all (RUN12 S2). The round still moves on and the star maths is unchanged;
+    // only the LEDGER consequence differs, because an unanswered question is a non-event.
     function missPhrase() {
       resolving = true; breakCombo();
       beatvoice.thud(); shell.dimHeart();
-      missOrReask();
+      missOrReask(false);
     }
-    function missOrReask() {
+    function missOrReask(attempted) {
       resolving = true;
       if (!reAsked) { reAsked = true; shell.react(guideLine('oops'), { voice: false, hold: 1400 }); setTimeout(() => { if (!ended) scheduleNotes(2); }, 700); }
-      else { misses++; recordResult(question.key, false); collector.add(choiceMiss({ id: question.key, game: 'beat', prompt: question.prompt, options: question.options, answer: question.options[question.correct] })); nextPhrase(false); }
+      else {
+        misses++;                                  // star maths unchanged either way
+        if (attempted) {
+          recordResult(question.key, false);
+          collector.addAttempted(choiceMiss({ id: question.key, game: 'beat', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
+        } else {
+          collector.noteUnattempted();
+        }
+        nextPhrase(false);
+      }
     }
 
     function nextPhrase(wasCorrect) {

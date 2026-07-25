@@ -252,7 +252,7 @@ export function mount(container, params, ctx) {
         streak = 0;
         sfx.oops();
         recordResult(target.key, false);
-        collector.add(missFor(target));
+        collector.addAttempted(missFor(target));
         wobble(b.node);
         b.node.classList.add('dim');
         setTimeout(() => b.node.classList.remove('dim'), 420);
