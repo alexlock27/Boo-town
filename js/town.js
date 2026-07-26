@@ -1837,7 +1837,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door')) return; // interactive scenery handles its own taps
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
     if (buildMode && (buildTool === 'paths' || buildTool === 'erase')) {
       painting = true;
       viewport.setPointerCapture(e.pointerId);

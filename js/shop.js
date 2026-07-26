@@ -27,9 +27,11 @@ export const SHOP_INTRO = [
 // ---- the purchase engine (the ONLY route from a wish to an owned thing) --------------
 // Returns { ok, reason?, paid? }. Every refusal is a reason, never a silent no-op.
 export function buyItem(itemId) {
+  // The unlock-only gate is asked FIRST so the refusal carries the true reason — a Boo is
+  // not "not for sale today", she is never for sale, and the shop says so warmly.
+  if (isUnlockOnly(itemId)) return { ok: false, reason: 'unlockOnly' };
   const price = priceOf(itemId);
   if (!price) return { ok: false, reason: 'notForSale' };
-  if (isUnlockOnly(itemId)) return { ok: false, reason: 'unlockOnly' };
   const s = getState();
   const plan = planPayment(s, price.currency, price.cost);
   if (!plan) return { ok: false, reason: 'cannotAfford' };
