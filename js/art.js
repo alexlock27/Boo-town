@@ -748,7 +748,23 @@ function lighten(hex) {
 }
 
 // ---- public: render a decoration ----------------------------------------
-export function renderDeco(item, { size = 120, cls = '' } = {}) {
+
+// RUN13 T4 — the wall clock's hands. Defaults to the DEVICE clock (no network, no state),
+// and town.js passes an explicit hour/minute so its minute tick — and the test harness's
+// __bootownHour — can drive it deterministically. A quiet nod to the Clock Shop: the same
+// little-hand-hours, big-hand-minutes reading the child already learned there.
+export function clockHands(hour, minute) {
+  const now = (hour == null || minute == null) ? new Date() : null;
+  const h = hour == null ? now.getHours() : hour;
+  const m = minute == null ? now.getMinutes() : minute;
+  const ha = ((h % 12) + m / 60) / 12 * Math.PI * 2 - Math.PI / 2;
+  const ma = (m / 60) * Math.PI * 2 - Math.PI / 2;
+  return `<line x1="60" y1="60" x2="${(60 + Math.cos(ha) * 13).toFixed(1)}" y2="${(60 + Math.sin(ha) * 13).toFixed(1)}" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>` +
+         `<line x1="60" y1="60" x2="${(60 + Math.cos(ma) * 20).toFixed(1)}" y2="${(60 + Math.sin(ma) * 20).toFixed(1)}" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>`;
+}
+
+export function renderDeco(item, opts = {}) {
+  const { size = 120, cls = '' } = opts;
   const ink = `stroke="${INK}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"`;
   const halo = `stroke="${HALO}" stroke-width="10" stroke-linejoin="round"`;
   let inner = '';
@@ -1082,6 +1098,221 @@ export function renderDeco(item, { size = 120, cls = '' } = {}) {
         rrect(22, 18, 76, 96, 8, COLORS.gold, ink) +
         rrect(30, 26, 60, 80, 5, COLORS.cream, ink) +
         path('M60 86 C42 72 35 59 35 48 C35 35 51 32 60 44 C69 32 85 35 85 48 C85 59 78 72 60 86 Z', COLORS.bubblegum, ink);
+      break;
+    // ---- furniture and decor expansion (RUN13 T4) ------------------------------------
+    // Same construction as everything above: halo pass, then ink pass, then details.
+    // `.lamp-glow` on a lamp gets boosted by CSS when town.js adds `.lit` at night;
+    // `.clock-hands` is redrawn from the device clock by town.js's minute tick.
+    case 'armchair':
+      inner =
+        rrect(26, 58, 68, 26, 12, COLORS.lilac, halo) +
+        rrect(26, 58, 68, 26, 12, COLORS.lilac, ink) +
+        rrect(28, 80, 64, 26, 10, COLORS.bubblegum, halo) +
+        rrect(28, 80, 64, 26, 10, COLORS.bubblegum, ink) +
+        ell(60, 74, 16, 11, '#FF97D0', ink) +
+        rrect(20, 78, 11, 26, 5, COLORS.lilac, ink) + rrect(89, 78, 11, 26, 5, COLORS.lilac, ink);
+      break;
+    case 'rug2':
+      inner =
+        ell(60, 100, 48, 17, COLORS.sand, halo) +
+        ell(60, 100, 48, 17, COLORS.sand, ink) +
+        ell(60, 100, 34, 12, COLORS.orange, ink) +
+        ell(60, 100, 20, 7, COLORS.cream, ink) +
+        ell(60, 100, 8, 3, COLORS.orange, '');
+      break;
+    case 'rug3':
+      inner =
+        ell(60, 100, 48, 17, COLORS.midnight, halo) +
+        ell(60, 100, 48, 17, COLORS.midnight, ink) +
+        [[42, 96], [60, 92], [78, 97], [50, 105], [70, 104]]
+          .map(([x, y], i) => path(starPath(x, y, i % 2 ? 4 : 5.5, 2.4), COLORS.star, '')).join('');
+      break;
+    case 'bookshelf2':
+      inner =
+        rrect(16, 54, 88, 54, 6, COLORS.cocoa, halo) +
+        rrect(16, 54, 88, 54, 6, COLORS.cocoa, ink) +
+        `<line x1="16" y1="82" x2="104" y2="82" stroke="${INK}" stroke-width="3"/>` +
+        [24, 38, 52, 66, 80].map((x, i) => rrect(x, 60, 11, 20, 2, c(['teal', 'gold', 'bubblegum', 'lilac', 'pink'][i % 5]), ink)).join('') +
+        [24, 42, 60, 78].map((x, i) => rrect(x, 88, 14, 18, 2, c(['pink', 'teal', 'gold', 'bubblegum'][i % 4]), ink)).join('');
+      break;
+    case 'bookshelf3':
+      inner =
+        path('M20 20 L20 110 L100 110', 'none', `${halo} fill="none"`) +
+        rrect(20, 20, 14, 92, 4, COLORS.cocoa, halo) +
+        rrect(20, 20, 14, 92, 4, COLORS.cocoa, ink) +
+        [34, 60, 86].map((y, i) => rrect(34, y, 62, 8, 3, COLORS.cocoa, ink) +
+          [40, 56, 72].map((x, j) => rrect(x, y - 18, 10, 18, 2, c(['gold', 'teal', 'bubblegum', 'lilac'][(i + j) % 4]), ink)).join('')).join('');
+      break;
+    case 'toybox':
+      inner =
+        rrect(24, 66, 72, 42, 8, COLORS.teal, halo) +
+        rrect(24, 66, 72, 42, 8, COLORS.teal, ink) +
+        rrect(20, 54, 80, 16, 6, COLORS.aqua, halo) +
+        rrect(20, 54, 80, 16, 6, COLORS.aqua, ink) +
+        ell(60, 62, 7, 4, COLORS.gold, ink) +
+        path(starPath(38, 88, 8, 3.5), COLORS.gold, '') +
+        ell(80, 88, 9, 9, COLORS.bubblegum, ink);
+      break;
+    case 'photoframe':
+      // The picture itself is injected by town.js (renderPhotoFrame) — this is the frame.
+      inner =
+        rrect(24, 26, 72, 84, 8, COLORS.cocoa, halo) +
+        rrect(24, 26, 72, 84, 8, COLORS.cocoa, ink) +
+        rrect(32, 34, 56, 68, 5, COLORS.cream, ink);
+      break;
+    case 'kitchentable':
+      inner =
+        rrect(16, 56, 88, 12, 5, COLORS.sand, halo) +
+        rrect(16, 56, 88, 12, 5, COLORS.sand, ink) +
+        rrect(24, 68, 7, 38, 3, COLORS.cocoa, ink) +
+        rrect(89, 68, 7, 38, 3, COLORS.cocoa, ink) +
+        ell(48, 54, 9, 4, COLORS.cream, ink) + ell(74, 54, 7, 3, COLORS.teal, ink);
+      break;
+    case 'counter':
+      inner =
+        rrect(14, 62, 92, 46, 6, COLORS.cream, halo) +
+        rrect(14, 62, 92, 46, 6, COLORS.cream, ink) +
+        rrect(12, 54, 96, 12, 5, COLORS.sand, halo) +
+        rrect(12, 54, 96, 12, 5, COLORS.sand, ink) +
+        `<line x1="60" y1="66" x2="60" y2="108" stroke="${INK}" stroke-width="3"/>` +
+        ell(48, 84, 3.5, 3.5, COLORS.gold, '') + ell(72, 84, 3.5, 3.5, COLORS.gold, '');
+      break;
+    case 'stool':
+      inner =
+        ell(60, 78, 26, 9, COLORS.bubblegum, halo) +
+        ell(60, 78, 26, 9, COLORS.bubblegum, ink) +
+        rrect(40, 82, 6, 26, 3, COLORS.cocoa, ink) +
+        rrect(74, 82, 6, 26, 3, COLORS.cocoa, ink) +
+        rrect(57, 82, 6, 26, 3, COLORS.cocoa, ink);
+      break;
+    case 'fridge':
+      inner =
+        rrect(32, 24, 56, 86, 8, COLORS.iceblue, halo) +
+        rrect(32, 24, 56, 86, 8, COLORS.iceblue, ink) +
+        `<line x1="32" y1="56" x2="88" y2="56" stroke="${INK}" stroke-width="3"/>` +
+        rrect(78, 34, 5, 16, 2, COLORS.ink, '') + rrect(78, 64, 5, 20, 2, COLORS.ink, '') +
+        path(starPath(52, 42, 6, 2.6), COLORS.gold, '') +
+        ell(60, 84, 8, 8, COLORS.bubblegum, ink);
+      break;
+    case 'oven':
+      inner =
+        rrect(28, 44, 64, 66, 8, COLORS.ghost, halo) +
+        rrect(28, 44, 64, 66, 8, COLORS.ghost, ink) +
+        rrect(36, 68, 48, 32, 5, COLORS.midnight, ink) +
+        rrect(40, 74, 40, 20, 3, COLORS.orange, '') +
+        ell(42, 56, 4, 4, COLORS.red, ink) + ell(56, 56, 4, 4, COLORS.teal, ink) + ell(70, 56, 4, 4, COLORS.gold, ink);
+      break;
+    case 'bunkbed':
+      inner =
+        rrect(18, 26, 84, 12, 5, COLORS.cocoa, halo) +
+        rrect(18, 26, 84, 12, 5, COLORS.cocoa, ink) +
+        rrect(24, 38, 20, 10, 4, COLORS.cream, ink) +
+        rrect(46, 30, 52, 8, 4, COLORS.teal, ink) +
+        rrect(18, 74, 84, 12, 5, COLORS.cocoa, halo) +
+        rrect(18, 74, 84, 12, 5, COLORS.cocoa, ink) +
+        rrect(24, 86, 20, 10, 4, COLORS.cream, ink) +
+        rrect(46, 78, 52, 8, 4, COLORS.bubblegum, ink) +
+        rrect(16, 24, 7, 86, 3, COLORS.cocoa, ink) + rrect(97, 24, 7, 86, 3, COLORS.cocoa, ink) +
+        [46, 58, 70].map(y => `<line x1="98" y1="${y}" x2="112" y2="${y}" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>`).join('');
+      break;
+    case 'wardrobe2':
+      inner =
+        rrect(30, 28, 60, 82, 8, COLORS.lilac, halo) +
+        rrect(30, 28, 60, 82, 8, COLORS.lilac, ink) +
+        `<line x1="60" y1="32" x2="60" y2="106" stroke="${INK}" stroke-width="3"/>` +
+        ell(45, 52, 6, 6, COLORS.bubblegum, ink) + ell(75, 52, 6, 6, COLORS.gold, ink) +
+        ell(45, 82, 6, 6, COLORS.teal, ink) + ell(75, 82, 6, 6, COLORS.bubblegum, ink) +
+        `<circle cx="55" cy="68" r="2.5" fill="${INK}"/><circle cx="65" cy="68" r="2.5" fill="${INK}"/>`;
+      break;
+    case 'lamp2':
+      inner =
+        rrect(54, 92, 12, 12, 3, COLORS.cocoa, ink) +
+        rrect(58, 56, 4, 38, 2, COLORS.cocoa, ink) +
+        `<g class="lamp-glow">` +
+        ell(60, 44, 24, 22, COLORS.cream, halo) +
+        ell(60, 44, 24, 22, COLORS.cream, ink) +
+        `<line x1="36" y1="44" x2="84" y2="44" stroke="${INK}" stroke-width="2"/>` +
+        `<circle cx="60" cy="44" r="9" fill="#FFF3B0"/>` +
+        `</g>`;
+      break;
+    case 'floorlamp':
+      inner =
+        ell(60, 108, 20, 6, COLORS.cocoa, halo) +
+        ell(60, 108, 20, 6, COLORS.cocoa, ink) +
+        path('M60 106 L60 42 Q60 30 74 30', 'none', `fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"`) +
+        `<g class="lamp-glow">` +
+        path('M60 28 L90 28 L82 50 L68 50 Z', COLORS.gold, halo) +
+        path('M60 28 L90 28 L82 50 L68 50 Z', COLORS.gold, ink) +
+        `<circle cx="75" cy="44" r="7" fill="#FFF3B0"/>` +
+        `</g>`;
+      break;
+    case 'plant1':
+      inner =
+        path('M44 96 L76 96 L72 114 L48 114 Z', COLORS.orange, halo) +
+        path('M44 96 L76 96 L72 114 L48 114 Z', COLORS.orange, ink) +
+        ell(60, 78, 15, 19, COLORS.teal, halo) +
+        ell(60, 78, 15, 19, COLORS.teal, ink) +
+        ell(46, 86, 10, 12, COLORS.aqua, ink) + ell(74, 86, 10, 12, COLORS.aqua, ink);
+      break;
+    case 'plant2':
+      inner =
+        path('M46 98 L74 98 L70 116 L50 116 Z', COLORS.cocoa, halo) +
+        path('M46 98 L74 98 L70 116 L50 116 Z', COLORS.cocoa, ink) +
+        `<line x1="60" y1="98" x2="60" y2="44" stroke="${INK}" stroke-width="4"/>` +
+        [[60, 44, 0], [42, 58, -35], [78, 60, 35], [46, 76, -25], [76, 78, 25]]
+          .map(([x, y, r]) => `<g transform="rotate(${r} ${x} ${y})">` +
+               ell(x, y, 9, 17, COLORS.teal, halo) + ell(x, y, 9, 17, COLORS.teal, ink) + `</g>`).join('');
+      break;
+    case 'plant3':
+      inner =
+        rrect(46, 22, 28, 16, 5, COLORS.sand, halo) +
+        rrect(46, 22, 28, 16, 5, COLORS.sand, ink) +
+        [[54, 38], [60, 38], [66, 38]].map(([x, y], i) =>
+          path(`M${x} ${y} Q${x - 10 + i * 8} ${y + 30} ${x - 4 + i * 5} ${y + 62}`, 'none',
+               `fill="none" stroke="${INK}" stroke-width="3"`) +
+          [0, 1, 2, 3].map(k => ell(x - 6 + i * 5 + (k % 2 ? 7 : -5), y + 16 + k * 14, 6, 4.5, COLORS.teal, ink)).join('')
+        ).join('');
+      break;
+    case 'wallclock':
+      inner =
+        ell(60, 60, 34, 34, COLORS.cream, halo) +
+        ell(60, 60, 34, 34, COLORS.cream, ink) +
+        ell(60, 60, 27, 27, '#fff', `stroke="${INK}" stroke-width="2"`) +
+        [0, 3, 6, 9].map(h => { const a = (h / 12) * Math.PI * 2 - Math.PI / 2;
+          return `<circle cx="${(60 + Math.cos(a) * 20).toFixed(1)}" cy="${(60 + Math.sin(a) * 20).toFixed(1)}" r="2" fill="${INK}"/>`; }).join('') +
+        `<g class="clock-hands">${clockHands(opts.clockHour, opts.clockMinute)}</g>` +
+        `<circle cx="60" cy="60" r="3.5" fill="${INK}"/>`;
+      break;
+    case 'mirror':
+      inner =
+        ell(60, 62, 32, 40, COLORS.gold, halo) +
+        ell(60, 62, 32, 40, COLORS.gold, ink) +
+        ell(60, 62, 25, 33, COLORS.iceblue, ink) +
+        path('M46 44 Q54 52 50 66', 'none', `fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"`);
+      break;
+    case 'wallart1':
+      inner =
+        rrect(24, 30, 72, 66, 6, COLORS.cocoa, halo) +
+        rrect(24, 30, 72, 66, 6, COLORS.cocoa, ink) +
+        rrect(31, 37, 58, 52, 4, COLORS.sky, '') +
+        ell(72, 52, 10, 10, COLORS.gold, '') +
+        path('M31 78 L48 60 L62 74 L74 64 L89 78 L89 89 L31 89 Z', COLORS.teal, '');
+      break;
+    case 'wallart2':
+      inner =
+        rrect(24, 30, 72, 66, 6, COLORS.ink, halo) +
+        rrect(24, 30, 72, 66, 6, COLORS.ink, ink) +
+        rrect(31, 37, 58, 52, 4, COLORS.iceblue, '') +
+        path('M31 89 L52 46 L68 72 L78 58 L89 89 Z', COLORS.lilac, '') +
+        path('M52 46 L60 60 L44 60 Z', '#fff', '');
+      break;
+    case 'wallart3':
+      inner =
+        rrect(24, 30, 72, 66, 6, COLORS.bubblegum, halo) +
+        rrect(24, 30, 72, 66, 6, COLORS.bubblegum, ink) +
+        rrect(31, 37, 58, 52, 4, COLORS.cream, '') +
+        path('M36 78 Q48 40 60 64 Q72 88 84 46', 'none', `fill="none" stroke="${COLORS.teal}" stroke-width="6" stroke-linecap="round"`) +
+        ell(50, 52, 6, 6, COLORS.gold, '') + ell(74, 74, 5, 5, COLORS.bubblegum, '');
       break;
     default:
       inner = ell(60, 80, 30, 26, COLORS.lilac, ink);

@@ -79,6 +79,7 @@ console.log('== the catalogue really gained all twenty-four ==');
   const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const page = await ctx.newPage();
   page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
+  await page.addInitScript(s => { localStorage.setItem('bootown.save.v1', s); }, JSON.stringify(SAVE()));
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load' });
   await page.waitForSelector('.hub');
   const cat = await page.evaluate(async ids => {
@@ -94,7 +95,9 @@ console.log('== the catalogue really gained all twenty-four ==');
   ok(cat.every(i => i && i.name && i.blurb && i.blurb.length > 10), 'every new item is named and has a blurb');
   ok(cat.every(i => i && i.inPool), 'every new item joins the collectible pool (box drops at decoration odds)');
   const walls = cat.filter(i => i.wall).map(i => i.id);
-  ok(walls.length === 8, `eight of them hang on the wall (${walls.length}: ${walls.map(w => w.replace('deco_', '')).join(', ')})`);
+  // Nine hang: the photo frame, two bookshelves, the hanging ivy, the clock, the mirror
+  // and the three pictures. Everything else stands on a floor row.
+  ok(walls.length === 9, `nine of them hang on the wall (${walls.length}: ${walls.map(w => w.replace('deco_', '')).join(', ')})`);
   // The pool bucket: furniture rolls under 'deco' odds, never as its own type.
   const bucket = await page.evaluate(async () => {
     const { BY_TYPE_RARITY } = await import('./data/catalogue.js');
@@ -241,12 +244,16 @@ console.log('== both new lamps light at night, beside the original ==');
 
 console.log('== art review sheet: every new item at two zooms ==');
 {
-  const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
   const page = await ctx.newPage();
   page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
+  await page.addInitScript(s => { localStorage.setItem('bootown.save.v1', s); }, JSON.stringify(SAVE()));
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load' });
   await page.waitForSelector('.hub');
   for (const zoom of [96, 180]) {
+    // Size the sheet to the zoom so nothing is clipped: this is a REVIEW artefact and a
+    // half-cropped item is not reviewed.
+    await page.setViewportSize({ width: Math.min(2000, 6 * (zoom + 46) + 40), height: 900 });
     const built = await page.evaluate(async ([ids, size]) => {
       const { renderDeco } = await import('./js/art.js');
       const { BY_ID } = await import('./data/catalogue.js');
