@@ -163,6 +163,30 @@ rather than dialled in by eye. The first three T3 values were guesses and were 1
 
 ---
 
+## 5b. The final serial board
+
+RUN13's last act was a clean serial full board — **the last one this project will run**,
+since RUN14 packet U-0 replaces it with a sharded runner. It is recorded in full in
+`tests/board-serial-baseline.md`, which is the **official comparison baseline** U-0's
+sharding acceptance is measured against: a sharded run must reproduce its verdicts exactly.
+
+The board earned its keep. It found five things and **four were real defects**, not flakes:
+
+| Suite | What it caught |
+|---|---|
+| `p7-expansion` | The second suite hardcoding 70 collectibles (after `m2-collection`). Both now read `TOTAL_ITEMS`. |
+| `r5p6-intros` | The third of that class — 34 authored intro steps hardcoded, and T2's care intro made it 37. Now derived from `INTRO_SCRIPTS`. |
+| `r12s6-intro-pause` | **A real regression from T2.** RUN12 S6's law reaches Boo Care the moment care runs an intro: its bare `setTimeout`s would have fired behind the lesson. `js/care.js` now takes `createRoundTimers()`. |
+| `r12s7-sockets` | **A real regression from T5.** The spotlight lifted the Boo of the moment off the declared dance floor. Any transform does — the drawn sole sits at 118/130 of the art box — so the spotlight became a beam of light instead. |
+| `r12s5-ceremony` | A pre-existing latent flake, not RUN13's: a Boo drop can roll shiny at random and a shiny Boo's banner differs. Pinned with the product's own `__forceShiny` hook. |
+
+Three of those five are the same defect class — **a suite pinning a number that content is
+designed to grow**. All three now derive from the source of truth.
+
+`r12s7-sockets` is the one worth remembering: RUN12 built that suite so a venue could never
+again quietly float its Boos above the floor, and it caught a brand-new RUN13 feature doing
+exactly that, within hours of it being written.
+
 ## 6. Two defects the packets' own evidence found
 
 **The contrast pass found a layout collision, not a colour bug.** T2's pixel audit measured
