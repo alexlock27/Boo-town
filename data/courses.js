@@ -153,3 +153,13 @@ export const COURSES = [
   }
 ];
 export const COURSE_KEYS = COURSES.map(c => c.key);
+
+// RUN14 U1 / BLOCKED.md — Course 3 "Lift Off" cannot be finished as authored: a wall at
+// x 24 stands between its only approach platform and its first lift at x 26, and the hop
+// (tuned to the courses' own pickup stars) cannot clear it. The geometry is authored
+// content and not an executor's to change, so the course ships EXACTLY as written but its
+// card is a construction site: a child is never handed a course she cannot finish. Lives
+// here, beside the data, so both the game and the trophy rules read one source without
+// importing each other. Delete this entry the moment the geometry question is answered.
+export const UNPLAYABLE = { 'lift-off': 'Being built — back soon! 🚧' };
+export const PLAYABLE_KEYS = COURSE_KEYS.filter(k => !UNPLAYABLE[k]);

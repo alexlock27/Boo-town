@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 15;  // v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 16;  // v16: Boo Roll 3.0's six authored courses (RUN14 U1; P8 records retire to booRoll.legacy). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -341,6 +341,27 @@ export function migrate(obj) {
       if (!store || typeof store !== 'object') continue;
       for (const k of Object.keys(store)) {
         if (!isLegacy(k)) continue;
+        (legacy[field] ||= {})[k] = store[k];
+        delete store[k];
+      }
+    }
+    if (Object.keys(legacy.best || {}).length || Object.keys(legacy.medals || {}).length) merged.booRoll.legacy = legacy;
+  }
+  // v16 (RUN14 U1): Boo Roll 3.0 replaces RUN10 P8's three multi-screen courses with the
+  // six authored single-screen courses in CONTENT_COURSES.md. The P8 keys retire exactly
+  // the way the RUN9 ones did — best times and medals PRESERVED verbatim under
+  // booRoll.legacy, never deleted — so nothing a child earned is ever lost. Lossless, and
+  // idempotent: a save already migrated has no P8 keys left to move.
+  if ((o.version || 0) < 16 && merged.booRoll && typeof merged.booRoll === 'object') {
+    const P8_KEYS = ['rolling-meadow', 'windy-hill'];   // 'sunset-ridge' is a RUN14 key too
+    const legacy = merged.booRoll.legacy || { best: {}, medals: {} };
+    for (const field of ['best', 'medals']) {
+      const store = merged.booRoll[field];
+      if (!store || typeof store !== 'object') continue;
+      for (const k of Object.keys(store)) {
+        // 'sunset-ridge' exists in both packs: a pre-v16 record belongs to the OLD course
+        // (an 8000px scroller), so it retires with the rest rather than flattering a new time
+        if (!P8_KEYS.includes(k) && k !== 'sunset-ridge') continue;
         (legacy[field] ||= {})[k] = store[k];
         delete store[k];
       }
