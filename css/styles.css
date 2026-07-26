@@ -3050,11 +3050,15 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   transform-origin: center bottom;
   z-index: 2;
 }
+/* RUN13 T1: the guidance line moved to the TOP of the stage. The tools live along the
+   bottom edge now (the toothbrush "sits at the bottom edge" per the brief), and at
+   1024x768 the bobbing tool was sitting on top of the text — a real overlap the T2
+   contrast pass caught by measuring the pixels a child actually sees. */
 .care-status {
   position: absolute;
   z-index: 8;
   left: 50%;
-  bottom: 8px;
+  top: 8px;
   transform: translateX(-50%);
   width: min(92%, 560px);
   margin: 0;
@@ -3319,7 +3323,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   position: absolute;
   z-index: 10;
   left: 50%;
-  top: 12px;
+  top: 56px;      /* below the status line, which now lives at the top of the stage */
   transform: translateX(-50%);
   width: min(88%, 430px);
   border: 3px solid var(--star);
@@ -3382,12 +3386,12 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .town-care-action.pos-3 { left: 50%; margin-left: -29px; top: 0; }
 .town-care-action.pos-4 { right: 61px; top: 30px; }
 .town-care-action.pos-5 { right: 0; bottom: 4px; }
-.town-care-manage { right: 0; bottom: -40px; opacity: 1; font-size: 18px; width: 46px; min-height: 46px; }
+.town-care-manage { right: 0; bottom: -50px; opacity: 1; font-size: 18px; width: 46px; min-height: 46px; }
 /* RUN13 T2: hearts and the treat pocket, inline in the flourish. */
 .town-care-meta {
   position: absolute;
   left: 50%;
-  bottom: -38px;
+  bottom: -46px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;

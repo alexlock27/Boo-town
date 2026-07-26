@@ -168,6 +168,11 @@ console.log('== the three-step intro runs once per save, and "?" replays it ==')
   await page.waitForFunction(() => !document.querySelector('.intro-overlay'), { timeout: 4000 });
   await page.waitForFunction(() => window.__care.active() === 'teeth', { timeout: 4000 });
   ok(true, 'when the teaching finishes, the action she chose starts');
+  // The save is debounced, so give it its moment before reading localStorage back.
+  await page.waitForFunction(() => {
+    const s = JSON.parse(localStorage.getItem('bootown.save.v1') || '{}');
+    return !!(s.seen && s.seen.introSeen && s.seen.introSeen.care);
+  }, { timeout: 5000 }).catch(() => {});
   ok(await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')).seen.introSeen.care === true),
     'the save records that the intro has been seen');
 
@@ -256,12 +261,19 @@ console.log('== contrast law: every surface this packet added reaches AA ==');
     await page.waitForSelector('.care-overlay.open');
     await page.waitForTimeout(900);
     const nodes = await page.evaluate(COLLECT(SELECTORS));
-    const before = await page.screenshot();
+    // TWO captures per state, exactly as r12s4 does. A pixel only counts as a glyph if it
+    // is STATIC in both states and DIFFERENT between them — otherwise a bobbing tool or a
+    // rising bubble drifting across a label masquerades as its text.
+    const a1 = await page.screenshot();
+    await page.waitForTimeout(190);
+    const a2 = await page.screenshot();
     await page.evaluate(HIDE);
-    await page.waitForTimeout(160);
-    const after = await page.screenshot();
-    const A = await sharp(before).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const B = await sharp(after).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    await page.waitForTimeout(170);
+    const b1 = await page.screenshot();
+    await page.waitForTimeout(190);
+    const b2 = await page.screenshot();
+    const raw = buf => sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const A1 = await raw(a1), A = await raw(a2), B = await raw(b1), B2 = await raw(b2);
     const { width: W, height: H, channels: CH } = B.info;
     const at = (o, x, y) => { const i = (y * W + x) * CH; return [o.data[i], o.data[i + 1], o.data[i + 2]]; };
     const near = (p, q, tol) => Math.abs(p[0] - q[0]) <= tol && Math.abs(p[1] - q[1]) <= tol && Math.abs(p[2] - q[2]) <= tol;
@@ -269,10 +281,13 @@ console.log('== contrast law: every surface this packet added reaches AA ==');
     const bad = [];
     for (const n of nodes) {
       let worst = Infinity, glyphPixels = 0;
-      for (let y = Math.max(0, n.y + 1); y < Math.min(H, n.y + n.h - 1); y++) {
-        for (let x = Math.max(0, n.x + 1); x < Math.min(W, n.x + n.w - 1); x++) {
+      for (let y = Math.max(0, n.y + 2); y < Math.min(H, n.y + n.h - 2); y++) {
+        for (let x = Math.max(0, n.x + 2); x < Math.min(W, n.x + n.w - 2); x++) {
           const b = at(B, x, y);
-          if (near(at(A, x, y), b, 10)) continue;     // unchanged with glyphs off: not a glyph
+          if (!near(b, at(B2, x, y), 1)) continue;    // still moving with glyphs off
+          const a = at(A, x, y);
+          if (!near(a, at(A1, x, y), 1)) continue;    // still moving with glyphs on
+          if (near(a, b, 10)) continue;               // unchanged with glyphs off: not a glyph
           glyphPixels++;
           const c = ratio(n.colour, b);
           if (c < worst) worst = c;
