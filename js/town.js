@@ -614,8 +614,18 @@ export function mount(container, params, ctx) {
   function renderScenery() {
     clear(sky); clear(hills); clear(ground);
     if (isInterior) { renderInteriorScenery(); renderPaths(); return; }
-    // sky: gradient + a scatter of stars across the whole world
-    sky.appendChild(el('div', { class: 't-skygrad' }));
+    // sky: gradient by device time (RUN13B T8: dawn/day/dusk/night bands, same bands as
+    // the house windows) + a sun or moon disc traversing + a scatter of stars (night only).
+    const hourNow = currentHour();
+    const bandName = skyBandName(hourNow);
+    sky.appendChild(el('div', { class: 't-skygrad ' + bandName }));
+    const isMoon = bandName === 'night';
+    // the disc's arc: sun crosses 05:00→18:59, moon 19:00→04:59, high at mid-arc
+    const frac = Math.max(0.04, Math.min(0.96, isMoon ? (((hourNow - 19) + 24) % 24) / 10 : (hourNow - 5) / 14));
+    const disc = el('div', { class: isMoon ? 't-moondisc' : 't-sundisc', 'aria-hidden': 'true' });
+    disc.style.left = (6 + frac * 84) + '%';
+    disc.style.top = (10 + Math.pow(2 * frac - 1, 2) * 26) + '%';
+    sky.appendChild(disc);
     const starN = 90;
     const sf = document.createDocumentFragment();
     for (let i = 0; i < starN; i++) {
@@ -1081,13 +1091,19 @@ export function mount(container, params, ctx) {
     const stars = totalStars();
     const night = isNight(currentHour());
     ZONES.forEach((z, i) => {
-      if (z.key === 'meadow' || z.key === 'funfair') return;   // meadow = baseline, funfair = own theming
+      // RUN13B T8: the meadow is no longer "baseline" — it owns a dressed horizon like
+      // everywhere else. The funfair still does its own theming (renderFunfair).
+      if (z.key === 'funfair') return;
       if (stars < z.unlock) return;                            // locked zones show only their signpost
-      const html = zoneScenery(z.key, zoneW, viewH, night);
+      const caperOpen = !!(getState().caper && getState().caper.open);
+      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen });
       if (!html) return;
       const wrap = el('div', { class: 't-zone-props ' + z.key + (night ? ' night' : ''), html });
       wrap.style.left = (i * zoneW) + 'px'; wrap.style.top = '0';
-      wrap.style.width = zoneW + 'px'; wrap.style.height = viewH + 'px'; wrap.style.zIndex = '2';
+      // RUN13B T8: z 3 — ABOVE the grass band (2), still below painted paths (5) and every
+      // placed item (row-keyed, hundreds). At z 2 the band painted over every prop that
+      // touched the ground: the beach shells had never actually been visible.
+      wrap.style.width = zoneW + 'px'; wrap.style.height = viewH + 'px'; wrap.style.zIndex = '3';
       ground.insertBefore(wrap, ground.firstChild);
     });
   }
@@ -3059,7 +3075,7 @@ export function mount(container, params, ctx) {
   // that never move — no meadow butterflies over the kitchen sink, no rain in the
   // Lounge, no shooting stars through the ceiling. Rooms breathe through their own
   // built-ins instead (ember flicker, fairy lights).
-  if (!isInterior) buildAmbient(air, night);
+  if (!isInterior) buildAmbient(air, night, AREA.key);
   renderWeather();
   ambient.play(night ? 'night' : 'day');   // gentle bed under the music, obeys the mute (C1)
   scheduleShootingStar();
@@ -3153,6 +3169,12 @@ export function mount(container, params, ctx) {
       builtins: () => [...hills.querySelectorAll('[data-builtin]')].map(n => n.dataset.builtin),
       builtinBox: (id) => { const n = hills.querySelector(`[data-builtin="${id}"]`); return n ? n.getBoundingClientRect().toJSON() : null; },
       windowSky: () => { const n = hills.querySelector('[data-builtin="window"]'); return n ? n.dataset.sky : null; },
+      // RUN13B T8 QA hooks: the outdoor sky, its disc, and the per-area dressing.
+      skyBand: () => { const g = sky.querySelector('.t-skygrad'); return g ? (g.className.replace('t-skygrad', '').trim() || null) : null; },
+      skyDisc: () => sky.querySelector('.t-sundisc') ? 'sun' : (sky.querySelector('.t-moondisc') ? 'moon' : null),
+      dressingCount: (sel) => ground.querySelectorAll(sel).length + air.querySelectorAll(sel).length,
+      noticePoster: () => { const n = ground.querySelector('.pg-notice'); return n ? n.dataset.notice : null; },
+      ambientCount: () => air.querySelectorAll('.t-butterfly, .t-firefly').length,
       bedroomCurtains: () => { const n = hills.querySelector('[data-builtin="window"]'); return n ? (n.dataset.curtains || null) : null; },
       fairyLightsOn: () => { const n = hills.querySelector('[data-builtin="fairylights"]'); return n ? n.dataset.lights : null; },
       scrollX: () => scrollX,
@@ -3309,9 +3331,11 @@ export function mount(container, params, ctx) {
   };
 }
 
-function buildAmbient(air, night) {
+function buildAmbient(air, night, areaKey) {
   if (REDUCED) return;
-  const n = night ? 10 : 8;
+  // RUN13B T8: the Meadow's ambient life is authored — exactly 2 butterflies by day,
+  // 2 fireflies by night. The busier areas keep the generic scatter (within caps).
+  const n = areaKey === 'meadow' ? 2 : (night ? 10 : 8);
   for (let i = 0; i < n; i++) {
     const e2 = el('div', { class: night ? 't-firefly' : 't-butterfly', text: night ? '' : '🦋' });
     e2.style.left = (Math.random() * 100) + '%';
@@ -3551,12 +3575,63 @@ function roomBuiltinsHTML(rid, worldW, wallH, viewH, hour) {
 // aligned with the Boos. Everything sits ABOVE the placement band (y < h*0.62) or is
 // thin decoration at the bank — the band itself (0.62→1.0) stays clear for placement.
 // Animation classes (.rv-*/.hl-*/.bc-*) are transform/opacity-only; reduced-motion stills them.
-function zoneScenery(key, w, h, night) {
+function zoneScenery(key, w, h, night, opts = {}) {
+  if (key === 'meadow')     return meadowScenery(w, h, night);
   if (key === 'riverside')  return riversideScenery(w, h, night);
   if (key === 'hilltop')    return hilltopScenery(w, h, night);
   if (key === 'beach')      return beachScenery(w, h, night);
-  if (key === 'playground') return playgroundScenery(w, h, night);
+  if (key === 'playground') return playgroundScenery(w, h, night, opts);
   return '';
+}
+
+// RUN13B T8 — the Meadow dressed: a rolling horizon with a distant hedgerow and one
+// far-off windmill silhouette, slow two-layer clouds, the fixed oak at the left edge
+// (delights.js's hide-and-seek fallback oak at x 0.15, finally visible), and wildflower
+// tufts scattered on the ground band. Everything sits above the placement band or is
+// thin ground decoration; the only animated bits are the clouds (transform-only).
+function meadowScenery(w, h, night) {
+  const far = night ? '#4A7A57' : '#9BD89B', mid = night ? '#3E6E4A' : '#84CB84', hedge = night ? '#2E5A3A' : '#4F9B58';
+  const bandTop = h * 0.62;
+  // the rolling hill line, two depths, cresting gently across the whole zone
+  // fills stop at the band top (0.62h): the grass band's own gradient is the ground
+  const hills = `
+    <path d="M0 ${(h * 0.50).toFixed(0)} Q${(w * 0.15).toFixed(0)} ${(h * 0.42).toFixed(0)} ${(w * 0.32).toFixed(0)} ${(h * 0.49).toFixed(0)} T${(w * 0.62).toFixed(0)} ${(h * 0.47).toFixed(0)} T${w.toFixed(0)} ${(h * 0.50).toFixed(0)} L${w.toFixed(0)} ${bandTop.toFixed(0)} L0 ${bandTop.toFixed(0)} Z" fill="${far}"/>
+    <path d="M0 ${(h * 0.57).toFixed(0)} Q${(w * 0.25).toFixed(0)} ${(h * 0.51).toFixed(0)} ${(w * 0.5).toFixed(0)} ${(h * 0.56).toFixed(0)} T${w.toFixed(0)} ${(h * 0.55).toFixed(0)} L${w.toFixed(0)} ${bandTop.toFixed(0)} L0 ${bandTop.toFixed(0)} Z" fill="${mid}"/>`;
+  // the distant hedgerow: a lumpy row of bushes sitting on the far hill line
+  const hedgerow = Array.from({ length: Math.ceil(w / 150) }, (_, i) => {
+    const x = (i + 0.5) * 150, yy = h * (0.505 + (i % 3) * 0.008);
+    return `<ellipse cx="${x.toFixed(0)}" cy="${yy.toFixed(0)}" rx="${(52 + (i % 3) * 14).toFixed(0)}" ry="${(15 + (i % 2) * 4).toFixed(0)}" fill="${hedge}" opacity="0.85"/>`;
+  }).join('');
+  // one far-off windmill, a single-colour silhouette on the crest (the REAL windmill
+  // lives on the Hilltop; this one is the horizon saying "the world keeps going")
+  const wx = w * 0.78, wy = h * 0.43;
+  const windmill = `<g fill="${night ? '#243E52' : '#5E8F63'}" opacity="0.9">
+    <path d="M${(wx - 9).toFixed(0)} ${(wy + 46).toFixed(0)} L${(wx - 5).toFixed(0)} ${wy.toFixed(0)} L${(wx + 5).toFixed(0)} ${wy.toFixed(0)} L${(wx + 9).toFixed(0)} ${(wy + 46).toFixed(0)} Z"/>
+    ${[45, 135, 225, 315].map(a => `<path transform="rotate(${a} ${wx.toFixed(1)} ${(wy - 2).toFixed(1)})" d="M${wx.toFixed(0)} ${(wy - 2).toFixed(0)} l-4 -26 l8 0 z"/>`).join('')}
+    <circle cx="${wx.toFixed(0)}" cy="${(wy - 2).toFixed(0)}" r="3.4"/></g>`;
+  // the fixed oak at the left edge — trunk planted on the band top, canopy above it
+  const ox = 0.15 * w, obase = bandTop + 8;
+  const leaf = night ? '#3E7A54' : '#5FB86E', leaf2 = night ? '#356A48' : '#4FA85E';
+  const oak = `<g class="mw-oak">
+    <path d="M${(ox - 12).toFixed(0)} ${obase.toFixed(0)} q 2 -40 -8 -62 l 12 6 q 4 -18 8 -26 q 4 8 8 26 l 12 -6 q -10 22 -8 62 z" fill="#8A5A32" stroke="#5C3A2E" stroke-width="4"/>
+    <ellipse cx="${(ox - 34).toFixed(0)}" cy="${(obase - 92).toFixed(0)}" rx="42" ry="34" fill="${leaf2}" stroke="#2A6B3E" stroke-width="3.5"/>
+    <ellipse cx="${(ox + 34).toFixed(0)}" cy="${(obase - 96).toFixed(0)}" rx="44" ry="36" fill="${leaf2}" stroke="#2A6B3E" stroke-width="3.5"/>
+    <ellipse cx="${ox.toFixed(0)}" cy="${(obase - 122).toFixed(0)}" rx="52" ry="42" fill="${leaf}" stroke="#2A6B3E" stroke-width="3.5"/>
+    <circle cx="${(ox - 22).toFixed(0)}" cy="${(obase - 118).toFixed(0)}" r="5" fill="#FFF" opacity="0.25"/>
+    <circle cx="${(ox + 16).toFixed(0)}" cy="${(obase - 134).toFixed(0)}" r="4" fill="#FFF" opacity="0.25"/></g>`;
+  // wildflower tufts on the ground band: thin decoration, never in the way
+  const tuftCols = ['#FF7AC6', '#FFD166', '#C6A9F0', '#FF9AD5'];
+  const tufts = [0.035, 0.09, 0.165, 0.24, 0.29, 0.37, 0.44, 0.52, 0.58, 0.66, 0.73, 0.81, 0.87, 0.94].map((fx, i) => {
+    const x = fx * w, yy = h * (0.68 + (i % 4) * 0.065), c = tuftCols[i % 4];
+    return `<g class="mw-tuft" transform="translate(${x.toFixed(0)} ${yy.toFixed(0)})">
+      ${[-9, 0, 9].map((o) => `<path d="M${o} 0 q ${o < 0 ? -5 : o > 0 ? 5 : 1} -13 ${o < 0 ? -8 : o > 0 ? 8 : 0} -21" fill="none" stroke="${night ? '#3E7A54' : '#4FA85E'}" stroke-width="3.5" stroke-linecap="round"/>`).join('')}
+      <circle cx="${i % 2 ? -8 : 8}" cy="-22" r="5.5" fill="${c}" stroke="#B06A8A" stroke-width="1.8"/>
+      <circle cx="${i % 2 ? -8 : 8}" cy="-22" r="2.2" fill="#FFF3B0"/></g>`;
+  }).join('');
+  // two cloud layers, slower and further than the Hilltop's (the Meadow is calm)
+  const clouds = night ? '' : [[0.06, h * 0.10, 0.7, 64, 'a'], [0.34, h * 0.16, 0.55, 78, 'a'], [0.58, h * 0.07, 0.8, 58, 'a'], [0.20, h * 0.22, 1.05, 44, 'b'], [0.74, h * 0.20, 0.95, 50, 'b']].map(([fx, yy, sc, dur, layer], i) =>
+    `<div class="mw-cloud ${layer}" style="--d:${(w * 0.4).toFixed(0)}px;--t:${dur}s;--dl:${(-i * 9)}s;left:${(fx * w).toFixed(0)}px;top:${yy.toFixed(0)}px;transform:scale(${sc})"><svg viewBox="0 0 90 40" width="90" height="40"><g fill="#FFFFFF" opacity="${layer === 'a' ? 0.75 : 0.92}"><ellipse cx="28" cy="26" rx="24" ry="14"/><ellipse cx="52" cy="20" rx="22" ry="16"/><ellipse cx="68" cy="27" rx="18" ry="12"/></g></svg></div>`).join('');
+  return rSVG(w, h, `${hills}${hedgerow}${windmill}${oak}${tufts}`) + clouds;
 }
 function rSVG(w, h, inner) {
   return `<svg class="t-zsvg" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">${inner}</svg>`;
@@ -3573,7 +3648,7 @@ function riversideScenery(w, h, night) {
     return `<ellipse class="rv-shimmer" style="--dl:${(-i * 0.6).toFixed(1)}s" cx="${x.toFixed(0)}" cy="${yy.toFixed(0)}" rx="16" ry="3" fill="${foam}" opacity="0.5"/>`;
   }).join('');
   // lily pads (one flowered) floating on the water
-  const lily = [[0.30, mid + 8], [0.62, top + 16], [0.78, mid + 2]].map(([fx, yy], i) =>
+  const lily = [[0.16, mid + 8], [0.30, top + 16], [0.62, mid + 4], [0.78, mid + 2]].map(([fx, yy], i) =>
     `<g class="rv-lily" style="--dl:${(-i).toFixed(1)}s"><ellipse cx="${(fx * w).toFixed(0)}" cy="${yy.toFixed(0)}" rx="20" ry="8" fill="${night ? '#3E7A54' : '#5FB86E'}" stroke="#2A6B3E" stroke-width="2"/><path d="M${(fx * w).toFixed(0)} ${yy.toFixed(0)} l9 -3" stroke="#2A6B3E" stroke-width="2"/>${i === 1 ? `<circle cx="${(fx * w + 2).toFixed(0)}" cy="${(yy - 4).toFixed(0)}" r="5" fill="#FF7AC6"/><circle cx="${(fx * w + 2).toFixed(0)}" cy="${(yy - 4).toFixed(0)}" r="2" fill="#FFF3B0"/>` : ''}</g>`).join('');
   // reeds swaying at the near bank
   const reeds = [0.08, 0.20, 0.9, 0.44].map((fx, i) => {
@@ -3588,28 +3663,76 @@ function riversideScenery(w, h, night) {
     <path d="M${(bx - span).toFixed(0)} ${(deck + 8).toFixed(0)} Q${bx.toFixed(0)} ${(deck - 30).toFixed(0)} ${(bx + span).toFixed(0)} ${(deck + 8).toFixed(0)}" fill="none" stroke="#8A5A32" stroke-width="6"/>
     ${Array.from({ length: 7 }, (_, i) => { const t = i / 6; const px = bx - span + t * span * 2; const py = deck - 40 * Math.sin(Math.PI * t) - 2; return `<line x1="${px.toFixed(0)}" y1="${py.toFixed(0)}" x2="${px.toFixed(0)}" y2="${(py - 16).toFixed(0)}" stroke="#7A4F2A" stroke-width="3"/>`; }).join('')}
     <path d="M${(bx - span).toFixed(0)} ${(deck - 18).toFixed(0)} Q${bx.toFixed(0)} ${(deck - 54).toFixed(0)} ${(bx + span).toFixed(0)} ${(deck - 18).toFixed(0)}" fill="none" stroke="#A9743F" stroke-width="4"/></g>`;
-  const dfly = night ? '' : [[0.35, top - 26, 3], [0.66, top - 40, 5]].map(([fx, yy, dl]) =>
+  // RUN13B T8: a wooden jetty fixed at mid-area, planks out over the water on posts
+  const jx = 0.66 * w, jw = Math.min(170, w * 0.14), jy = bot - 8;
+  const jetty = `<g class="rv-jetty">
+    ${[0.18, 0.55, 0.92].map(t => `<rect x="${(jx + jw * t - 4).toFixed(0)}" y="${jy.toFixed(0)}" width="8" height="26" rx="3" fill="#7A4F2A" stroke="#5C3A2E" stroke-width="2"/>`).join('')}
+    <rect x="${jx.toFixed(0)}" y="${(jy - 10).toFixed(0)}" width="${jw.toFixed(0)}" height="12" rx="5" fill="#A9743F" stroke="#5C3A2E" stroke-width="3"/>
+    ${Array.from({ length: 6 }, (_, i) => `<line x1="${(jx + (i + 1) * jw / 7).toFixed(0)}" y1="${(jy - 10).toFixed(0)}" x2="${(jx + (i + 1) * jw / 7).toFixed(0)}" y2="${(jy + 2).toFixed(0)}" stroke="#8A5A32" stroke-width="2"/>`).join('')}
+    <rect x="${(jx - 6).toFixed(0)}" y="${(jy - 14).toFixed(0)}" width="10" height="18" rx="3" fill="#8A5A32" stroke="#5C3A2E" stroke-width="2.5"/>
+    <circle cx="${(jx + jw - 8).toFixed(0)}" cy="${(jy - 16).toFixed(0)}" r="5" fill="#FF5C8A" stroke="#B0447E" stroke-width="2"/>
+    <path d="M${(jx + jw - 8).toFixed(0)} ${(jy - 11).toFixed(0)} q -3 6 0 10" fill="none" stroke="#B0447E" stroke-width="2"/>
+  </g>`;
+  const dfly = night ? '' : [[0.20, top - 26, 3], [0.66, top - 40, 5]].map(([fx, yy, dl]) =>
     `<g class="rv-dragonfly" style="--dl:${-dl}s;left:${(fx * w).toFixed(0)}px;top:${yy.toFixed(0)}px"><ellipse cx="0" cy="0" rx="10" ry="2" fill="#6AA9C9"/><ellipse class="rv-wing" cx="-2" cy="-4" rx="7" ry="3" fill="#BFE6F5" opacity="0.8"/><ellipse class="rv-wing" cx="-2" cy="4" rx="7" ry="3" fill="#BFE6F5" opacity="0.8"/></g>`).join('');
   return rSVG(w, h, `
     <rect x="0" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(bot - top).toFixed(0)}" fill="${water}"/>
     <rect x="0" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="7" fill="${deep}" opacity="0.7"/>
     <rect x="0" y="${(bot - 6).toFixed(0)}" width="${w.toFixed(0)}" height="6" fill="${deep}" opacity="0.5"/>
     ${ripples('a', [top + 22, mid + 6, bot - 14], 9, 60)}${ripples('b', [top + 40, mid + 22], 13, -50)}
-    ${shimmer}${lily}${bridge}${reeds}`)
+    ${shimmer}${lily}${jetty}${bridge}${reeds}`)
     // dragonflies + paper boat live OUTSIDE the svg as positioned DOM (their own drift anims)
     + dfly
     + (night ? '' : `<div class="rv-boat" style="--d:${(w + 120).toFixed(0)}px;top:${(top + 6).toFixed(0)}px"><svg viewBox="0 0 54 34" width="46" height="30"><path d="M4 20 h46 l-8 12 h-30 z" fill="#FFF3E0" stroke="#C97B4A" stroke-width="2"/><path d="M27 20 v-16 l14 12 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.6"/></svg></div>`);
 }
 
 function hilltopScenery(w, h, night) {
-  const grass = night ? '#3E6E4A' : '#7CC98A', grass2 = night ? '#2F5A3A' : '#5FA76C';
+  const grass = night ? '#3E6E4A' : '#7CC98A';
   const crestX = WINDMILL_X * w, crestY = h * 0.44;
+  const bandTop = h * 0.62;
   // faster, closer clouds drifting across the sky
   const clouds = night ? '' : [[0.10, h * 0.14, 1.0, 26], [0.5, h * 0.09, 1.25, 20], [0.8, h * 0.2, 0.8, 32]].map(([fx, yy, sc, dur], i) =>
     `<div class="hl-cloud" style="--d:${(w * 0.5).toFixed(0)}px;--t:${dur}s;--dl:${(-i * 5)}s;left:${(fx * w).toFixed(0)}px;top:${yy.toFixed(0)}px;transform:scale(${sc})"><svg viewBox="0 0 90 40" width="90" height="40"><g fill="#FFFFFF" opacity="0.9"><ellipse cx="28" cy="26" rx="24" ry="14"/><ellipse cx="52" cy="20" rx="22" ry="16"/><ellipse cx="68" cy="27" rx="18" ry="12"/></g></svg></div>`).join('');
+  // RUN13B T8: layered hill silhouettes falling away BEHIND the crest — three depths,
+  // palest furthest, real rounded summits (not flat bands), so the hilltop finally
+  // reads as height. Each layer is a run of Q-curve crests across the whole zone.
+  const farCols = night ? ['#22405A', '#2A4E66', '#335E72'] : ['#BFE3D8', '#A2D6BE', '#8ACCA4'];
+  const rollingPath = (baseY, amp, wavelength, phase) => {
+    let d = `M0 ${(baseY - amp * 0.3).toFixed(0)}`;
+    const nWaves = Math.ceil(w / wavelength);
+    for (let i = 0; i < nWaves; i++) {
+      const crestAmp = amp * (0.6 + 0.4 * Math.abs(Math.sin(i * 2.7 + phase)));
+      d += ` Q ${((i + 0.5) * wavelength).toFixed(0)} ${(baseY - crestAmp).toFixed(0)} ${((i + 1) * wavelength).toFixed(0)} ${(baseY - amp * 0.25 * ((i % 3) - 0.5)).toFixed(0)}`;
+    }
+    return d + ` L${w.toFixed(0)} ${bandTop.toFixed(0)} L0 ${bandTop.toFixed(0)} Z`;
+  };
+  const farHills = [
+    `<path d="${rollingPath(h * 0.40, h * 0.11, 640, 0.4)}" fill="${farCols[0]}"/>`,
+    `<path d="${rollingPath(h * 0.50, h * 0.13, 520, 2.1)}" fill="${farCols[1]}"/>`,
+    `<path d="${rollingPath(h * 0.585, h * 0.14, 430, 4.4)}" fill="${farCols[2]}"/>`
+  ].join('');
   // the big rounded hill rising to the crest, a gentle rise across the whole zone
-  const hill = `<path d="M0 ${(h * 0.66).toFixed(0)} Q${(w * 0.28).toFixed(0)} ${(h * 0.60).toFixed(0)} ${(crestX - 120).toFixed(0)} ${(crestY + 40).toFixed(0)} Q${crestX.toFixed(0)} ${(crestY - 8).toFixed(0)} ${(crestX + 120).toFixed(0)} ${(crestY + 46).toFixed(0)} Q${(w * 0.9).toFixed(0)} ${(h * 0.62).toFixed(0)} ${w.toFixed(0)} ${(h * 0.6).toFixed(0)} L${w.toFixed(0)} ${h.toFixed(0)} L0 ${h.toFixed(0)} Z" fill="${grass}"/>
-    <path d="M0 ${(h * 0.72).toFixed(0)} Q${(w * 0.5).toFixed(0)} ${(h * 0.66).toFixed(0)} ${w.toFixed(0)} ${(h * 0.7).toFixed(0)} L${w.toFixed(0)} ${h.toFixed(0)} L0 ${h.toFixed(0)} Z" fill="${grass2}" opacity="0.65"/>`;
+  // (fill stops at the band top — the grass band's own gradient is the ground)
+  const hill = `<path d="M0 ${(h * 0.66).toFixed(0)} Q${(w * 0.28).toFixed(0)} ${(h * 0.60).toFixed(0)} ${(crestX - 120).toFixed(0)} ${(crestY + 40).toFixed(0)} Q${crestX.toFixed(0)} ${(crestY - 8).toFixed(0)} ${(crestX + 120).toFixed(0)} ${(crestY + 46).toFixed(0)} Q${(w * 0.9).toFixed(0)} ${(h * 0.62).toFixed(0)} ${w.toFixed(0)} ${(h * 0.6).toFixed(0)} L${w.toFixed(0)} ${bandTop.toFixed(0)} L0 ${bandTop.toFixed(0)} Z" fill="${grass}"/>`;
+  // long grass swaying at the ground line (transform-only; reduced-motion stills it) —
+  // the blades rise ABOVE the band top against the pale far hills so they really show.
+  // Positions are baked into the path coords (like the riverside reeds): the sway
+  // animation owns the transform property, so a transform attribute would be lost.
+  const grassCol = night ? '#2F5A3A' : '#3E8B50';
+  const longGrass = Array.from({ length: Math.ceil(w / 150) }, (_, i) => {
+    const x = (i + 0.35) * 150 + (i % 3) * 26, base = bandTop + 6;
+    return `<g class="hl-grass" style="--dl:${(-i * 0.45).toFixed(2)}s">
+      ${[-11, -4, 4, 11].map((o, k) => `<path d="M${(x + o).toFixed(0)} ${base.toFixed(0)} q ${o < 0 ? -6 : 6} -18 ${o < 0 ? -10 : 10} -${34 + (k % 2) * 10}" fill="none" stroke="${grassCol}" stroke-width="4" stroke-linecap="round"/>`).join('')}
+    </g>`;
+  }).join('');
+  // a kite fixed to a far hill, bobbing gently on its string
+  const kx = w * 0.16, ky = h * 0.22, ax = w * 0.13, ay = h * 0.44;
+  const kite = `<g class="hl-kite">
+    <path d="M${ax.toFixed(0)} ${ay.toFixed(0)} Q${((ax + kx) / 2 + 18).toFixed(0)} ${((ay + ky) / 2).toFixed(0)} ${kx.toFixed(0)} ${(ky + 26).toFixed(0)}" fill="none" stroke="#8A6B3A" stroke-width="2.5" opacity="0.8"/>
+    ${[[0.4, 8], [0.62, -6], [0.82, 7]].map(([t, o]) => { const px = ax + (kx - ax) * t + o, py = ay + (ky + 26 - ay) * t; return `<path d="M${px.toFixed(0)} ${py.toFixed(0)} l7 4 l-7 4 l-7 -4 z" fill="${o > 0 ? '#FFC93C' : '#FF7AC6'}" stroke="#2A1B4E" stroke-width="1.6"/>`; }).join('')}
+    <path d="M${kx.toFixed(0)} ${(ky - 24).toFixed(0)} L${(kx + 20).toFixed(0)} ${ky.toFixed(0)} L${kx.toFixed(0)} ${(ky + 26).toFixed(0)} L${(kx - 20).toFixed(0)} ${ky.toFixed(0)} Z" fill="#FF7AC6" stroke="#B0447E" stroke-width="3"/>
+    <path d="M${kx.toFixed(0)} ${(ky - 24).toFixed(0)} V${(ky + 26).toFixed(0)} M${(kx - 20).toFixed(0)} ${ky.toFixed(0)} H${(kx + 20).toFixed(0)}" stroke="#B0447E" stroke-width="2"/>
+  </g>`;
   // the windmill on the crest: tower + slowly turning sails
   const ty = crestY + 4;
   const windmill = `<g>
@@ -3620,7 +3743,7 @@ function hilltopScenery(w, h, night) {
       ${[0, 90, 180, 270].map(a => `<g transform="rotate(${a} ${crestX.toFixed(1)} ${(ty + 2).toFixed(1)})"><path d="M${crestX.toFixed(0)} ${(ty + 2).toFixed(0)} l-6 -46 l12 0 z" fill="#FFF8F0" stroke="#8A6B3A" stroke-width="2"/></g>`).join('')}
       <circle cx="${crestX.toFixed(0)}" cy="${(ty + 2).toFixed(0)}" r="5" fill="#8A6B3A"/>
     </g></g>`;
-  return rSVG(w, h, `${hill}${windmill}`) + clouds;
+  return rSVG(w, h, `${farHills}${hill}${kite}${windmill}${longGrass}`) + clouds;
 }
 
 function beachScenery(w, h, night) {
@@ -3636,6 +3759,45 @@ function beachScenery(w, h, night) {
     <circle cx="${(px - 4).toFixed(0)}" cy="${(h * 0.7 - 108).toFixed(0)}" r="7" fill="#8A5A32"/>
     <circle cx="${(px + 6).toFixed(0)}" cy="${(h * 0.7 - 98).toFixed(0)}" r="5" fill="#7A4A22"/><circle cx="${(px - 12).toFixed(0)}" cy="${(h * 0.7 - 96).toFixed(0)}" r="5" fill="#7A4A22"/></g>`;
   const palm = onePalm(PALM_X * w) + onePalm(PALM2_X * w);   // palm×2 (RUN10 P1)
+  // RUN13B T8: a striped parasol and towel, and a bucket-and-spade on the sand band —
+  // the beach looks mid-picnic even before anything is placed. All thin/flat props.
+  const px2 = w * 0.185, pbase = h * 0.66;   // parasol camp inside the first screenful
+  const pcx = px2 + 10, pcy = pbase - 58, pR = 70, pr = 52;   // canopy centre, rim radii
+  const rim = (t) => [pcx + pR * Math.cos(Math.PI * (1 - t)), pcy - pr * Math.sin(Math.PI * (1 - t))];
+  // a striped wedge: apex at the dome's crown, out to two rim points, arc along the rim
+  const wedge = (t1, t2, c) => {
+    const [x1, y1] = rim(t1), [x2, y2] = rim(t2);
+    return `<path d="M${pcx.toFixed(0)} ${(pcy - pr + 2).toFixed(0)} L${x1.toFixed(0)} ${y1.toFixed(0)} A ${pR} ${pr} 0 0 1 ${x2.toFixed(0)} ${y2.toFixed(0)} Z" fill="${c}"/>`;
+  };
+  const dome = `M${(pcx - pR).toFixed(0)} ${pcy.toFixed(0)} A ${pR} ${pr} 0 0 1 ${(pcx + pR).toFixed(0)} ${pcy.toFixed(0)} Z`;
+  const parasol = `<g class="bc-parasol" transform="rotate(-6 ${pcx.toFixed(0)} ${pcy.toFixed(0)})">
+    <path d="M${px2.toFixed(0)} ${pbase.toFixed(0)} L${pcx.toFixed(0)} ${(pcy - pr - 8).toFixed(0)}" stroke="#8A5A32" stroke-width="6" stroke-linecap="round"/>
+    <path d="${dome}" fill="#FF7AC6"/>
+    ${wedge(0.13, 0.33, '#FFF3D9')}${wedge(0.53, 0.73, '#FFF3D9')}
+    <path d="${dome}" fill="none" stroke="#B0447E" stroke-width="3.5" stroke-linejoin="round"/>
+    <circle cx="${pcx.toFixed(0)}" cy="${(pcy - pr - 9).toFixed(0)}" r="5.5" fill="#FFC93C" stroke="#B0447E" stroke-width="2"/>
+  </g>`;
+  const tx = px2 + 66, ty2 = h * 0.70;
+  const towel = `<g class="bc-towel" transform="rotate(-3 ${tx.toFixed(0)} ${ty2.toFixed(0)})">
+    <rect x="${tx.toFixed(0)}" y="${ty2.toFixed(0)}" width="104" height="34" rx="8" fill="#8FC7FF" stroke="#4A7FB5" stroke-width="3"/>
+    ${[10, 30, 50, 70, 88].map((o, i) => `<rect x="${(tx + o).toFixed(0)}" y="${(ty2 + 3).toFixed(0)}" width="9" height="28" rx="4" fill="${i % 2 ? '#FFF8F0' : '#FFC93C'}" opacity="0.85"/>`).join('')}
+  </g>`;
+  const bx2 = w * 0.115, by2 = h * 0.78;   // bucket-and-spade by the parasol camp
+  const bucket = `<g class="bc-bucket">
+    <path d="M${(bx2 - 16).toFixed(0)} ${(by2 - 26).toFixed(0)} h32 l-5 28 h-22 z" fill="#FF5C8A" stroke="#B0447E" stroke-width="3"/>
+    <path d="M${(bx2 - 14).toFixed(0)} ${(by2 - 26).toFixed(0)} a 15 10 0 0 1 28 0" fill="none" stroke="#B0447E" stroke-width="3"/>
+    <path d="M${(bx2 + 22).toFixed(0)} ${(by2 + 2).toFixed(0)} l14 -30 l7 3 l-11 29 z" fill="#FFC93C" stroke="#8A6B3A" stroke-width="2.5"/>
+    <rect x="${(bx2 + 30).toFixed(0)}" y="${(by2 - 40).toFixed(0)}" width="12" height="16" rx="5" fill="#FFC93C" stroke="#8A6B3A" stroke-width="2.5"/>
+    <ellipse cx="${(bx2 + 4).toFixed(0)}" cy="${(by2 + 6).toFixed(0)}" rx="34" ry="5" fill="#D9BE7E" opacity="0.6"/>
+  </g>`;
+  // a little sailing boat crossing the far sea once every few minutes (CSS drift, ~3min;
+  // reduced-motion anchors it mid-sea instead of hiding it)
+  const boat = night ? '' : `<div class="bc-sail" style="--d:${(w + 280).toFixed(0)}px;left:-140px;top:${(seaTop + 10).toFixed(0)}px">
+    <svg viewBox="0 0 60 44" width="52" height="38"><path d="M6 30 h48 l-9 12 h-30 z" fill="#FFF3E0" stroke="#C97B4A" stroke-width="2.5"/><path d="M30 30 v-24 l16 20 z" fill="#FFF8F0" stroke="#8FA8C8" stroke-width="2"/><path d="M28 30 v-20 l-12 16 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="2"/><circle cx="30" cy="4" r="2.5" fill="#FF5C8A"/></svg></div>`;
+  // two gulls on lazy arcs over the sea, day only, well within the particle caps
+  const gulls = night ? '' : [[0.14, h * 0.12, 13, 0], [0.62, h * 0.08, 17, -6]].map(([fx, yy, dur, dl]) =>
+    `<div class="bc-gull" style="--t:${dur}s;--dl:${dl}s;left:${(fx * w).toFixed(0)}px;top:${yy.toFixed(0)}px">
+      <svg viewBox="0 0 34 14" width="30" height="12"><path d="M2 10 Q9 2 17 8 Q25 2 32 10" fill="none" stroke="#6B7A99" stroke-width="3" stroke-linecap="round"/></svg></div>`).join('');
   const hx = HUT_X * w, hy = h * 0.5;
   const hut = `<g>
     <rect x="${(hx - 34).toFixed(0)}" y="${(hy + 6).toFixed(0)}" width="68" height="54" rx="4" fill="#F2DDA6" stroke="#8A6B3A" stroke-width="3"/>
@@ -3646,27 +3808,57 @@ function beachScenery(w, h, night) {
     <rect x="0" y="${seaTop.toFixed(0)}" width="${w.toFixed(0)}" height="${(seaBot - seaTop).toFixed(0)}" fill="${sea}"/>
     <rect x="0" y="${seaTop.toFixed(0)}" width="${w.toFixed(0)}" height="8" fill="${sea2}" opacity="0.7"/>
     ${Array.from({ length: 3 }, (_, i) => `<path class="bc-swell" style="--dl:${(-i * 1.4).toFixed(1)}s" d="M0 ${(seaTop + 22 + i * 30).toFixed(0)} q ${(w * 0.25).toFixed(0)} -8 ${(w * 0.5).toFixed(0)} 0 t ${(w * 0.5).toFixed(0)} 0" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.28"/>`).join('')}
-    ${foamPath(0, 0.9)}${foamPath(-2.5, 0.5)}${palm}${hut}${shells}`);
+    ${foamPath(0, 0.9)}${foamPath(-2.5, 0.5)}${palm}${hut}${parasol}${towel}${bucket}${shells}`)
+    + boat + gulls;
 }
 
-// The Playground (RUN10 P1, new area): a soft-play tiled ground pattern, a low fence
-// backdrop, and cheerful bunting strung across the top — a distinct place, not a re-skin.
-function playgroundScenery(w, h, night) {
-  const tileColours = night ? ['#3E6E7A', '#3E5E7A'] : ['#7FD3D9', '#8FC7EF'];
-  const tileY = h * 0.60, tileH = h * 0.06, tileW = 46;
-  const tiles = Array.from({ length: Math.ceil(w / tileW) + 1 }, (_, i) =>
-    `<rect x="${(i * tileW).toFixed(0)}" y="${tileY.toFixed(0)}" width="${(tileW - 2).toFixed(0)}" height="${tileH.toFixed(0)}" rx="4" fill="${tileColours[i % 2]}" opacity="0.85"/>`).join('');
-  const fenceY = h * 0.50;
+// The Playground (RUN10 P1, redressed RUN13B T8): the review called it bare sand. Now:
+// a soft-play tile ground (two gentle tones, on the band via CSS), a painted hopscotch
+// strip, a low colourful fence PLANTED at the ground line with bunting above it, and a
+// fixed noticeboard whose poster rotates with the caper state.
+function playgroundScenery(w, h, night, opts = {}) {
+  const bandTop = h * 0.62;
+  // the low fence, feet on the ground line, pickets in cheerful pastels
+  const picketCols = ['#FF9AD5', '#8FD3D9', '#FFD166', '#C6A9F0'];
   const fence = Array.from({ length: Math.ceil(w / 60) + 1 }, (_, i) =>
-    `<rect x="${(i * 60).toFixed(0)}" y="${(fenceY - 20).toFixed(0)}" width="8" height="34" rx="2" fill="#F4C96B" stroke="#8A6B3A" stroke-width="2"/>`).join('') +
-    `<rect x="0" y="${(fenceY - 8).toFixed(0)}" width="${w.toFixed(0)}" height="7" rx="3" fill="#EFA84C" opacity="0.9"/>`;
+    `<rect x="${(i * 60).toFixed(0)}" y="${(bandTop - 36).toFixed(0)}" width="9" height="40" rx="3" fill="${night ? '#5E6E8A' : picketCols[i % 4]}" stroke="#6B5A86" stroke-width="2"/>`).join('') +
+    `<rect x="0" y="${(bandTop - 24).toFixed(0)}" width="${w.toFixed(0)}" height="7" rx="3" fill="${night ? '#4E5E7A' : '#EFA84C'}" opacity="0.9"/>` +
+    `<rect x="0" y="${(bandTop - 10).toFixed(0)}" width="${w.toFixed(0)}" height="6" rx="3" fill="${night ? '#4E5E7A' : '#EFA84C'}" opacity="0.75"/>`;
   const buntingY = h * 0.16;
   const flags = Array.from({ length: 10 }, (_, i) => {
     const x = (i + 0.5) / 10 * w, y = buntingY + Math.sin(i / 9 * Math.PI) * 18;
     return `<path d="M${x.toFixed(0)} ${y.toFixed(0)} l14 0 l-7 16 z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`;
   }).join('');
   const bunting = `<path d="M0 ${buntingY.toFixed(0)} Q ${(w / 2).toFixed(0)} ${(buntingY + 30).toFixed(0)} ${w.toFixed(0)} ${buntingY.toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2.5" opacity="0.7"/>${flags}`;
-  return rSVG(w, h, `${fence}${tiles}${bunting}`);
+  // the painted hopscotch strip: chalk squares 1-2-3 double-single-double, flat on the
+  // ground band (thin decoration — items and Boos always paint over it)
+  const chalk = night ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.85)';
+  const hsx = w * 0.09, hsy = h * 0.71, cell = 46;   // hopscotch on the first screenful
+  const squares = [[0, 0.5, '1'], [1, 0, '2'], [1, 1, '3'], [2, 0.5, '4'], [3, 0, '5'], [3, 1, '6'], [4, 0.5, '7']];
+  const hopscotch = `<g class="pg-hopscotch" transform="rotate(-2 ${hsx.toFixed(0)} ${hsy.toFixed(0)})">${squares.map(([col, row, n]) =>
+    `<rect x="${(hsx + col * (cell + 6)).toFixed(0)}" y="${(hsy + row * (cell * 0.62 + 5) - cell * 0.31).toFixed(0)}" width="${cell}" height="${(cell * 0.62).toFixed(0)}" rx="7" fill="none" stroke="${chalk}" stroke-width="4"/>
+     <text x="${(hsx + col * (cell + 6) + cell / 2).toFixed(0)}" y="${(hsy + row * (cell * 0.62 + 5) - cell * 0.31 + cell * 0.44).toFixed(0)}" font-family="Fredoka,sans-serif" font-size="19" font-weight="700" fill="${chalk}" text-anchor="middle">${n}</text>`).join('')}</g>`;
+  // the fixed noticeboard: wanted poster while a caper is open, a cheerful town notice
+  // otherwise (state read at render; the caper sweep re-renders scenery on close)
+  const nx = w * 0.215, nbase = bandTop + 6;   // the noticeboard greets you on the way in
+  const poster = opts.caperOpen
+    ? `<g data-poster="caper"><rect x="-38" y="-64" width="76" height="58" rx="4" fill="#FFF3E0" stroke="#8A6B3A" stroke-width="2.5"/>
+       <text x="0" y="-46" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#B0447E" text-anchor="middle">WANTED!</text>
+       <circle cx="0" cy="-28" r="11" fill="#C6A9F0" stroke="#2A1B4E" stroke-width="2"/><circle cx="-4" cy="-30" r="2" fill="#2A1B4E"/><circle cx="4" cy="-30" r="2" fill="#2A1B4E"/><path d="M-4 -23 q4 3 8 0" fill="none" stroke="#2A1B4E" stroke-width="1.8"/>
+       <text x="0" y="-9" font-family="Fredoka,sans-serif" font-size="10" fill="#5C3A2E" text-anchor="middle">for silly capers</text></g>`
+    : `<g data-poster="notice"><rect x="-38" y="-64" width="76" height="58" rx="4" fill="#FFF8F0" stroke="#8A6B3A" stroke-width="2.5"/>
+       <text x="0" y="-47" font-family="Fredoka,sans-serif" font-size="12" font-weight="700" fill="#3D8B84" text-anchor="middle">BOO TOWN</text>
+       <text x="0" y="-33" font-family="Fredoka,sans-serif" font-size="11" font-weight="700" fill="#B0447E" text-anchor="middle">picnic day!</text>
+       <circle cx="-14" cy="-17" r="7" fill="#FFC93C" stroke="#8A6B3A" stroke-width="2"/>
+       <circle cx="13" cy="-19" r="7" fill="#FF9AD5" stroke="#B0447E" stroke-width="2"/>
+       <path d="M13 -12 q -3 4 0 3" fill="none" stroke="#B0447E" stroke-width="1.8"/></g>`;
+  const noticeboard = `<g class="pg-notice" data-notice="${opts.caperOpen ? 'caper' : 'notice'}" transform="translate(${nx.toFixed(0)} ${nbase.toFixed(0)})">
+    <rect x="-34" y="-72" width="8" height="72" rx="3" fill="#8A5A32" stroke="#5C3A2E" stroke-width="2.5"/>
+    <rect x="26" y="-72" width="8" height="72" rx="3" fill="#8A5A32" stroke="#5C3A2E" stroke-width="2.5"/>
+    <rect x="-46" y="-70" width="92" height="70" rx="7" fill="#C9935F" stroke="#5C3A2E" stroke-width="3.5"/>
+    <path d="M-50 -70 h100 l-8 -14 h-84 z" fill="#3D8B84" stroke="#2A6B5E" stroke-width="3"/>
+    ${poster}</g>`;
+  return rSVG(w, h, `${fence}${noticeboard}${hopscotch}${bunting}`);
 }
 
 function signSVG() {

@@ -2162,7 +2162,33 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-layer { position: absolute; top: 0; left: 0; height: 100%; will-change: transform; }
 .t-sky { z-index: 0; } .t-hills { z-index: 1; } .t-ground { z-index: 2; } .t-air { z-index: 3; pointer-events: none; }
 .t-skygrad { position: absolute; inset: 0; background: linear-gradient(180deg, #5BA3E8 0%, #8FC6EF 52%, #CFE8F6 100%); }
+/* RUN13B T8: the sky follows device time — dawn and dusk get their own gradients
+   (day is the base above; night keeps the .town2.night override below). */
+.t-skygrad.dawn { background: linear-gradient(180deg, #7FA8D8 0%, #FFD9A8 55%, #FFB58A 100%); }
+.t-skygrad.dusk { background: linear-gradient(180deg, #6B4E9E 0%, #C77BB8 48%, #FF9A6B 82%, #FFD9A8 100%); }
 .town2.night .t-skygrad { background: linear-gradient(180deg, #0E0A2E 0%, #201858 60%, #35306E 100%); }
+/* The sun / moon disc traversing the sky by device hour (position set inline). */
+.t-sundisc {
+  position: absolute; width: 58px; height: 58px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 38%, #FFF3B0 0 30%, #FFE08A 70%, #FFC93C 100%);
+  box-shadow: 0 0 0 10px rgba(255,224,138,.28), 0 0 42px 16px rgba(255,224,138,.5);
+}
+.t-skygrad.dawn ~ .t-sundisc, .t-skygrad.dusk ~ .t-sundisc {
+  background: radial-gradient(circle at 40% 38%, #FFE9B8 0 30%, #FFC98A 70%, #FF9A5C 100%);
+  box-shadow: 0 0 0 10px rgba(255,178,122,.3), 0 0 42px 16px rgba(255,154,92,.5);
+}
+.t-moondisc {
+  position: absolute; width: 52px; height: 52px; border-radius: 50%;
+  background: #FFF3C4; overflow: hidden;
+  box-shadow: 0 0 0 8px rgba(255,243,196,.16), 0 0 34px 12px rgba(255,243,196,.3);
+}
+.t-moondisc::after {
+  content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
+  left: -30%; top: -12%; background: #201858; opacity: 0.92;
+}
+/* Stars belong to the night: the whole field fades in only after dark. */
+.t-stars { opacity: 0; transition: opacity 0.6s ease; }
+.town2.night .t-stars { opacity: 1; }
 .town2.night .t-band { filter: brightness(0.82) saturate(0.92); }
 .t-stars { position: absolute; inset: 0; }
 .t-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; opacity: 0.35; animation: twk var(--tw, 2s) ease-in-out infinite; }
@@ -2173,8 +2199,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-zone-scene.locked { filter: grayscale(0.85) brightness(0.55); }
 .t-band { position: absolute; z-index: 2; }
 .t-band.meadow, .t-band.riverside, .t-band.hilltop { background: linear-gradient(180deg, #7FC85F 0%, #52A04C 100%); }
+/* RUN13B T8: the funfair's band had NO rule at all — the fair floated on bare sky.
+   It gets trampled fairground grass, a shade warmer than the meadow's. */
+.t-band.funfair { background: linear-gradient(180deg, #8FCB6B 0%, #64A455 100%); }
 .t-band.beach { background: linear-gradient(180deg, #F2DDA6 0%, #E4C583 100%); }
-.t-band.playground { background: linear-gradient(180deg, #FFD9A0 0%, #F2C179 100%); }
+/* RUN13B T8: the playground's ground is soft-play tiles in two gentle tones, not bare sand. */
+.t-band.playground {
+  background: repeating-conic-gradient(#FFD9A0 0% 25%, #F5C88E 25% 50%);
+  background-size: 96px 96px;
+}
 .t-band.locked { filter: grayscale(0.85) brightness(0.55); }
 .t-band.shake { animation: bandshake 0.4s ease; }
 @keyframes bandshake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
@@ -2390,9 +2423,26 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes bcSwell { from { transform: translateX(-20px); } to { transform: translateX(20px); } }
 .bc-palm { animation: bcPalm 5.5s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom center; }
 @keyframes bcPalm { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+/* RUN13B T8 — town dressing: horizons, ground truth and always-there life. */
+/* The Meadow's slow two-layer clouds (layer a = far, b = near). */
+.mw-cloud { position: absolute; animation: hlCloud var(--t, 60s) linear infinite; animation-delay: var(--dl, 0s); }
+/* Hilltop: long grass swaying at the ground line, and the kite bobbing on its string. */
+.hl-grass { animation: rvSway 3.4s ease-in-out infinite; animation-delay: var(--dl, 0s); transform-box: fill-box; transform-origin: bottom center; }
+.hl-kite { animation: hlKite 4.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes hlKite { 0%, 100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-7px) rotate(2deg); } 65% { transform: translateY(3px) rotate(-2deg); } }
+/* Beach: the far sailing boat crosses once every few minutes; gulls arc lazily.
+   Reduced motion anchors the boat mid-sea rather than hiding it. */
+.bc-sail { position: absolute; animation: bcSail 190s linear infinite; }
+@keyframes bcSail { from { transform: translateX(0); } to { transform: translateX(var(--d, 1200px)); } }
+.bc-gull { position: absolute; animation: bcGull var(--t, 13s) ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }
+@keyframes bcGull { from { transform: translate(0, 0); } 50% { transform: translate(46px, -12px); } to { transform: translate(88px, 6px); } }
+/* Funfair: the distant wheel turns very slowly on the skyline. */
+.ff-far-wheel { animation: hlSpin 60s linear infinite; transform-box: fill-box; transform-origin: center; }
 @media (prefers-reduced-motion: reduce) {
   .rv-drift, .rv-shimmer, .rv-lily, .rv-reed, .rv-dragonfly, .rv-wing, .rv-boat,
-  .hl-blades, .hl-cloud, .bc-foam, .bc-swell, .bc-palm { animation: none; }
+  .hl-blades, .hl-cloud, .bc-foam, .bc-swell, .bc-palm,
+  .mw-cloud, .hl-grass, .hl-kite, .bc-gull, .ff-far-wheel { animation: none; }
+  .bc-sail { animation: none; transform: translateX(calc(var(--d, 1200px) * 0.55)); }
 }
 /* zone-only behaviour props (RUN7 C2) */
 .t-splash { position: absolute; left: 50%; bottom: 6px; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 6; animation: tSplash 0.62s ease-out forwards; }
