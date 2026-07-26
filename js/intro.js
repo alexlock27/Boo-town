@@ -112,6 +112,11 @@ export function registerSuspendable(api) {
   return () => suspendables.delete(api);
 }
 export function roundSuspended() { return suspendDepth > 0; }
+// RUN14 U-0: the suspension pair is exported for ONE additional caller — main.js's QA
+// hook, so a reachability walk can hold the app's organic timers still the way an intro
+// overlay does (BLOCKED.md's r4p12-reach recommendation). Product code other than the
+// intro overlay must not call these directly.
+export { suspendRound as qaSuspendRound, resumeRound as qaResumeRound };
 function suspendRound() {
   if (++suspendDepth !== 1) return;                    // nested intros suspend once
   for (const s of suspendables) { try { s.suspend(); } catch (e) { console.warn(e); } }

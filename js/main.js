@@ -7,6 +7,7 @@ import * as tts from './tts.js';
 import { starField, clearConfetti, setBackAction, getBackAction, el, clear } from './ui.js';
 import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker, showToast, listSnapshots, restoreSnapshot } from './resilience.js';
 import { setHapticsEnabled } from './haptics.js';
+import { qaSuspendRound, qaResumeRound } from './intro.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -267,7 +268,9 @@ async function boot() {
   }
 }
 
-// expose for debugging / tests
-window.BooTown = { go, State };
+// expose for debugging / tests. qaHoldOrganic/qaReleaseOrganic (RUN14 U-0) let a QA
+// reachability walk hold the app's organic timers still — same lever an intro overlay
+// uses — so long multi-screen walks are deterministic instead of probabilistic.
+window.BooTown = { go, State, qaHoldOrganic: qaSuspendRound, qaReleaseOrganic: qaResumeRound };
 
 boot();

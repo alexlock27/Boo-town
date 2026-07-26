@@ -79,6 +79,12 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE);
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
+  // RUN14 U-0 (BLOCKED.md's recommended fix): hold the app's ORGANIC timers still for
+  // the whole walk — the same suspension an intro overlay uses — so a trophy ceremony
+  // can never land on a control mid-click. Everything this suite asserts about
+  // ceremonies/reveals it triggers DIRECTLY (showTrophyCeremony, the growth-reveal
+  // seed), and those paths are deliberately not gated by the hold.
+  await page.evaluate(() => window.BooTown.qaHoldOrganic());
 
   for (const [screen, ready, target] of SCREENS) {
     await page.evaluate((s) => window.BooTown.go(s), screen);
@@ -170,6 +176,9 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await page.waitForSelector('.reveal-btns .btn', { timeout: 8000 });
   await sleep(400);
   await reach('.reveal-btns .btn', 'ceremony: keep/place buttons');
+  // A drop can award extraBoxes, in which case "Keep for later" correctly re-opens the
+  // ceremony rather than leaving — zero the balance first so the exit is deterministic.
+  await page.evaluate(() => window.BooTown.State.mutate(s => { s.boxes = 0; }));
   await page.evaluate(() => [...document.querySelectorAll('.reveal-btns .btn')].pop().click());
   await page.waitForSelector('.hub, .town2', { timeout: 8000 });
 
