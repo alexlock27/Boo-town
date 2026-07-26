@@ -71,17 +71,18 @@ console.log('== Boo Roll wall-hit bump ==');
   const { ctx, page } = await fresh();
   await page.evaluate(() => window.BooTown.go('booroll'));
   await page.waitForSelector('.roll-course-grid');
-  await page.evaluate(() => window.__booroll.openCourse('rolling-meadow')   /* RUN11 Q10: P8 retired the roll1..roll6 ids */);
+  // RUN14 U1 retired the P8 course ids (as P8 retired RUN9's) — the courses are now
+  // CONTENT_COURSES.md's six, and the stage is an SVG board rather than a canvas. The
+  // garnish this block guards is unchanged: a wall hit still buzzes gently.
+  await page.evaluate(() => window.__booroll.openCourse('spin-cycle'));
   await page.waitForSelector('.roll-calibrate');
   await page.evaluate(() => window.__booroll.go('virtual'));
-  await page.waitForSelector('.roll-canvas');
+  await page.waitForSelector('.roll14 .rl-svg');
   await page.waitForFunction(() => window.__booroll.playing && window.__booroll.playing());
   await clearVibes(page);
-  // Drive the ball hard into the RIGHT wall. The wall sits at the course's world width,
-  // which P8 re-authored (6000 for Rolling Meadow), so take it from the course rather than
-  // the old RUN9 field size. (RUN11.)
-  await page.evaluate(() => { const f = window.__booroll.field(); window.__booroll.teleport(f.FW - 40, 300); });
-  for (let i = 0; i < 25; i++) { await page.evaluate(() => window.__booroll.setTilt(1.2, 0)); await sleep(20); }
+  // Spin Cycle's first girder idles VERTICAL at x22 — a wall by construction. Roll her
+  // into it at full lean; the scrape is the wall hit this block is about.
+  for (let i = 0; i < 90; i++) { await page.evaluate(() => window.__booroll.setTilt(1)); await sleep(20); }
   const v = await vibes(page);
   assert(v.some(p => Array.isArray(p) && p[0] === 10), `hitting a wall fires a gentle bump (${v.length} buzzes)`);
   await ctx.close();
