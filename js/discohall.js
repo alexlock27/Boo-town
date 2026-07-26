@@ -11,14 +11,27 @@ import { audioClockMs, band, music, sfx } from './sfx.js';
 import { applyMove, MOVES, STEP_MS } from './choreographer.js';
 import { VENUE_SOCKETS } from '../data/sockets.js';
 
-export const DISCO_MOVES = {
-  bouncy: 'bounce',
-  sleepy: 'sway',
-  cheeky: 'spin',
-  shy: 'sway-small',
-  musical: 'shimmy',
-  sporty: 'star-jump'
+// RUN13 T5 — ten named moves on the floor, not six. Every personality still has a signature
+// (DISCO_MOVES, kept so nothing that reads it breaks), but now PREFERS three, picked fresh
+// on each bar, so two Boos of the same temperament stop dancing in lockstep.
+export const DISCO_MOVE_SET = [
+  'bounce', 'sway', 'spin', 'sway-small', 'shimmy',
+  'star-jump', 'wiggle', 'robot', 'clap', 'twirl'
+];
+export const DISCO_PREFERENCES = {
+  bouncy:  ['bounce', 'star-jump', 'wiggle'],
+  sleepy:  ['sway', 'sway-small', 'twirl'],
+  cheeky:  ['spin', 'wiggle', 'robot'],
+  shy:     ['sway-small', 'sway', 'clap'],
+  musical: ['shimmy', 'clap', 'twirl'],
+  sporty:  ['star-jump', 'bounce', 'robot']
 };
+// The signature move of each temperament — the first of its three preferences.
+export const DISCO_MOVES = Object.fromEntries(
+  Object.entries(DISCO_PREFERENCES).map(([personality, moves]) => [personality, moves[0]]));
+// Boo of the moment: one dancer is promoted to the centre of the floor for eight bars,
+// then the spotlight moves on. Eight bars is one musical phrase — it lands on the music.
+export const SPOTLIGHT_BARS = 8;
 const NOTE_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];
 
 export function mount(container, params, ctx) {
@@ -66,7 +79,8 @@ export function mount(container, params, ctx) {
 
   let trackIndex = Math.max(0, BOO_POP_HITS.findIndex(hit => hit.id === (params && params.track)));
   let barIndex = 0, barTimer = null, nextBarAt = 0, routineTimers = [], mode = 'free';
-  const barLog = [], routineLog = [];
+  const barLog = [], routineLog = [], spotlightLog = [];
+  let spotlightIndex = -1;
 
   function barMs() { return 4 * 60000 / BOO_POP_HITS[trackIndex].bpm; }
   function updateTrackCopy() {
@@ -107,6 +121,7 @@ export function mount(container, params, ctx) {
       tile.classList.add('bar-hit');
     });
     if (mode === 'free') applyFreeDance();
+    updateSpotlight();
     const note = hit.melody[(barIndex * 4) % hit.melody.length];
     if (note && note.semi != null) band.key(NOTE_SEMIS.includes(note.semi) ? note.semi : 0);
     barLog.push({ target, actual, error: actual - target, bar: barIndex, hue, track: hit.id });
@@ -115,17 +130,33 @@ export function mount(container, params, ctx) {
   }
   function clearDanceClasses(svg) {
     if (!svg) return;
-    for (const name of Object.values(DISCO_MOVES)) svg.classList.remove(`disco-${name}`);
+    for (const name of DISCO_MOVE_SET) svg.classList.remove(`disco-${name}`);
   }
   function applyFreeDance() {
     dancerNodes.forEach(node => {
       const svg = node.querySelector('svg');
       clearDanceClasses(svg);
-      const move = REDUCED ? 'sway' : DISCO_MOVES[node.dataset.personality];
+      const prefs = DISCO_PREFERENCES[node.dataset.personality] || DISCO_PREFERENCES.bouncy;
+      const move = REDUCED ? 'sway' : prefs[Math.floor(Math.random() * prefs.length)];
       node.dataset.move = move;
       void svg.offsetWidth;
       svg.classList.add(`disco-${move}`);
     });
+  }
+  // Boo of the moment (RUN13 T5): every SPOTLIGHT_BARS the next dancer in the roster takes
+  // the centre of the floor. Rotating by index rather than at random means every Boo she
+  // owns gets her turn — nobody is left at the back all night.
+  function updateSpotlight() {
+    if (!dancerNodes.length) return;
+    if (barIndex % SPOTLIGHT_BARS !== 0) return;
+    spotlightIndex = (spotlightIndex + 1) % dancerNodes.length;
+    dancerNodes.forEach((node, i) => node.classList.toggle('spotlit', i === spotlightIndex));
+    const node = dancerNodes[spotlightIndex];
+    spotlightLog.push({ bar: barIndex, index: spotlightIndex, id: node.dataset.id });
+    if (spotlightLog.length > 20) spotlightLog.shift();
+    nowPlaying.textContent = mode === 'routine'
+      ? 'Your routine is on the floor!'
+      : `${getDisplayName(node.dataset.id)} is the Boo of the moment!`;
   }
 
   function routines() {
@@ -209,6 +240,15 @@ export function mount(container, params, ctx) {
     barLog: () => barLog.slice(),
     forceBar: () => onBar(audioClockMs(), audioClockMs()),
     dancerMoves: () => dancerNodes.map(n => ({ id: n.dataset.id, personality: n.dataset.personality, move: n.dataset.move })),
+    // RUN13 T5 QA hooks: the move set, the per-personality preferences and the spotlight.
+    moveSet: () => DISCO_MOVE_SET.slice(),
+    preferences: () => JSON.parse(JSON.stringify(DISCO_PREFERENCES)),
+    spotlightBars: () => SPOTLIGHT_BARS,
+    spotlightIndex: () => spotlightIndex,
+    spotlightLog: () => spotlightLog.slice(),
+    spotlitId: () => { const n = dancers.querySelector('.disco-dancer.spotlit'); return n ? n.dataset.id : null; },
+    spotlitCount: () => dancers.querySelectorAll('.disco-dancer.spotlit').length,
+    danceClasses: () => dancerNodes.map(n => [...n.querySelector('svg').classList].filter(c => c.startsWith('disco-')).join(',')),
     routineKeys: () => routines().map(([key]) => key),
     playRoutine: key => { const found = routines().find(([k]) => k === key); if (found) playRoutine(...found); },
     routineLog: () => routineLog.slice(),

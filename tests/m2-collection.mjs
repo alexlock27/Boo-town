@@ -26,16 +26,21 @@ await page.waitForTimeout(400);
 await page.screenshot({ path: 'screenshots/m2-collection.png' });
 
 // scope to the main collectibles grid (the wardrobe grid also uses .coll-tile).
-// RUN4 C5 + RUN6 C6 + RUN10 P4: 70 collectibles (52 + 8 activity items + Scout + Quest
-// Flag + 8 furniture).
+// RUN13 T4: the expected total is READ FROM THE CATALOGUE rather than hardcoded. It was
+// 70 (52 + 8 activity items + Scout + Quest Flag + 8 furniture) and went stale the moment
+// twenty-four new pieces of furniture joined. What this suite actually cares about is that
+// the shelf shows EVERY collectible, five of them owned and the rest as silhouettes — so
+// that is what it asserts now, and the number can never drift again.
+const TOTAL = await page.evaluate(async () => (await import('./data/catalogue.js')).TOTAL_ITEMS);
+assert(TOTAL >= 90, `the catalogue's own total is the source of truth (${TOTAL})`);
 const tiles = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile').length);
-assert(tiles === 70, 'grid shows all 70 slots (' + tiles + ')');
+assert(tiles === TOTAL, `grid shows all ${TOTAL} slots (${tiles})`);
 const owned = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile.owned').length);
 assert(owned === 5, '5 owned tiles in colour (' + owned + ')');
 const locked = await page.evaluate(() => document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile.locked').length);
-assert(locked === 65, '65 mystery silhouettes (' + locked + ')');
+assert(locked === TOTAL - 5, `${TOTAL - 5} mystery silhouettes (${locked})`);
 const countText = await page.textContent('.coll-count');
-assert(countText.includes('5 of 70'), 'counter shows 5 of 70 (' + countText + ')');
+assert(countText.includes(`5 of ${TOTAL}`), `counter shows 5 of ${TOTAL} (${countText})`);
 const badge = await page.evaluate(() => !!document.querySelector('.coll-badge'));
 assert(badge, 'a count badge shows for the item owned x3');
 

@@ -730,6 +730,123 @@ export function accessoryArt(key, a) {
     }
     case 'maptan':
       return `<path d="M${cx-R*.78} ${eyeY+R*.28} q8 -5 15 0" fill="none" stroke="#C88745" stroke-width="3" stroke-linecap="round"/><g class="costume-held map"><path d="M${cx+R*.54} ${eyeY+R*.45} l14 -5 14 5 14 -5 v25 l-14 5 -14-5 -14 5 z" fill="#F6E7A8" ${ink(1.8)}/><path d="M${cx+R*.68} ${eyeY+R*.4} v25 M${cx+R*.99} ${eyeY+R*.45} v25" stroke="#B89553" stroke-width="1.5"/></g>`;
+    // ---- RUN13 T5: twelve more accessories -------------------------------------------
+    case 'beanie': {
+      const y = topY + 8;
+      return path(`M${cx-R*0.62} ${y} Q${cx} ${topY-R*0.62} ${cx+R*0.62} ${y} Z`, COLORS.teal, ink()) +
+             rrect(cx - R * 0.66, y - 4, R * 1.32, 9, 4, COLORS.aqua, ink(2.2)) +
+             `<circle cx="${cx}" cy="${(topY-R*0.62).toFixed(1)}" r="6" fill="${COLORS.bubblegum}" ${ink(2.2)}/>`;
+    }
+    case 'partyhat': {
+      const y = topY + 6;
+      return path(`M${cx-R*0.4} ${y} L${cx} ${topY-R*0.95} L${cx+R*0.4} ${y} Z`, COLORS.bubblegum, ink()) +
+             `<circle cx="${cx}" cy="${(topY-R*0.95).toFixed(1)}" r="5" fill="${COLORS.gold}" ${ink(2)}/>` +
+             [0.2, 0.5, 0.8].map((t, i) => `<circle cx="${(cx - R*0.4 + t*R*0.8).toFixed(1)}" cy="${(y - t*R*0.55).toFixed(1)}" r="2.6" fill="${['#fff', COLORS.teal, COLORS.gold][i]}"/>`).join('');
+    }
+    case 'earmuffs':
+      return path(`M${cx-R*0.86} ${earY-2} Q${cx} ${topY-R*0.28} ${cx+R*0.86} ${earY-2}`, 'none', `fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"`) +
+             ell(cx - R * 0.86, earY + 4, 11, 12, COLORS.pink, ink(2.4)) +
+             ell(cx + R * 0.86, earY + 4, 11, 12, COLORS.pink, ink(2.4)) +
+             ell(cx - R * 0.86, earY + 4, 6, 7, '#FFC3DE', '') +
+             ell(cx + R * 0.86, earY + 4, 6, 7, '#FFC3DE', '');
+    case 'starcape': {
+      // The cape hangs still; `.acc-cape-flutter` (added by town.js while she is WALKING)
+      // is what makes it fly. Transform-only, and it has a reduced-motion static pose.
+      const y = eyeY + R * 0.42;
+      return `<g class="acc-cape">` +
+             path(`M${cx-R*0.58} ${y} Q${cx} ${y+R*0.24} ${cx+R*0.58} ${y} L${cx+R*0.76} ${y+R*1.0} Q${cx} ${y+R*0.76} ${cx-R*0.76} ${y+R*1.0} Z`, '#2E2A72', `${ink()} opacity="0.94"`) +
+             path(starPath(cx - R * 0.42, y + R * 0.6, 4.4, 1.8), COLORS.star, '') +
+             path(starPath(cx + R * 0.36, y + R * 0.46, 3.6, 1.5), '#fff', '') +
+             path(starPath(cx + R * 0.02, y + R * 0.82, 3.2, 1.3), COLORS.star, '') +
+             `</g><circle cx="${cx}" cy="${(y+2).toFixed(1)}" r="4.2" fill="${COLORS.star}" ${ink(2)}/>`;
+    }
+    case 'freckles': {
+      let dots = '';
+      for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+        dots += `<circle cx="${(cx + side * (R * 0.58 + i * 6)).toFixed(1)}" cy="${(eyeY + R * 0.26 + (i % 2) * 4).toFixed(1)}" r="2.1" fill="#B4715A"/>`;
+      }
+      return dots;
+    }
+    case 'monocle': {
+      const x = cx + R * 0.42, y = eyeY;
+      return `<circle cx="${x}" cy="${y}" r="${(R*0.34).toFixed(1)}" fill="#DFF3FF" opacity="0.5" stroke="${COLORS.gold}" stroke-width="3.2"/>` +
+             `<line x1="${(x+R*0.3).toFixed(1)}" y1="${(y+R*0.2).toFixed(1)}" x2="${(x+R*0.5).toFixed(1)}" y2="${(y+R*0.8).toFixed(1)}" stroke="${COLORS.gold}" stroke-width="2.4"/>`;
+    }
+    case 'bandana': {
+      // Worn over the muzzle, bandit-style — a FACE item that sits on the face, so it
+      // anchors inside the head band on every species rather than dangling at the neck.
+      const y = eyeY + R * 0.22;
+      return path(`M${cx-R*0.78} ${y} Q${cx} ${y+R*0.10} ${cx+R*0.78} ${y} L${cx+R*0.62} ${y+R*0.42} Q${cx} ${y+R*0.56} ${cx-R*0.62} ${y+R*0.42} Z`, COLORS.red, ink()) +
+             [[-0.38, 0.14], [0, 0.26], [0.38, 0.14]].map(([dx, dy]) => `<circle cx="${(cx+R*dx).toFixed(1)}" cy="${(y+R*dy).toFixed(1)}" r="2.6" fill="#fff"/>`).join('');
+    }
+    case 'snorkel': {
+      const y = eyeY;
+      return rrect(cx - R * 0.66, y - R * 0.3, R * 1.32, R * 0.62, 10, '#BFEAF7', `${ink()} opacity="0.9"`) +
+             `<line x1="${cx}" y1="${(y-R*0.3).toFixed(1)}" x2="${cx}" y2="${(y+R*0.32).toFixed(1)}" stroke="${INK}" stroke-width="2.4"/>` +
+             path(`M${cx+R*0.68} ${y-R*0.2} L${cx+R*0.86} ${topY+R*0.1}`, 'none', `fill="none" stroke="${COLORS.orange}" stroke-width="6" stroke-linecap="round"`);
+    }
+    case 'trainers': {
+      const y = eyeY + R * .72;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return path(`M${x-11} ${y+4} H${x+6} Q${x+13} ${y+4} ${x+13} ${y+13} H${x-11} Z`, '#fff', ink(2.2)) +
+          `<line x1="${x-9}" y1="${y+8}" x2="${x+9}" y2="${y+8}" stroke="${COLORS.teal}" stroke-width="3"/>` +
+          `<line x1="${x-11}" y1="${y+13}" x2="${x+13}" y2="${y+13}" stroke="${INK}" stroke-width="3"/>`;
+      }).join('');
+    }
+    case 'bunnyslippers': {
+      const y = eyeY + .72 * R;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return ell(x, y + 10, 12, 8, '#FFC3DE', ink(2.2)) +
+          ell(x - 4, y + 2, 3.2, 7, '#FFC3DE', ink(1.6)) + ell(x + 4, y + 2, 3.2, 7, '#FFC3DE', ink(1.6)) +
+          `<circle cx="${x-4}" cy="${y+10}" r="1.6" fill="${INK}"/><circle cx="${x+4}" cy="${y+10}" r="1.6" fill="${INK}"/>`;
+      }).join('');
+    }
+    case 'springboots': {
+      const y = eyeY + R * .68;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return rrect(x - 10, y, 20, 13, 5, COLORS.orange, ink(2.2)) +
+          `<path d="M${x-7} ${y+15} q7 -4 14 0 q-7 4 -14 0 q7 -4 14 0" fill="none" stroke="${COLORS.gold}" stroke-width="3" stroke-linecap="round"/>` +
+          `<line x1="${x-9}" y1="${y+24}" x2="${x+9}" y2="${y+24}" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;
+      }).join('');
+    }
+    case 'flippers': {
+      const y = eyeY + R * .74;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return path(`M${x-8} ${y} H${x+8} L${x+14} ${y+22} Q${x} ${y+27} ${x-14} ${y+22} Z`, COLORS.teal, ink(2.2)) +
+          `<line x1="${x-4}" y1="${y+6}" x2="${x-7}" y2="${y+20}" stroke="${INK}" stroke-width="1.6"/>` +
+          `<line x1="${x+4}" y1="${y+6}" x2="${x+7}" y2="${y+20}" stroke="${INK}" stroke-width="1.6"/>`;
+      }).join('');
+    }
+    // ---- RUN13 T5: the Astronaut and the Pirate ---------------------------------------
+    case 'astrohelmet': {
+      const y = eyeY - R * 0.08;
+      return `<circle cx="${cx}" cy="${y.toFixed(1)}" r="${(R*0.98).toFixed(1)}" fill="#CFEAF8" opacity="0.42" ${ink(3)}/>` +
+             rrect(cx - R * 1.02, y + R * 0.62, R * 2.04, 12, 5, '#C9D2E0', ink(2.4)) +
+             path(`M${cx-R*0.62} ${y-R*0.5} Q${cx-R*0.2} ${y-R*0.84} ${cx+R*0.16} ${y-R*0.7}`, 'none', `fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.85"`);
+    }
+    case 'astroboots': {
+      const y = eyeY + R * .68;
+      return [-.28, .28].map(side => {
+        const x = cx + R * side;
+        return rrect(x - 11, y, 22, 16, 6, '#E4E8F0', ink(2.4)) +
+          rrect(x - 12, y + 15, 24, 8, 4, '#9AA4B8', ink(2.2)) +
+          `<circle cx="${x}" cy="${y+7}" r="3.2" fill="${COLORS.seablue}"/>`;
+      }).join('');
+    }
+    case 'piratehat': {
+      const y = topY + 6;
+      return path(`M${cx-R*0.86} ${y} Q${cx} ${topY-R*0.86} ${cx+R*0.86} ${y} Q${cx} ${y+R*0.18} ${cx-R*0.86} ${y} Z`, COLORS.ink, ink()) +
+             `<circle cx="${cx}" cy="${(y-R*0.3).toFixed(1)}" r="5" fill="#fff"/>` +
+             `<line x1="${(cx-5).toFixed(1)}" y1="${(y-R*0.3+7).toFixed(1)}" x2="${(cx+5).toFixed(1)}" y2="${(y-R*0.3+13).toFixed(1)}" stroke="#fff" stroke-width="2.4"/>` +
+             `<line x1="${(cx+5).toFixed(1)}" y1="${(y-R*0.3+7).toFixed(1)}" x2="${(cx-5).toFixed(1)}" y2="${(y-R*0.3+13).toFixed(1)}" stroke="#fff" stroke-width="2.4"/>`;
+    }
+    case 'eyepatch':
+      return path(`M${cx-R*0.9} ${eyeY-R*0.5} L${cx+R*0.72} ${eyeY-R*0.34}`, 'none', `fill="none" stroke="${INK}" stroke-width="3"`) +
+             rrect(cx + R * 0.16, eyeY - R * 0.32, R * 0.56, R * 0.56, 7, COLORS.ink, ink(2.4));
     default:
       return '';
   }

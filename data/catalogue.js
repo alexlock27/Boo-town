@@ -213,10 +213,32 @@ export const CATALOGUE = [
   { id: 'acc_heartcheek',   kind: 'accessory', slot: 'face', name: 'Heart Cheek',     rarity: 'rare',   art: 'heartcheek',   blurb: 'A tiny heart painted with a very steady paw.' },
   { id: 'acc_rollerskates', kind: 'accessory', slot: 'feet', name: 'Roller Skates',   rarity: 'ultra',  art: 'rollerskates', locomotion: 'glide', blurb: 'Four tiny wheels and one magnificent lean-glide.' },
   { id: 'acc_wellies',      kind: 'accessory', slot: 'feet', name: 'Yellow Wellies',  rarity: 'rare',   art: 'wellies', locomotion: 'stomp', blurb: 'Made for puddles. Especially the splashy ones.' },
+
+  // --- RUN13 T5: twelve more accessories, four per slot, in the established rarities.
+  // Three of them change how a Boo LIVES rather than only how she looks, following the
+  // rollerskates precedent: `locomotion` swaps the town walk (feet), `motion` adds a
+  // movement-only flourish (the cape only flutters while she is actually going somewhere).
+  { id: 'acc_beanie',       kind: 'accessory', slot: 'hat',  name: 'Bobble Beanie',   rarity: 'common', art: 'beanie',       blurb: 'One bobble, permanently mid-wobble.' },
+  { id: 'acc_partyhat',     kind: 'accessory', slot: 'hat',  name: 'Party Hat',       rarity: 'common', art: 'partyhat',     blurb: 'Every day is somebody\u2019s party somewhere.' },
+  { id: 'acc_earmuffs',     kind: 'accessory', slot: 'hat',  name: 'Fluffy Earmuffs', rarity: 'rare',   art: 'earmuffs',     blurb: 'Warm ears, muffled world, very serious face.' },
+  { id: 'acc_starcape',     kind: 'accessory', slot: 'hat',  name: 'Comet Cape',      rarity: 'ultra',  art: 'starcape', motion: 'flutter', fx: 'shimmer', blurb: 'Hangs perfectly still until she runs \u2014 then it FLIES.' },
+  { id: 'acc_freckles',     kind: 'accessory', slot: 'face', name: 'Freckles',        rarity: 'common', art: 'freckles',     blurb: 'Six little dots that arrived over one very sunny week.' },
+  { id: 'acc_monocle',      kind: 'accessory', slot: 'face', name: 'Monocle',         rarity: 'rare',   art: 'monocle',      blurb: 'For inspecting biscuits with the seriousness they deserve.' },
+  { id: 'acc_bandana',      kind: 'accessory', slot: 'face', name: 'Spotty Bandana',  rarity: 'rare',   art: 'bandana',      blurb: 'Tied at the back. Ready for absolutely anything.' },
+  { id: 'acc_snorkel',      kind: 'accessory', slot: 'face', name: 'Snorkel Mask',    rarity: 'ultra',  art: 'snorkel',      blurb: 'Worn indoors, outdoors, and once during dinner.' },
+  { id: 'acc_trainers',     kind: 'accessory', slot: 'feet', name: 'Stripy Trainers', rarity: 'common', art: 'trainers',     blurb: 'Laces done up by somebody else, obviously.' },
+  { id: 'acc_bunnyslippers',kind: 'accessory', slot: 'feet', name: 'Bunny Slippers',  rarity: 'common', art: 'bunnyslippers',blurb: 'Two floppy ears per foot. Non-negotiable.' },
+  { id: 'acc_springboots',  kind: 'accessory', slot: 'feet', name: 'Springy Boots',   rarity: 'rare',   art: 'springboots', locomotion: 'spring', blurb: 'Turns every single step into a small joyful boing.' },
+  { id: 'acc_flippers',     kind: 'accessory', slot: 'feet', name: 'Swim Flippers',   rarity: 'rare',   art: 'flippers',    locomotion: 'flap', blurb: 'Slap, slap, slap. Excellent in water, comical on grass.' },
   { id: 'acc_set_police',   kind: 'accessory', slot: 'set', name: 'Police Costume',   rarity: 'ultra', art: 'policecap', pieces: { hat: 'policecap', face: 'policebadge' }, blurb: 'Cap straight, badge shining, ready to help.' },
   { id: 'acc_set_builder',  kind: 'accessory', slot: 'set', name: 'Builder Costume',  rarity: 'ultra', art: 'builderhelmet', pieces: { hat: 'builderhelmet', face: 'builderhammer' }, idle: 'hammer', blurb: 'Helmet on. Hammer ready. Tap tap!' },
   { id: 'acc_set_chef',     kind: 'accessory', slot: 'set', name: 'Chef Costume',     rarity: 'ultra', art: 'cheftoque', pieces: { hat: 'cheftoque', face: 'chefspoon' }, idle: 'stir', blurb: 'A towering toque and a spoon for serious stirring.' },
   { id: 'acc_set_explorer', kind: 'accessory', slot: 'set', name: 'Explorer Costume', rarity: 'ultra', art: 'pithhat', pieces: { hat: 'pithhat', face: 'maptan' }, blurb: 'Hat, map and a little sunshine from the trail.' },
+
+  // RUN13 T5: two more costume sets. Same one-card, atomic-equip, own-ceremony contract as
+  // the four above; each brings an idle of its own to the town behaviour loop.
+  { id: 'acc_set_astronaut', kind: 'accessory', slot: 'set', name: 'Astronaut Costume', rarity: 'ultra', art: 'astrohelmet', pieces: { hat: 'astrohelmet', feet: 'astroboots' }, idle: 'moonbounce', blurb: 'Helmet sealed, boots heavy, gravity strictly optional.' },
+  { id: 'acc_set_pirate',    kind: 'accessory', slot: 'set', name: 'Pirate Costume',    rarity: 'ultra', art: 'piratehat',  pieces: { hat: 'piratehat', face: 'eyepatch' }, idle: 'heartywave', blurb: 'Hat on, patch down, and a wave for every passing friend.' },
 
   // --- Free Easel (RUN3 C6): granted with the Studio, never drops from boxes ---
   { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' },
