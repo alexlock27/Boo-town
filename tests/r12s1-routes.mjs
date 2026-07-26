@@ -60,7 +60,12 @@ const FIXTURES = {
     ["Today-rail Wish Well card", "({ area: 'meadow', openWishWell: true })"],
     ["entrance pan after an unlock", "({ area: 'riverside', enterPan: true })"],
     ["place from ceremony", "({ place: 'deco_palm', from: 'ceremony' })"],
-    ["place from first pick", "({ place: 'deco_palm', from: 'firstpick' })"]
+    ["place from first pick", "({ place: 'deco_palm', from: 'firstpick' })"],
+    // RUN13 T3: the Boo House's three rooms all arrive through this one route.
+    ["Boo House Lounge", "({ area: 'boohouse', room: 'lounge' })"],
+    ["Boo House Kitchen", "({ area: 'boohouse', room: 'kitchen' })"],
+    ["Boo House Bedroom", "({ area: 'boohouse', room: 'bedroom' })"],
+    ["Boo House with no room named (defaults to the Lounge)", "({ area: 'boohouse' })"]
   ],
   ceremony: [["Star Chest", "({ chest: true })"]],
   collection: [["open an item from the museum", "({ openItem: 'boo_inky', from: 'gallerymuseum' })"]],
