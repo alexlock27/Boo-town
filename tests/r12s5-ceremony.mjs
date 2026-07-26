@@ -112,6 +112,12 @@ console.log('== a scripted grant of one item of each kind says the right thing =
         const { CATALOGUE, ACCESSORIES } = await import('./data/catalogue.js');
         const it = [...CATALOGUE, ...ACCESSORIES].find(i => i.id === id);
         window.__forceRoll = { type: it.kind === 'accessory' ? 'accessory' : it.kind === 'boo' ? 'boo' : 'deco', rarity: it.rarity };
+        // RUN13 T6: pin the shiny roll OFF for this check. A Boo drop can be upgraded to a
+        // shiny at random, and a shiny Boo's banner is "✨ A SHINY BOO! ✨" — correct, but it
+        // made this KIND_BANNER assertion a latent 1-in-N flake that happened to survive
+        // RUN12. `__forceShiny` is the product's own one-shot hook (js/shiny.js), consumed
+        // by the single roll each attempt performs.
+        window.__forceShiny = false;
         await window.BooTown.go('ceremony', {});
       }, [item.id]);
       await page.waitForTimeout(360);
