@@ -1,4 +1,4 @@
-// tests/r12s2-tricky-fair.mjs — RUN12 S2: the Tricky Pile is fair.
+﻿// tests/r12s2-tricky-fair.mjs â€” RUN12 S2: the Tricky Pile is fair.
 //
 // A child who pauses to think must never be punished for thinking. An UNATTEMPTED question
 // (a note passing the line, a bubble floating away, a round ending mid-question) is a
@@ -15,7 +15,7 @@ const RAW = process.env.BASE || 'http://127.0.0.1:8000';
 const BASE = RAW.replace('127.0.0.1', 'app.localhost').replace('//localhost', '//app.localhost');
 const RESOLVE = ['--host-resolver-rules=MAP app.localhost 127.0.0.1'];
 let failed = false;
-const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
+const assert = (c, m) => { if (!c) { failed = true; console.log('  âœ— FAIL:', m); } else console.log('  âœ“', m); };
 
 // ---- 1. the contract is structural, not a convention -------------------------------
 console.log('== the collector API makes an unattempted record impossible ==');
@@ -47,7 +47,7 @@ console.log('== no game can reach the pile except through addAttempted ==');
       if (!['addAttempted', 'noteUnattempted', 'items', 'unattemptedCount'].includes(m[1])) offenders.push(`${f}: collector.${m[1]}()`);
     }
   }
-  assert(offenders.length === 0, `every collector call site uses the fair API${offenders.length ? ' → ' + offenders.join(', ') : ''}`);
+  assert(offenders.length === 0, `every collector call site uses the fair API${offenders.length ? ' â†’ ' + offenders.join(', ') : ''}`);
 }
 
 // ---- 2. drive real rounds -----------------------------------------------------------
@@ -90,7 +90,18 @@ console.log('== Boo Beat: a round where she never taps records nothing ==');
   const before = await ledgerMisses(page);
   // six expiries: three questions, each expiring twice (the first expiry re-asks)
   await page.evaluate(async () => {
-    for (let i = 0; i < 6; i++) { window.__beat.missNow(); await new Promise(r => setTimeout(r, 700)); }
+    window.__beat.rush(true);
+    // RUN14 U2: a question trio now lands on the musical phrase, so a fixed sleep no
+    // longer lines up with "the next question is askable". Wait for the state instead.
+    const ready = async () => {
+      for (let i = 0; i < 200; i++) {
+        const st = window.__beat.state();
+        if (!st.resolving && st.notes > 0) return true;
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return false;
+    };
+    for (let i = 0; i < 6; i++) { if (!await ready()) break; window.__beat.missNow(); }
   });
   await page.waitForTimeout(600);
   const after = await ledgerMisses(page);
@@ -98,7 +109,7 @@ console.log('== Boo Beat: a round where she never taps records nothing ==');
   const st = await page.evaluate(() => window.__beat.state());
   assert(p.unattempted >= 3, `the expiry path ran (${p.unattempted} unattempted notes)`);
   assert(p.tricky === 0, `ZERO tricky items from a round she never played (${p.tricky})`);
-  assert(after === before, `ZERO wrong-answer ledger entries (${before} → ${after})`);
+  assert(after === before, `ZERO wrong-answer ledger entries (${before} â†’ ${after})`);
   assert(p.persisted === 0, 'nothing was persisted into save.trickyPile');
   assert(st.misses >= 3, `star maths unchanged: misses still counted (${st.misses})`);
   await ctx.close();
@@ -110,7 +121,18 @@ console.log('== Boo Beat: two genuine wrong answers record exactly those two =='
   const before = await ledgerMisses(page);
   // two questions, each tapped wrongly twice (the first wrong tap re-asks)
   await page.evaluate(async () => {
-    for (let i = 0; i < 4; i++) { window.__beat.tapWrong(); await new Promise(r => setTimeout(r, 700)); }
+    window.__beat.rush(true);
+    // RUN14 U2: a question trio now lands on the musical phrase, so a fixed sleep no
+    // longer lines up with "the next question is askable". Wait for the state instead.
+    const ready = async () => {
+      for (let i = 0; i < 200; i++) {
+        const st = window.__beat.state();
+        if (!st.resolving && st.notes > 0) return true;
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return false;
+    };
+    for (let i = 0; i < 4; i++) { if (!await ready()) break; window.__beat.tapWrong(); }
   });
   await page.waitForTimeout(600);
   const after = await ledgerMisses(page);
@@ -128,7 +150,18 @@ console.log('== Boo Beat: a mixed round keeps only the attempted wrong ones ==')
   const { ctx, page } = await open('beat', { resume: { mix: true } });
   const before = await ledgerMisses(page);
   await page.evaluate(async () => {
-    const step = (fn) => new Promise(r => { fn(); setTimeout(r, 700); });
+    window.__beat.rush(true);
+    // RUN14 U2: a question trio now lands on the musical phrase, so a fixed sleep no
+    // longer lines up with "the next question is askable". Wait for the state instead.
+    const ready = async () => {
+      for (let i = 0; i < 200; i++) {
+        const st = window.__beat.state();
+        if (!st.resolving && st.notes > 0) return true;
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return false;
+    };
+    const step = async (fn) => { await ready(); fn(); await new Promise(r => setTimeout(r, 120)); };
     await step(() => window.__beat.tapWrong());   // Q1 first wrong -> re-ask
     await step(() => window.__beat.tapWrong());   // Q1 second wrong -> RECORDED
     await step(() => window.__beat.missNow());    // Q2 first expiry -> re-ask
@@ -181,7 +214,7 @@ console.log('== Boo Bounce: losing balls and clearing walls charges nothing ==')
   const p1 = await pile(page);
   assert(p1.tricky === 0, `three lost balls add nothing to the pile (${p1.tricky})`);
   assert((await ledgerMisses(page)) === before, 'three lost balls add no ledger miss');
-  // and a genuinely wrong brick — an aimed shot at the wrong answer — still counts
+  // and a genuinely wrong brick â€” an aimed shot at the wrong answer â€” still counts
   await page.evaluate(() => window.__bounce.breakWrong());
   await page.waitForTimeout(500);
   const p2 = await pile(page);

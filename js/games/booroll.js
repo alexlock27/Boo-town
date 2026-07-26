@@ -11,7 +11,7 @@ import { checkAndCelebrate } from '../trophies.js';
 import { COURSES, UNPLAYABLE } from '../../data/courses.js';
 import { createRoll, ROLL } from './boorollphysics.js';
 import { haptic } from '../haptics.js';
-import { maybeIntro, replayIntro } from '../intro.js';
+import { maybeIntro, replayIntro, createRoundTimers } from '../intro.js';
 
 export { COURSES, UNPLAYABLE };
 export const COURSE_IDS = COURSES.map(c => c.key);
@@ -130,6 +130,11 @@ export function mount(container, params, ctx) {
     cleanup(); clear(root); music.play('game');
     const sim = createRoll(course);
     const st = sim.state;
+    // RUN12 S6's law: the round must not run behind the intro's back. The "?" replay is
+    // available mid-course, and without this the ball would keep rolling (and the clock
+    // keep ticking) while she reads. createRoundTimers registers the suspendable for us.
+    const timers = createRoundTimers();
+    cleanups.push(() => timers.dispose());
     const settings = getState().settings || {};
     const sens = typeof settings.rollSens === 'number' ? settings.rollSens : SENS_DEFAULT;
     const invert = !!settings.rollInvert;
@@ -258,7 +263,7 @@ export function mount(container, params, ctx) {
       tilt += (raw - tilt) * LOWPASS;
       const input = { tilt: (invert ? -tilt : tilt) / 22, sens, paddle: paddleHeld, hop: hopQueued };
       hopQueued = false;
-      if (!document.hidden && !finished) {
+      if (!document.hidden && !finished && !timers.paused()) {
         for (let k = 0; k < 2; k++) sim.step(input);   // 2 engine steps per rAF ≈ 60Hz sim
         if (!REDUCED) { trail.push({ x: st.x, y: st.y }); if (trail.length > 7) trail.shift(); }
         drainEvents();
