@@ -37,6 +37,16 @@ RUN15.md
 RUN16.md
 RUN17.md
 
+# Private content-authoring docs for later runs — same class as the RUN*.md briefs above.
+# They appeared untracked in the working tree; ignoring them stops a future `git add -A`
+# publishing private planning material to the public repo.
+CONTENT_COURSES.md
+CONTENT_JOKES.md
+CONTENT_LESSONS.md
+CONTENT_PRICES.md
+CONTENT_STORIES.md
+CONTENT_WARMTH.md
+
 # Private audit / working-state docs — never published to the public repo
 AUDIT_23.07.26.md
 AUDIT_23.07.26 ai studio v2.md
