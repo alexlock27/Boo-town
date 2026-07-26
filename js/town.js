@@ -313,7 +313,7 @@ export function mount(container, params, ctx) {
         roomScroll.set(STORE_KEY, scrollX);
         ctx.go('town', { area: 'boohouse', room: r.id });
       }
-    }, [el('span', { class: 'rt-ic', text: r.icon }), el('span', { class: 'rt-lbl', text: r.name })]))) : null;
+    }, [el('span', { class: 'rt-thumb', 'aria-hidden': 'true', html: roomThumbSVG(r) }), el('span', { class: 'rt-lbl', text: r.name })]))) : null;
   const hint = el('div', { class: 'town-hint-bar' });
 
   const sky = el('div', { class: 't-layer t-sky' });
@@ -680,34 +680,27 @@ export function mount(container, params, ctx) {
     }
   }
 
-  // Room backdrop (RUN10 P4): a wall band (top 55%) + a floor band, no sky/hills/signpost —
-  // the Boo House is always unlocked and is never a "place to discover", it's home.
+  // Room backdrop (RUN10 P4, rebuilt RUN13B T7): a wall band (top 55%) + a floor band, no
+  // sky/hills/signpost — the Boo House is always unlocked and is never a "place to
+  // discover", it's home. T7: each room owns its wall treatment, floor and FIXED built-ins
+  // (part of the backdrop, drawn in the hills layer so every placed item paints over them).
+  // The acceptance test is a screenshot a child could label unprompted: "that's the kitchen!"
   function renderInteriorScenery() {
     const wallH = viewH * INTERIOR_WALL_FRAC;
-    const wall = el('div', { class: 't-interior-wall' });
+    const rid = roomId || 'lounge';
+    const hour = currentHour();
+    const wall = el('div', { class: 't-interior-wall room-' + rid });
     wall.style.width = worldW + 'px'; wall.style.height = wallH + 'px';
     hills.appendChild(wall);
-    const bunting = el('div', { class: 't-interior-bunting', 'aria-hidden': 'true', html: '<i></i><i></i><i></i><i></i><i></i><i></i><i></i>' });
-    bunting.style.left = (worldW * 0.08) + 'px';
-    bunting.style.width = (worldW * 0.46) + 'px';
-    hills.appendChild(bunting);
-    const windowEl = el('div', { class: 't-interior-window' });
-    windowEl.style.left = (worldW * 0.5 - 46) + 'px'; windowEl.style.top = (wallH * 0.28) + 'px';
-    windowEl.append(el('i', { class: 't-window-cross' }), el('i', { class: 't-window-curtain left' }), el('i', { class: 't-window-curtain right' }));
-    hills.appendChild(windowEl);
-    const shelf = el('div', { class: 't-interior-shelf', 'aria-hidden': 'true', html: '<i></i><i></i><i></i><i></i>' });
-    shelf.style.left = (worldW * 0.72) + 'px';
-    shelf.style.top = (wallH * 0.28) + 'px';
-    hills.appendChild(shelf);
-    const door = el('div', { class: 't-interior-door', 'aria-hidden': 'true' });
-    door.style.left = (worldW * 0.08) + 'px';
-    door.style.top = (wallH * 0.22) + 'px';
-    hills.appendChild(door);
-    const skirting = el('div', { class: 't-interior-skirting', 'aria-hidden': 'true' });
+    // Fixed built-ins: fireplace/windows/sink/shelf/fairy lights per room, all inline SVG
+    // sticker style. They live BEHIND the placement rows by construction (hills < ground).
+    const builtins = el('div', { class: 't-room-builtins', 'aria-hidden': 'true', html: roomBuiltinsHTML(rid, worldW, wallH, viewH, hour) });
+    hills.appendChild(builtins);
+    const skirting = el('div', { class: 't-interior-skirting room-' + rid, 'aria-hidden': 'true' });
     skirting.style.top = (wallH - 7) + 'px';
     skirting.style.width = worldW + 'px';
     hills.appendChild(skirting);
-    const floor = el('div', { class: 't-interior-floor' });
+    const floor = el('div', { class: 't-interior-floor room-' + rid });
     floor.style.left = '0'; floor.style.top = wallH + 'px';
     floor.style.width = worldW + 'px'; floor.style.height = (viewH - wallH) + 'px';
     ground.appendChild(floor);
@@ -3008,7 +3001,7 @@ export function mount(container, params, ctx) {
   // ---- ambient life: seasonal weather + shooting star (RUN6 C1) ----------
   function renderWeather() {
     const old = viewport.querySelector('.t-weather'); if (old) old.remove();
-    if (REDUCED) return;
+    if (REDUCED || isInterior) return;   // T7: weather is an outdoors thing
     const forced = typeof window !== 'undefined' && window.__bootownWeather;
     const season = forced === 'rain' ? 'rain' : seasonOf(currentMonth());
     currentSeasonName = season;
@@ -3031,7 +3024,7 @@ export function mount(container, params, ctx) {
   }
   function scheduleShootingStar() {
     if (starTimer) { clearTimeout(starTimer); starTimer = null; }
-    if (REDUCED || !isNight(currentHour())) return;   // a rare treat, only at night
+    if (REDUCED || isInterior || !isNight(currentHour())) return;   // a rare treat, only at night, only under real sky
     const gap = STAR_GAP_MS[0] + Math.random() * (STAR_GAP_MS[1] - STAR_GAP_MS[0]);
     starTimer = setTimeout(() => { spawnShootingStar(); scheduleShootingStar(); }, gap);
   }
@@ -3062,7 +3055,11 @@ export function mount(container, params, ctx) {
   }
 
   // ---- day/night ambient fx ----------------------------------------------
-  buildAmbient(air, night);
+  // RUN13B T7: outdoor ambience stays outdoors. A room is its walls and the things
+  // that never move — no meadow butterflies over the kitchen sink, no rain in the
+  // Lounge, no shooting stars through the ceiling. Rooms breathe through their own
+  // built-ins instead (ember flicker, fairy lights).
+  if (!isInterior) buildAmbient(air, night);
   renderWeather();
   ambient.play(night ? 'night' : 'day');   // gentle bed under the music, obeys the mute (C1)
   scheduleShootingStar();
@@ -3152,6 +3149,12 @@ export function mount(container, params, ctx) {
       // RUN13 T3 QA hooks: which Boo House room is open, its storage key, and its camera.
       room: () => roomId,
       roomKey: () => STORE_KEY,
+      // RUN13B T7 QA hooks: the room's fixed built-ins, and what its window shows.
+      builtins: () => [...hills.querySelectorAll('[data-builtin]')].map(n => n.dataset.builtin),
+      builtinBox: (id) => { const n = hills.querySelector(`[data-builtin="${id}"]`); return n ? n.getBoundingClientRect().toJSON() : null; },
+      windowSky: () => { const n = hills.querySelector('[data-builtin="window"]'); return n ? n.dataset.sky : null; },
+      bedroomCurtains: () => { const n = hills.querySelector('[data-builtin="window"]'); return n ? (n.dataset.curtains || null) : null; },
+      fairyLightsOn: () => { const n = hills.querySelector('[data-builtin="fairylights"]'); return n ? n.dataset.lights : null; },
       scrollX: () => scrollX,
       scrollTo: (px) => { scrollX = px; clampScroll(); applyScroll(); return scrollX; },
       chatPips: () => ground.querySelectorAll('.t-chat-pip').length,
@@ -3353,6 +3356,194 @@ function sceneryFor(key, w, h) {
 }
 function svg(w, h, inner) {
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+
+// ---- RUN13B T7: Boo House room identity --------------------------------------------
+// Fixed built-ins per room, inline SVG sticker style. Everything here is BACKDROP —
+// appended to the hills layer, so placed furniture (ground layer) always paints on top.
+// Windows follow device time; the Bedroom leans darker and cosier at night.
+
+// The switcher thumbnail: wall over floor in the room's own palette, with an accent
+// dot — the identity reads before entering (no emoji-as-art in scenes, house law).
+function roomThumbSVG(r) {
+  const p = r.palette;
+  return `<svg viewBox="0 0 40 30" width="34" height="26" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="36" height="26" rx="6" fill="${p.wall}"/>
+    <path d="M2 19 h36 v3 a6 6 0 0 1 -6 6 h-24 a6 6 0 0 1 -6 -6 z" fill="${p.floor}"/>
+    <circle cx="29" cy="11" r="4.5" fill="${p.accent}" stroke="#2A1B4E" stroke-width="1.6"/>
+    <rect x="2" y="2" width="36" height="26" rx="6" fill="none" stroke="#2A1B4E" stroke-width="3.2"/>
+  </svg>`;
+}
+
+// Which sky a window shows, by device hour: dawn 5-7, day 8-16, dusk 17-18, night 19-4.
+function skyBandName(hour) {
+  if (hour >= 19 || hour < 5) return 'night';
+  if (hour < 8) return 'dawn';
+  if (hour >= 17) return 'dusk';
+  return 'day';
+}
+const WINDOW_SKY_STOPS = {
+  night: ['#201858', '#0E0A2E'],
+  dawn:  ['#FFD9A8', '#FFB58A'],
+  dusk:  ['#C77BB8', '#FF9A6B'],
+  day:   ['#8FC7FF', '#5BA3E8']
+};
+
+// One window, reused by every room. viewBox 0 0 110 150. `drawn` closes the curtains
+// over the glass (the Bedroom at night); otherwise they hang open at the sides.
+function roomWindowSVG(uid, hour, drawn, cA, cB) {
+  const band = skyBandName(hour);
+  const [s1, s2] = WINDOW_SKY_STOPS[band];
+  const night = band === 'night';
+  const skyBits = night
+    ? `<circle cx="72" cy="42" r="12" fill="#FFF3C4"/><circle cx="66" cy="38" r="11" fill="${s1}"/>
+       <circle cx="36" cy="34" r="1.8" fill="#FFF"/><circle cx="48" cy="58" r="1.4" fill="#FFF"/><circle cx="30" cy="76" r="1.6" fill="#FFF"/>`
+    : (band === 'day'
+      ? `<circle cx="76" cy="40" r="11" fill="#FFE08A"/><ellipse cx="40" cy="66" rx="14" ry="6" fill="#FFF" opacity="0.85"/>`
+      : `<ellipse cx="46" cy="52" rx="16" ry="6" fill="#FFF" opacity="0.55"/>`);
+  const curtains = drawn
+    ? `<path d="M16 18 h39 q4 30 0 51 q4 30 0 51 h-39 z" fill="${cA}" stroke="#6B4234" stroke-width="3"/>
+       <path d="M94 18 h-39 q-4 30 0 51 q-4 30 0 51 h39 z" fill="${cB}" stroke="#6B4234" stroke-width="3"/>
+       <path d="M25 30 v88 M35 26 v96 M45 24 v100 M75 26 v96 M85 30 v88" stroke="rgba(90,50,70,.25)" stroke-width="3" fill="none"/>`
+    : `<path d="M16 18 q14 8 10 50 q-2 30 -6 52 h-14 v-102 z" fill="${cA}" stroke="#6B4234" stroke-width="3"/>
+       <path d="M94 18 q-14 8 -10 50 q2 30 6 52 h14 v-102 z" fill="${cB}" stroke="#6B4234" stroke-width="3"/>`;
+  return `<svg viewBox="0 0 110 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="10" width="94" height="122" rx="9" fill="#B87D55" stroke="#6B4234" stroke-width="4"/>
+    <defs><linearGradient id="winSky-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${s1}"/><stop offset="1" stop-color="${s2}"/>
+    </linearGradient></defs>
+    <rect x="16" y="18" width="78" height="102" rx="5" fill="url(#winSky-${uid})"/>
+    ${skyBits}
+    <path d="M55 18 v102 M16 69 h78" stroke="#F7E4C1" stroke-width="5"/>
+    <rect x="16" y="18" width="78" height="102" rx="5" fill="none" stroke="#6B4234" stroke-width="3"/>
+    ${curtains}
+    <rect x="2" y="0" width="106" height="12" rx="6" fill="#8A5A72" stroke="#6B4234" stroke-width="3"/>
+    <rect x="4" y="130" width="102" height="12" rx="5" fill="#C9935F" stroke="#6B4234" stroke-width="3.5"/>
+  </svg>`;
+}
+
+// The Lounge fireplace. Ember flames flicker (.rm-flame / .rm-glow, CSS-animated,
+// opacity+transform only); reduced-motion stills them into a static warm glow.
+function fireplaceSVG() {
+  return `<svg viewBox="0 0 220 190" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="18" y="10" width="184" height="166" rx="8" fill="#E8CBA4" stroke="#6B4234" stroke-width="4"/>
+    <path d="M30 22 h30 M70 22 h30 M110 22 h30 M150 22 h30 M50 40 h30 M90 40 h30 M130 40 h30" stroke="rgba(160,90,50,.35)" stroke-width="5" stroke-linecap="round"/>
+    <rect x="8" y="46" width="204" height="18" rx="8" fill="#A9743F" stroke="#6B4234" stroke-width="4"/>
+    <path d="M58 172 v-58 a52 46 0 0 1 104 0 v58 z" fill="#3A2430" stroke="#6B4234" stroke-width="4"/>
+    <ellipse class="rm-glow" cx="110" cy="152" rx="44" ry="26" fill="#FF9B3D" opacity="0.5"/>
+    <path class="rm-flame f1" d="M110 158 q-16 -14 -6 -34 q4 -9 6 -16 q2 7 6 16 q10 20 -6 34 z" fill="#FF8C42"/>
+    <path class="rm-flame f2" d="M96 158 q-9 -9 -4 -21 q3 -6 5 -11 q2 5 4 11 q5 12 -5 21 z" fill="#FFB347"/>
+    <path class="rm-flame f3" d="M124 158 q-9 -9 -4 -21 q3 -6 5 -11 q2 5 4 11 q5 12 -5 21 z" fill="#FFD166"/>
+    <rect x="72" y="150" width="76" height="11" rx="5.5" fill="#8A5A32" stroke="#5C3A2E" stroke-width="3" transform="rotate(-4 110 156)"/>
+    <rect x="76" y="158" width="76" height="11" rx="5.5" fill="#9A6549" stroke="#5C3A2E" stroke-width="3" transform="rotate(3 114 163)"/>
+    <rect x="30" y="172" width="160" height="14" rx="7" fill="#B9B0A6" stroke="#6B4234" stroke-width="4"/>
+    <g><rect x="34" y="26" width="14" height="18" rx="4" fill="#7FB3D5" stroke="#6B4234" stroke-width="3"/>
+       <circle cx="41" cy="22" r="5" fill="#FF9AD5" stroke="#6B4234" stroke-width="2.5"/></g>
+    <g><rect x="172" y="28" width="18" height="16" rx="3" fill="#C0562F" stroke="#6B4234" stroke-width="3"/></g>
+  </svg>`;
+}
+
+// The Lounge front door — the way home has always looked, redrawn as a sticker.
+function frontDoorSVG() {
+  return `<svg viewBox="0 0 120 210" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 205 v-135 a50 55 0 0 1 100 0 v135 z" fill="#C88960" stroke="#68424A" stroke-width="6"/>
+    <path d="M24 200 v-128 a36 42 0 0 1 72 0 v128 z" fill="#A86B51" stroke="#68424A" stroke-width="4"/>
+    <path d="M42 190 v-115 M60 192 v-122 M78 190 v-115" stroke="rgba(70,35,25,.35)" stroke-width="4"/>
+    <path d="M38 66 a24 26 0 0 1 44 0 z" fill="#FFE9B8" stroke="#68424A" stroke-width="4"/>
+    <circle cx="88" cy="120" r="8" fill="#FFC93C" stroke="#68424A" stroke-width="4"/>
+  </svg>`;
+}
+
+// The Kitchen sink unit: a cabinet under the window, basin and tap on top. The top
+// 30% of the viewBox is transparent air for the tap so it overlaps the window sill.
+function sinkUnitSVG() {
+  return `<svg viewBox="0 0 190 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M96 58 v-16 a20 20 0 0 0 -20 -20 h-6" fill="none" stroke="#9FB2C8" stroke-width="9" stroke-linecap="round"/>
+    <path d="M96 58 v-16 a20 20 0 0 0 -20 -20 h-6" fill="none" stroke="#7A8FA8" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="70" cy="22" r="6" fill="#E8EEF5" stroke="#7A8FA8" stroke-width="3"/>
+    <rect x="46" y="52" width="98" height="14" rx="7" fill="#C6D3DF" stroke="#6B4234" stroke-width="3.5"/>
+    <rect x="0" y="60" width="190" height="16" rx="5" fill="#A9743F" stroke="#6B4234" stroke-width="4"/>
+    <rect x="8" y="76" width="174" height="118" rx="6" fill="#F1E9D2" stroke="#6B4234" stroke-width="4"/>
+    <rect x="20" y="88" width="66" height="94" rx="5" fill="#E4D8B8" stroke="#8E634D" stroke-width="3.5"/>
+    <rect x="104" y="88" width="66" height="94" rx="5" fill="#E4D8B8" stroke="#8E634D" stroke-width="3.5"/>
+    <circle cx="76" cy="134" r="6" fill="#C0562F" stroke="#6B4234" stroke-width="3"/>
+    <circle cx="114" cy="134" r="6" fill="#C0562F" stroke="#6B4234" stroke-width="3"/>
+  </svg>`;
+}
+
+// The Kitchen's high shelf: three jars and the teapot. Nobody reaches it; it is the
+// room saying "meals happen here".
+function kitchenShelfSVG() {
+  return `<svg viewBox="0 0 200 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="62" width="200" height="12" rx="6" fill="#9A6549" stroke="#593C44" stroke-width="4"/>
+    <path d="M24 74 l10 14 h-20 z M166 74 l10 14 h-20 z" fill="#7A5240" stroke="#593C44" stroke-width="3"/>
+    <g><rect x="14" y="30" width="26" height="32" rx="6" fill="#E8A33D" stroke="#593C44" stroke-width="3.5"/>
+       <rect x="16" y="24" width="22" height="9" rx="4" fill="#B98A4A" stroke="#593C44" stroke-width="3"/>
+       <rect x="20" y="40" width="14" height="12" rx="2" fill="#FFF8E8"/></g>
+    <g><rect x="50" y="34" width="24" height="28" rx="6" fill="#C2517C" stroke="#593C44" stroke-width="3.5"/>
+       <rect x="52" y="28" width="20" height="9" rx="4" fill="#8A3A66" stroke="#593C44" stroke-width="3"/>
+       <rect x="55" y="43" width="14" height="10" rx="2" fill="#FFF8E8"/></g>
+    <g><rect x="82" y="28" width="26" height="34" rx="6" fill="#4E9A8F" stroke="#593C44" stroke-width="3.5"/>
+       <rect x="84" y="22" width="22" height="9" rx="4" fill="#39746B" stroke="#593C44" stroke-width="3"/></g>
+    <g><path d="M128 62 a26 22 0 0 1 52 0 z" fill="#7FB3D5" stroke="#593C44" stroke-width="3.5"/>
+       <path d="M128 52 q-12 -2 -10 -14 l8 2 q-2 6 4 8 z" fill="#7FB3D5" stroke="#593C44" stroke-width="3"/>
+       <path d="M178 50 q10 -8 4 -16" fill="none" stroke="#593C44" stroke-width="4" stroke-linecap="round"/>
+       <circle cx="154" cy="38" r="5" fill="#FFC93C" stroke="#593C44" stroke-width="3"/></g>
+  </svg>`;
+}
+
+// The Bedroom fairy lights: a swagged wire across the whole wall, bulbs cycling four
+// sweet colours. `on` after dark — halos glow (CSS), reduced-motion holds them steady.
+function fairyLightsSVG(w, h, on) {
+  const cols = ['#FFD98A', '#FF9AD5', '#9AD5FF', '#B8F0A0'];
+  const n = Math.max(8, Math.round(w / 130));
+  const margin = w * 0.04, span = w - margin * 2;
+  const yFor = (t) => h * (0.30 + 0.34 * Math.abs(Math.sin(t * Math.PI * 3)));
+  let wire = `M ${margin.toFixed(0)} ${yFor(0).toFixed(0)}`;
+  const bulbs = [];
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, x = margin + span * t, y = yFor(t);
+    const px = margin + span * (i - 0.5) / n, py = yFor((i - 0.5) / n) + h * 0.12;
+    wire += ` Q ${px.toFixed(0)} ${py.toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)}`;
+    const c = cols[i % cols.length];
+    bulbs.push(`<g class="rm-fairy${on ? ' on' : ''}" style="--dl:${(-i * 0.35).toFixed(2)}s">
+      <circle class="rm-fairy-halo" cx="${px.toFixed(0)}" cy="${(py + 6).toFixed(0)}" r="11" fill="${c}"/>
+      <circle cx="${px.toFixed(0)}" cy="${(py + 6).toFixed(0)}" r="4.5" fill="${c}" stroke="#6B5A86" stroke-width="2"/>
+    </g>`);
+  }
+  return `<svg viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="${wire}" fill="none" stroke="#7A6B8F" stroke-width="3"/>
+    ${bulbs.join('')}
+  </svg>`;
+}
+
+// Assemble a room's fixed built-ins as positioned wrappers over the wall band.
+// Positions are fractions of worldW; sizes hang off wallH so every viewport scales.
+function roomBuiltinsHTML(rid, worldW, wallH, viewH, hour) {
+  const night = isNight(hour);
+  const band = skyBandName(hour);
+  const box = (id, x, top, w, h, inner, attrs = '') =>
+    `<div class="t-builtin bi-${id}" data-builtin="${id}" ${attrs} style="left:${x.toFixed(0)}px;top:${top.toFixed(0)}px;width:${w.toFixed(0)}px;height:${h.toFixed(0)}px">${inner}</div>`;
+  if (rid === 'kitchen') {
+    const winH = wallH * 0.40, winW = winH * 0.73, winX = worldW * 0.26 - winW / 2;
+    const sinkH = wallH * 0.52, sinkW = wallH * 0.66;
+    const shelfW = wallH * 0.58, shelfH = wallH * 0.26;
+    return box('window', winX, wallH * 0.06, winW, winH, roomWindowSVG('kitchen', hour, false, '#8FBFB5', '#A8D2C8'), `data-sky="${band}"`)
+      + box('sink', worldW * 0.26 - sinkW / 2, wallH - sinkH, sinkW, sinkH, sinkUnitSVG())
+      + box('shelf', worldW * 0.47, wallH * 0.14, shelfW, shelfH, kitchenShelfSVG());
+  }
+  if (rid === 'bedroom') {
+    const winH = wallH * 0.42, winW = winH * 0.73;
+    return box('fairylights', 0, wallH * 0.02, worldW, wallH * 0.26, fairyLightsSVG(worldW, wallH * 0.26, night), `data-lights="${night ? 'on' : 'off'}"`)
+      + box('window', worldW * 0.26 - winW / 2, wallH * 0.20, winW, winH, roomWindowSVG('bedroom', hour, night, '#B48BD1', '#C9A6E3'), `data-sky="${band}" data-curtains="${night ? 'drawn' : 'open'}"`);
+  }
+  // lounge
+  const doorH = wallH * 0.62, doorW = doorH * 0.57;
+  const fireH = wallH * 0.55, fireW = fireH * 1.15;
+  const winH = wallH * 0.42, winW = winH * 0.73;
+  return box('door', worldW * 0.035, wallH - doorH, doorW, doorH, frontDoorSVG())
+    + box('fireplace', worldW * 0.30 - fireW / 2, wallH - fireH, fireW, fireH, fireplaceSVG())
+    + box('window', worldW * 0.58, wallH * 0.14, winW, winH, roomWindowSVG('lounge', hour, false, '#FF9AD5', '#FF9AD5'), `data-sky="${band}"`);
 }
 
 // ---- zone identity: the distinct near backdrop per zone (RUN7 C2) --------

@@ -35,10 +35,12 @@ export const MAP_POS = {
 // the other two are extra storage keys under save.town.areas that the same interior scene
 // mounts. Keeping the original key as the Lounge is what makes the migration lossless:
 // every pre-rooms placement stays exactly where the child left it, to the pixel.
+// RUN13B T7 \u2014 each room owns a palette: the same three colours paint its walls/floor
+// in the scene AND tint its switcher thumbnail, so the identity reads before entering.
 export const HOUSE_ROOMS = [
-  { id: 'lounge',  key: 'boohouse',         name: 'Lounge',  icon: '\u{1F6CB}\uFE0F' },
-  { id: 'kitchen', key: 'boohouse_kitchen', name: 'Kitchen', icon: '\u{1F373}' },
-  { id: 'bedroom', key: 'boohouse_bedroom', name: 'Bedroom', icon: '\u{1F6CF}\uFE0F' }
+  { id: 'lounge',  key: 'boohouse',         name: 'Lounge',  palette: { wall: '#F8ECD2', floor: '#DCB980', accent: '#C05630' } },
+  { id: 'kitchen', key: 'boohouse_kitchen', name: 'Kitchen', palette: { wall: '#D8EAE5', floor: '#EFE3CC', accent: '#4E9A8F' } },
+  { id: 'bedroom', key: 'boohouse_bedroom', name: 'Bedroom', palette: { wall: '#C9B7E0', floor: '#B4A0D4', accent: '#FFD98A' } }
 ];
 export const HOUSE_ROOM_KEYS = HOUSE_ROOMS.map(r => r.key);
 export function houseRoom(id) { return HOUSE_ROOMS.find(r => r.id === id) || HOUSE_ROOMS[0]; }
