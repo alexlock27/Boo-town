@@ -22,9 +22,22 @@ import re
 import subprocess
 from datetime import datetime
 
-ROOT = r"C:\Users\Alexl\Documents\Bootown-Project\Boo-town"
-BOARD_LOG = "/tmp/board_clean.log"
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, "tests", "board-serial-baseline.md")
+
+# `_runall.sh` writes its logs to /tmp, which is a Git Bash MOUNT — native Windows Python
+# cannot see that path at all. Resolve it the way bash does so this script runs under either
+# interpreter, and fall back to a literal /tmp on a real POSIX box.
+TMP = os.environ.get("TMPDIR") or os.environ.get("TEMP") or os.environ.get("TMP") or "/tmp"
+if not os.path.isdir(TMP):
+    TMP = "/tmp"
+
+
+def tmp(name):
+    return os.path.join(TMP, name)
+
+
+BOARD_LOG = tmp("board_clean.log")
 
 
 def stat_time(path, fmt):
@@ -51,8 +64,25 @@ def hms(seconds):
     return f"{h}h {m:02d}m {s:02d}s" if h else f"{m}m {s:02d}s"
 
 
-def sh(cmd):
-    return subprocess.run(["bash", "-lc", cmd], capture_output=True, text=True).stdout.strip()
+def enumerate_suites():
+    """The board's suite list, derived the same way `_runall.sh` derives it:
+
+        ls tests/*.mjs | grep -v "shoot\\|sim-blocks\\|device-qa"
+
+    Done in Python rather than by shelling out. `bash -lc` on this machine resolves to WSL
+    bash, not Git Bash, and WSL answered with a UTF-16 error message that parsed as sixty
+    plausible-looking "suite names" — a wrong number that would have gone straight into the
+    baseline. Enumerating in-process cannot go wrong that way.
+    """
+    d = os.path.join(ROOT, "tests")
+    names = sorted(f[:-4] for f in os.listdir(d)
+                   if f.endswith(".mjs") and os.path.isfile(os.path.join(d, f)))
+    return [n for n in names if not any(k in n for k in ("shoot", "sim-blocks", "device-qa"))]
+
+
+def git(*args):
+    r = subprocess.run(["git", "-C", ROOT, *args], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
 
 
 # ---- the board's own verdicts ---------------------------------------------------------
@@ -66,8 +96,7 @@ fm = re.search(r"^FAILED:(.*)$", board, re.M)
 if fm:
     failed_names = fm.group(1).split()
 
-suites = sh('cd "%s" && ls tests/*.mjs | grep -v "shoot\\|sim-blocks\\|device-qa" | sed "s#tests/##;s#.mjs##"'
-            % ROOT.replace("\\", "/")).split()
+suites = enumerate_suites()
 
 board_start = stat_time(BOARD_LOG, "%w")
 board_end = stat_time(BOARD_LOG, "%y")
@@ -76,7 +105,7 @@ total_seconds = (board_end - board_start).total_seconds()
 # ---- gather, then order by completion (mtime) -----------------------------------------
 recs = []
 for name in suites:
-    log = f"/tmp/reg_{name}.log"
+    log = tmp(f"reg_{name}.log")
     if not os.path.exists(log):
         recs.append({"name": name, "mtime": None})
         continue
@@ -114,7 +143,7 @@ assertions = sum(r["ticks"] for r in tick_suites)
 no_tick = [r["name"] for r in ordered if r["ticks"] == 0]
 missing = [r["name"] for r in recs if not r["mtime"]]
 
-commit = sh('git -C "%s" rev-parse HEAD' % ROOT.replace("\\", "/"))[:12]
+commit = git("rev-parse", "HEAD")[:12]
 stamp = re.search(r"BUILD_STAMP = '([^']+)'",
                   io.open(os.path.join(ROOT, "sw.js"), encoding="utf-8").read()).group(1)
 
