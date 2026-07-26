@@ -6,7 +6,7 @@
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
-import { AREAS, AREA_W_VIEWPORTS, areaByKey } from './areas.js';
+import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
 import { renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
@@ -51,6 +51,21 @@ const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no dept
 const ITEM_SCALE_MIN = 0.70, ITEM_SCALE_MAX = 1.60, ITEM_SCALE_STEP = 0.15;
 const itemScaleOf = (t) => Math.max(ITEM_SCALE_MIN, Math.min(ITEM_SCALE_MAX, Number(t && t.scale) || 1));
 const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
+// RUN13 T3: each Boo House room remembers where its camera was left. Module-level, so it
+// survives the re-mount that switching rooms performs (the module itself is cached).
+const roomScroll = new Map();
+// House furniture that a Boo can actually USE (RUN13 T3). These join ACT_IDS below, so the
+// existing generic socket loop claims them exactly like a swing or a bench — one code path,
+// no parallel system. NOTHING here is a need: a snack is a scene, a nap is a nap (G9).
+const HOUSE_ACT_IDS = ['deco_bed', 'deco_bunkbed', 'deco_table', 'deco_kitchentable',
+  'deco_counter', 'deco_stool', 'deco_sofa', 'deco_armchair', 'deco_rug'];
+const HOUSE_KIND_FOR = {
+  deco_bed: 'housenap', deco_bunkbed: 'housenap',
+  deco_table: 'snack', deco_kitchentable: 'snack', deco_counter: 'snack', deco_stool: 'snack',
+  deco_sofa: 'lounge', deco_armchair: 'lounge', deco_rug: 'lounge'
+};
+const CHAT_PIP_MS = 2600;        // how often a lounging pair swaps a chat pip
+const SNACK_BITE_MS = 1500;      // one nibble cycle at the table
 
 const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of viewport height
 const GROUND_FRAC = BAND_TOP;          // the grass band starts at the top of the placement band
@@ -82,9 +97,13 @@ const CHASE_MS = 3800;          // a butterfly (day) / firefly (night) chase
 const WATCH_MS = 4200;          // a sit-and-watch spell
 const NAP_MS = 22000;           // a chosen nap under a tree/house lasts a while (or until morning)
 const NAP_IDS = ['deco_boohouse', 'deco_tree', 'deco_bed'];   // a Boo naps by a house, under a Bubble Tree, or (preferred, RUN10 P4) in a placed bed
-const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond'];
+const ACT_IDS = ['deco_slide', 'deco_swings', 'deco_trampoline', 'deco_paddlepool', 'deco_bumper', 'deco_seesaw', 'deco_picnic', 'deco_bench', 'deco_pond',
+  'deco_bed', 'deco_bunkbed', 'deco_table', 'deco_kitchentable', 'deco_counter', 'deco_stool', 'deco_sofa', 'deco_armchair', 'deco_rug'];
 // role kind per activity item — generic socket loop below (RUN10 P2)
-const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'fish' };
+const KIND_FOR = { deco_slide: 'slide', deco_swings: 'swing', deco_trampoline: 'bounce', deco_paddlepool: 'paddle', deco_bumper: 'drive', deco_seesaw: 'seesaw', deco_picnic: 'picnic', deco_bench: 'sit', deco_pond: 'fish',
+  deco_bed: 'housenap', deco_bunkbed: 'housenap',
+  deco_table: 'snack', deco_kitchentable: 'snack', deco_counter: 'snack', deco_stool: 'snack',
+  deco_sofa: 'lounge', deco_armchair: 'lounge', deco_rug: 'lounge' };
 // Personality weight keys (RUN10 P5) for the generic 'approach' goal — keyed by WHICH
 // activity item was actually found, since 'approach' itself covers every ACT_IDS member.
 const ACT_MULT_KEY = { deco_trampoline: 'trampoline', deco_bench: 'bench', deco_slide: 'slide', deco_swings: 'swings', deco_seesaw: 'seesaw' };
@@ -165,7 +184,14 @@ const ACT_SIZE = {
   deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120,
   // furniture (RUN10 P4)
   deco_bed: 150, deco_sofa: 165, deco_rug: 210, deco_table: 120, deco_tablelamp: 105,
-  deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145, deco_bffportrait: 120
+  deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145, deco_bffportrait: 120,
+  // furniture and decor expansion (RUN13 T4)
+  deco_armchair: 130, deco_bunkbed: 155, deco_wardrobe2: 145, deco_kitchentable: 135,
+  deco_counter: 150, deco_fridge: 130, deco_oven: 130, deco_stool: 95,
+  deco_bookshelf2: 145, deco_rug2: 200, deco_rug3: 200, deco_lamp2: 105, deco_floorlamp: 130,
+  deco_plant1: 110, deco_plant2: 120, deco_plant3: 105, deco_wallclock: 105, deco_mirror: 115,
+  deco_toybox: 125, deco_wallart1: 110, deco_wallart2: 110, deco_wallart3: 110,
+  deco_photoframe: 105
 };
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
@@ -187,12 +213,19 @@ export function mount(container, params, ctx) {
   // Interior scene mode (RUN10 P4): only the Boo House reaches town.js as kind:'interior'
   // — the Gallery is routed to its own screen (js/gallerymuseum.js) from the world map.
   const isInterior = AREA.kind === 'interior';
+  // RUN13 T3: the Boo House is three rooms. `params.room` chooses one; everything below
+  // stores and reads through STORE_KEY rather than AREA.key, so each room is genuinely its
+  // own placeable scene while still being ONE area on the world map.
+  const ROOMED = AREA.key === 'boohouse';
+  const roomId = ROOMED ? (houseRoom((params && params.room) || 'lounge').id) : null;
+  const ROOM = ROOMED ? houseRoom(roomId) : null;
+  const STORE_KEY = ROOM ? ROOM.key : AREA.key;
   // Single-area "zones" shim: every zone-comparison helper below was written for the old
   // 5-zone continuous world and reads ZONES/ZONE_INDEX from the enclosing closure. With
   // exactly one entry here (index 0, unlock 0 — already-unlocked by construction, since
   // the map is the only way in), all that code keeps working unchanged.
-  const ZONES = [{ key: AREA.key, name: AREA.name, unlock: 0 }];
-  const ZONE_INDEX = { [AREA.key]: 0 };
+  const ZONES = [{ key: STORE_KEY, name: ROOM ? ROOM.name : AREA.name, unlock: 0 }];
+  const ZONE_INDEX = { [STORE_KEY]: 0 };
   music.play('calm');
   noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
   // Hide-and-seek Boo, once per local day (RUN4 C9): picks across ALL areas (delights.js),
@@ -208,8 +241,8 @@ export function mount(container, params, ctx) {
   // Every item carries a redundant `.zone` field (always === AREA.key) so the zone-
   // comparison code throughout this file needs no further changes.
   function areaItems(st) {
-    if (!st.town.areas[AREA.key]) st.town.areas[AREA.key] = { items: [], paths: [] };
-    return st.town.areas[AREA.key].items;
+    if (!st.town.areas[STORE_KEY]) st.town.areas[STORE_KEY] = { items: [], paths: [] };
+    return st.town.areas[STORE_KEY].items;
   }
 
   let holding = (params && params.place) || null;   // item id being placed
@@ -229,7 +262,26 @@ export function mount(container, params, ctx) {
     el('span', { class: 'hammer-ic', text: '🔨' }),
     el('span', { class: 'hammer-lbl', text: 'Build' })
   ]);
+  if (ROOM) title.textContent = `${AREA.name} \u00b7 ${ROOM.name}`;
   const header = el('header', { class: 'town-header' }, [back, title, hammerBtn]);
+  // RUN13 T3 — the room switcher. A labelled tab strip in the drawer/tab visual language
+  // (js/drawer.js's `.bd-tab` pattern), NOT a pair of edge arrows: a child should be able
+  // to read where she is going. This is navigation between scenes, not a physical action,
+  // so G8's direct-manipulation law does not reach it.
+  const roomTabs = ROOM ? el('nav', { class: 't-room-tabs', 'aria-label': 'Rooms in the Boo House' },
+    HOUSE_ROOMS.map(r => el('button', {
+      class: 't-room-tab' + (r.id === roomId ? ' sel' : ''),
+      type: 'button',
+      'data-room': r.id,
+      'aria-label': `Go to the ${r.name}`,
+      'aria-current': r.id === roomId ? 'page' : undefined,
+      onclick: () => {
+        if (r.id === roomId) return;
+        sfx.tap();
+        roomScroll.set(STORE_KEY, scrollX);
+        ctx.go('town', { area: 'boohouse', room: r.id });
+      }
+    }, [el('span', { class: 'rt-ic', text: r.icon }), el('span', { class: 'rt-lbl', text: r.name })]))) : null;
   const hint = el('div', { class: 'town-hint-bar' });
 
   const sky = el('div', { class: 't-layer t-sky' });
@@ -296,7 +348,7 @@ export function mount(container, params, ctx) {
   const drawer = drawerApi.root;   // kept as `drawer` — existing wobble/capacity-tint code targets it
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
   updateBuildUI();   // hides the Landscape tab + build tool rows until the hammer is tapped
-  root.append(header, hint, viewport, drawer);
+  root.append(header, hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
   container.appendChild(root);
 
   // Day / night tint.
@@ -309,7 +361,7 @@ export function mount(container, params, ctx) {
   // The Boo House starts with a rug + table lamp pre-placed (RUN10 P4) — a one-time seed,
   // not a grant (they aren't added to inventory, so they don't count as "collected" until
   // she wins her own copy from a box).
-  if (AREA.key === 'boohouse' && !((getState().seen || {}).boohouseSeeded)) {
+  if (STORE_KEY === 'boohouse' && !((getState().seen || {}).boohouseSeeded)) {
     mutate(st => {
       st.seen = st.seen || {};
       st.seen.boohouseSeeded = true;
@@ -360,6 +412,7 @@ export function mount(container, params, ctx) {
   window.addEventListener('resize', onResize);
 
   // ---- layout / render ----------------------------------------------------
+  let cameraRestored = false;   // RUN13 T3: this room's saved camera is restored once, on first layout
   function layout() {
     viewH = viewport.clientHeight || 400;
     viewW = viewport.clientWidth || 600;
@@ -374,6 +427,12 @@ export function mount(container, params, ctx) {
     buildGrid.style.backgroundSize = cell + 'px ' + cell + 'px';
     renderScenery();
     renderPlaced();
+    // RUN13 T3: restore this room's own camera the first time it lays out.
+    if (ROOM && !cameraRestored) {
+      cameraRestored = true;
+      const saved = roomScroll.get(STORE_KEY);
+      if (saved != null) scrollX = saved;
+    }
     clampScroll();
     applyScroll();
   }
@@ -399,7 +458,7 @@ export function mount(container, params, ctx) {
   // holds one (RUN10 P3: painting doesn't hit the save on every cell — see commitPaths).
   function currentPaths() {
     if (pendingPaths) return pendingPaths;
-    const a = getState().town.areas[AREA.key];
+    const a = getState().town.areas[STORE_KEY];
     return (a && a.paths) || [];
   }
   function renderPaths() {
@@ -414,7 +473,7 @@ export function mount(container, params, ctx) {
     if (rec) ground.appendChild(pathCellEl(rec));
   }
   function loadPendingPaths() {
-    const a = getState().town.areas[AREA.key];
+    const a = getState().town.areas[STORE_KEY];
     pendingPaths = a && Array.isArray(a.paths) ? a.paths.slice() : [];
   }
   // Flushes the in-memory batch to the save. Also the setInterval(commitPaths, 10000)
@@ -423,7 +482,7 @@ export function mount(container, params, ctx) {
   function commitPaths() {
     if (!pendingPaths) return;
     const toSave = pendingPaths;
-    mutate(st => { areaItems(st); st.town.areas[AREA.key].paths = toSave.slice(); });
+    mutate(st => { areaItems(st); st.town.areas[STORE_KEY].paths = toSave.slice(); });
   }
   function pathCapWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
@@ -1312,7 +1371,12 @@ export function mount(container, params, ctx) {
     // per nearby free Boo. Sockets fill independently — a lone seesaw rider just sits
     // still (stepRole checks sibling occupancy before it pivots); no more "only start
     // when both seats can fill at once".
-    for (const id of ACT_IDS) {
+    // RUN13 T3: at night, in the house, the beds are claimed FIRST — a Boo who is in the
+    // Bedroom when the lamps go out routes to the bed rather than settling for the rug.
+    const orderedActIds = (isInterior && night)
+      ? [...ACT_IDS].sort((p, q) => (HOUSE_KIND_FOR[q] === 'housenap' ? 1 : 0) - (HOUSE_KIND_FOR[p] === 'housenap' ? 1 : 0))
+      : ACT_IDS;
+    for (const id of orderedActIds) {
       const sockets = SOCKETS[id]; if (!sockets) continue;
       const kind = KIND_FOR[id];
       for (const t of decosOf(id)) {
@@ -1358,6 +1422,50 @@ export function mount(container, params, ctx) {
       case 'sleep': {
         const breathe = 1 + Math.sin(t / 900) * 0.025;
         svg.style.transform = `translateY(9px) scale(1.06, ${(0.84 * breathe).toFixed(3)})`;
+        break;
+      }
+      // ---- RUN13 T3: the three room-appropriate house behaviours ----------------------
+      // NAP (Bedroom). A bed is a socket, so she lies ON the mattress rather than beside
+      // it, and she breathes. Nobody is tired; she simply likes the bed.
+      case 'housenap': {
+        const breathe = 1 + Math.sin(t / 950) * 0.03;
+        svg.style.transform = `translate(${r.offX.toFixed(1)}px, 6px) rotate(-90deg) scale(0.86, ${(0.88 * breathe).toFixed(3)})`;
+        if (!a.wrap.querySelector('.t-zzz')) a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
+        break;
+      }
+      // SNACK (Kitchen). A nibble cycle at the table: lean in, munch, sit back, a crumb
+      // pip now and then. There is no hunger anywhere in this app and never will be (G9) —
+      // this is a Boo enjoying a biscuit, which is a scene, not a need.
+      case 'snack': {
+        const p = (t % SNACK_BITE_MS) / SNACK_BITE_MS;
+        const lean = Math.sin(p * Math.PI * 2) * 5;
+        const munch = p < 0.45 ? 1 + Math.sin(p * Math.PI * 8) * 0.035 : 1;
+        svg.style.transform = `translate(${(r.offX + lean).toFixed(1)}px, -2px) scale(${munch.toFixed(3)}, ${(2 - munch).toFixed(3)})`;
+        if (!REDUCED && t - (r.lastCrumb || -9999) > SNACK_BITE_MS) {
+          r.lastCrumb = t;
+          const pip = el('i', { class: 't-snack-crumb' });
+          a.wrap.appendChild(pip);
+          setTimeout(() => pip.remove(), 700);
+        }
+        break;
+      }
+      // LOUNGE (Lounge). Two Boos on a sofa or a rug swap chat pips while they settle in
+      // and out of a gentle sway. A lone lounger just relaxes — same rule as the seesaw.
+      case 'lounge': {
+        const arr = r.socketArrKey ? socketUse.get(r.socketArrKey) : null;
+        const together = arr && arr.filter(Boolean).length >= 2;
+        const sway = Math.sin(t / 1100 + (r.slot || 0) * 1.7) * 3;
+        svg.style.transform = `translate(${(r.offX + sway).toFixed(1)}px, -2px) rotate(${(sway * 0.5).toFixed(1)}deg) scale(0.94)`;
+        if (together && !REDUCED && t - (r.lastPip || -9999) > CHAT_PIP_MS) {
+          r.lastPip = t;
+          // Alternate who is talking, so it reads as a conversation rather than two
+          // Boos monologuing at the same instant.
+          if ((Math.floor(t / CHAT_PIP_MS) % 2) === (r.slot || 0) % 2) {
+            const pip = el('i', { class: 't-chat-pip', text: ['\u2026', '!', '?', '\u2665'][Math.floor(Math.random() * 4)] });
+            a.wrap.appendChild(pip);
+            setTimeout(() => pip.remove(), 1500);
+          }
+        }
         break;
       }
       case 'swing': {
@@ -2914,6 +3022,13 @@ export function mount(container, params, ctx) {
       scrollToFunfairGate: () => { scrollX = (ZONE_INDEX['funfair'] ?? 0) * zoneW; clampScroll(); applyScroll(); },   // funfair centred but bandstand off-screen → jingle
       zoneMusic: () => _zoneMusic,
       area: () => AREA.key,   // RUN10 P1 QA hook: which area this mount is rendering
+      // RUN13 T3 QA hooks: which Boo House room is open, its storage key, and its camera.
+      room: () => roomId,
+      roomKey: () => STORE_KEY,
+      scrollX: () => scrollX,
+      scrollTo: (px) => { scrollX = px; clampScroll(); applyScroll(); return scrollX; },
+      chatPips: () => ground.querySelectorAll('.t-chat-pip').length,
+      snackCrumbs: () => ground.querySelectorAll('.t-snack-crumb').length,
       // RUN10 P1: an area is 4 viewports wide, so a single "centred" scroll no longer
       // shows the whole area (e.g. the funfair's 5 rides span x 0.18-0.92) — tests that
       // need a specific spot in view should scroll to it directly.

@@ -9,6 +9,9 @@ const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const AREAS = ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery'];
+// RUN13 T3: v15 adds the Boo House's two extra rooms as storage keys. The Lounge KEEPS the
+// original 'boohouse' key, which is the whole point — a pre-rooms house needs no rewriting.
+const HOUSE_ROOM_KEYS = ['boohouse_kitchen', 'boohouse_bedroom'];
 const now = Date.now();
 
 // Realistic per-era saves. Each carries genuine progress that must survive to v11.
@@ -50,6 +53,16 @@ function eraSave(version) {
   if (version >= 10) base.bloom = { max: { identify: 40, compute: 22 } };          // P19 bloom era
   if (version >= 11) base.wishes = { unlocked: { star: true, cake: true } };       // P20 wishes era
   if (version >= 12) base.lastBackupAt = 1_700_000_000_000;                        // RUN8 v2 backup era
+  // A furnished pre-rooms Boo House (every era from v6 on could have one) — this is the
+  // data RUN13 T3's room split must carry through untouched.
+  if (version >= 6) {
+    base.town.areas.boohouse.items = [
+      { zone: 'boohouse', x: 0.22, row: 1, item: 'deco_rug', scale: 1.2 },
+      { zone: 'boohouse', x: 0.58, row: 2, item: 'deco_sofa', scale: 1 },
+      { zone: 'boohouse', x: 0.80, row: 3, item: 'deco_bookshelf', scale: 1 }
+    ];
+    base.town.areas.boohouse.paths = [{ cx: 3, cy: 4, style: 'stone' }];
+  }
   return base;
 }
 
@@ -68,11 +81,22 @@ for (let v = 5; v <= 14; v++) {
   assert(eq(m.ledger, src.ledger), `v${v}: mistake ledger preserved`);
   assert(m.shinies.boo_nova === 1 && m.shinyDrops === 7, `v${v}: shiny data preserved`);
   // town: three placed items survive, area-scoped, by their original zone
+  const houseItems = v >= 6 ? 3 : 0;
   const items = AREAS.reduce((n, k) => n + m.town.areas[k].items.length, 0);
-  assert(items === 3, `v${v}: all 3 town placements survive (${items})`);
+  assert(items === 3 + houseItems, `v${v}: all ${3 + houseItems} town placements survive (${items})`);
   assert(m.town.areas.meadow.items.some(i => i.item === 'boo_pip'), `v${v}: meadow item kept`);
   assert(m.town.areas.beach.items.some(i => i.item === 'boo_nova'), `v${v}: beach item kept`);
   assert(AREAS.every(k => m.town.areas[k] && Array.isArray(m.town.areas[k].items) && Array.isArray(m.town.areas[k].paths)), `v${v}: all 8 areas present`);
+  // RUN13 T3 (v15): the two new Boo House rooms appear, EMPTY, and the old house becomes
+  // the Lounge with every placement — position, row, scale — and its floor paths intact.
+  assert(HOUSE_ROOM_KEYS.every(k => m.town.areas[k] && Array.isArray(m.town.areas[k].items) && Array.isArray(m.town.areas[k].paths)),
+    `v${v}: the Kitchen and the Bedroom exist`);
+  assert(HOUSE_ROOM_KEYS.every(k => m.town.areas[k].items.length === 0), `v${v}: nothing was invented in the new rooms`);
+  if (v >= 6) {
+    assert(eq(m.town.areas.boohouse.items, src.town.areas.boohouse.items),
+      `v${v}: the pre-rooms Boo House became the Lounge with every placement byte-identical`);
+    assert(eq(m.town.areas.boohouse.paths, src.town.areas.boohouse.paths), `v${v}: its floor paths survived too`);
+  }
   // equips: however stored, boo_pip ends up wearing acc_shades in the face slot
   assert(m.equips.boo_pip && m.equips.boo_pip.face === 'acc_shades', `v${v}: accessory carried into a slot`);
   // new-era fields default cleanly (never undefined)

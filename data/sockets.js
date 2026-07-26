@@ -18,7 +18,27 @@ export const SOCKETS = {
   deco_picnic:     [{ x: -0.18, row: 2, yFrac: -0.191 }, { x: 0.18, row: 2, yFrac: -0.191 }],
   deco_paddlepool: [{ x: -0.15, row: 2, yFrac: -0.198 }, { x: 0.15, row: 2, yFrac: -0.198 }],
   deco_pond:       [{ x: 0, row: 2, role: 'fish', yFrac: -0.074 }],
-  deco_bumper:     [{ x: 0, row: 2 }]
+  deco_bumper:     [{ x: 0, row: 2 }],
+  // ---- RUN13 T3: house furniture sockets ------------------------------------------------
+  // Same convention as above: x = fraction of the item's rendered width from its centre,
+  // yFrac = fraction of its rendered height the surface sits above its own ground line,
+  // both read from the shared 0 0 120 130 deco viewBox in art.js renderDeco and then
+  // measured against real screenshots for pixel contact (r13t3-house-rooms).
+  // Bedroom - NAP: the mattress top is y=78, so the sleeper lies on it, not beside it.
+  // yFrac = (seatY - 120) / 130, where seatY is the surface's own y in the 0 0 120 130
+  // deco viewBox. That identity falls straight out of town.js `give()` and renderPlaced()
+  // and is what makes these values checkable by hand rather than dialled in by eye.
+  deco_bed:        [{ x: -0.06, row: 2, yFrac: -0.323, role: 'nap' }],                                   // mattress top y=78
+  deco_bunkbed:    [{ x: -0.04, row: 2, yFrac: -0.231, role: 'nap' }, { x: 0.04, row: 2, yFrac: -0.585, role: 'nap' }],  // lower y=90, upper y=44
+  // Kitchen - SNACK: a Boo stands AT the table (feet on the floor line, y=102), nibbling.
+  deco_table:      [{ x: -0.30, row: 2, yFrac: -0.138 }, { x: 0.30, row: 2, yFrac: -0.138 }],            // legs meet the floor at y=102
+  deco_kitchentable: [{ x: -0.32, row: 2, yFrac: -0.138 }, { x: 0.32, row: 2, yFrac: -0.138 }],
+  deco_counter:    [{ x: -0.34, row: 2, yFrac: -0.138 }, { x: 0.34, row: 2, yFrac: -0.138 }],
+  deco_stool:      [{ x: 0, row: 2, yFrac: -0.323 }],                                                    // seat y=78
+  // Lounge - LOUNGE: the sofa's cushion line is y=80; the rug is floor level.
+  deco_sofa:       [{ x: -0.22, row: 2, yFrac: -0.308 }, { x: 0.22, row: 2, yFrac: -0.308 }],           // cushion line y=80
+  deco_armchair:   [{ x: 0, row: 2, yFrac: -0.308 }],
+  deco_rug:        [{ x: -0.20, row: 2, yFrac: 0 }, { x: 0.20, row: 2, yFrac: 0 }]                       // flat on the floor
 };
 
 // Hide-and-seek 2.0 (RUN10 P5): where the daily hider peeks from on each hide-capable
