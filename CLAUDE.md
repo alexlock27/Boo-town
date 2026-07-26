@@ -52,9 +52,24 @@ main. Vanilla HTML/JS/CSS. No frameworks. No build step. ~1MB total.
 - Push auth failure → queue commits, keep building, record the exact ask in
   NEEDS_ALEX.md. (The maintainer holds a fine-grained PAT in their password manager.)
 
-## Testing
-- Suite: ./_runall.sh (Playwright, serial). New tests join tests/ so the glob finds
-  them; avoid the excluded prefixes shoot, sim-blocks, device-qa.
+## Testing — THE BOARD LAW (RUN14 U-0, binding on every future run)
+- Board: `./_runall.sh` — SHARDED: N worker lanes (default 3, auto 4 on 8+ cores,
+  `--workers N`) balanced by tests/lib/board-durations.json, then the `@serial` set
+  (frame-sampling, audio-timing, device-simulation suites, tagged `// @serial` in
+  their headers) runs ALONE at the end. `--serial` restores the old one-at-a-time mode.
+- Packet gates use `./_runall.sh --smoke` (routes + contrast audit + era migrations +
+  `SMOKE_EXTRA="…"` for the packets touched this session; target under 5 minutes).
+  FULL boards run EXACTLY once per run, at its end gate.
+- Never edit any file while any board is running. If a board finds failures: let it
+  finish, fix, verify the fixed suites directly, and rerun the board only if product
+  files changed materially. Report every board's wall time.
+- Budget: the full sharded board completes in 25 minutes or less; no single suite
+  exceeds 120 seconds except @serial frame-evidence suites justified in writing in
+  tests/board-serial-baseline.md. Any new suite states its expected runtime when added.
+- A lone sharded-board failure must reproduce serially before it counts as real
+  (parallel load slows rAF cadence several-fold; suites poll with generous ceilings).
+- New tests join tests/ so the glob finds them; avoid the excluded prefixes shoot,
+  sim-blocks, device-qa.
 - Pitfalls: seed saves in a FRESH browser context (live autosave overwrites seeds);
   hub fixtures need `ageAsked:true`; frame-sampling suites can flake under batch
   load — re-run a FAIL directly once before treating it as real.

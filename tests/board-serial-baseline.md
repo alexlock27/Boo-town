@@ -1,5 +1,29 @@
 # Boo Town — OFFICIAL serial full-board baseline
 
+> **RUN14 U-0 ACCEPTANCE — RECORDED 2026-07-26 ~21:00.** The first sharded board ran
+> against this baseline: **127 suites (125 baseline + r13bt7/r13bt8 from RUN13B),
+> 4 workers, parallel 514s + @serial tail 712s = 20m 26s wall** against the baseline's
+> 53m 40s — a 62% cut, inside the 25-minute budget. In-board verdict: PASS=124 FAIL=3,
+> triaged per the baseline's own protocol:
+> - `r7p2-zones` — NOT a sharding regression: RUN13B T8 (after this baseline) dressed
+>   the meadow, superseding the suite's "meadow has no zone-props layer" assertion.
+>   The suite now asserts the standing rule (layer present, pointer-events none).
+> - `r6p8-booquest`, `r10p3-buildmode` — parallel-LOAD sensitivity, not sharding
+>   correctness: both reproduce green serially, first try. Their waits are now
+>   load-proof (rAF-paced choreography gets a generous polling ceiling; no assertion
+>   weakened). Verified green after hardening.
+> Zero failures were sharding bugs (no suite dropped, no cross-suite interference).
+>
+> **@serial suites over the 120s budget, justified (Board Law):**
+> - `r13t5-cosmetics` (194s) — species-idle / dance frame evidence: dozens of 6+ frame
+>   pixel-hash sequences under real clocks; parallel load starves the rAF cadence.
+> - `r13t1-care-direct` (168s) — pixel-hashed 8-frame sequences per care action per
+>   viewport; same real-clock evidence law.
+> - `r12s12-bubble-containment` (132s) — a 60s live containment watch plus a 22s
+>   respawn watch; the minute-long observation IS the assertion.
+> Every non-@serial suite measured under 120s (slowest: r12s4-contrast 109s,
+> r4p3-rewards 108s, r12s1-routes 94s).
+
 > **This file is the official serial comparison baseline for RUN14 packet U-0's sharding
 > acceptance.** A sharded run is accepted only if it reproduces the PASS and FAIL verdicts
 > below **exactly**: the same suites passing, the same suites failing, and the same number

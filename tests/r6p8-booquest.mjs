@@ -124,9 +124,11 @@ console.log('== full run of The Sparkle Meadow ==');
   await page.evaluate(() => window.__booquest.open());
   assert(await page.evaluate(() => window.__booquest.curType()) === 'chest', 'node 5 is a Treasure Chest');
   await page.evaluate(() => window.__booquest.answer());   // taps the chest → grants a box + ceremony
-  await page.waitForSelector('.gift-box', { timeout: 6000 });
-  for (let i = 0; i < 3; i++) { await page.click('.gift-box', { force: true }); await sleep(220); }
-  await page.waitForSelector('.reveal-card', { timeout: 6000 });
+  await page.waitForSelector('.gift-box', { timeout: 12000 });
+  // 3 real taps open the box; under parallel-board load a 220ms cadence could outrun the
+  // squash animation classes, so pace generously and give the reveal a load-proof window
+  for (let i = 0; i < 3; i++) { await page.click('.gift-box', { force: true }); await sleep(340); }
+  await page.waitForSelector('.reveal-card', { timeout: 12000 });
   await gotoQuest(page);   // straight back into the quest (resumes at the boss)
 
   // node 5 — Boss Grump: 5 cheers → land complete
