@@ -298,8 +298,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* ---- RUN15 V4 — the Boo Shop ------------------------------------------------------ */
 .screen.shop { display: flex; flex-direction: column; height: 100%; gap: 6px; }
 .shop-header { display: flex; align-items: center; gap: 10px; padding: 6px 56px 0 12px; }
-.shop-title { margin: 0; font-size: 22px; }
-.shop-sub { margin: 0; font-size: 13px; color: #574B86; }
+/* G7: the header sits on the app's dark backdrop, not on a card — cream text, not ink. */
+.shop-title { margin: 0; font-size: 22px; color: var(--card); }
+.shop-sub { margin: 0; font-size: 13px; color: #D9CFF2; }
 .shop-help { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); font: 700 20px var(--font-display); color: var(--ink); }
 .shop-purse { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 0 10px 4px; }
 .purse-chip {
