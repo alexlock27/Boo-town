@@ -28,8 +28,11 @@ async function openCeremony() {
     await page.waitForSelector('.gift-box, .hub', { timeout: 6000 });
     if (await page.$('.hub')) return;
     if (!(await page.$('.gift-box'))) return;
-    for (let i = 0; i < 3; i++) { await page.click('.gift-box', { force: true }); await page.waitForTimeout(240); }
-    await page.waitForSelector('.reveal-card', { timeout: 4000 });
+    // Load-proof: the box's three squash animations and the reveal flip are rAF-paced, and
+    // under a 4-lane board a background tab's rAF slows several-fold. Generous ceilings,
+    // same assertions (serial runs still complete this in well under a second).
+    for (let i = 0; i < 3; i++) { await page.click('.gift-box', { force: true }); await page.waitForTimeout(340); }
+    await page.waitForSelector('.reveal-card', { timeout: 12000 });
     await page.waitForTimeout(450);
     const btns = await page.$$('.reveal-btns .btn');
     await btns[btns.length - 1].click({ force: true }); // keep / Yay
