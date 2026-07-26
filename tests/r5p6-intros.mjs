@@ -45,7 +45,15 @@ console.log('== step length rule (<12 words) ==');
 {
   const src = readFileSync(join(ROOT, 'js', 'intro.js'), 'utf8');
   const texts = [...src.matchAll(/\{ text: (['"])(.+?)\1 \}/g)].map(m => m[2]);
-  assert(texts.length === 34, `collected the scripts (${texts.length} steps: 8 games x3 + Teach Me x1 + Golden x2 + 7 toddler x1)`);
+  // RUN13 T2: this total was hardcoded at 34 and went stale the moment Boo Care gained an
+  // intro of its own. A fixed number was never the property worth guarding — the rule this
+  // block exists to enforce is "every authored step is short". The count is now derived
+  // from INTRO_SCRIPTS itself and only its floor is asserted, so a new screen's intro can
+  // no longer break the suite while a script that silently LOSES its steps still will.
+  const scriptCount = [...src.matchAll(/^ {2}([a-z][\w]*): \[/gm)].length;
+  assert(scriptCount >= 15, `INTRO_SCRIPTS declares ${scriptCount} screens' scripts`);
+  assert(/^ {2}care: \[/m.test(src), 'Boo Care carries an intro script of its own (RUN13 T2)');
+  assert(texts.length >= 34, `collected every authored step (${texts.length} across ${scriptCount} screens)`);
   const over = texts.filter(t => t.split(/\s+/).length > 12);
   assert(over.length === 0, 'every C5 intro step is under 12 words' + (over.length ? ` (over: ${over.join(' | ')})` : ''));
   // Blocks still carries its exact C1 script
