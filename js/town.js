@@ -28,7 +28,7 @@ import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rar
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
-import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait } from './care.js';
+import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions } from './care.js';
 import { openWishWell } from './wishwell.js';
 import { wishId, wishItem } from '../data/wishes.js';
 
@@ -2086,12 +2086,9 @@ export function mount(container, params, ctx) {
   function showCareArc(wrap, place, item) {
     clearCareArc();
     ground.classList.add('care-open');
-    const actions = [
-      ['feed', '🍪', 'Treat'],
-      ['brush', '🪮', 'Brush'],
-      ['teeth', '🪥', 'Teeth'],
-      ['play', '🙈', 'Play']
-    ];
+    // RUN13 T1: the flourish reads its actions from care.js so Bath (and anything after it)
+    // cannot be added in one place and forgotten in the other.
+    const actions = careActions().map(a => [a.id, a.icon, a.label]);
     const arc = el('div', { class: 'town-care-arc', 'aria-label': `Care for ${getDisplayName(item.id)}` });
     actions.forEach(([id, icon, label], i) => {
       const button = el('button', {
