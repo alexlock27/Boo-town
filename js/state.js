@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 16;  // v16: Boo Roll 3.0's six authored courses (RUN14 U1; P8 records retire to booRoll.legacy). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 17;  // v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -17,7 +17,15 @@ function freshSave() {
     // Run-2 guide shape (5 species on one rig). See art.js normalizeGuide.
     guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'Twiggy' },
     stars: {
+      // LIFETIME total — the sum of every star ever earned. Zone unlocks, the meter and
+      // every card read this, and a shop purchase NEVER reduces it (RUN15 G11).
       total: 0,
+      // RUN15 V1: typed stars. byType is LIFETIME per type and also never shrinks;
+      // `spent` is the separate spending ledger, and `legacy` is the pool a pre-shop
+      // save's total migrates into (it spends as any type). See data/startypes.js.
+      byType: { maths: 0, word: 0, puzzle: 0, creative: 0, lesson: 0 },
+      spent: { maths: 0, word: 0, puzzle: 0, creative: 0, lesson: 0, legacy: 0 },
+      legacy: 0,
       byGame: {
         // earned = lifetime stars this game has credited to the total (RUN5 C0 Star Ledger).
         bubblepop: { best: 0, plays: 0, earned: 0 },
@@ -367,6 +375,18 @@ export function migrate(obj) {
       }
     }
     if (Object.keys(legacy.best || {}).length || Object.keys(legacy.medals || {}).length) merged.booRoll.legacy = legacy;
+  }
+  // v17 (RUN15 V1): typed stars. Existing totals cannot be attributed retrospectively —
+  // nobody recorded which game paid for what — so the whole lifetime total migrates into
+  // the LEGACY pool, which spends like any type. Generous by design, and the shop says so
+  // in as many words. LOSSLESS: total is untouched, byType starts empty (nothing is
+  // invented), and legacy exactly equals what she had. Idempotent: a save already at v17
+  // has its legacy set and is not topped up again.
+  if ((o.version || 0) < 17) {
+    merged.stars = merged.stars || {};
+    merged.stars.byType = merged.stars.byType || { maths: 0, word: 0, puzzle: 0, creative: 0, lesson: 0 };
+    merged.stars.spent = merged.stars.spent || { maths: 0, word: 0, puzzle: 0, creative: 0, lesson: 0, legacy: 0 };
+    merged.stars.legacy = Math.max(0, Math.round(merged.stars.total || 0));
   }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);

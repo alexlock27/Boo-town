@@ -6,7 +6,8 @@ import { renderGuide } from './art.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { addMeterPoints, METER_CAP, meterState } from './rewards.js';
-import { meterPointsFor, rankName, levelRank } from './comfort.js';
+import { meterPointsFor, rankName, levelRank, spendableAward } from './comfort.js';
+import { starTypeFor, typeByKey } from '../data/startypes.js';
 import { mountRescue, persistUnrescued } from './trickypile.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
@@ -15,7 +16,8 @@ import { grantRoundTreat } from './care.js';
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
-          cat = null, level = null, mix = false, extraCosy = false, partial = null } = params || {};
+          cat = null, level = null, mix = false, extraCosy = false, partial = null,
+          starType = null } = params || {};
   const s = getState();
   // The Tricky Pile is already "collected"; persist immediately so an early exit keeps them.
   if (tricky.length) persistUnrescued(tricky.map(t => t.id));
@@ -67,6 +69,19 @@ export function mount(container, params, ctx) {
     ? { points: meterOverride, brave: false, cosy: false, above: false, comfort: 0 }
     : meterPointsFor({ game, cat, level, mix, stars, roundKeys, extraCosy });
   const banked = addMeterPoints(verdict.points);
+  // RUN15 V1+V2: the typed, SPENDABLE award. It rides the same single crediting path as
+  // the lifetime total — no game module ever writes these — and it is computed AFTER the
+  // verdict because the above-comfort floor depends on it.
+  //   • the round's displayed stars are UNCHANGED (1-3 still means "how well did I do");
+  //   • byType is LIFETIME per type and, like total, is never reduced by anything;
+  //   • a Level 2/3/4+ round pays a multiplier, and a round above her comfort level pays
+  //     at least ABOVE_COMFORT_FLOOR — stretching is never worse than staying.
+  const award = spendableAward({ stars, level, above: verdict.above });
+  const roundType = starTypeFor(game, cat, starType);
+  mutate(st => {
+    st.stars.byType = st.stars.byType || { maths: 0, word: 0, puzzle: 0, creative: 0, lesson: 0 };
+    st.stars.byType[roundType] = (st.stars.byType[roundType] || 0) + award.spendable;
+  });
   const lineKey = partial ? 'leftEarly' : stars >= 3 ? 'threeStars' : stars === 2 ? 'twoStars' : 'oneStar';
 
   // daily quests + Journal (RUN3 C4) + occasional requests (RUN3 C8)
@@ -132,6 +147,25 @@ export function mount(container, params, ctx) {
     bubble.classList.add('pop');
     speakMaybe(bubble.textContent);
     if (stars >= 3) confetti({ count: 90, power: 1 });
+
+    // RUN15 V1/V2: the award panel. It says WHICH stars this round paid, and celebrates
+    // any bonus. Every line here is additive and upward — there is no "less than" state
+    // to display, because there is never a smaller number than the round's own stars.
+    const t = typeByKey(roundType);
+    const awardBox = el('div', { class: 'result-award' }, [
+      el('div', { class: 'ra-earned' }, [
+        el('span', { class: 'ra-ic', text: t.icon }),
+        el('span', { class: 'ra-amount', text: `+${award.spendable}` }),
+        el('span', { class: 'ra-type', text: t.name })
+      ]),
+      award.bonusLine ? el('div', { class: 'ra-bonus', text: award.bonusLine }) : null,
+      verdict.above ? el('div', { class: 'ra-brave' }, [
+        el('span', { class: 'ra-brave-chip', text: '💪 Brave' }),
+        el('span', { class: 'ra-brave-note', text: award.floored ? 'You tried something harder — extra stars for that!' : 'You tried something harder!' })
+      ]) : null
+    ]);
+    card.insertBefore(awardBox, meterBox);
+    if (typeof window !== 'undefined') window.__resultAward = { type: roundType, ...award, above: verdict.above, stars };
 
     // fill meter: from `before` up to new meter (handle wrap visually)
     fillMeter(before, banked.meter, banked.boxesEarned);

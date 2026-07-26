@@ -32,6 +32,7 @@ const registry = {
   echoboos:   () => import('./games/echoboos.js'),     // Echo Boos (RUN9 C5)
   oddboo:     () => import('./games/oddboo.js'),        // RUN10 P19
   flashboos:  () => import('./games/flashboos.js'),     // RUN10 P19
+  shop:       () => import('./shop.js'),         // the Boo Shop (RUN15 V4)
   golden:     () => import('./golden.js'),
   toddlergame: () => import('./toddler.js'),   // Toddler mode's four games (RUN5 C7)
   studio:     () => import('./studio.js'),

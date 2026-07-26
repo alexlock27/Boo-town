@@ -78,6 +78,36 @@ export function isMasteredRound(roundKeys) {
 // round). Smart Mix / Pick for me / category-less rounds are always exempt from
 // the cosy cap (the Golden Round is exempt upstream via meterOverride). extraCosy
 // lets a game declare its own cosy condition (Boo Pop's Twin Pop tutorial, C7).
+// ---- RUN15 V2: honest difficulty rewards ---------------------------------------------
+// The problem: three stars from a trivial Level 1 round versus one star from a hard
+// Level 3 round teaches a child to pick easy. The fix pays MORE for stretching — never
+// less for staying. The displayed round stars are untouched (1-3 still means "how well
+// did I do"); this multiplies only the SPENDABLE award.
+export const LEVEL_MULTIPLIER = { 0: 1, 1: 1, 2: 1.5, 3: 2 };   // 4+ → LEVEL_MULT_HIGH
+export const LEVEL_MULT_HIGH = 2.5;
+export const ABOVE_COMFORT_FLOOR = 2;   // stretching is never worse than staying
+export const BONUS_COPY = {             // authored exactly (RUN15 V2.1)
+  2: 'Level 2 bonus — one and a half stars!',
+  3: 'Level 3 bonus — double stars!',
+  4: 'Level 4 bonus — two and a half stars!'
+};
+export function levelMultiplier(level) {
+  const r = levelRank(level);
+  return r >= 4 ? LEVEL_MULT_HIGH : (LEVEL_MULTIPLIER[r] != null ? LEVEL_MULTIPLIER[r] : 1);
+}
+// The spendable award for a round. `stars` is what the round scored (1-3, unchanged).
+// Returns { spendable, multiplier, bonusLine, floored } — floored means the
+// above-comfort floor lifted it, which the results screen says warmly.
+export function spendableAward({ stars = 1, level = null, above = false }) {
+  const multiplier = levelMultiplier(level);
+  let spendable = Math.ceil(stars * multiplier);
+  let floored = false;
+  if (above && spendable < ABOVE_COMFORT_FLOOR) { spendable = ABOVE_COMFORT_FLOOR; floored = true; }
+  const rank = levelRank(level);
+  const bonusLine = multiplier > 1 ? (BONUS_COPY[Math.min(4, rank)] || BONUS_COPY[4]) : null;
+  return { spendable, multiplier, bonusLine, floored };
+}
+
 export function meterPointsFor({ game, cat, level, mix = false, stars = 1, roundKeys = [], extraCosy = false }) {
   const base = stars + (stars >= 3 ? THREE_STAR_BONUS : 0);
   const exempt = !!mix || !cat || level == null;

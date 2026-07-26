@@ -678,6 +678,18 @@ export function mount(container, params, ctx) {
       sign.style.left = (zoneW * .5) + 'px'; sign.style.top = (groundY - 56) + 'px';
       ground.appendChild(sign);
     }
+    // RUN15 V4: the Boo Shop's market stall, a permanent fixture of the Meadow. It is not
+    // placeable, not buyable and never in the way — a door, drawn where a door should be.
+    if (AREA.key === 'meadow') {
+      const stallX = zoneW * 0.42;
+      const stall = el('button', {
+        class: 't-shop-stall', 'aria-label': 'Go to the Boo Shop',
+        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); ctx.go('shop'); }
+      });
+      stall.style.left = stallX + 'px';
+      stall.style.top = (groundY - 118) + 'px';
+      ground.appendChild(stall);
+    }
     // RUN10 P21: at dusk an UNOWNED Boo wanders the far background. Pure scenery — one tap
     // gives one giggle and one sparkle, and never anything else.
     const visitor = duskVisitor(AREA.key, currentHour());
@@ -3859,6 +3871,29 @@ function playgroundScenery(w, h, night, opts = {}) {
     <path d="M-50 -70 h100 l-8 -14 h-84 z" fill="#3D8B84" stroke="#2A6B5E" stroke-width="3"/>
     ${poster}</g>`;
   return rSVG(w, h, `${fence}${noticeboard}${hopscotch}${bunting}`);
+}
+
+// RUN15 V4 — the Boo Shop's market stall in the Meadow: a striped awning, a counter with
+// a few things on it, and a hanging sign. Sticker style, like everything else out here.
+function shopStallSVG() {
+  const stripes = Array.from({ length: 6 }, (_, i) =>
+    `<path d="M${8 + i * 20} 30 L${20 + i * 20} 30 L${16 + i * 20} 52 L${4 + i * 20} 52 Z" fill="${i % 2 ? '#FFF8F0' : '#FF7AC6'}"/>`).join('');
+  return `<svg viewBox="0 0 130 118" width="130" height="118" xmlns="http://www.w3.org/2000/svg">
+    <rect x="14" y="52" width="8" height="60" rx="3" fill="#A9743F" stroke="#5C3A2E" stroke-width="3"/>
+    <rect x="108" y="52" width="8" height="60" rx="3" fill="#A9743F" stroke="#5C3A2E" stroke-width="3"/>
+    <path d="M2 30 h126 l-8 24 h-110 z" fill="#FF7AC6" stroke="#2A1B4E" stroke-width="3"/>
+    <g clip-path="url(#stallClip)">${stripes}</g>
+    <defs><clipPath id="stallClip"><path d="M2 30 h126 l-8 24 h-110 z"/></clipPath></defs>
+    <path d="M2 30 h126 l-8 24 h-110 z" fill="none" stroke="#2A1B4E" stroke-width="3"/>
+    <rect x="8" y="74" width="114" height="12" rx="4" fill="#C9935F" stroke="#5C3A2E" stroke-width="3"/>
+    <rect x="20" y="60" width="16" height="14" rx="3" fill="#8FC7FF" stroke="#2A1B4E" stroke-width="2.5"/>
+    <rect x="44" y="62" width="14" height="12" rx="3" fill="#FFC93C" stroke="#2A1B4E" stroke-width="2.5"/>
+    <ellipse cx="76" cy="68" rx="9" ry="7" fill="#35D0BA" stroke="#2A1B4E" stroke-width="2.5"/>
+    <rect x="92" y="60" width="14" height="14" rx="3" fill="#C6A9F0" stroke="#2A1B4E" stroke-width="2.5"/>
+    <rect x="40" y="4" width="50" height="22" rx="6" fill="#FFF3E0" stroke="#5C3A2E" stroke-width="3"/>
+    <path d="M50 26 v4 M80 26 v4" stroke="#5C3A2E" stroke-width="2.5"/>
+    <text x="65" y="20" font-family="Fredoka,sans-serif" font-size="13" font-weight="700" fill="#2A1B4E" text-anchor="middle">SHOP</text>
+  </svg>`;
 }
 
 function signSVG() {

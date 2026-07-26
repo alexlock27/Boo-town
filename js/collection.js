@@ -166,7 +166,10 @@ export function mount(container, params, ctx) {
   const tabs = el('div', { class: 'coll-tabs' }, [
     el('button', { class: 'coll-tab sel', text: '🧸 Boos', onclick: (e) => switchTab('coll', e.currentTarget) }),
     toddler ? null : el('button', { class: 'coll-tab', text: '🏆 Trophies', onclick: (e) => switchTab('trophies', e.currentTarget) }),
-    el('button', { class: 'coll-tab', text: '📖 Journal', onclick: (e) => switchTab('journal', e.currentTarget) })
+    el('button', { class: 'coll-tab', text: '📖 Journal', onclick: (e) => switchTab('journal', e.currentTarget) }),
+    // RUN15 V4: the shop's second door. It is a LINK, not a tab — it leaves for the
+    // shop scene rather than swapping a panel in here.
+    el('button', { class: 'coll-tab shop-link', text: '🛒 Shop', onclick: () => { sfx.tap(); ctx.go('shop'); } })
   ]);
   function switchTab(which, btn) {
     sfx.tap();
