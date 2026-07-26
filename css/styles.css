@@ -2933,7 +2933,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   font: 800 14px var(--font-display);
 }
 .care-pocket.big { font-size: 17px; }
-.care-summary-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 8px; }
+.care-summary-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 8px; }
 .care-summary-action,
 .care-action {
   min-width: 0;
@@ -3031,21 +3031,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   color: var(--ink);
   font: 700 14px/1.25 var(--font-display);
 }
-.care-action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.care-action-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .care-action { min-height: 62px; }
 .care-action.sel { background: var(--star); box-shadow: 0 0 0 3px #fff; }
 .care-action-ui { position: absolute; z-index: 5; }
-.care-flying-treat {
-  left: 8%;
-  bottom: 12%;
-  font-size: 38px;
-  animation: careTreatArc .6s cubic-bezier(.2,.7,.3,1) forwards;
-}
-@keyframes careTreatArc {
-  45% { transform: translate(210px,-180px) rotate(190deg) scale(1.15); }
-  to { transform: translate(315px,-145px) rotate(340deg) scale(.55); opacity: .2; }
-}
-.care-snatch .care-flying-treat { animation-duration: .36s; }
+/* RUN13 T1: the treat is no longer code-flung on a tap — it is a `.care-tool` the child
+   drags to the mouth. `.care-snatch` now flavours the cheeky Boo's grab. */
+.care-snatch .care-tool.tool-treat.hot .tool-glyph { animation: careSnatch .3s ease both; }
+@keyframes careSnatch { to { transform: translateY(-24px) rotate(340deg) scale(.4); opacity: .15; } }
 .care-shy-peek { animation: careShyPeek .65s ease; }
 @keyframes careShyPeek { 0%,40% { transform: translate(-58%,-50%) rotate(-8deg) scale(.9); } }
 .care-nom { animation: careNom .55s steps(3) 2; }
@@ -3070,8 +3063,145 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   transform: rotate(calc(var(--i) * 45deg)) translateX(8px);
 }
 @keyframes careCrumb { to { transform: rotate(calc(var(--i) * 45deg)) translateX(75px); opacity: 0; } }
-.care-brush-pad { inset: 0; z-index: 6; cursor: grab; }
-.care-brush { left: 20%; top: 40%; z-index: 7; font-size: 44px; transform: translate(-50%,-50%); pointer-events: none; }
+/* ---------------------------------------------------------------------------
+   RUN13 T1 — the direct-manipulation layer (G8). A pad that captures the finger,
+   a zone that must be stayed inside, a tool that follows the finger, and a ring
+   around the Boo that fills as the action completes. NO arrow or step control
+   exists in Boo Care: the tool IS the control.
+   --------------------------------------------------------------------------- */
+.care-pad { inset: 0; z-index: 6; cursor: grab; touch-action: none; }
+.care-pad:active { cursor: grabbing; }
+.care-ring {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 46%;
+  width: 214px;
+  height: 214px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.care-ring.active { opacity: 1; }
+.care-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.care-ring .ring-bg { fill: none; stroke: rgba(42,27,78,.14); stroke-width: 7; }
+.care-ring .ring-fill {
+  fill: none;
+  stroke: #FF5C8A;
+  stroke-width: 7;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .22s ease;
+}
+.care-ring.done .ring-fill { stroke: var(--star); filter: drop-shadow(0 0 7px rgba(255,201,60,.75)); }
+.care-zone-hint {
+  z-index: 3;
+  border: 3px dashed rgba(42,27,78,.3);
+  border-radius: 26px;
+  background: rgba(255,255,255,.16);
+  pointer-events: none;
+  animation: careZoneBreathe 2.4s ease-in-out infinite;
+}
+.care-zone-hint.hot {
+  border-color: var(--star);
+  border-style: solid;
+  background: rgba(255,201,60,.2);
+  animation: none;
+}
+@keyframes careZoneBreathe { 50% { transform: scale(1.03); } }
+.care-tool {
+  z-index: 9;
+  left: 50%;
+  top: auto;
+  bottom: 10px;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: #FFF8F0;
+  box-shadow: 0 4px 0 rgba(42,27,78,.28);
+  font-size: 33px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, 0) rotate(var(--tilt, 0deg));
+}
+/* The BUTTON's box never animates — the glyph inside it does. A steady box keeps
+   hit-testing honest for taps, for pointer capture and for keyboard focus. */
+.care-tool .tool-glyph { display: block; animation: careToolBeckon 1.6s ease-in-out infinite; }
+.care-tool.held {
+  bottom: auto;
+  transform: translate(-50%, -50%) rotate(var(--tilt, 0deg)) scale(1.12);
+  box-shadow: 0 8px 0 rgba(42,27,78,.28);
+  cursor: grabbing;
+}
+.care-tool.held .tool-glyph { animation: none; }
+.care-tool.hot { box-shadow: 0 8px 0 rgba(42,27,78,.28), 0 0 0 5px var(--star); }
+.care-tool.nudge .tool-glyph { animation: careToolNudge .5s ease 2; }
+@keyframes careToolBeckon { 50% { transform: translateY(-8px) rotate(-7deg); } }
+@keyframes careToolNudge {
+  25% { transform: translateX(-14px) rotate(-16deg); }
+  75% { transform: translateX(14px) rotate(16deg); }
+}
+.care-spark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px var(--star);
+  transform: translate(-50%, -50%);
+  animation: careSparkFade .8s ease-out both;
+  pointer-events: none;
+}
+@keyframes careSparkFade { to { transform: translate(-50%, -170%) scale(.2); opacity: 0; } }
+.care-bubble {
+  position: absolute;
+  z-index: 7;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.9);
+  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.95), rgba(190,232,255,.5) 60%, rgba(190,232,255,.15));
+  transform: translate(-50%, -50%);
+  animation: careBubbleRise 2.6s ease-out infinite;
+  animation-delay: calc(var(--i, 0) * -.3s);
+  pointer-events: none;
+}
+@keyframes careBubbleRise { to { transform: translate(-50%, -160%) scale(1.25); opacity: 0; } }
+.care-bubble.pop { animation: careBubblePop .4s ease-out both; }
+@keyframes careBubblePop { 40% { transform: translate(-50%,-50%) scale(1.5); opacity: .9; } to { transform: translate(-50%,-50%) scale(.1); opacity: 0; } }
+.care-tub {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background: linear-gradient(rgba(140,205,255,.55), rgba(90,170,240,.75));
+  border-top: 4px solid rgba(255,255,255,.75);
+  z-index: 4;
+  pointer-events: none;
+  transition: height .3s ease;
+}
+.care-tub.suds-1 { height: 36%; }
+.care-tub.suds-2 { height: 38%; }
+.care-tub.suds-3 { height: 40%; }
+.care-tub.suds-4 { height: 42%; }
+.care-splash { animation: careSplash .45s ease; }
+@keyframes careSplash { 30% { transform: translate(-50%,-54%) rotate(-4deg); } 70% { transform: translate(-50%,-47%) rotate(4deg); } }
+.care-gleaming { filter: brightness(1.1) saturate(1.05); }
+.care-open-wide { filter: brightness(1.04); }
+.care-eyes-follow { animation: careLean .5s ease-in-out infinite alternate; }
+@keyframes careLean { to { transform: translate(-50%,-52%) rotate(2deg); } }
+.care-chasing { animation: careChase .62s ease-in both; }
+@keyframes careChase { to { transform: translate(calc(-50% + var(--chase-x, 90px)), -50%) rotate(6deg); } }
+.care-bouncy-chase { animation: careChaseBouncy .62s ease-in both; }
+@keyframes careChaseBouncy { 50% { transform: translate(calc(-50% + var(--chase-x, 90px) * .5), -66%) rotate(-6deg); } to { transform: translate(calc(-50% + var(--chase-x, 90px)), -50%) rotate(6deg); } }
+.care-returning { animation: careReturn .7s ease-out both; }
+@keyframes careReturn { from { transform: translate(calc(-50% + var(--chase-x, 90px)), -50%); } to { transform: translate(-50%,-50%); } }
+.care-tool.tool-ball.thrown { animation: none; transform: translate(-50%,-50%) rotate(var(--tilt,0deg)); }
+.care-tool.tool-ball.carried { opacity: .35; }
 .care-yawn::after {
   content: 'yawn…';
   position: absolute;
@@ -3104,24 +3234,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 /* transform-only (house law): the gleam sweeps via translateX, keeping its 26deg tilt. */
 @keyframes careGleam { from { transform: rotate(26deg) translateX(0); opacity: 0; } 50% { opacity: 1; } to { transform: rotate(26deg) translateX(190px); opacity: 0; } }
-.care-scrub-controls {
-  inset: 0;
-  display: grid;
-  grid-template-columns: 1fr 90px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 24px 55px;
-}
-.care-scrub {
-  height: 100px;
-  border: 3px solid var(--ink);
-  border-radius: 22px;
-  background: rgba(255,255,255,.86);
-  color: var(--ink);
-  font-size: 45px;
-}
-.care-toothbrush { font-size: 58px; transition: transform .12s ease; }
-.care-toothbrush.right { transform: translateX(18px) rotate(12deg); }
+/* RUN13 T1 removed `.care-scrub-controls` / `.care-scrub` / `.care-toothbrush` — the two
+   ← → slabs that were the pack's named G8 violation. The toothbrush is now a `.care-tool`. */
 .care-foam {
   left: 50%;
   top: 44%;
@@ -3131,9 +3245,12 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   z-index: 7;
 }
 .care-foam.stage-0 { font-size: 0; }
-.care-foam.stage-1 { font-size: 34px; }
-.care-foam.stage-2 { font-size: 52px; }
-.care-foam.stage-3 { font-size: 70px; }
+.care-foam.stage-1 { font-size: 30px; }
+.care-foam.stage-2 { font-size: 46px; }
+.care-foam.stage-3 { font-size: 62px; }
+.care-foam.stage-4 { font-size: 78px; }
+.care-foam.puff { animation: careFoamPuff .5s ease-out both; }
+@keyframes careFoamPuff { to { transform: translate(-50%,-90%) scale(1.7); opacity: 0; } }
 .care-giant-grin { animation: careGrin .5s ease both; }
 @keyframes careGrin { 50% { transform: translate(-50%,-50%) scale(1.16); } }
 .care-tooth-glint { left: 55%; top: 40%; color: #fff; font-size: 42px; animation: careGlint .5s ease both; }
@@ -3153,8 +3270,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   background: #fff;
   font-size: 38px;
 }
+.care-peek-pop { z-index: 20; pointer-events: none; }
 .care-peek-pop.show { opacity: 1; transform: translate(-50%,-50%) scale(1); animation: carePeekPop .3s ease; }
 .care-peek-pop.sporty.show { animation: careSportyPop .35s ease; }
+/* RUN13 T1: the thing to tap is now DRAWN. It sits over whichever side the Boo peeks from. */
+.care-peek-pop.show.peeking-left { left: calc(50% - 105px); top: calc(45% - 15px); }
+.care-peek-pop.show.peeking-right { left: calc(50% + 105px); top: calc(45% - 15px); }
+.care-peek-pop.show.peeking-top { left: 50%; top: calc(45% - 95px); }
 @keyframes carePeekPop { 50% { transform: translate(-50%,-50%) scale(1.18); } }
 @keyframes careSportyPop { 50% { transform: translate(-50%,-65%) scale(1.2) rotate(8deg); } }
 .care-wave { animation: careWave .8s ease; }
@@ -3182,8 +3304,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   z-index: 80;
   left: 50%;
   bottom: 82%;
-  width: 238px;
-  height: 130px;
+  width: 300px;
+  height: 132px;
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -3210,6 +3332,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .town-care-action.action-feed { background: #FFE6B0; }
 .town-care-action.action-brush { background: #E5DDFF; }
 .town-care-action.action-teeth { background: #DDF5FF; }
+.town-care-action.action-bath { background: #D6F3E6; }
 .town-care-action.action-play { background: #FFDCE8; }
 .town-care-action:focus-visible,
 .town-care-manage:focus-visible { outline: 4px solid var(--star); outline-offset: 2px; }
@@ -3218,11 +3341,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-ground.care-open .squeak-name { opacity: 0; }
 .town-care-action span { font-size: 24px; line-height: 1; }
 .town-care-action small { font-size: 9px; }
-.town-care-action:nth-child(1) { left: 0; bottom: 0; }
-.town-care-action:nth-child(2) { left: 48px; top: 0; }
-.town-care-action:nth-child(3) { right: 48px; top: 0; }
-.town-care-action:nth-child(4) { right: 0; bottom: 0; }
-.town-care-manage { left: 90px; bottom: 5px; opacity: 1; font-size: 18px; }
+/* RUN13 T1: five actions now (Bath joined), so the arc is a five-point fan and the
+   manage button drops to the centre bottom where nothing can collide with it. */
+.town-care-action:nth-child(1) { left: 0; bottom: 4px; }
+.town-care-action:nth-child(2) { left: 61px; top: 30px; }
+.town-care-action:nth-child(3) { left: 50%; margin-left: -29px; top: 0; }
+.town-care-action:nth-child(4) { right: 61px; top: 30px; }
+.town-care-action:nth-child(5) { right: 0; bottom: 4px; }
+.town-care-manage { left: 50%; margin-left: -29px; bottom: -12px; opacity: 1; font-size: 18px; }
 @keyframes townCareAppear { from { transform: translateY(12px) scale(.6); } to { opacity: 1; transform: none; } }
 .care-bff::before {
   content: '';
@@ -3271,20 +3397,28 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .care-action-bar { gap: 5px; }
   .care-action { min-height: 58px; }
   .care-action > span { font-size: 23px; }
-  .care-flying-treat { animation-name: careTreatArcPhone; }
-  @keyframes careTreatArcPhone {
-    45% { transform: translate(120px,-190px) rotate(190deg) scale(1.15); }
-    to { transform: translate(175px,-155px) rotate(340deg) scale(.55); opacity: .2; }
-  }
-  .care-scrub-controls { padding-inline: 8px; grid-template-columns: 1fr 62px 1fr; }
-  .town-care-arc { transform: translateX(-50%) scale(.9); }
+  .care-action > small, .care-summary-action > small { font-size: 9px; }
+  .care-tool { width: 54px; height: 54px; font-size: 28px; }
+  .care-ring { width: 190px; height: 190px; }
+  .town-care-arc { transform: translateX(-50%) scale(.82); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .result-care-plus, .care-flying-treat, .care-shy-peek, .care-nom, .care-float-heart,
+  .result-care-plus, .care-shy-peek, .care-nom, .care-float-heart,
   .care-particle.crumb, .brush-spark, .care-brush-finish, .care-gleam, .care-giant-grin,
   .care-tooth-glint, .care-cover-eyes, .care-peek-pop.show, .care-peek-pop.sporty.show,
   .care-wave, .care-levelup, .town-care-action, .care-bff::before,
   .care-trick-spin, .care-trick-backflip, .care-trick-moonwalk, .care-trick-star-jump { animation: none; opacity: 1; }
+  /* RUN13 T1: every payoff survives reduced motion as a fade or a static state change —
+     the ring still fills, the foam still grows, the gleam and grin still happen, but
+     nothing travels. */
+  .care-tool .tool-glyph, .care-tool.nudge .tool-glyph, .care-zone-hint, .care-bubble,
+  .care-spark, .care-splash, .care-chasing, .care-bouncy-chase, .care-returning,
+  .care-eyes-follow, .care-foam.puff,
+  .care-snatch .care-tool.tool-treat.hot .tool-glyph { animation: none; }
+  .care-ring .ring-fill { transition: none; }
+  .care-tub { transition: none; }
+  .care-foam.puff { opacity: 0; transition: opacity .2s linear; }
+  .care-bubble.pop { opacity: 0; }
 }
 .jams-empty { text-align: center; }
 
