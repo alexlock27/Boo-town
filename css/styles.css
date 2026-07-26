@@ -1908,10 +1908,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 
 /* Boo Journal (RUN3 C4) */
 /* RUN15 V4 added a fourth tab (the shop door), which pushed this row past 360px. It
-   wraps now rather than overflowing — the reach suite is what caught it. */
+   WRAPS rather than overflowing (the reach suite caught the overflow) — and every tab
+   keeps its 44px touch target (the a11y audit caught the first attempt, which shrank
+   the padding instead and left them 37px tall). Wrapping is what satisfies both laws:
+   narrower tabs, never shorter ones. */
 .coll-tabs { display: flex; gap: 8px; justify-content: center; padding: 8px 4px; flex-wrap: wrap; }
-.coll-tab { background: rgba(255,255,255,0.12); color: var(--card); border-radius: 999px; padding: 8px 18px; font-family: var(--font-display); font-weight: 700; font-size: 16px; }
-@media (max-width: 600px) { .coll-tab { padding: 7px 13px; font-size: 14px; } }
+.coll-tab {
+  background: rgba(255,255,255,0.12); color: var(--card); border-radius: 999px;
+  padding: 8px 18px; min-height: 44px; display: inline-flex; align-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+}
+@media (max-width: 600px) { .coll-tab { padding: 8px 13px; font-size: 14px; } }
 .coll-tab.sel { background: var(--pop); color: var(--ink); }
 .journal-view { padding: 10px; }
 .journal-page { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; max-width: 700px; margin: 0 auto; }

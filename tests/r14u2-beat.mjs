@@ -164,14 +164,26 @@ console.log('== the judge is generous, honest and instrumented ==');
     }
     return out;
   });
-  const near0 = sweep.find(s => s.target === 0);
-  ok(near0 && near0.grade === 'perfect', `a press on the line is Perfect (err ${near0 ? near0.errMs : '—'}ms)`);
-  const at200 = sweep.filter(s => Math.abs(s.target) === 200);
-  ok(at200.length && at200.every(s => s.grade === 'good' || s.grade === 'perfect'),
-    `±200ms still counts as a hit (${at200.map(s => s.grade).join(', ')})`);
-  const at300 = sweep.filter(s => Math.abs(s.target) === 300);
-  ok(at300.length && at300.every(s => s.grade === 'near'),
-    `±300ms is answered as "so close", not ignored (${at300.map(s => s.grade).join(', ')})`);
+  // Judge the invariant against the MEASURED error, never the aimed offset. A scripted
+  // tap cannot land exactly where it aims — under board load the scheduler drifts tens of
+  // milliseconds — so asserting "a tap aimed at 300ms is graded near" is really asserting
+  // the scheduler's accuracy. The grade is a pure function of the measured error, and THAT
+  // is the contract worth defending.
+  const graded = sweep.filter(s => s.errMs != null);
+  ok(graded.length >= 5, `swept ${graded.length} judged presses across the window`);
+  const wrong = graded.filter(s => {
+    const e = Math.abs(s.errMs);
+    const want = e <= K.PERFECT_MS ? 'perfect' : e <= K.GOOD_MS ? 'good' : 'near';
+    return s.grade !== want;
+  });
+  ok(wrong.length === 0,
+    `every verdict matches its measured error${wrong.length ? ' → ' + wrong.map(w => `${w.errMs}ms graded ${w.grade}`).join(', ') : ''}`);
+  ok(graded.some(s => Math.abs(s.errMs) <= K.PERFECT_MS && s.grade === 'perfect'), 'a press on the line is Perfect');
+  ok(graded.some(s => Math.abs(s.errMs) > K.PERFECT_MS && Math.abs(s.errMs) <= K.GOOD_MS && s.grade === 'good'),
+    'a press inside the window still counts as a hit');
+  const outside = graded.filter(s => Math.abs(s.errMs) > K.GOOD_MS);
+  ok(outside.length > 0 && outside.every(s => s.grade === 'near'),
+    `and a press OUTSIDE it is answered as "so close", never ignored (${outside.length} sampled)`);
   await ctx.close();
 }
 

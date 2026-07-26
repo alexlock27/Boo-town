@@ -103,12 +103,13 @@ const explained = await page.evaluate(() => ({ phaseSoon: window.__spell.phase()
 assert(explained.explVisible && explained.explain.length > 5, 'a wrong twin pick shows the one-line explanation of the right twin');
 assert(explained.wrong >= 1, 'the wrong pick is recorded (affects stars)');
 await page.waitForTimeout(1600);
-await page.waitForSelector('.spell-area .tile', { timeout: 3000 });
+await page.waitForSelector('.spell-area .tile', { timeout: 9000 });   // load-proof (RUN15 V6)
 const spellingPhase = await page.evaluate(() => window.__spell.phase());
 assert(spellingPhase === 'spell', 'after the explanation she must spell the correct twin from memory (buttons hidden)');
 // spell it and confirm it advances to a fresh twin item (buttons back)
 await page.evaluate(() => window.__spell.typeCorrect());
-await page.waitForFunction(() => window.__spell.state().idx >= 1 && window.__spell.phase() === 'pick' && document.querySelectorAll('.twin-opt').length === 3, { timeout: 5000 });
+// the advance rides a celebration animation — generous ceiling under board load (RUN15 V6)
+await page.waitForFunction(() => window.__spell.state().idx >= 1 && window.__spell.phase() === 'pick' && document.querySelectorAll('.twin-opt').length === 3, { timeout: 15000 });
 const advanced = await page.evaluate(() => window.__spell.state().idx);
 assert(advanced >= 1, 'spelling the correct twin advances to the next item');
 
