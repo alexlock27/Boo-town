@@ -108,14 +108,20 @@ const secretsSeen = await page.evaluate(async () => {
 });
 assert(secretsSeen.includes('boo_dj') && secretsSeen.includes('boo_twiglet'), 'both DJ Boo and Twiglet drop as Secret (' + secretsSeen.join(',') + ')');
 
-// §6.7 — collection shows 52 slots
-console.log('== 6.7 collection 52 slots ==');
+// §6.7 — the collection shelf shows EVERY collectible, one tile each.
+// RUN13 T4: the expected total is read from the catalogue rather than hardcoded. It was
+// 70 (52 + 8 activity items + Scout + Quest Flag + 8 furniture) and went stale the moment
+// twenty-four new pieces of furniture joined. The property this suite cares about is
+// "one tile per collectible, and the counter agrees" — which is now what it checks.
+console.log('== 6.7 collection: one slot per collectible ==');
 await page.evaluate((s) => localStorage.setItem('bootown.save.v1', s), SAVE({ inventory: { boo_inky: 1 } }));
 await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.hub');
 await page.evaluate(() => window.BooTown.go('collection')); await page.waitForSelector('.coll-grid');
+const TOTAL = await page.evaluate(async () => (await import('./data/catalogue.js')).TOTAL_ITEMS);
 const coll = await page.evaluate(() => ({ slots: document.querySelectorAll('.coll-grid:not(.wardrobe-grid) .coll-tile').length, count: document.querySelector('.coll-count').textContent }));
-assert(coll.slots === 70, 'collection shows 70 slots (52 + 8 activity items + Scout + Quest Flag + 8 furniture, RUN10 P4) (' + coll.slots + ')');
-assert(/of 70/.test(coll.count), 'counter shows "of 70" (' + coll.count + ')');
+assert(TOTAL >= 90, `the catalogue's own total is the source of truth (${TOTAL})`);
+assert(coll.slots === TOTAL, `collection shows one slot per collectible (${coll.slots} of ${TOTAL})`);
+assert(new RegExp('of ' + TOTAL).test(coll.count), `counter shows "of ${TOTAL}" (${coll.count})`);
 
 console.log('\n== errors ==');
 if (errors.length) console.log(errors.map(e => '  ! ' + e).join('\n'));
