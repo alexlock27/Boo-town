@@ -3481,6 +3481,84 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 .jams-empty { text-align: center; }
 
+
+/* ---------------------------------------------------------------------------
+   RUN13 T3 — the Boo House's three rooms.
+   A labelled tab strip, in the same visual language as the build drawer's tabs.
+   Navigation between scenes, not a physical action: G8 does not reach it, and a
+   child can read where she is about to go.
+   --------------------------------------------------------------------------- */
+.t-room-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 8px 6px;
+  flex: 0 0 auto;
+}
+.t-room-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: #FFF8F0;
+  color: var(--ink);
+  font: 700 14px var(--font-display);
+  box-shadow: 0 4px 0 rgba(42,27,78,.28);
+  cursor: pointer;
+}
+.t-room-tab.sel { background: var(--star); box-shadow: 0 4px 0 rgba(42,27,78,.28), inset 0 0 0 3px #fff; }
+.t-room-tab:focus-visible { outline: 4px solid var(--star); outline-offset: 3px; }
+.t-room-tab .rt-ic { font-size: 19px; line-height: 1; }
+.t-room-tab .rt-lbl { line-height: 1; }
+/* A lounging pair swaps chat pips; a Boo at the table drops the odd crumb. Both are
+   pure scene garnish — nothing about them is a need, a timer or a chore (G9). */
+.t-chat-pip {
+  position: absolute;
+  left: 62%;
+  top: -6px;
+  z-index: 40;
+  padding: 2px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #FFF8F0;
+  color: var(--ink);
+  font: 700 13px var(--font-display);
+  font-style: normal;
+  pointer-events: none;
+  animation: tChatPip 1.5s ease-out both;
+}
+@keyframes tChatPip {
+  0% { opacity: 0; transform: translateY(6px) scale(.6); }
+  20% { opacity: 1; transform: none; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-12px); }
+}
+.t-snack-crumb {
+  position: absolute;
+  left: 54%;
+  top: 46%;
+  z-index: 39;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #C88745;
+  pointer-events: none;
+  animation: tCrumbFall .7s ease-in both;
+}
+@keyframes tCrumbFall { to { transform: translate(9px, 34px) rotate(120deg); opacity: 0; } }
+@media (max-width: 600px), (max-height: 500px) {
+  .t-room-tabs { gap: 5px; padding: 3px 4px 5px; }
+  .t-room-tab { padding: 5px 10px; font-size: 12px; }
+  .t-room-tab .rt-ic { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-chat-pip, .t-snack-crumb { animation: none; }
+  .t-snack-crumb { opacity: 0; }
+}
+
 /* Boo Quest (RUN6 C6) */
 .quest-card { display: flex; align-items: center; gap: 12px; width: min(92%, 520px); margin: 0 auto; padding: 12px 18px; border-radius: 18px; border: 3px solid var(--ink); background: linear-gradient(120deg, #5F4FC4, #8F7FF0); color: var(--card); cursor: pointer; box-shadow: var(--card-shadow); }
 .quest-ic { font-size: 26px; }

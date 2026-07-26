@@ -31,6 +31,18 @@ export const MAP_POS = {
   gallery:    { x: 60, y: 25 }
 };
 
+// RUN13 T3 — the Boo House is THREE rooms. Only one of them ('boohouse') is a map area;
+// the other two are extra storage keys under save.town.areas that the same interior scene
+// mounts. Keeping the original key as the Lounge is what makes the migration lossless:
+// every pre-rooms placement stays exactly where the child left it, to the pixel.
+export const HOUSE_ROOMS = [
+  { id: 'lounge',  key: 'boohouse',         name: 'Lounge',  icon: '\u{1F6CB}\uFE0F' },
+  { id: 'kitchen', key: 'boohouse_kitchen', name: 'Kitchen', icon: '\u{1F373}' },
+  { id: 'bedroom', key: 'boohouse_bedroom', name: 'Bedroom', icon: '\u{1F6CF}\uFE0F' }
+];
+export const HOUSE_ROOM_KEYS = HOUSE_ROOMS.map(r => r.key);
+export function houseRoom(id) { return HOUSE_ROOMS.find(r => r.id === id) || HOUSE_ROOMS[0]; }
+
 export function areaByKey(key) { return AREAS.find(a => a.key === key) || AREAS[0]; }
 export function unlockedAreas(s) { return AREAS.filter(a => a.unlocked(s)); }
 export function isAreaUnlocked(key, s) { const a = areaByKey(key); return a ? a.unlocked(s) : false; }

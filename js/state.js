@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 14;  // v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 15;  // v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -294,7 +294,12 @@ export function migrate(obj) {
   // so backfill any area key a pre-v6 or hand-edited save is missing.
   if (merged.town && typeof merged.town === 'object') {
     if (!merged.town.areas || typeof merged.town.areas !== 'object') merged.town.areas = {};
-    for (const key of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery']) {
+    // v15 (RUN13 T3): the two new Boo House rooms join the backfill. The Lounge KEEPS the
+    // original 'boohouse' key, so a pre-rooms house needs no item rewriting at all — every
+    // placement, row, scale and floor path stays byte-identical and simply becomes the
+    // Lounge. The Kitchen and the Bedroom are created empty; nothing is invented in them.
+    for (const key of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery',
+      'boohouse_kitchen', 'boohouse_bedroom']) {
       const a = merged.town.areas[key];
       if (!a || typeof a !== 'object') merged.town.areas[key] = { items: [], paths: [] };
       else { if (!Array.isArray(a.items)) a.items = []; if (!Array.isArray(a.paths)) a.paths = []; }
