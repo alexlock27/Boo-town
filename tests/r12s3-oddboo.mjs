@@ -150,36 +150,47 @@ await page.waitForFunction(() => window.BooTown, null, { timeout: 20000 });
 
 console.log('== 200 scripted rounds: the explanation always matches the generator ==');
 {
+  // RUN14 U-0 board diet: the SAME 200 rounds and the SAME assertions, but the product's
+  // own pacing timers (the 1.5s anti-brute-force lockout, the 720ms round advance) are
+  // fast-forwarded through Playwright's stubbed clock instead of slept through. This is
+  // a logic-honesty suite, not frame evidence, so the evidence law permits clock stubbing.
+  // Real time before: ~2.3s × 200 rounds ≈ 7½ minutes of pure waiting.
+  await page.clock.install();
   await page.evaluate(() => window.BooTown.go('oddboo'));
-  await page.waitForTimeout(1200);
+  await page.clock.runFor(1500);
   await page.evaluate(() => window.__intro && window.__intro.close());
-  await page.waitForTimeout(400);
-  const r = await page.evaluate(async () => {
-    const out = { rounds: 0, mismatches: [], shineRendered: 0, wrongHintMismatch: 0, labels: {} };
-    for (let i = 0; i < 200; i++) {
-      const g = window.__oddboo.grid();
-      if (!g) break;
-      out.labels[g.oddLabel] = (out.labels[g.oddLabel] || 0) + 1;
-      if ([...document.querySelectorAll('.odd-art svg')].some(s => /shimmer|rfx-|sparkle/i.test(s.outerHTML))) out.shineRendered++;
-      // tap a WRONG Boo first: the nudge must name the same part
-      const wrongIndex = g.items.findIndex((_, ix) => ix !== g.oddIndex);
+  await page.clock.runFor(400);
+  const r = { rounds: 0, mismatches: [], shineRendered: 0, wrongHintMismatch: 0, labels: {} };
+  for (let i = 0; i < 200; i++) {
+    const g = await page.evaluate(() => {
+      const g = window.__oddboo && window.__oddboo.grid();
+      return g ? { oddIndex: g.oddIndex, oddLabel: g.oddLabel, oddFeature: g.oddFeature, n: g.items.length,
+        shine: [...document.querySelectorAll('.odd-art svg')].some(s => /shimmer|rfx-|sparkle/i.test(s.outerHTML)) } : null;
+    });
+    if (!g) break;
+    r.labels[g.oddLabel] = (r.labels[g.oddLabel] || 0) + 1;
+    if (g.shine) r.shineRendered++;
+    // tap a WRONG Boo first: the nudge must name the same part
+    const nudge = await page.evaluate((wrongIndex) => {
       window.__oddboo.choose(wrongIndex, document.querySelectorAll('.odd-choice')[wrongIndex]);
-      await new Promise(r => setTimeout(r, 30));
-      const nudge = (document.querySelector('.peek-bubble') || {}).textContent || '';
-      if (!nudge.includes(g.oddLabel)) out.wrongHintMismatch++;
-      // wait out the anti-brute-force lockout, then tap the real one
-      while (window.__oddboo.locked()) await new Promise(r => setTimeout(r, 60));
-      window.__oddboo.choose(g.oddIndex, document.querySelectorAll('.odd-choice')[g.oddIndex]);
-      await new Promise(r => setTimeout(r, 40));
-      const said = (document.querySelector('.peek-bubble') || {}).textContent || '';
-      if (!said.includes(g.oddLabel)) out.mismatches.push({ said, expected: g.oddLabel, feature: g.oddFeature });
-      out.rounds++;
-      // the round advances on a 720ms timer; the game restarts itself after 10
-      await new Promise(r => setTimeout(r, 780));
-      if (!window.__oddboo) { window.BooTown.go('oddboo'); await new Promise(r => setTimeout(r, 900)); }
+      return (document.querySelector('.peek-bubble') || {}).textContent || '';
+    }, (g.oddIndex + 1) % g.n);
+    if (!nudge.includes(g.oddLabel)) r.wrongHintMismatch++;
+    await page.clock.runFor(1520);   // the lockout expires
+    const said = await page.evaluate((oddIndex) => {
+      window.__oddboo.choose(oddIndex, document.querySelectorAll('.odd-choice')[oddIndex]);
+      return (document.querySelector('.peek-bubble') || {}).textContent || '';
+    }, g.oddIndex);
+    if (!said.includes(g.oddLabel)) r.mismatches.push({ said, expected: g.oddLabel, feature: g.oddFeature });
+    r.rounds++;
+    await page.clock.runFor(760);    // the round advances; the game restarts itself after 10
+    const alive = await page.evaluate(() => !!window.__oddboo);
+    if (!alive) {
+      // results screen: clear any celebration overlays it stacked, then a fresh game
+      await page.evaluate(() => { document.querySelectorAll('.trophy-ceremony, .overlay').forEach(n => n.remove()); window.BooTown.go('oddboo'); });
+      await page.clock.runFor(1200);
     }
-    return out;
-  });
+  }
   assert(r.rounds >= 200, `drove ${r.rounds} scripted rounds`);
   assert(r.mismatches.length === 0,
     `the spoken explanation names the generator's own label every time${r.mismatches.length ? ' → ' + JSON.stringify(r.mismatches[0]) : ''}`);

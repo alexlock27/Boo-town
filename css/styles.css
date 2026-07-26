@@ -211,7 +211,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   border-radius: 16px; padding: 8px 14px; font-family: var(--font-display); font-size: 16px; cursor: pointer;
   min-height: 44px;
 }
-.acc-chip.sel { background: var(--pop); border-color: var(--ink); }
+.acc-chip.sel { background: var(--pop); border-color: var(--ink); color: var(--ink); }   /* G7: cream-on-pink was 2.25:1 */
 .text-input.small { font-size: 20px; padding: 8px 14px; width: 200px; }
 .creator-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 /* denser layout for the fuller 7-option creator */
@@ -254,8 +254,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .mychar-art svg { max-width: 76px; max-height: 80px; }
 .mychar-meta { display: flex; flex-direction: column; gap: 2px; }
 .mychar-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; color: var(--ink); }
-.mychar-name { font-size: 17px; color: var(--pop); font-weight: 700; }
-.mychar-hint { font-size: 14px; color: rgba(42,27,78,0.6); }
+/* RUN14 U-0 contrast pass (G7): --pop pink and 0.6-alpha ink both fell under AA on the
+   cream card once the audit stopped skipping this screen. Deeper pink, denser ink. */
+.mychar-name { font-size: 17px; color: #B0447E; font-weight: 700; }
+.mychar-hint { font-size: 14px; color: rgba(42,27,78,0.78); }
 
 /* ---- intro bubbles ---- */
 .intro-block { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; padding: 20px; }
@@ -1921,7 +1923,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .btn.levelup { background: var(--star); color: var(--ink); }
 .gu-danger { border: 2px solid #F1C0C0; }
 .btn.danger { background: #E06A6A; }
-.btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+/* G7: opacity-based disabling put every disabled label under AA. A solid muted style
+   still reads "not yet", and the words stay readable — kinder for early readers too. */
+.btn[disabled] { opacity: 1; cursor: not-allowed; background: #E9E2F4; border-color: #B9AFD6; color: #574B86; box-shadow: none; }
 
 /* ---- collection ---- */
 .collection { padding: 10px 14px; }
@@ -2539,7 +2543,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .jam-row { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 10px 12px; touch-action: none; }
 .jam-name { flex: 1; font-weight: 700; color: var(--ink); }
 .jam-set.active { background: var(--star); color: var(--ink); }
-.jam-hint, .jams-empty { font-size: 12px; color: #6a5c94; }
+.jam-hint { font-size: 12px; color: #6a5c94; }
+.jams-empty { font-size: 12px; color: #BCB0E8; }   /* G7: sits on the dark band screen, not a card */
 
 /* RUN10 P6 — scene-based Boo Band. Every playfield owns the lower screen; navigation,
    recording and play-along guidance stay in normal document flow above it. */
@@ -2775,7 +2780,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .p6-strum-zone {
   border: 4px solid var(--ink);
   border-radius: 28px;
-  background: linear-gradient(100deg, #C06CEB, #FF7AC6);
+  background: linear-gradient(100deg, #A94FD6, #E0559E);   /* G7: white STRUM needs 3:1 at the light end */
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -2803,7 +2808,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   border-radius: 14px;
   box-shadow: 0 7px 0 rgba(0,0,0,.24);
   color: var(--ink);
-  font: 800 clamp(12px, 2vw, 18px) var(--font-display);
+  font: 800 18px var(--font-display);   /* G7: 18px+800 counts as large text — ink on the red bar passes at 3:1 */
   touch-action: none;
 }
 .p6-xylo-bar.struck { animation: xyloStruck .2s ease; }
@@ -2958,7 +2963,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .disco-tile { border-radius:6px; background:hsl(var(--tile-hue,300),70%,34%); box-shadow:inset 0 0 0 2px rgba(255,255,255,.12); transition:background .16s,filter .16s; }
 .disco-tile.bar-hit { animation:discoTileBar .46s ease-out; }
 @keyframes discoTileBar { 30% { filter:brightness(2.1); box-shadow:inset 0 0 0 3px rgba(255,255,255,.65),0 0 16px hsl(var(--tile-hue),90%,65%); } }
-.disco-track { position:absolute; z-index:12; right:18px; top:24px; min-width:180px; padding:10px 14px; border:3px solid #fff; border-radius:16px; background:#FF7AC6; color:#fff; font:700 15px var(--font-display); box-shadow:0 0 18px rgba(255,122,198,.5); }
+.disco-track { position:absolute; z-index:12; right:18px; top:24px; min-width:180px; padding:10px 14px; border:3px solid #fff; border-radius:16px; background:#FF7AC6; color:var(--ink); font:700 15px var(--font-display); box-shadow:0 0 18px rgba(255,122,198,.5); }   /* G7: white-on-pink was 2.37:1 */
 .disco-now { position:absolute; z-index:9; right:18px; top:78px; width:180px; color:#DCCFF5; text-align:center; font:700 12px var(--font-display); }
 .disco-bounce { animation:discoBounce .55s ease; }
 .disco-sway { animation:discoSway .8s ease; }
@@ -3783,7 +3788,15 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .bq-horizon { text-align: center; color: rgba(255,255,255,0.55); font-family: var(--font-display); padding: 10px; }
 .bq-node { position: relative; align-self: center; width: min(88%, 420px); background: var(--card); border: 3px solid var(--ink); border-radius: 18px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--card-shadow); }
 .bq-node.left { align-self: flex-start; } .bq-node.right { align-self: flex-end; }
-.bq-node.future { opacity: 0.45; filter: grayscale(0.5); }
+.bq-node.future { opacity: 0.82; filter: grayscale(0.55) brightness(1.04); }   /* G7: 0.45 opacity sank locked titles to 1.4:1 */
+/* G7 (RUN14 U-0): the expedition puzzle screen never had styles of its own, so its
+   heading and status inherited INK on the app's dark backdrop — 1.01:1, functionally
+   invisible, on every viewport. Cream text like every other dark screen. */
+.exp-puzzle h2, .exp-puzzle .exp-puzzle-status, .exp-puzzle .exp-budget { color: #FFF3E0; }
+/* …and the title used to start UNDER the floating back circle (its first letters were
+   literally behind the button). Centred, padded clear of it, like every other screen. */
+.exp-puzzle h2 { text-align: center; padding: 6px 78px 0; }
+.exp-puzzle .exp-puzzle-status, .exp-puzzle .exp-budget { text-align: center; padding: 0 16px; }
 .bq-node.current { border-color: var(--star); box-shadow: 0 0 0 3px var(--star), var(--card-shadow); cursor: pointer; }
 .bq-marker { font-size: 30px; }
 .bq-node-title { flex: 1; font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink); }
