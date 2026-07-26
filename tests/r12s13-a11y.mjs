@@ -222,11 +222,19 @@ console.log('== 4. interactive things say WHAT they are, not just that they exis
 }
 {
   const { ctx, page } = await open('beat', { resume: { mix: true } });
-  await page.waitForTimeout(2500);
-  const notes = await page.evaluate(() => [...document.querySelectorAll('.beat-note')].map(n => ({
+  // wait for the question trio itself rather than a fixed sleep: RUN14 U2 puts it on the
+  // musical phrase, so when it appears depends on the tempo
+  await page.waitForSelector('.beat-note:not(.tapalong)', { timeout: 8000 });
+  // RUN14 U2 added TAP-ALONG notes: pure groove, carrying no answer. They are deliberately
+  // aria-hidden — announcing dozens of rhythm dots would bury the thing that matters — so
+  // the "names its answer" rule applies to the QUESTION trio, and the groove is asserted
+  // silent rather than labelled.
+  const notes = await page.evaluate(() => [...document.querySelectorAll('.beat-note:not(.tapalong)')].map(n => ({
     label: n.getAttribute('aria-label'), text: n.textContent.trim() })));
-  assert(notes.length > 0, `${notes.length} lane notes on screen`);
-  assert(notes.every(n => /,/.test(n.label || '')), `every lane note names its answer (${notes[0]?.label})`);
+  assert(notes.length > 0, `${notes.length} answer notes on screen`);
+  assert(notes.every(n => /,/.test(n.label || '')), `every answer note names its answer (${notes[0]?.label})`);
+  const groove = await page.evaluate(() => [...document.querySelectorAll('.beat-note.tapalong')].map(n => n.getAttribute('aria-hidden')));
+  assert(groove.every(a => a === 'true'), `and the ${groove.length} groove notes stay out of the screen reader's way`);
   await ctx.close();
 }
 

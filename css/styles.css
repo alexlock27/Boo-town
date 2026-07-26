@@ -1146,6 +1146,31 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .beat-note.hit.good { animation: notehit 0.4s ease-out forwards; }
 @keyframes notehit { 0% { transform: translateY(var(--y,0)) scale(1); } 100% { opacity: 0; transform: scale(1.5); } }
 .beat-hitline { position: absolute; left: 4px; right: 4px; bottom: 66px; height: 5px; border-radius: 3px; background: var(--star); box-shadow: 0 0 14px var(--star); z-index: 3; pointer-events: none; }
+/* RUN14 U2: the judged window drawn as a PLACE. Its height is set from the real GOOD_MS
+   at the round's tempo, so what she aims at is exactly what the judge accepts. */
+.beat-hitzone {
+  position: absolute; left: 4px; right: 4px; bottom: 68px; height: 60px;
+  transform: translateY(50%); z-index: 2; pointer-events: none; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,201,60,0) 0%, rgba(255,201,60,.22) 45%, rgba(255,201,60,.22) 55%, rgba(255,201,60,0) 100%);
+  border-top: 2px dashed rgba(255,201,60,.5); border-bottom: 2px dashed rgba(255,201,60,.5);
+}
+/* Tap-along notes: the groove. Smaller and quieter than a question note — they carry no
+   learning value and must never be mistaken for the answer. */
+.beat-note.tapalong {
+  width: 44px; margin-left: -22px; height: 34px; border-width: 2px;
+  background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.5);
+}
+.beat-note.tapalong .ta-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--lane); box-shadow: 0 0 0 2px rgba(42,27,78,.5); }
+.beat-note.tapalong.at-line { box-shadow: 0 0 0 3px #fff, 0 0 12px var(--lane); }
+.beat-note.tapalong.hit { animation: notehit 0.3s ease-out forwards; }
+/* A press that was clearly aimed but outside the window: a wobble, never silence. */
+.beat-field.near-wobble { animation: beatNear 0.32s ease; }
+@keyframes beatNear { 0%,100% { transform: translateX(0); } 30% { transform: translateX(-5px); } 70% { transform: translateX(5px); } }
+.beat-lane.lane-tick { animation: beatTick 0.22s ease; }
+@keyframes beatTick { 0%,100% { background: rgba(255,255,255,0.04); } 50% { background: rgba(255,255,255,0.16); } }
+@media (prefers-reduced-motion: reduce) {
+  .beat-field.near-wobble, .beat-lane.lane-tick, .beat-note.tapalong.hit { animation: none; }
+}
 .beat-character { position: absolute; left: 50%; transform: translateX(-50%); bottom: 2px; z-index: 4; pointer-events: none; }
 .beat-character.bop { animation: beatbop 0.3s ease-out; }
 @keyframes beatbop { 0%,100% { transform: translateX(-50%) translateY(0); } 40% { transform: translateX(-50%) translateY(-8px) scale(1.06); } }

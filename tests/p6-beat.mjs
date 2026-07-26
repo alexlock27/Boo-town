@@ -1,11 +1,11 @@
-// @serial — audio-timing: note scheduling asserted from instrumentation logs (runs alone at the board's end; RUN14 U-0)
-// tests/p6-beat.mjs — Boo Beat (RUN2 C6) + part E checks 7 & 8.
+﻿// @serial â€” audio-timing: note scheduling asserted from instrumentation logs (runs alone at the board's end; RUN14 U-0)
+// tests/p6-beat.mjs â€” Boo Beat (RUN2 C6) + part E checks 7 & 8.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 mkdirSync('screenshots', { recursive: true });
 const errors = []; let failed = false;
-const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
+const assert = (c, m) => { if (!c) { failed = true; console.log('  âœ— FAIL:', m); } else console.log('  âœ“', m); };
 const browser = await chromium.launch();
 const SAVE = JSON.stringify({ version: 3, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' }, inventory: {}, boxes: 0, meter: 0, opened: 0, pity: { commons: 0 }, nicknames: {}, equips: {}, town: [], stars: { total: 30, byGame: {} }, settings: { sound: false, music: false, voice: false, content: 'full' }, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 } } });
 
@@ -51,7 +51,7 @@ console.log('== scroll mode: 3-starrable + feeds meter ==');
   const before = await page.evaluate(() => { const s = window.BooTown.State.getState(); return { plays: s.stars.byGame.beat.plays, total: s.stars.total }; });
   const st = await page.evaluate(async () => {
     const B = window.__beat; const sleep = ms => new Promise(r => setTimeout(r, ms));
-    let g = 0; while (!B.state().ended && g++ < 80) { if (B.state().notes > 0) B.tapCorrect('perfect'); await sleep(90); }
+    B.rush(true); let g = 0; while (!B.state().ended && g++ < 700) { if (B.state().notes > 0) B.tapCorrect('perfect'); await sleep(60); }
     return B.state();
   });
   assert(st.ended && st.phraseIdx === 10, 'round completes all 10 phrases');
@@ -75,7 +75,7 @@ console.log('== steady mode (reduced-motion) playable start to finish ==');
   assert(steady === true, 'steady mode defaults on under reduced motion');
   const st = await page.evaluate(async () => {
     const B = window.__beat; const sleep = ms => new Promise(r => setTimeout(r, ms));
-    let g = 0; while (!B.state().ended && g++ < 80) { if (B.state().notes > 0) B.tapCorrect('perfect'); await sleep(90); }
+    B.rush(true); let g = 0; while (!B.state().ended && g++ < 700) { if (B.state().notes > 0) B.tapCorrect('perfect'); await sleep(60); }
     return B.state();
   });
   assert(st.ended && st.phraseIdx === 10, 'steady mode plays all 10 phrases to the end');
@@ -90,8 +90,8 @@ console.log('== hearts never end + wrong tap ==');
   await enterBeat(page, false);
   const ht = await page.evaluate(async () => {
     const B = window.__beat; const sleep = ms => new Promise(r => setTimeout(r, ms));
-    let dims = 0, g = 0;
-    while (dims < 3 && g++ < 40) { const s = B.state(); if (s.notes > 0 && s.hearts > 0) { const h0 = s.hearts; B.tapWrong(); await sleep(120); if (B.state().hearts < h0) dims++; } await sleep(120); }
+    B.rush(true); let dims = 0, g = 0;
+    while (dims < 3 && g++ < 300) { const s = B.state(); if (s.notes > 0 && s.hearts > 0) { const h0 = s.hearts; B.tapWrong(); await sleep(120); if (B.state().hearts < h0) dims++; } await sleep(120); }
     const s = B.state();
     return { hearts: s.hearts, ended: s.ended, dims };
   });
