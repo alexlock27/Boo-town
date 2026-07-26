@@ -3559,6 +3559,17 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .t-snack-crumb { opacity: 0; }
 }
 
+/* RUN13 T4: the photo frame is the frame art with a real Boo composited inside it. */
+.t-photo-frame { position: relative; display: block; }
+.t-photo-inner {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.t-photo-inner svg { display: block; }
+
 /* Boo Quest (RUN6 C6) */
 .quest-card { display: flex; align-items: center; gap: 12px; width: min(92%, 520px); margin: 0 auto; padding: 12px 18px; border-radius: 18px; border: 3px solid var(--ink); background: linear-gradient(120deg, #5F4FC4, #8F7FF0); color: var(--card); cursor: pointer; box-shadow: var(--card-shadow); }
 .quest-ic { font-size: 26px; }

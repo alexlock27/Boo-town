@@ -7,7 +7,7 @@ import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
-import { renderItem } from './art.js';
+import { renderItem, renderDeco, clockHands } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
@@ -51,6 +51,9 @@ const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no dept
 const ITEM_SCALE_MIN = 0.70, ITEM_SCALE_MAX = 1.60, ITEM_SCALE_STEP = 0.15;
 const itemScaleOf = (t) => Math.max(ITEM_SCALE_MIN, Math.min(ITEM_SCALE_MAX, Number(t && t.scale) || 1));
 const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
+// RUN13 T4: every lamp carries a night state, not just the original table lamp.
+const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp']);
+const CLOCK_TICK_MS = 20000;     // how often a placed wall clock re-reads the device time
 // RUN13 T3: each Boo House room remembers where its camera was left. Module-level, so it
 // survives the re-mount that switching rooms performs (the module itself is cached).
 const roomScroll = new Map();
@@ -196,6 +199,12 @@ const ACT_SIZE = {
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
 
+// RUN13 T4: the wall clock needs minutes as well as hours, and the suites need to be able
+// to pin both — same `window.__bootown*` override convention as the hour.
+function currentMinute() {
+  const m = typeof window !== 'undefined' ? window.__bootownMinute : undefined;
+  return Number.isFinite(m) ? ((m % 60) + 60) % 60 : new Date().getMinutes();
+}
 function currentHour() {
   if (typeof window !== 'undefined' && window.__bootownHour != null) return window.__bootownHour | 0;
   try { return new Date().getHours(); } catch { return 12; }
@@ -681,6 +690,28 @@ export function mount(container, params, ctx) {
     ground.appendChild(floor);
   }
 
+  // RUN13 T4 — the photo frame shows a REAL Boo she owns. The best friend wins when there
+  // is one (and the frame changes the moment that changes, because this is recomputed on
+  // every render); otherwise it settles on one owned Boo, chosen from the placement's own
+  // x so the same frame on the wall always shows the same face rather than flickering
+  // through the collection every re-render.
+  function photoBooFor(t, st) {
+    const inv = st.inventory || {};
+    const owned = Object.keys(inv)
+      .filter(id => (id.startsWith('boo_') || id.startsWith('custom:')) && inv[id] > 0)
+      .sort();
+    if (!owned.length) return null;
+    const bff = owned.find(id => isBestFriend(id, st));
+    if (bff) return bff;
+    return owned[Math.abs(Math.round(t.x * 1000)) % owned.length];
+  }
+  function renderPhotoFrame(booId, size) {
+    const frame = renderDeco(BY_ID.deco_photoframe, { size });
+    const boo = booId ? resolveItem(booId) : null;
+    const art = boo ? renderItem(boo, { size: size * 0.42, equipArt: equippedArt(booId) }) : '';
+    return `<span class="t-photo-frame" data-photo-boo="${booId || ''}">${frame}<span class="t-photo-inner">${art}</span></span>`;
+  }
+
   function renderPlaced() {
     const existing = Array.from(ground.querySelectorAll('.t-item'));
     // clear any orphaned zone-behaviour props (RUN7 C2) so a re-render never leaves them stranded
@@ -742,12 +773,20 @@ export function mount(container, params, ctx) {
       
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
-      if (t.item === 'deco_tablelamp' && isNight(currentHour())) wrap.classList.add('lit');
+      if (LAMP_IDS.has(t.item) && isNight(currentHour())) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
       
       const newHTML = t.item === 'deco_bffportrait' && t.portraitBoo
         ? renderBffPortrait(t.portraitBoo, size)
-        : renderItem(item, { size, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null });
+        : t.item === 'deco_photoframe'
+          ? renderPhotoFrame(photoBooFor(t, st), size)
+          : renderItem(item, {
+              size,
+              equipArt: item.kind === 'boo' ? equippedArt(item.id) : null,
+              // RUN13 T4: a placed wall clock shows the DEVICE time. Passed in rather than
+              // read inside art.js so the minute tick below and the suites drive the same path.
+              ...(t.item === 'deco_wallclock' ? { clockHour: currentHour(), clockMinute: currentMinute() } : {})
+            });
         
       if (wrap._lastHTML !== newHTML) {
         wrap.innerHTML = newHTML;
@@ -2950,6 +2989,13 @@ export function mount(container, params, ctx) {
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
   // eventually curl back up, and day/night transitions take hold (RUN4 C5).
   const roleTimer = setInterval(() => { if (!document.hidden) assignRoles(); }, 4000);
+  // RUN13 T4: a placed wall clock keeps real time — hands only, no re-render of the item.
+  const clockTimer = setInterval(() => {
+    if (document.hidden) return;
+    const markup = clockHands(currentHour(), currentMinute());
+    ground.querySelectorAll('.t-item[data-item="deco_wallclock"] .clock-hands')
+      .forEach(g => { if (g.innerHTML !== markup) g.innerHTML = markup; });
+  }, CLOCK_TICK_MS);
   if (typeof window !== 'undefined') {
     window.__townDebug = () => ({ paradeUntil, now: performance.now(), parading: actors.filter(a => a.parading).length, actors: actors.length, rafAlive: !!raf });
     // RUN5 C3 QA hooks: geometry + deterministic depth-wander evidence.
@@ -3028,6 +3074,15 @@ export function mount(container, params, ctx) {
       scrollX: () => scrollX,
       scrollTo: (px) => { scrollX = px; clampScroll(); applyScroll(); return scrollX; },
       chatPips: () => ground.querySelectorAll('.t-chat-pip').length,
+      // RUN13 T4 QA hooks: the photo frame's subject and the wall clock's hands.
+      photoBoo: () => { const n = ground.querySelector('.t-photo-frame'); return n ? n.dataset.photoBoo : null; },
+      clockHandsMarkup: () => { const g = ground.querySelector('.clock-hands'); return g ? g.innerHTML : null; },
+      tickClocks: () => {
+        const markup = clockHands(currentHour(), currentMinute());
+        ground.querySelectorAll('.t-item[data-item="deco_wallclock"] .clock-hands').forEach(g => { g.innerHTML = markup; });
+        return markup;
+      },
+      litLamps: () => [...ground.querySelectorAll('.t-item.lit')].map(n => n.dataset.item),
       snackCrumbs: () => ground.querySelectorAll('.t-snack-crumb').length,
       // RUN10 P1: an area is 4 viewports wide, so a single "centred" scroll no longer
       // shows the whole area (e.g. the funfair's 5 rides span x 0.18-0.92) — tests that
@@ -3148,6 +3203,7 @@ export function mount(container, params, ctx) {
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);
+      clearInterval(clockTimer);
       if (starTimer) clearTimeout(starTimer);
       if (pathCommitTimer) clearInterval(pathCommitTimer);
       commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)

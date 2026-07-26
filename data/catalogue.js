@@ -161,6 +161,41 @@ export const CATALOGUE = [
   { id: 'deco_bookshelf', kind: 'furniture', name: 'Bookshelf',     rarity: 'ultra',  deco: 'bookshelf', wall: true, blurb: 'Every shelf a different colour, none of them alphabetised.' },
   { id: 'deco_bffportrait', kind: 'furniture', name: 'Best-Friend Portrait', rarity: 'ultra', deco: 'bffportrait', wall: true, free: true, blurb: 'A friendship milestone, framed forever.' },
 
+  // --- Furniture and decor expansion (24, RUN13 T4): same kind:'furniture' contract as
+  // the eight above — indoor-only, bucketed under 'deco' in BY_TYPE_RARITY so they roll at
+  // DECORATION odds, `wall:true` for anything that hangs. RUN15's shop will price them.
+  // Lounge
+  { id: 'deco_armchair',   kind: 'furniture', name: 'Armchair',        rarity: 'common', deco: 'armchair',   blurb: 'One Boo, one chair, one very serious sit.' },
+  { id: 'deco_rug2',       kind: 'furniture', name: 'Stripy Rug',      rarity: 'common', deco: 'rug2',       blurb: 'Stripes for rolling on, mostly.' },
+  { id: 'deco_rug3',       kind: 'furniture', name: 'Star Rug',        rarity: 'rare',   deco: 'rug3',       blurb: 'A whole night sky, indoors, underfoot.' },
+  { id: 'deco_bookshelf2', kind: 'furniture', name: 'Low Bookshelf',   rarity: 'common', deco: 'bookshelf2', wall: true, blurb: 'Short enough that a small Boo can reach the good ones.' },
+  { id: 'deco_bookshelf3', kind: 'furniture', name: 'Corner Shelves',  rarity: 'rare',   deco: 'bookshelf3', wall: true, blurb: 'Three shelves, four hundred tiny treasures.' },
+  { id: 'deco_toybox',     kind: 'furniture', name: 'Toy Box',         rarity: 'common', deco: 'toybox',     blurb: 'The lid never quite closes. Nobody minds.' },
+  { id: 'deco_photoframe', kind: 'furniture', name: 'Photo Frame',     rarity: 'rare',   deco: 'photoframe', wall: true, blurb: 'Whoever you are closest to ends up in here.' },
+  // Kitchen
+  { id: 'deco_kitchentable', kind: 'furniture', name: 'Kitchen Table', rarity: 'common', deco: 'kitchentable', blurb: 'Long enough for elbows, snacks and one napping Boo.' },
+  { id: 'deco_counter',    kind: 'furniture', name: 'Kitchen Counter', rarity: 'common', deco: 'counter',    blurb: 'Crumbs live here now. It is their home.' },
+  { id: 'deco_stool',      kind: 'furniture', name: 'Little Stool',    rarity: 'common', deco: 'stool',      blurb: 'Three legs, infinite confidence.' },
+  { id: 'deco_fridge',     kind: 'furniture', name: 'Fridge',          rarity: 'rare',   deco: 'fridge',     blurb: 'Hums a note that is almost, but not quite, in tune.' },
+  { id: 'deco_oven',       kind: 'furniture', name: 'Little Oven',     rarity: 'rare',   deco: 'oven',       blurb: 'Something is always about to come out of it.' },
+  // Bedroom
+  { id: 'deco_bunkbed',    kind: 'furniture', name: 'Bunk Beds',       rarity: 'rare',   deco: 'bunkbed',    blurb: 'Top bunk is decided by whoever gets there first.' },
+  { id: 'deco_wardrobe2',  kind: 'furniture', name: 'Painted Wardrobe',rarity: 'rare',   deco: 'wardrobe2',  blurb: 'Flowers on the doors, chaos behind them.' },
+  // Lamps (both carry a night state)
+  { id: 'deco_lamp2',      kind: 'furniture', name: 'Paper Lamp',      rarity: 'common', deco: 'lamp2',      blurb: 'A soft paper moon on a stick.' },
+  { id: 'deco_floorlamp',  kind: 'furniture', name: 'Floor Lamp',      rarity: 'rare',   deco: 'floorlamp',  blurb: 'Leans over your shoulder like it is reading along.' },
+  // Plants
+  { id: 'deco_plant1',     kind: 'furniture', name: 'Little Pot Plant',rarity: 'common', deco: 'plant1',     blurb: 'Watered exactly the right amount, always.' },
+  { id: 'deco_plant2',     kind: 'furniture', name: 'Tall Leafy Plant',rarity: 'common', deco: 'plant2',     blurb: 'Taller than most Boos and quietly smug about it.' },
+  { id: 'deco_plant3',     kind: 'furniture', name: 'Hanging Ivy',     rarity: 'rare',   deco: 'plant3',     wall: true, blurb: 'Trails down the wall like a very slow waterfall.' },
+  // Walls
+  { id: 'deco_wallclock',  kind: 'furniture', name: 'Wall Clock',      rarity: 'rare',   deco: 'wallclock',  wall: true, blurb: 'Tells the real time, in case the Clock Shop asks.' },
+  { id: 'deco_mirror',     kind: 'furniture', name: 'Round Mirror',    rarity: 'rare',   deco: 'mirror',     wall: true, blurb: 'Every Boo checks it. Every single one.' },
+  { id: 'deco_wallart1',   kind: 'furniture', name: 'Sunshine Picture',rarity: 'common', deco: 'wallart1',   wall: true, blurb: 'Painted on a good day, you can tell.' },
+  { id: 'deco_wallart2',   kind: 'furniture', name: 'Mountain Picture',rarity: 'common', deco: 'wallart2',   wall: true, blurb: 'Somewhere nobody in this house has ever been.' },
+  { id: 'deco_wallart3',   kind: 'furniture', name: 'Squiggle Picture',rarity: 'rare',   deco: 'wallart3',   wall: true, blurb: 'Modern. Bold. Possibly upside down.' },
+
+
   // --- Accessories (RUN10 P13): hat / face / feet slots plus atomic sets. ---
   { id: 'acc_bow',          kind: 'accessory', slot: 'hat',  name: 'Purple Bow',      rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
   { id: 'acc_sunhat',       kind: 'accessory', slot: 'hat',  name: 'Sun Hat',         rarity: 'common', art: 'sunhat',       blurb: 'Wide brim, tiny flower, maximum holiday energy.' },
