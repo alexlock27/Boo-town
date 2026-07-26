@@ -226,24 +226,32 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await reach('.choreo-card .btn', 'choreographer: save/close buttons');
   await page.evaluate(() => document.querySelector('.choreo-overlay').remove());
 
+  // organic celebrations (trophies earned by the flows above) can pop on their own timers
+  // and intercept a click. RUN13 T6: this sweep used to be defined BELOW the grown-ups
+  // section, so a ceremony landing during the tab loop had nothing to clear it — which is
+  // exactly where it started landing once RUN13 T4 grew the collection. Defined here and
+  // called before every precise interaction from this point on.
+  const sweep = () => page.evaluate(() => document.querySelectorAll('.trophy-ceremony, .growth-reveal').forEach(n => n.remove()));
+
   // grown-ups: every tab reachable, then backup code box + copy, restore box, typed reset (Backup & data tab)
   await page.evaluate(() => window.BooTown.go('grownups'));
   await page.waitForSelector('.gu-tabs');
+  await sweep();
   for (const t of ['settings', 'golden', 'ledger', 'data']) {
+    await sweep();
     await page.click(`.gu-tab[data-tab="${t}"]`);
     const tabReach = await page.evaluate(eval(REACH_FN), `.gu-tab[data-tab="${t}"]`);
     assert(tabReach.found && tabReach.ok, `grown-ups: "${t}" tab reachable`);
   }
+  await sweep();
   await page.click('.gu-tab[data-tab="data"]');
   await page.waitForSelector('.gu-code');
+  await sweep();
   await reach('.gu-code', 'grown-ups: backup code box');
   await reach('button:has-text("Copy code")', 'grown-ups: Copy code');
   const guReset = await page.evaluate(eval(REACH_FN), '.text-input.small');
   assert(guReset.found && guReset.ok, 'grown-ups: typed-RESET confirm input reachable');
 
-  // organic celebrations (trophies earned by the flows above) can pop on their
-  // own timers — dismiss any before precise interaction steps
-  const sweep = () => page.evaluate(() => document.querySelectorAll('.trophy-ceremony, .growth-reveal').forEach(n => n.remove()));
   await sweep();
 
   // mid-round shells for EVERY game: back + hint + hearts reachable in-round
