@@ -11,6 +11,7 @@ import { WORDS } from '../data/spelling.js';
 import { TWIN_SETS } from '../data/soundTwins.js';
 import { LESSONS } from '../data/lessons.js';
 import { stampJournal } from './quests.js';
+import { roundSuspended } from './intro.js';
 import { AREA_UNLOCK_STARS } from './areas.js';
 import { sfx } from './sfx.js';
 import { BLOOM_COPY, bloomStats, persistBloomMax } from '../data/bloom.js';
@@ -199,6 +200,11 @@ function newLabel(c) {
 
 // Evaluate + celebrate in one call (used by results / ceremony / hub).
 export function checkAndCelebrate() {
+  // RUN14 U-0: while a round is suspended (an intro overlay up, or a QA walk holding the
+  // app still), the organic ceremony WAITS — nothing is evaluated or written, so the next
+  // check after resume finds and celebrates exactly the same trophies. Before this gate a
+  // ceremony could land on top of an intro card (and did land mid-click on QA walks).
+  if (roundSuspended()) return [];
   const fresh = evaluateTrophies();
   if (fresh.length) showTrophyCeremony(fresh);
   return fresh;
