@@ -1,3 +1,4 @@
+// @serial — audio-timing: note scheduling asserted from instrumentation logs (runs alone at the board's end; RUN14 U-0)
 // tests/p6-beat.mjs — Boo Beat (RUN2 C6) + part E checks 7 & 8.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';

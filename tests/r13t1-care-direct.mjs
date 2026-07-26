@@ -1,3 +1,4 @@
+// @serial — frame-sampling: pixel-hashed frame sequences per action per viewport (runs alone at the board's end; RUN14 U-0)
 // RUN13 T1 — Boo Care rebuilt as direct manipulation.
 //
 // The law under test is G8: on a touch-and-mouse device a care action is performed by

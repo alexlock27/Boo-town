@@ -1,3 +1,4 @@
+// @serial — audio-timing: multitrack transport-clock playback must match capture (runs alone at the board's end; RUN14 U-0)
 // tests/r9p6-band.mjs — Band 2.0 (RUN9 C6) + acceptance part D #6.
 // Multitrack jams on one shared transport clock (replay == capture), re-record a layer, the
 // xylophone + its 4th Boo; the Little Boo Songs + Golden Boo match the brief note-for-note

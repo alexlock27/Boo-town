@@ -1,3 +1,4 @@
+// @serial — frame-sampling: kite bob frames + fps sample per area (runs alone at the board's end; RUN14 U-0)
 // RUN13B T8 — town dressing: horizons, ground truth and always-there life. The town is
 // the reward for everything else, and now it looks like one.
 //

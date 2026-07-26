@@ -1,3 +1,4 @@
+// @serial — audio-timing: beat scheduling windows (runs alone at the board's end; RUN14 U-0)
 // tests/r6p5-beat.mjs — RUN6 phase 5: Boo Beat, the musical rework (C3).
 // Acceptance (RUN6 part D #6): melody notes scheduled exactly on correct on-time hits
 // across all three tracks; a sparkle harmonic on Perfects; a soft drum thud on a miss;

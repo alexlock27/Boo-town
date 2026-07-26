@@ -1,3 +1,4 @@
+// @serial — device-simulation: reduced-motion media emulation (runs alone at the board's end; RUN14 U-0)
 // tests/m3-motion.mjs — prefers-reduced-motion disables animations; audio code paths run clean.
 import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';

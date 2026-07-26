@@ -1,3 +1,4 @@
+// @serial — audio-timing: musical-memory pacing windows (runs alone at the board's end; RUN14 U-0)
 // tests/r12s8-echo.mjs — RUN12 S8: Echo Boos' feedback is unmissable, and its setup screen
 // offers one clear choice.
 //

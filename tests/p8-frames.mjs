@@ -1,3 +1,4 @@
+// @serial — frame-sampling: motion proven by frame sequences under real clocks (runs alone at the board's end; RUN14 U-0)
 // tests/p8-frames.mjs — EXPANSION_2 frames: Teach Me + Boo Dash (RUN2 phase 8).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
