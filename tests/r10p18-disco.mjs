@@ -49,9 +49,18 @@ console.log('== Funfair door and authored hall ==');
   await page.waitForFunction(() => window.__disco.barLog().length > 0);
   const bar = await page.evaluate(() => window.__disco.barLog()[0]);
   ok(Math.abs(bar.error) <= 40, `first bar lands within ±40ms of the audio clock (${bar.error.toFixed(1)}ms)`);
+  // RUN13 T5 SUPERSEDED THIS ASSERTION, justified in RUN13_REPORT.md: the floor grew from
+  // six moves to ten, and each temperament now PREFERS three of them, re-picked every bar,
+  // so two Boos of the same temperament stop dancing in lockstep. What must still hold is
+  // that a Boo only ever dances one of HER OWN three — the personality mapping is still
+  // real, it is just no longer a single hardcoded move.
   const moves = await page.evaluate(() => { window.__disco.forceBar(); return window.__disco.dancerMoves(); });
-  const expected = { bouncy:'bounce', sleepy:'sway', cheeky:'spin', shy:'sway-small', musical:'shimmy', sporty:'star-jump' };
-  ok(moves.every(({ personality, move }) => expected[personality] === move), 'each personality gets its authored dance');
+  const prefs = await page.evaluate(() => window.__disco.preferences());
+  const signature = { bouncy:'bounce', sleepy:'sway', cheeky:'spin', shy:'sway-small', musical:'shimmy', sporty:'star-jump' };
+  ok(moves.every(({ personality, move }) => (prefs[personality] || []).includes(move)),
+    'each personality dances one of its own three preferred moves');
+  ok(Object.entries(signature).every(([p, m]) => (prefs[p] || [])[0] === m),
+    'and its original authored dance is still its signature (first preference)');
   ok(new Set(await page.evaluate(() => window.__disco.tileHues())).size === 24, 'all 24 tiles receive bar-linked hues');
 
   const tracks = await page.evaluate(() => {
