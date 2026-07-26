@@ -10,6 +10,7 @@
 // that every action still awards exactly its POINTS value from data/care.js.
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'fs';
+import { createHash } from 'crypto';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const SHOTS = 'screenshots/run13/t1';
@@ -40,7 +41,7 @@ function save({ boo = 'boo_inky', treats = 5, points = 0, content = 'full' } = {
     delights: { hideDay: TODAY, hideFound: true },
     care: { bonds: { [boo]: points }, treats },
     settings: { sound: false, music: false, voice: false, content },
-    seen: { boohouseSeeded: true, trophyRetro: true, careIntro: true }, trophies: {}, journal: {},
+    seen: { boohouseSeeded: true, trophyRetro: true, introSeen: { care: true } }, trophies: {}, journal: {},
     age: content === 'toddler' ? 4 : 8, ageAsked: true
   };
 }
@@ -175,6 +176,7 @@ console.log('== choreography: 6+ frames over 3+ seconds, all three viewports =='
         ? await openCareVariant(variant, { width: vp.width, height: vp.height })
         : await openCare({ action, width: vp.width, height: vp.height });
       const signatures = [];
+      const pixelHashes = [];
       const t0 = Date.now();
       let firstFeedback = null;
 
@@ -196,35 +198,39 @@ console.log('== choreography: 6+ frames over 3+ seconds, all three viewports =='
       }
 
       const zone = (action === 'teeth' || action === 'feed') ? 'mouth' : 'body';
-      const slices = seq === 'teeth' ? [4, 4, 4, 4, 4, 4, 4]
-        : seq === 'bath' ? [4, 4, 4, 4, 4, 4, 4]
-          : seq === 'brush' ? [2, 2, 2, 2, 2, 2, 2]
-            : seq === 'feed' ? [1, 0, 0, 0, 0, 0, 0]
+      const slices = seq === 'teeth' ? [0, 3, 3, 3, 3, 3, 3, 3]
+        : seq === 'bath' ? [0, 3, 3, 3, 3, 3, 3, 3]
+          : seq === 'brush' ? [0, 2, 0, 2, 0, 2, 0, 2]
+            : seq === 'feed' ? [0, 1, 0, 0, 0, 0, 0, 0]
               : null;
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 8; i++) {
         if (slices && slices[i]) await dragTool(page, { sweeps: slices[i], zone }).catch(() => {});
-        else if (seq === 'play-ball' && i % 2 === 0 && await page.evaluate(() => window.__care.fetches() < 3)) {
+        else if (seq === 'play-ball' && i % 3 === 1 && await page.evaluate(() => window.__care.fetches() < 3)) {
           const bb = await page.locator('.care-tool.tool-ball').boundingBox();
           if (bb) {
             await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
             await page.mouse.down();
-            await page.mouse.move(geom.stage.x + geom.stage.w * (i % 4 ? .78 : .24), geom.stage.y + geom.stage.h * .6, { steps: 8 });
+            await page.mouse.move(geom.stage.x + geom.stage.w * (i % 2 ? .78 : .24), geom.stage.y + geom.stage.h * .6, { steps: 8 });
             await page.mouse.up();
           }
         }
-        await page.waitForTimeout(470);
+        await page.waitForTimeout(420);
         signatures.push(await page.evaluate(() => ({
           boo: document.querySelector('.care-boo')?.className || '',
           progress: window.__care.progress(),
           particles: document.querySelectorAll('.care-particle').length,
           status: document.querySelector('.care-status')?.textContent || ''
         })));
-        await page.screenshot({ path: `${SHOTS}/${seq}-${vp.name}-f${i}.png` });
+        // The house evidence standard is PIXELS, not a JS signature: hash the frame the
+        // child would actually see. A "working but dead" action fails here even when its
+        // state machine is perfect.
+        const buf = await page.screenshot({ path: `${SHOTS}/${seq}-${vp.name}-f${i}.png` });
+        pixelHashes.push(createHash('sha1').update(buf).digest('hex'));
       }
       const span = Date.now() - t0;
-      const distinct = new Set(signatures.map(s => JSON.stringify(s))).size;
+      const distinct = new Set(pixelHashes).size;
       ok(signatures.length >= 6 && span >= 3000, `${seq} @ ${vp.name}: ${signatures.length} frames over ${(span / 1000).toFixed(1)}s`);
-      ok(distinct >= 4, `${seq} @ ${vp.name}: the stage genuinely changes across the sequence (${distinct} distinct frames)`);
+      ok(distinct >= 4, `${seq} @ ${vp.name}: the frames genuinely differ on screen (${distinct} distinct of ${pixelHashes.length})`);
       if (firstFeedback !== null) {
         ok(firstFeedback <= 200, `${seq} @ ${vp.name}: the tool responds to a touch in ${firstFeedback}ms (≤200ms)`);
       }

@@ -12,7 +12,7 @@ import { renderTrophyRoom } from './trophies.js';
 import { ownedCustomItems } from './customs.js';
 import { micEnabled, openVoiceRecorder } from './voices.js';
 import { contentTier } from './content.js';
-import { openCare, renderCareSummary, heartBadge, isBestFriend } from './care.js';
+import { openCare, renderCareSummary, heartBadge, isBestFriend, bondLevel } from './care.js';
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -228,6 +228,21 @@ export function mount(container, params, ctx) {
       else if (v === 'rename') openRename(item.id, { onDone: () => ctx.go('collection') });
       else if (v === 'voice') openVoiceRecorder(item.id, nick);
     });
+  }
+
+  // RUN13 T2 — discovery. The first time any Boo reaches two hearts, say once (and only
+  // once) that the ritual is not reserved for that one Boo. No nagging, no repeat.
+  if (!(s.seen && s.seen.careAnyHint) && Object.keys((s.care && s.care.bonds) || {}).some(id => bondLevel(id) >= 2)) {
+    const hint = el('div', { class: 'coll-care-hint', role: 'status' }, [
+      el('span', { class: 'coll-care-hint-icon', text: '💗' }),
+      el('span', { text: 'Lovely — you can care for ANY of your Boos. Tap one to say hello.' }),
+      el('button', {
+        class: 'btn soft coll-care-hint-ok', text: 'Got it!',
+        onclick: e => { sfx.tap(); e.currentTarget.closest('.coll-care-hint').remove(); }
+      })
+    ]);
+    root.insertBefore(hint, tabs);
+    import('./state.js').then(m => m.mutate(st => { st.seen = st.seen || {}; st.seen.careAnyHint = true; }));
   }
 
   // Arriving from a specific figure (RUN10 P4: the Gallery) opens straight to its card.

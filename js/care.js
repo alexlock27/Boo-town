@@ -23,6 +23,7 @@ import { sfx } from './sfx.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { stampJournal } from './quests.js';
 import { contentTier } from './content.js';
+import { runIntro, introSeen, INTRO_SCRIPTS } from './intro.js';
 
 const ACTIONS = [
   { id: 'feed', icon: '🍪', label: 'Treat' },
@@ -140,6 +141,11 @@ export function openCare(item, options = {}) {
   const overlay = el('div', { class: 'care-overlay' });
   const panel = el('section', { class: `care-panel personality-${personality}`, role: 'dialog', 'aria-label': `Care for ${displayName}` });
   const close = el('button', { class: 'care-close', 'aria-label': 'Close Boo Care', text: '×', onclick: () => finishClose() });
+  // House law: every game teaches itself — a first-play intro plus a "?" replay in the shell.
+  const help = el('button', {
+    class: 'care-help', 'aria-label': 'How Boo Care works', text: '?',
+    onclick: () => teachCare()
+  });
   const title = el('h2', { text: `Care for ${displayName}` });
   const pocket = el('span', { class: 'care-pocket big', text: `🍪 ${(getState().care && getState().care.treats) || 0}` });
   const hearts = el('div', { class: 'care-modal-hearts', html: heartsMarkup(booId) });
@@ -159,7 +165,7 @@ export function openCare(item, options = {}) {
     'aria-label': action.label,
     onclick: () => beginAction(action.id)
   }, [el('span', { text: action.icon }), el('small', { text: action.label })])));
-  panel.append(close, title, pocket, hearts, stage, actionBar);
+  panel.append(close, help, title, pocket, hearts, stage, actionBar);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('open'));
@@ -505,7 +511,8 @@ export function openCare(item, options = {}) {
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Bath — a sponge raises bubbles. Nothing was ever dirty (G9): bath time is FUN.
+  // 4. Bath — a sponge raises bubbles. She was never unclean to begin with (G9): the
+  //    framing is "bath time is FUN", never "you need washing".
   // ---------------------------------------------------------------------------
   function bath() {
     status.textContent = personalityFlavour('bath', personality) + ' Drag the sponge over her.';
@@ -745,7 +752,20 @@ export function openCare(item, options = {}) {
     close: finishClose
   };
 
-  if (options.startAction) later(() => beginAction(options.startAction), 80);
+  // RUN13 T2 — the first time a child ever opens care, for ANY Boo, the guide walks three
+  // short steps. The chosen action waits behind it (RUN12 S6's law: an intro must never
+  // run the thing it is explaining behind its own back). The "?" replays it any time.
+  function teachCare(onDone) {
+    document.body.classList.add('care-teaching');
+    runIntro('care', {
+      steps: INTRO_SCRIPTS.care,
+      onDone: () => { document.body.classList.remove('care-teaching'); if (onDone) onDone(); }
+    });
+  }
+  const startChosen = () => { if (options.startAction) later(() => beginAction(options.startAction), 80); };
+  if (introSeen('care')) startChosen();
+  else teachCare(startChosen);
+
   return { close: finishClose, overlay };
 }
 
