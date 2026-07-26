@@ -1,3 +1,4 @@
+// @serial — device-simulation: devicemotion/haptics thresholds and debounce (runs alone at the board's end; RUN14 U-0)
 // tests/r9p7-garnish.mjs — sensor & haptic garnish + voice picker (RUN9 C7 / C6b),
 // acceptance part D #7 (+ #6b). navigator.vibrate is stubbed to capture patterns; a shake
 // is stubbed via devicemotion; speechSynthesis voices are stubbed for the picker.

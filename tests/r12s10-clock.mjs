@@ -1,3 +1,4 @@
+// @serial — device-simulation: device-hour driven states sampled over time (runs alone at the board's end; RUN14 U-0)
 // tests/r12s10-clock.mjs — RUN12 S10: setting a clock feels exact and fair.
 //
 // Two reported defects. The hands never reset between orders, so every order after the

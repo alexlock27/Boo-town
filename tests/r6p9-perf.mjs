@@ -1,3 +1,4 @@
+// @serial — frame-sampling: fps measurements are meaningless under parallel load (runs alone at the board's end; RUN14 U-0)
 // tests/r6p9-perf.mjs — RUN6 phase 9 PERFORMANCE GATE (part D #10).
 // The three busiest scenes — a crowded town, the full funfair, the Boss Grump quest —
 // must each hold TRANSFORM-ONLY animation with concurrent actors + emitters bounded by

@@ -1,3 +1,4 @@
+// @serial — frame-sampling: 60s live containment watch + 22s respawn watch under real clocks (runs alone at the board's end; RUN14 U-0)
 // tests/r12s12-bubble-containment.mjs — RUN12 S12: the answer is always tappable.
 //
 // Bubbles drifted on until they were completely past the top of the play field

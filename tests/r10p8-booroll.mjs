@@ -1,3 +1,4 @@
+// @serial — device-simulation: synthetic deviceorientation streams (runs alone at the board's end; RUN14 U-0)
 // RUN10 P7/P8 acceptance: authored side-view courses and their runtime hooks.
 import { chromium } from 'playwright';
 import { COURSES } from '../data/courses.js';

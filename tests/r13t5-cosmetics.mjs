@@ -1,3 +1,4 @@
+// @serial — frame-sampling: idle/dance animation frame evidence (runs alone at the board's end; RUN14 U-0)
 // RUN13 T5 — cosmetics expansion.
 //
 // Twelve accessories across the three slots, two costume sets, ten dance moves with a

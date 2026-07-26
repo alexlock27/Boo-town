@@ -1,3 +1,4 @@
+// @serial — frame-sampling: ember flicker / fairy light pixel-hash sequences (runs alone at the board's end; RUN14 U-0)
 // RUN13B T7 — rooms that are rooms: each Boo House room owns its walls, floor and
 // fixed built-ins. The acceptance bar is a screenshot a child could label unprompted.
 //
