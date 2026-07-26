@@ -90,6 +90,7 @@ export const JOURNAL_CATALOG = [
   { key: 'golden3', label: 'Golden Round, 3 stars', icon: '🌟' },
   { key: 'firstRoutine', label: 'First dance routine', icon: '💃' },
   { key: 'firstShiny', label: 'First shiny Boo', icon: '✨' },
+  { prefix: 'lesson_', label: 'Lesson learned', icon: '📘' },   // RUN15 V3.2
   { prefix: 'star3_', label: '3 stars', icon: '⭐' },
   { prefix: 'zone_', label: 'Unlocked', icon: '🗺️' },
   { prefix: 'allQuests', label: 'All quests done', icon: '🎯' },
@@ -118,7 +119,8 @@ export function stampMeta(key) {
     if (c.prefix && key.startsWith(c.prefix)) {
       const rest = key.slice(c.prefix.length).replace(/^_/, '').replace(/:.*/, '');
       const nice = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : '';
-      return { icon: c.icon, label: c.prefix === 'star3_' ? `${nice}: 3 stars` : c.prefix === 'zone_' ? `Unlocked ${nice}` : c.label };
+      return { icon: c.icon, label: c.prefix === 'star3_' ? `${nice}: 3 stars` : c.prefix === 'zone_' ? `Unlocked ${nice}`
+        : c.prefix === 'lesson_' ? `Learned: ${nice.replace(/-/g, ' ')}` : c.label };
     }
   }
   return { icon: '🏅', label: key };

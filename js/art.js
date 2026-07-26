@@ -1400,6 +1400,92 @@ export function renderDeco(item, opts = {}) {
         `<g class="clock-hands">${clockHands(opts.clockHour, opts.clockMinute)}</g>` +
         `<circle cx="60" cy="60" r="3.5" fill="${INK}"/>`;
       break;
+    // ---- RUN15 V4: the authored shop stock ------------------------------------------
+    case 'lamppost':
+      inner =
+        rrect(54, 40, 12, 74, 5, COLORS.ink, halo) +
+        rrect(54, 40, 12, 74, 5, COLORS.ink, ink) +
+        ell(60, 112, 20, 6, COLORS.ink, ink) +
+        path('M42 40 Q60 18 78 40 Z', COLORS.gold, halo) +
+        path('M42 40 Q60 18 78 40 Z', COLORS.gold, ink) +
+        ell(60, 36, 9, 9, COLORS.cream, '') +
+        `<g class="lamp-glow">${ell(60, 36, 20, 20, COLORS.gold, '')}</g>`;
+      break;
+    case 'signpost':
+      inner =
+        rrect(56, 44, 8, 70, 4, COLORS.cocoa, halo) +
+        rrect(56, 44, 8, 70, 4, COLORS.cocoa, ink) +
+        path('M56 50 L92 50 L100 58 L92 66 L56 66 Z', COLORS.teal, ink) +
+        path('M64 72 L28 72 L20 80 L28 88 L64 88 Z', COLORS.bubblegum, ink) +
+        path('M56 94 L88 94 L96 102 L88 110 L56 110 Z', COLORS.gold, ink) +
+        ell(60, 116, 18, 5, COLORS.ink, ink);
+      break;
+    case 'sandpit':
+      inner =
+        ell(60, 92, 46, 22, COLORS.sand || '#F2DDA6', halo) +
+        ell(60, 92, 46, 22, COLORS.sand || '#F2DDA6', ink) +
+        ell(60, 90, 36, 15, '#E4C583', '') +
+        path('M38 84 L50 84 L47 96 L41 96 Z', COLORS.bubblegum, ink) +
+        path('M70 96 L84 74 L88 78 L76 98 Z', COLORS.gold, ink) +
+        ell(58, 80, 4, 3, '#D9BE7E', '') + ell(66, 86, 3, 2, '#D9BE7E', '');
+      break;
+    case 'climbframe':
+      inner =
+        path('M24 112 L38 44 M96 112 L82 44', 'none', `fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"`) +
+        path('M38 44 L82 44', 'none', `fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"`) +
+        [58, 72, 86, 100].map((y, i) => path(`M${30 - i * 0 + (i * 1.6)} ${y} L${90 - i * 1.6} ${y}`, 'none',
+          `fill="none" stroke="${[COLORS.bubblegum, COLORS.teal, COLORS.gold, COLORS.lilac][i]}" stroke-width="6" stroke-linecap="round"`)).join('') +
+        ell(38, 40, 6, 6, COLORS.gold, ink) + ell(82, 40, 6, 6, COLORS.bubblegum, ink);
+      break;
+    case 'roundabout':
+      inner =
+        ell(60, 96, 48, 16, COLORS.ink, halo) +
+        ell(60, 92, 48, 16, COLORS.teal, ink) +
+        ell(60, 88, 40, 12, COLORS.aqua, '') +
+        [0, 60, 120, 180, 240, 300].map(a => {
+          const r = a * Math.PI / 180;
+          return path(`M60 88 L${(60 + Math.cos(r) * 38).toFixed(1)} ${(88 + Math.sin(r) * 11).toFixed(1)}`, 'none',
+            `fill="none" stroke="${INK}" stroke-width="3"`);
+        }).join('') +
+        rrect(55, 52, 10, 38, 5, COLORS.ink, ink) +
+        ell(60, 50, 10, 10, COLORS.gold, ink) +
+        ell(26, 86, 8, 6, COLORS.bubblegum, ink) + ell(94, 86, 8, 6, COLORS.lilac, ink);
+      break;
+    case 'projectorlamp':
+      inner =
+        ell(60, 110, 24, 8, COLORS.ink, ink) +
+        rrect(52, 66, 16, 44, 6, COLORS.lilac, halo) +
+        rrect(52, 66, 16, 44, 6, COLORS.lilac, ink) +
+        ell(60, 58, 22, 20, COLORS.ink, halo) +
+        ell(60, 58, 22, 20, COLORS.ink, ink) +
+        ell(60, 54, 13, 11, COLORS.gold, '') +
+        `<g class="lamp-glow">` +
+        [[24, 24], [92, 20], [40, 12], [78, 34], [60, 8]].map(([x, y]) =>
+          path(`M${x} ${y - 5} L${x + 2} ${y - 1} L${x + 6} ${y} L${x + 2} ${y + 2} L${x} ${y + 6} L${x - 2} ${y + 2} L${x - 6} ${y} L${x - 2} ${y - 1} Z`, COLORS.gold, '')).join('') +
+        `</g>`;
+      break;
+    case 'grandbookshelf':
+      inner =
+        rrect(14, 18, 92, 96, 6, COLORS.cocoa, halo) +
+        rrect(14, 18, 92, 96, 6, COLORS.cocoa, ink) +
+        [30, 54, 78].map(y => rrect(18, y, 84, 4, 2, '#7A5240', '')).join('') +
+        [[22, 22], [46, 22], [70, 22], [22, 58], [46, 58], [70, 58], [22, 82], [46, 82], [70, 82]].map(([x, y], i) =>
+          rrect(x, y, 7, i % 3 === 1 ? 26 : 22, 2, [COLORS.bubblegum, COLORS.teal, COLORS.gold, COLORS.lilac, COLORS.aqua][i % 5], '')).join('') +
+        path('M92 26 L102 26 L102 106 L92 106', 'none', `fill="none" stroke="${INK}" stroke-width="4"`) +
+        [40, 58, 76, 94].map(y => path(`M92 ${y} L102 ${y}`, 'none', `fill="none" stroke="${INK}" stroke-width="3"`)).join('');
+      break;
+    case 'telescope':
+      inner =
+        path('M40 112 L60 76 L80 112', 'none', `fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"`) +
+        path('M60 112 L60 84', 'none', `fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round"`) +
+        `<g transform="rotate(-28 60 74)">` +
+        rrect(28, 62, 66, 22, 11, COLORS.teal, halo) +
+        rrect(28, 62, 66, 22, 11, COLORS.teal, ink) +
+        rrect(86, 58, 18, 30, 8, COLORS.aqua, ink) +
+        ell(30, 73, 6, 9, COLORS.gold, ink) +
+        `</g>` +
+        ell(96, 30, 3, 3, COLORS.gold, '') + ell(84, 18, 2.5, 2.5, COLORS.cream, '');
+      break;
     case 'mirror':
       inner =
         ell(60, 62, 32, 40, COLORS.gold, halo) +

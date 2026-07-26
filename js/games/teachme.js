@@ -12,10 +12,37 @@ import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { LESSONS } from '../../data/lessons.js';
 import { bestStars, recordBest, saveLastPick } from '../picker.js';
+import { stampJournal } from '../quests.js';
+import { confetti } from '../ui.js';
 
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const LESSON_ICON = { tower: '🗼', spring: '🌀', footsteps: '👣', cakeslice: '🍰', dotsgrid: '⚄', clock: '🕒' };
+export const LESSON_CEREMONY_MS = 2200;   // the beat a finished lesson gets, matching a game's
+
+// RUN15 V3.2 — a lesson finishes like an achievement, not like homework. The guide names
+// what she learned, a badge stamps in, and the whole thing has the weight of a game's
+// celebration before the results screen takes over.
+function lessonCeremony(lesson, stars, isRecap, onDone) {
+  const wrap = el('div', { class: 'lesson-ceremony', role: 'dialog', 'aria-label': 'Lesson complete' });
+  const panel = el('div', { class: 'card lc-panel' }, [
+    el('div', { class: 'lc-badge', text: LESSON_ICON[lesson.icon] || '📘' }),
+    el('h2', { class: 'lc-title', text: isRecap ? 'Nice recap!' : 'Lesson learned!' }),
+    el('p', { class: 'lc-name', text: lesson.name }),
+    el('div', { class: 'lc-stars', html: starsRow(stars, { size: 30 }) }),
+    el('p', { class: 'lc-journal', text: '📓 A badge for your Journal' })
+  ]);
+  wrap.appendChild(panel);
+  document.body.appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add('show'));
+  sfx.star();
+  if (!REDUCED) confetti({ count: stars >= 3 ? 90 : 60, power: 1 });
+  speakMaybe(isRecap ? `Nice recap of ${lesson.name}!` : `You learned ${lesson.name}!`);
+  const close = () => { wrap.classList.remove('show'); setTimeout(() => wrap.remove(), 220); onDone(); };
+  const t = setTimeout(close, REDUCED ? 900 : LESSON_CEREMONY_MS);
+  wrap.addEventListener('click', () => { clearTimeout(t); close(); });
+  if (typeof window !== 'undefined') window.__lessonCeremony = { shown: true, recap: isRecap, close };
+}
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen teachme' });
@@ -144,8 +171,23 @@ export function mount(container, params, ctx) {
     function finish() {
       if (ended) return; ended = true; shell.cleanup();
       const stars = slips === 0 ? 3 : slips === 1 ? 2 : 1;
+      // RUN15 V3.3: a lesson replayed AFTER mastery is a "quick recap" — welcome, warm,
+      // and un-farmable. It still pays (nothing is ever taken away) but at the cosy award,
+      // so revisiting a lesson she has already aced cannot mint Lesson Stars on repeat.
+      const wasMastered = bestStars('teachme', lesson.id) >= 3;
       recordBest('teachme', lesson.id, stars);
-      ctx.go('results', { game: 'teachme', gameName: lesson.name, stars, replay: () => ctx.go('teachme') });
+      // V3.2: the lesson gets a real ceremony before the results screen — the guide
+      // reacts by name and the Journal takes a lesson badge.
+      stampJournal('lesson_' + lesson.id);
+      lessonCeremony(lesson, stars, wasMastered, () => {
+        ctx.go('results', {
+          game: 'teachme', gameName: lesson.name, stars,
+          starType: 'lesson',                    // V1: lessons always pay Lesson Stars
+          extraCosy: wasMastered,                // V3.3: a recap is a cosy round
+          recap: wasMastered,
+          replay: () => ctx.go('teachme')
+        });
+      });
     }
 
     // test hook

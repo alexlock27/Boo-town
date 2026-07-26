@@ -291,6 +291,94 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .meter-track { flex: 1; display: flex; gap: 6px; height: 22px; max-width: 520px; }
 .meter-track.big { height: 28px; width: min(340px, 80%); max-width: 340px; margin: 8px auto; }
 .result-meter { width: 100%; display: flex; flex-direction: column; align-items: center; }
+/* The shop's market stall in the Meadow: a door, drawn where a door should be. */
+.t-shop-stall { position: absolute; border: none; background: none; padding: 0; z-index: 4; cursor: pointer; }
+.t-shop-stall:active { transform: translateY(2px); }
+.t-shop-stall:focus-visible { outline: 4px solid var(--star); outline-offset: 3px; border-radius: 12px; }
+/* ---- RUN15 V4 — the Boo Shop ------------------------------------------------------ */
+.screen.shop { display: flex; flex-direction: column; height: 100%; gap: 6px; }
+.shop-header { display: flex; align-items: center; gap: 10px; padding: 6px 56px 0 12px; }
+.shop-title { margin: 0; font-size: 22px; }
+.shop-sub { margin: 0; font-size: 13px; color: #574B86; }
+.shop-help { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); font: 700 20px var(--font-display); color: var(--ink); }
+.shop-purse { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 0 10px 4px; }
+.purse-chip {
+  display: flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 999px;
+  background: var(--card); border: 3px solid var(--ink); font: 700 15px var(--font-display); color: var(--ink);
+}
+.purse-chip.legacy { background: #EFE7FA; }
+.pc-lbl { font-size: 11px; font-weight: 600; color: #574B86; }
+.shop-drawer { flex: 1; min-height: 0; }
+.shop-shelf { padding: 4px 8px 12px; }
+.shelf-blurb { margin: 0 0 8px; font-size: 14px; color: #574B86; text-align: center; }
+.shelf-ribbon {
+  margin: 12px auto 0; max-width: 560px; text-align: center; font-size: 13px; color: var(--ink);
+  background: #FFF1D9; border: 3px dashed #C9935F; border-radius: 14px; padding: 7px 12px;
+}
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+.shop-card {
+  position: relative; background: var(--card); border: 3px solid var(--ink); border-radius: 16px;
+  padding: 8px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  box-shadow: var(--card-shadow); color: var(--ink);
+}
+.shop-card.owned { background: #EDF6EC; }
+.sc-art { height: 78px; display: flex; align-items: center; justify-content: center; }
+.shop-card .sc-name { font: 700 13px var(--font-display); text-align: center; line-height: 1.15; }
+.sc-price { display: flex; align-items: center; gap: 4px; font: 700 15px var(--font-display); }
+.sc-owned { font: 700 13px var(--font-display); color: #2F6B3A; }
+.sc-buy { padding: 5px 16px; font-size: 14px; min-height: 40px; }
+.sc-heart { position: absolute; top: 5px; right: 5px; width: 32px; height: 32px; border: none; background: none; font-size: 18px; line-height: 1; }
+.shop-card.saving { background: #F6F1FB; }
+.shop-bought, .shop-welcome { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9500; pointer-events: none; }
+.shop-welcome { pointer-events: auto; background: rgba(20,12,48,.55); }
+.shop-bought { opacity: 0; transition: opacity .2s ease; }
+.shop-bought.show { opacity: 1; }
+.shop-bought .sb-line { font: 700 17px var(--font-display); color: var(--card); text-shadow: 0 2px 8px rgba(20,12,48,.9); }
+.shop-bought > * { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sw-panel { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 320px; }
+.sw-amount { font: 700 26px var(--font-display); color: var(--ink); margin: 0; }
+.sw-note { color: #574B86; margin: 0; }
+@media (max-width: 600px) {
+  .shop-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+  .shop-title { font-size: 19px; } .shop-sub { font-size: 12px; }
+  .sc-art { height: 64px; }
+}
+@media (prefers-reduced-motion: reduce) { .shop-bought { transition: none; } }
+
+/* RUN15 V3.2 — a finished lesson gets a real ceremony, the weight of a game's. */
+.lesson-ceremony {
+  position: fixed; inset: 0; z-index: 9600; display: flex; align-items: center; justify-content: center;
+  background: rgba(20,12,48,.6); opacity: 0; transition: opacity .22s ease;
+}
+.lesson-ceremony.show { opacity: 1; }
+.lc-panel { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 340px; }
+.lc-badge { font-size: 62px; }
+.lesson-ceremony.show .lc-badge { animation: lcPop .5s cubic-bezier(.2,1.5,.4,1); }
+@keyframes lcPop { 0% { transform: scale(.3) rotate(-12deg); } 100% { transform: scale(1) rotate(0); } }
+.lc-title { margin: 0; }
+.lc-name { color: #574B86; margin: 0; }
+.lc-journal { font-size: 14px; color: #574B86; margin: 2px 0 0; }
+@media (prefers-reduced-motion: reduce) { .lesson-ceremony { transition: none; } .lesson-ceremony.show .lc-badge { animation: none; } }
+
+/* RUN15 V1/V2 — the award panel: which stars this round paid, and any bonus. Every line
+   is additive; there is deliberately no "less than" state to style. */
+.result-award { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 2px 0 8px; }
+.ra-earned { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; }
+.ra-ic { font-size: 22px; }
+.ra-amount { font-size: 26px; color: var(--ink); }
+.ra-type { font-size: 15px; color: #574B86; }
+.ra-bonus {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
+  background: var(--star); border: 3px solid var(--ink); border-radius: 999px; padding: 4px 14px;
+  box-shadow: 0 3px 0 rgba(42,27,78,.25);
+}
+.ra-brave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.ra-brave-chip {
+  font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink);
+  background: var(--zing); border: 3px solid var(--ink); border-radius: 999px; padding: 3px 12px;
+}
+.ra-brave-note { font-size: 14px; color: #574B86; }
+@media (max-width: 600px) { .ra-amount { font-size: 22px; } .ra-type, .ra-bonus, .ra-brave-note { font-size: 13px; } }
 .meter-seg {
   flex: 1; border-radius: 8px; background: rgba(255,255,255,0.16);
   border: 2px solid rgba(255,255,255,0.22); transition: background 200ms ease-out, transform 200ms ease-out;

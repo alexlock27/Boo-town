@@ -195,6 +195,19 @@ export const CATALOGUE = [
   { id: 'deco_wallart2',   kind: 'furniture', name: 'Mountain Picture',rarity: 'common', deco: 'wallart2',   wall: true, blurb: 'Somewhere nobody in this house has ever been.' },
   { id: 'deco_wallart3',   kind: 'furniture', name: 'Squiggle Picture',rarity: 'rare',   deco: 'wallart3',   wall: true, blurb: 'Modern. Bold. Possibly upside down.' },
 
+  // ---- RUN15 V4: authored SHOP stock that had no item yet (CONTENT_PRICES.md). ----
+  // shopOnly: these never enter the box pool — the shop is their whole route, exactly as
+  // boxes are the whole route for Boos and costumes. Both economies keep their meaning.
+  { id: 'deco_lamppost',   kind: 'deco', name: 'Lamp Post',    rarity: 'common', deco: 'lamppost',   shopOnly: true, blurb: 'Comes on by itself the moment the sky goes purple.' },
+  { id: 'deco_signpost',   kind: 'deco', name: 'Signpost',     rarity: 'common', deco: 'signpost',   shopOnly: true, blurb: 'Points four ways at once. All of them are correct.' },
+  { id: 'deco_sandpit',    kind: 'deco', name: 'Sandpit',      rarity: 'common', deco: 'sandpit',    act: 'sandpit', shopOnly: true, blurb: 'Somehow always exactly one bucket short.' },
+  { id: 'deco_climbframe', kind: 'deco', name: 'Climbing Frame', rarity: 'rare', deco: 'climbframe', act: 'climb',   shopOnly: true, blurb: 'The top bar is for the brave and the very determined.' },
+  { id: 'deco_roundabout', kind: 'deco', name: 'Roundabout',   rarity: 'rare',   deco: 'roundabout', act: 'spin',    shopOnly: true, blurb: 'Push, hop on, regret nothing.' },
+  // The Special shelf — the highest-value things in the game, priced in Lesson Stars.
+  { id: 'deco_projectorlamp',  kind: 'furniture', name: 'Star Projector Lamp', rarity: 'ultra', deco: 'projectorlamp',  shopOnly: true, blurb: 'Throws the whole night sky across your ceiling.' },
+  { id: 'deco_grandbookshelf', kind: 'furniture', name: 'Grand Bookshelf',     rarity: 'ultra', deco: 'grandbookshelf', wall: true, shopOnly: true, blurb: 'Every book someone meant to read, and a ladder to reach them.' },
+  { id: 'deco_telescope',      kind: 'furniture', name: 'Telescope',           rarity: 'ultra', deco: 'telescope',      shopOnly: true, blurb: 'Point it at anything. It makes it more interesting.' },
+
 
   // --- Accessories (RUN10 P13): hat / face / feet slots plus atomic sets. ---
   { id: 'acc_bow',          kind: 'accessory', slot: 'hat',  name: 'Purple Bow',      rarity: 'common', art: 'bow',          blurb: 'A big satin bow in the most excellent shade of purple.' },
@@ -266,6 +279,9 @@ export const BIRTHDAY_BOOS = CATALOGUE.filter(it => it.birthdayOnly);
 // Grouped by kind then rarity for the type-first drop roll (RUN2 C2). Free items never drop.
 export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
   if (it.free || it.questOnly || it.expeditionOnly) return m;   // quest/expedition exclusives never drop from boxes
+  // RUN15 V4: shop-only stock is the mirror of the unlock-only rule — boxes stay the whole
+  // route for living things and rare treasures; these are the whole route for the shop.
+  if (it.shopOnly) return m;
   if (it.kind === 'landscape') return m;   // Build-mode toybox items (RUN10 P3) never drop either
   // Furniture (RUN10 P4) joins the box pools "at decoration odds" — bucketed under the
   // same 'deco' type-roll weight, not a separate furniture type/weight of its own.
