@@ -2186,9 +2186,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
   left: -30%; top: -12%; background: #201858; opacity: 0.92;
 }
-/* Stars belong to the night: the whole field fades in only after dark. */
+/* Stars belong to the night sky: the field follows the sky band, not the broader
+   .night tint (which starts at 19:00 but also covers the 5-7am dawn). */
 .t-stars { opacity: 0; transition: opacity 0.6s ease; }
-.town2.night .t-stars { opacity: 1; }
+.t-skygrad.night ~ .t-stars { opacity: 1; }
 .town2.night .t-band { filter: brightness(0.82) saturate(0.92); }
 .t-stars { position: absolute; inset: 0; }
 .t-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; opacity: 0.35; animation: twk var(--tw, 2s) ease-in-out infinite; }
