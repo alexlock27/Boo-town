@@ -210,6 +210,18 @@ gone — 4.5 seconds became 283 milliseconds.
 
 ---
 
+## U3 — the end gate
+
+**Full sharded board: 129 suites, PASS=129, FAIL=0, 23m 12s** (parallel 550s + `@serial`
+tail 842s), against the serial baseline's 53m 40s for 125 suites — **a 57% cut while
+carrying four more suites**, inside the 25-minute budget.
+
+The board's one in-run failure was `r9p7-garnish`, and it was the same class as U1's other
+repointings rather than a regression: its Boo Roll wall-hit block drove a retired P8 course
+id and waited on the retired `.roll-canvas`. Repointed at Spin Cycle's idle-vertical girder
+— which is a wall by construction — the gentle bump it guards fires exactly as before
+(231 buzzes). Verified directly; no product file changed, so the board was not re-run.
+
 ## Remaining gaps
 
 - **BLOCKED.md carries two items**, both authored Boo Roll geometry (above), both with a
