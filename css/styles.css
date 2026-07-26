@@ -3586,20 +3586,45 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @keyframes discoTwirl { 50% { transform: rotate(180deg) scale(.9); } 100% { transform: rotate(360deg); } }
 /* The spotlight: one dancer steps forward to the centre of the floor for eight bars. */
 .disco-dancer { transition: transform .5s cubic-bezier(.2,.8,.3,1), filter .5s ease; }
+/* RUN12 S7's law applies to the spotlight too: a promoted dancer must still be STANDING on
+   the floor. The first attempt lifted her 10px and the second scaled her — BOTH moved the
+   drawn sole off the declared surface, because the sole sits at 118/130 of the art box and
+   any size change moves it relative to the box's bottom edge. So the spotlight is
+   geometrically inert: a beam of light finds her instead of the floor letting her go. */
 .disco-dancer.spotlit {
-  transform: translateY(-10px) scale(1.28);
   z-index: 12;
-  filter: drop-shadow(0 10px 8px rgba(0,0,0,.4)) drop-shadow(0 0 22px rgba(255,201,60,.85));
+  filter: drop-shadow(0 10px 8px rgba(0,0,0,.4)) drop-shadow(0 0 26px rgba(255,201,60,.95));
 }
+/* the beam from above */
+.disco-dancer.spotlit::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 190%;
+  height: 320%;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, rgba(255,201,60,0), rgba(255,201,60,.30));
+  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+  z-index: -1;
+  animation: discoSpotBeam 1.6s ease-in-out infinite alternate;
+}
+/* and the pool of light it lands in, ON the floor, at her feet */
 .disco-dancer.spotlit::after {
   content: '';
   position: absolute;
-  inset: -18% -22% -12%;
+  left: 50%;
+  bottom: -6px;
+  width: 150%;
+  height: 26px;
+  transform: translateX(-50%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,201,60,.34), transparent 68%);
+  background: radial-gradient(ellipse, rgba(255,201,60,.55), transparent 70%);
   pointer-events: none;
   z-index: -1;
 }
+@keyframes discoSpotBeam { to { opacity: .62; } }
 /* Costume idles: the Astronaut's slow moon bounce and the Pirate's hearty wave. */
 .costume-moon-bounce { animation: costumeMoonBounce 2.2s cubic-bezier(.33,0,.66,1); }
 @keyframes costumeMoonBounce { 45% { transform: translateY(-26px) rotate(-3deg); } 100% { transform: none; } }
@@ -3636,6 +3661,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .idle-blink-look, .idle-jiggle, .idle-ear-flick, .idle-nibble-air, .idle-antenna-bob,
   .idle-sun-stretch, .idle-twinkle, .idle-snuggle-down, .idle-zoom-shiver, .idle-neck-crane { animation: none; }
   .disco-dancer, .disco-dancer.spotlit { transition: none; }
+  .disco-dancer.spotlit::before { animation: none; }
 }
 
 /* Boo Quest (RUN6 C6) */
