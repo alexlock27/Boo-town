@@ -67,7 +67,13 @@ export const INTRO_SCRIPTS = {
   tletter: [{ text: 'Tap the letter that matches mine!' }],
   tanimal: [{ text: 'Tap the animal that makes the sound!' }],
   tpairs:  [{ text: 'Turn two cards to find matching animals!' }],
-  tbigsmall: [{ text: 'Big things to the big paw, small to the small!' }]
+  tbigsmall: [{ text: 'Big things to the big paw, small to the small!' }],
+  // RUN13 T2: the first time a child ever opens Boo Care, for any Boo.
+  care: [
+    { text: 'Pick something lovely to do together!' },
+    { text: 'Hold the tool and move it — that is the whole trick.' },
+    { text: 'The ring fills as you go. Nothing here can go wrong.' }
+  ]
 };
 
 // Show a game's intro on its first-ever open (no-op once seen).

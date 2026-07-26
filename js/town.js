@@ -28,7 +28,7 @@ import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rar
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
-import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions } from './care.js';
+import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions, heartsMarkup } from './care.js';
 import { openWishWell } from './wishwell.js';
 import { wishId, wishItem } from '../data/wishes.js';
 
@@ -2092,7 +2092,9 @@ export function mount(container, params, ctx) {
     const arc = el('div', { class: 'town-care-arc', 'aria-label': `Care for ${getDisplayName(item.id)}` });
     actions.forEach(([id, icon, label], i) => {
       const button = el('button', {
-        class: `town-care-action action-${id}`,
+        // RUN13 T2: an explicit position class, not :nth-child — the arc now carries a
+        // meta pill and a manage button too, and a stray child must not shuffle the fan.
+        class: `town-care-action action-${id} pos-${i + 1}`,
         'aria-label': `${label} ${getDisplayName(item.id)}`,
         style: { '--i': i },
         onclick: e => {
@@ -2116,6 +2118,16 @@ export function mount(container, params, ctx) {
     });
     manage.addEventListener('pointerdown', e => e.stopPropagation());
     arc.appendChild(manage);
+    // RUN13 T2: the flourish states the relationship and the pocket inline, so a child
+    // can see how the friendship is going without opening anything.
+    const treats = (getState().care && getState().care.treats) || 0;
+    arc.appendChild(el('div', {
+      class: 'town-care-meta',
+      'aria-label': `${bondLevel(item.id)} of 5 friendship hearts, ${treats} treats`
+    }, [
+      el('span', { html: heartsMarkup(item.id) }),
+      el('span', { class: 'town-care-treats', text: `🍪 ${treats}` })
+    ]));
     wrap.appendChild(arc);
     careArcTimer = setTimeout(clearCareArc, 4000);
   }

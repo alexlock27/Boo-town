@@ -1,5 +1,15 @@
-// Focused RUN10 P12 check: upward-only save, treat pocket, four complete actions,
+// Focused RUN10 P12 check: upward-only save, treat pocket, complete actions,
 // personality flavour, reward thresholds and the best-friend portrait.
+//
+// RUN13 T1 SUPERSEDED THREE ASSERTIONS HERE, each justified in RUN13_REPORT.md:
+//   1. "the flourish contains four care actions" — Bath joined, so it is five.
+//   2. "six alternating scrub taps complete Teeth" — the ← → step control that made
+//      alternation meaningful was the pack's named G8 violation and no longer exists.
+//      Teeth is now twelve units of tool travel inside the mouth zone.
+//   3. `__care.stroke(px)` / `__care.scrub(side)` — replaced by the one honest hook
+//      `__care.travel(px)`, which is what the shared engine actually measures.
+// Everything else in this suite is unchanged and still guards the same behaviour. The
+// pointer-stream evidence for the rebuild lives in tests/r13t1-care-direct.mjs.
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
@@ -20,7 +30,7 @@ function save({ boo = 'boo_inky', treats = 5, points = 0, content = 'full' } = {
     town: { areas }, nicknames: {}, equips: {}, catBest: {}, ledger: {}, delights: { hideDay: TODAY, hideFound: true },
     care: { bonds: { [boo]: points }, treats },
     settings: { sound: false, music: false, voice: false, content },
-    seen: { boohouseSeeded: true, trophyRetro: true }, trophies: {}, journal: {}, age: content === 'toddler' ? 4 : 8, ageAsked: true
+    seen: { boohouseSeeded: true, trophyRetro: true, introSeen: { care: true } }, trophies: {}, journal: {}, age: content === 'toddler' ? 4 : 8, ageAsked: true
   };
 }
 const browser = await chromium.launch();
@@ -72,7 +82,7 @@ console.log('== treat pocket: +1 per round helper, hard cap five ==');
   await ctx.close();
 }
 
-console.log('== Town entry: a Boo opens the staggered four-action flourish ==');
+console.log('== Town entry: a Boo opens the staggered five-action flourish ==');
 {
   const { ctx, page } = await openCare({ width: 390, height: 844 });
   await page.waitForSelector('.t-item[data-item="deco_wishwell"]');
@@ -85,7 +95,7 @@ console.log('== Town entry: a Boo opens the staggered four-action flourish ==');
   await page.click('.t-item.boo');
   const count = await page.evaluate(() => window.__townLife.careArcCount());
   ok(count === 1, 'tapping a placed Boo opens one care flourish');
-  ok(await page.locator('.town-care-action').count() === 4, 'the flourish contains four care actions');
+  ok(await page.locator('.town-care-action').count() === 5, 'the flourish contains five care actions');
   await page.waitForTimeout(1200);
   await page.screenshot({ path: 'screenshots/r10p12/town-care-arc-390x844.png' });
   await ctx.close();
@@ -96,6 +106,7 @@ console.log('== Feed: consumes one treat, animation completes, cheeky flavour ap
   const { ctx, page } = await openCare({ boo: 'boo_wisp', action: 'feed', treats: 2 });
   const flavour = await page.locator('.care-status').textContent();
   ok(/vanished mid-flight/i.test(flavour), 'cheeky Boo gets the treat-snatch flavour');
+  await page.evaluate(() => window.__care.travel(40));
   await page.waitForFunction(() => window.__care.points() === 4);
   const state = await page.evaluate(() => ({ points: window.__care.points(), treats: window.__care.treats() }));
   ok(state.points === 4, 'Feed awards four bond points');
@@ -108,19 +119,19 @@ console.log('== Brush: three real-length strokes; sleepy flavour ==');
 {
   const { ctx, page } = await openCare({ boo: 'boo_pippin', action: 'brush' });
   ok(/yawn/i.test(await page.locator('.care-status').textContent()), 'sleepy Boo yawns into brushing');
-  await page.evaluate(() => { window.__care.stroke(70); window.__care.stroke(70); window.__care.stroke(70); });
+  await page.evaluate(() => { window.__care.travel(60); window.__care.travel(60); window.__care.travel(60); });
   await page.waitForFunction(() => window.__care.points() === 3);
-  ok(await page.evaluate(() => window.__care.strokes()) === 3, 'exactly three ≥60px strokes complete Brush');
+  ok(await page.evaluate(() => window.__care.strokes()) === 3, 'exactly three 60px strokes complete Brush');
   await ctx.close();
 }
 
-console.log('== Teeth: six alternating scrubs; musical flavour ==');
+console.log('== Teeth: twelve scrubs of tool travel; musical flavour ==');
 {
   const { ctx, page } = await openCare({ boo: 'boo_beam', action: 'teeth' });
   ok(/rhythm/i.test(await page.locator('.care-status').textContent()), 'musical Boo gets rhythmic tooth brushing');
-  await page.evaluate(() => ['left','right','left','right','left','right'].forEach(s => window.__care.scrub(s)));
+  await page.evaluate(() => { for (let i = 0; i < 12; i++) window.__care.travel(40); });
   await page.waitForFunction(() => window.__care.points() === 3);
-  ok(await page.evaluate(() => window.__care.scrubs()) === 6, 'six alternating scrub taps complete Teeth');
+  ok(await page.evaluate(() => window.__care.scrubs()) === 12, 'twelve 40px scrubs inside the mouth zone complete Teeth');
   await ctx.close();
 }
 
