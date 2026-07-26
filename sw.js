@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run13b-t8-20260726';  // RUN13B T8: a town that's a place
+const BUILD_STAMP = 'run14-u3-20260726';  // RUN14: Motion & Music
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -68,6 +68,7 @@ const ASSETS = [
   'js/games/detective.js',
   'js/games/booroll.js',
   'js/games/boorollphysics.js',
+  'js/games/boorollplay.js',
   'js/games/echoboos.js',
   'js/games/oddboo.js',
   'js/games/flashboos.js',
