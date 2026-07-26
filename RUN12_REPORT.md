@@ -6,7 +6,15 @@ regression test that would have caught it — because every one of these bugs sh
 same reason: no suite drove that path.
 
 Baseline: `main @ run11-privacy-20260725`, board 107/107, save VERSION 14.
-Final: `run12-s14-20260726` live, save VERSION 14 (unchanged — this run needed no migration).
+Final live stamp: **`run12-s13-20260726`**, save VERSION 14 (unchanged — this run needed no
+migration). Every S1–S13 product fix is in that stamp and is live.
+
+**S14 did not close a deploy gate, deliberately.** By the time the board finished, a second
+session was mid-flight on RUN13 with uncommitted Boo Care work in the tree. Bumping
+BUILD_STAMP would have deployed another packet's unfinished rework — RUN12.md explicitly
+puts Boo Care out of scope and hands it to RUN13 — so the stamp was left where S13 put it
+and the RUN13 session closes its own gate. This document and PROGRESS.md were committed on
+their own, with every other file in the tree left untouched.
 
 ---
 
@@ -62,9 +70,47 @@ and the trophy blooms. Fixed in S4.
 | S11 banking + treats | DONE | +`r12s11-banking` | `run12-s11s12-20260726` |
 | S12 Bubble Pop containment | DONE | +`r12s12-bubble-containment` | ″ |
 | S13 accessibility pack | DONE | +`r12s13-a11y` | `run12-s13-20260726` |
-| S14 board + report | DONE | — | `run12-s14-20260726` |
+| S14 board + report | DONE (no deploy gate — see above) | — | none; stays `run12-s13-20260726` |
 
 **Board: 107 → 120 suites.** Thirteen new permanent suites, no suite deleted.
+
+### Final board — PROVISIONAL, and here is why
+
+**This count is not a valid measurement and must not be quoted as one.** The sweep ran
+while a second session was actively working in the same tree on RUN13: two commits landed
+on top of RUN12 partway through it (`2e3d593` RUN13 T0, `767d3f5` RUN13 T1 (part)), and
+`css/styles.css`, `js/care.js`, `js/town.js`, `js/collection.js`, `js/intro.js` and two test
+files were being modified while suites were reading them. A serial board run measures the
+tree it runs against, and that tree was moving.
+
+**The next clean full-board run supersedes everything in this section.**
+
+| | |
+|---|---|
+| Provisional result | serial batch reported `TOTAL PASS=116 FAIL=4`; all four passed on a direct re-run |
+| Re-run directly per CLAUDE.md's flake rule | `m2-full`, `p2-rewards`, `r12s11-banking`, `r5p5-phone` — all PASS |
+| Not run at all | `r13t1-care-direct` — it did not exist when the sweep captured its suite list |
+| RUN12's own 13 suites | none failed, in the batch or on re-run |
+| Standing block, unchanged from RUN11 | `m3-pwa`'s offline-reload section (see `BLOCKED.md`) |
+
+What can be said honestly on this evidence: no suite RUN12 added or touched was red, and
+every red in the batch was either fixed or shown to be the documented `.hub` load flake.
+What cannot be said: a board total for RUN12, because the tree was not still.
+
+Two of the four reds were genuinely mine and were **fixed**, not re-run away:
+`p2-rewards` pinned the ceremony's copy per dice roll, which RUN12 S5 supersedes (it now
+reads the expected copy from the same authored table the product does), and
+`r12s11-banking` snapshotted the star totals before the round was *played* rather than
+before the *exit*, so anything the round itself banked was attributed to the exit. The other
+two — `m2-full` and `r5p5-phone` — were the `.hub` timeout CLAUDE.md documents under serial
+load, and passed on a direct re-run without any change.
+
+The board grew from 107 to 120 and **no suite was deleted or weakened to green it**. Five
+suites had assertions updated, each because RUN12 is the spec of record for what they were
+freezing, and each justified in this report: `r10p19-brain` (three assertions that required
+the very ambiguity S3 removed), `r10p10-p11` (Echo's setup markup), `p2-rewards` (ceremony
+copy), and `r10p16-expedition-puzzles` + `r10p17-caper` (hardcoded port, no assertion
+touched).
 
 ### The suites that matter most
 Three of the thirteen guard a *class* of bug rather than an instance, which is the point of
