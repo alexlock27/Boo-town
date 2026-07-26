@@ -275,7 +275,26 @@ export function fairSceneryFor(zoneW, viewH, night) {
     <rect x="6" y="2" width="58" height="20" rx="5" fill="#FFF3E0" stroke="#2A1B4E" stroke-width="2.5"/>
     <circle cx="18" cy="6" r="6" fill="#FFF8F0"/><circle cx="30" cy="3" r="6" fill="#FFEEA6"/><circle cx="44" cy="6" r="6" fill="#FFF8F0"/><circle cx="54" cy="4" r="5" fill="#FFEEA6"/>
     <circle cx="14" cy="72" r="8" fill="#2A1B4E"/><circle cx="56" cy="72" r="8" fill="#2A1B4E"/></g>`;
+  // RUN13B T8: a second, higher bunting swag (topped up per the dressing brief) and a
+  // distant ferris-wheel silhouette turning very slowly beyond the fair — the skyline
+  // saying the fair goes on further than you can walk.
+  const flags2 = Array.from({ length: 12 }, (_, i) => {
+    const x = 40 + i * (w - 80) / 11, y = h * 0.095 + Math.sin(i / 11 * Math.PI) * 12;
+    return `<path d="M${x.toFixed(0)} ${y.toFixed(0)} l16 0 l-8 19 z" fill="${['#FFC93C', '#8FC7FF', '#FF7AC6', '#35D0BA'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`;
+  }).join('');
+  const bunting2 = `<path d="M30 ${(h * 0.095).toFixed(0)} Q${(w / 2).toFixed(0)} ${(h * 0.06).toFixed(0)} ${w - 30} ${(h * 0.095).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2" opacity="0.55"/>${flags2}`;
+  const fwx = w * 0.86, fwy = h * 0.22, fwr = 54;
+  const sil = night ? '#4A4276' : '#8B7FB8';
+  const farWheel = `<g class="ff-far" opacity="0.75">
+    <line x1="${(fwx - 26).toFixed(0)}" y1="${(fwy + fwr + 34).toFixed(0)}" x2="${fwx.toFixed(0)}" y2="${fwy.toFixed(0)}" stroke="${sil}" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${(fwx + 26).toFixed(0)}" y1="${(fwy + fwr + 34).toFixed(0)}" x2="${fwx.toFixed(0)}" y2="${fwy.toFixed(0)}" stroke="${sil}" stroke-width="5" stroke-linecap="round"/>
+    <g class="ff-far-wheel">
+      <circle cx="${fwx.toFixed(0)}" cy="${fwy.toFixed(0)}" r="${fwr}" fill="none" stroke="${sil}" stroke-width="4"/>
+      ${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return `<line x1="${fwx.toFixed(0)}" y1="${fwy.toFixed(0)}" x2="${(fwx + fwr * Math.cos(a)).toFixed(0)}" y2="${(fwy + fwr * Math.sin(a)).toFixed(0)}" stroke="${sil}" stroke-width="2.5"/><circle cx="${(fwx + fwr * Math.cos(a)).toFixed(0)}" cy="${(fwy + fwr * Math.sin(a)).toFixed(0)}" r="6" fill="none" stroke="${sil}" stroke-width="2.5"/>`; }).join('')}
+      <circle cx="${fwx.toFixed(0)}" cy="${fwy.toFixed(0)}" r="5" fill="${sil}"/>
+    </g></g>`;
   return `<svg class="ff-scenery${night ? ' night' : ''}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    ${farWheel}${bunting2}
     <path d="M8 ${(h * 0.20).toFixed(0)} Q${(w / 2).toFixed(0)} ${(h * 0.14).toFixed(0)} ${w - 8} ${(h * 0.20).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2"/>${flags}
     <path d="M8 ${(h * 0.30).toFixed(0)} Q${(w / 2).toFixed(0)} ${(h * 0.24).toFixed(0)} ${w - 8} ${(h * 0.30).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2" opacity="0.6"/>${bulbs}
     ${booth}${popcorn}</svg>`;
