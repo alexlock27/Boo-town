@@ -23,7 +23,7 @@ import { sfx } from './sfx.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { stampJournal } from './quests.js';
 import { contentTier } from './content.js';
-import { runIntro, introSeen, INTRO_SCRIPTS } from './intro.js';
+import { runIntro, introSeen, INTRO_SCRIPTS, createRoundTimers } from './intro.js';
 
 const ACTIONS = [
   { id: 'feed', icon: '🍪', label: 'Treat' },
@@ -180,12 +180,17 @@ export function openCare(item, options = {}) {
   let fetches = 0;
   let toolHandle = null;
 
+  // RUN12 S6's law reaches Boo Care now that care runs an intro: every timer here comes
+  // from the shared pause-aware set, so hitting "?" mid-peekaboo freezes the pops instead
+  // of firing them behind the lesson. `later()` keeps its old signature; only the engine
+  // underneath it changed.
+  const roundTimers = createRoundTimers();
   function later(fn, ms) {
-    const id = setTimeout(fn, ms);
-    timers.push(id);
-    return id;
+    const t = roundTimers.after(ms, fn);
+    timers.push(t);
+    return t;
   }
-  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function clearTimers() { timers.forEach(t => roundTimers.cancel(t)); timers = []; }
 
   function setProgress(p) {
     progress = Math.max(0, Math.min(1, p));
@@ -721,7 +726,10 @@ export function openCare(item, options = {}) {
     clearTimers();
     if (toolHandle) { toolHandle.destroy(); toolHandle = null; }
     overlay.classList.remove('open');
-    later(() => overlay.remove(), REDUCED ? 0 : 180);
+    // The fade-out must not be a round timer: it outlives the round set we are disposing.
+    setTimeout(() => overlay.remove(), REDUCED ? 0 : 180);
+    roundTimers.dispose();
+    document.body.classList.remove('care-teaching');
     if (options.onClose) options.onClose();
   }
 
