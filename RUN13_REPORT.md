@@ -166,9 +166,13 @@ rather than dialled in by eye. The first three T3 values were guesses and were 1
 ## 5b. The final serial board
 
 RUN13's last act was a clean serial full board — **the last one this project will run**,
-since RUN14 packet U-0 replaces it with a sharded runner. It is recorded in full in
-`tests/board-serial-baseline.md`, which is the **official comparison baseline** U-0's
-sharding acceptance is measured against: a sharded run must reproduce its verdicts exactly.
+since RUN14 packet U-0 replaces it with a sharded runner.
+
+**Final board: 125 suites, PASS=125, FAIL=0, 53m 40s** on a quiet machine, 4,075 passing
+assertions. Recorded in full in `tests/board-serial-baseline.md`, which is the **official
+comparison baseline** U-0's sharding acceptance is measured against: a sharded run must
+reproduce its verdicts exactly, and must execute all 125 suites — a sharding bug that drops
+a suite is indistinguishable from a faster board.
 
 The board earned its keep. It found five things and **four were real defects**, not flakes:
 
@@ -186,6 +190,19 @@ designed to grow**. All three now derive from the source of truth.
 `r12s7-sockets` is the one worth remembering: RUN12 built that suite so a venue could never
 again quietly float its Boos above the floor, and it caught a brand-new RUN13 feature doing
 exactly that, within hours of it being written.
+
+**One suite is left flagged rather than fixed.** `r4p12-reach` failed once on a real defect
+(its own organic-ceremony sweep was defined below the grown-ups step, so a trophy ceremony
+had nothing to clear it — fixed in `c2e1473`), then kept failing at a *different point each
+time*: three runs stopped at 169, 266 and 171 assertions with **zero failed assertions** in
+any of them, dying on locator timeouts while the app's organic timers kept firing. It passed
+in one T6 board and failed in the next with only a test file changed between them, so its
+outcome is not a function of the product. Logged in `BLOCKED.md` with the repro, the
+four-run table, and the recommended fix — suspend organic timers for the walk using the
+`registerSuspendable` primitive `js/intro.js` already exposes — which is deliberately left
+for RUN14 U-0, since it is already touching the runner. It cleared on the final board, but
+**U-0 must treat a lone `r4p12-reach` failure as suspect rather than as a sharding
+regression.**
 
 ## 6. Two defects the packets' own evidence found
 
