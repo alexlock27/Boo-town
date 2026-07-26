@@ -90,11 +90,18 @@ console.log('== the scenery never blocks placement ==');
   await ctx.close();
 }
 
-// ==================== meadow keeps the plain baseline (no C2 props) ====================
-console.log('== meadow keeps the green baseline (no distinct C2 scenery props) ==');
+// ==================== meadow: dressed since RUN13B T8 ====================
+// SUPERSEDED ASSERTION (RUN13B T8): this block used to prove the meadow had NO zone-props
+// layer ("meadow = baseline"). T8's authored dressing gave the meadow its own horizon,
+// oak and wildflowers — so the standing rule is now the opposite: the layer exists, and
+// like every zone-props layer it must never intercept a tap.
+console.log('== meadow is dressed (RUN13B T8) and its props never block placement ==');
 {
   const { ctx, page } = await openArea(SAVE(), 'meadow');
-  assert((await page.evaluate(() => window.__townLife.zoneProps('meadow'))).has === false, 'meadow has no C2 zone-props layer');
+  const props = await page.evaluate(() => window.__townLife.zoneProps('meadow'));
+  assert(props.has === true && props.kids > 0, `meadow has its T8 dressing layer (${props.kids} elements)`);
+  assert(await page.evaluate(() => getComputedStyle(document.querySelector('.t-zone-props.meadow')).pointerEvents) === 'none',
+    'and it cannot intercept placement taps');
   await ctx.close();
 }
 

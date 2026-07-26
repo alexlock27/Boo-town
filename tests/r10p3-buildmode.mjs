@@ -261,7 +261,9 @@ console.log('== pond fishing: full state-machine run, catch and comedy-boot outc
   // animation time depends on requestAnimationFrame cadence, not wall-clock alone, and
   // this suite runs after several other test blocks that leave the tab under some load.
   const waitForClear = async () => {
-    for (let i = 0; i < 60; i++) { if (await page.evaluate(() => window.__townLife.goalOf(0)) !== 'role:fish') return true; await sleep(150); }
+    // 24s ceiling: under a 4-lane parallel board rAF cadence in a background tab can slow
+    // several-fold, and the catch choreography is rAF-paced. Serial runs clear in ~2s.
+    for (let i = 0; i < 120; i++) { if (await page.evaluate(() => window.__townLife.goalOf(0)) !== 'role:fish') return true; await sleep(200); }
     return false;
   };
   assert(await waitForClear(), 'the role clears once the catch finishes');
