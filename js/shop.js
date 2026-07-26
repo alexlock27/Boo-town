@@ -15,7 +15,7 @@ import { SHELVES, priceOf, isUnlockOnly, UNLOCK_ONLY_RIBBON, WELCOME_PURSE } fro
 import { STAR_TYPES, typeByKey, spendableOf, spendableAll, canAfford, planPayment, LEGACY_KEY, LEGACY_LABEL } from '../data/startypes.js';
 import { sfx, music } from './sfx.js';
 import { guideLine, speakMaybe } from './guide.js';
-import { maybeIntro, replayIntro } from './intro.js';
+import { maybeIntro, replayIntro, createRoundTimers } from './intro.js';
 import { stampJournal } from './quests.js';
 
 export const SHOP_INTRO = [
@@ -83,7 +83,10 @@ export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen shop' });
   container.appendChild(root);
   music.play('calm');
-  let purseRow = null;
+  // RUN12 S6's law: a screen that runs an intro must not run itself behind the intro's
+  // back. The shop has no round to freeze, but its timed flourishes (the bought-card, the
+  // welcome ceremony) route through these timers so they wait for the overlay too.
+  const timers = createRoundTimers();
 
   const s0 = getState();
   const header = el('div', { class: 'shop-header' }, [
@@ -201,7 +204,7 @@ export function mount(container, params, ctx) {
     root.appendChild(wrap);
     requestAnimationFrame(() => wrap.classList.add('show'));
     speakMaybe(`${item.name} is yours!`);
-    setTimeout(() => { wrap.classList.remove('show'); setTimeout(() => wrap.remove(), 220); }, 1800);
+    timers.after(1800, () => { wrap.classList.remove('show'); timers.after(220, () => wrap.remove()); });
   }
 
   // First visit: the Welcome purse, with a small ceremony, so day one is browsing with
@@ -242,5 +245,5 @@ export function mount(container, params, ctx) {
     },
     welcomed: () => !!(getState().shop || {}).welcomed
   };
-  return { unmount() { delete window.__shop; } };
+  return { unmount() { timers.dispose(); delete window.__shop; } };
 }
