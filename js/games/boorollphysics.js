@@ -26,13 +26,20 @@ export const ROLL = {
                            // clears the 10-unit exam gap at full speed, can NEVER clear
                            // the 12-unit seesaw void or a 12-unit girder gap.
   BALL_R: 1.3,
-  HOP_V: 0.78,             // hop launch speed → rise ≈ 6.1 units: reaches every authored
-                           // pickup star from its intended surface, clears no mechanism
-                           // (girder poles are 10-12 units, gates 8-10 — a hop tops out
-                           // well inside their span and smacks the blocker instead).
+  HOP_V: 0.84,             // hop launch speed → rise 7.06 units, carry 11.8 at full speed.
+                           // The brief's rule is the tuning rule: "hop height and cooldown
+                           // are named constants tuned so hops reach the pickup stars but
+                           // cannot skip mechanisms". 7.06 reaches Sunset Ridge's high
+                           // mid-star (the tightest in the pack — 4.6 units short at 6.08)
+                           // while staying under every girder pole (10-12) and gate (8-10),
+                           // and 11.8 clears the 10-unit exam gap but never a 12-unit void.
   HOP_COOLDOWN_MS: 500,    // long enough that hopping is not a movement mode, short
                            // enough to take a star and still hop the gap that follows it
-  STAR_R: 3,               // pickup radius
+  STAR_R: 4,               // pickup radius. Generous ON PURPOSE: a star is a big glowing
+                           // thing and a child who hops well enough to reach its height
+                           // should not be denied it by a unit and a half. Still far too
+                           // small to collect any star without hopping (the nearest sits
+                           // ~5 units above its surface, ~10 above the ball's centre).
   STEP_UP_MAX: 4.5,        // AUTHORED JOINTS. CONTENT_COURSES.md's ramps state a start y
                            // and a degree; where the next platform's y differs by a few
                            // units (e.g. Course 2's +12° ramp ends at y 13.75 and meets a
@@ -220,8 +227,12 @@ export function createRoll(course) {
       return st;
     }
 
-    // hop
-    if (input.hop && st.grounded && st.t >= st.hopReadyAt) {
+    // hop. NOT from a seesaw that is tipping away under her: you cannot push off a plank
+    // that is sliding out from beneath you, and allowing it let a hop-spamming policy
+    // bunny-hop across an idle seesaw without ever pressing the paddle — which would have
+    // broken Course 1's anti-lean guarantee ("never passable without a press").
+    const onShedding = st.surface && st.surface.kind === 'seesaw' && Math.abs(st.surface.mech.angle) > ROLL.SEESAW_SHED_DEG;
+    if (input.hop && st.grounded && !onShedding && st.t >= st.hopReadyAt) {
       st.vy = -ROLL.HOP_V; st.grounded = false; st.surface = null; st.fallStart = st.y;
       st.hopReadyAt = st.t + ROLL.HOP_COOLDOWN_MS;
       emit('hop', {});
