@@ -23,7 +23,12 @@ export const MEDAL_TIERS = [['bronze', 5, '🥉'], ['silver', 15, '🥈'], ['gol
 // Boo Roll course keys — RUN10 P8's three authored side-view courses. The RUN9 top-down
 // ids are retired; their records are preserved under booRoll.legacy and no longer gate
 // trophies (a player cannot earn medals on courses that no longer exist).
-const ROLL_COURSE_IDS = ['rolling-meadow', 'windy-hill', 'sunset-ridge'];
+// RUN14 U1: the medal trophies now read the SIX authored courses, minus any course the
+// game cannot currently hand a child (BLOCKED.md's Course 3) — an "All Gold" that is
+// impossible to earn would be a permanently taunting silhouette, which is exactly the
+// kind of thing the trophy room must never do.
+import { PLAYABLE_KEYS } from '../data/courses.js';
+const ROLL_COURSE_IDS = PLAYABLE_KEYS;
 const rollMedals = (s) => (s.booRoll && s.booRoll.medals) || {};
 const MEDAL_RANK = { bronze: 1, silver: 2, gold: 3 };
 export const STAR_MILESTONES = [100, 500, 1000];

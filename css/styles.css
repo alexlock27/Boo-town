@@ -646,6 +646,52 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .roll-finish-medal { font-size: 64px; }
 @media (prefers-reduced-motion: reduce) { .roll-stage.boing { animation: none; } }
 
+/* ---- Boo Roll 3.0 (RUN14 U1): the single-screen course ---------------------------- */
+.roll14 .roll-course-grid { grid-template-columns: repeat(3, 1fr); }
+.roll-course-card.building { opacity: 1; background: #EFE7DA; border-style: dashed; color: #5C4B3A; cursor: not-allowed; }
+.roll-course-card.building .rcc-best { color: #6B5A46; font-weight: 700; }
+.roll-teaches { color: var(--sky-mid); font-size: 14px; }
+.roll-turn { font-family: var(--font-display); font-weight: 700; color: var(--star); }
+.roll-svg-wrap { position: absolute; inset: 8px; display: flex; align-items: center; justify-content: center; }
+.rl-svg { width: 100%; height: 100%; background: linear-gradient(180deg, #3B2E78 0%, #2E2660 62%, #241E52 100%); border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.rl-plat { fill: #8B61B5; stroke: #2A1B4E; stroke-width: 0.35; }
+.rl-plat.catch { fill: #4FA85E; }                       /* a catch floor reads as SAFE, always */
+.rl-ramp { fill: #69B64A; stroke: #2A1B4E; stroke-width: 0.35; }
+.rl-wall { fill: #6B5A86; stroke: #2A1B4E; stroke-width: 0.3; }
+.rl-seesaw rect { fill: #FFAB63; stroke: #2A1B4E; stroke-width: 0.3; }
+.rl-pivot { fill: #8A5A32; stroke: #2A1B4E; stroke-width: 0.25; }
+.rl-lift { fill: #FFC93C; stroke: #2A1B4E; stroke-width: 0.3; }
+.rl-liftpost { stroke: rgba(255,255,255,.22); stroke-width: 0.4; stroke-dasharray: 1.2 1.2; fill: none; }
+.rl-girder rect { fill: #8FC7FF; stroke: #2A1B4E; stroke-width: 0.3; }
+.rl-gate { fill: #EF476F; stroke: #2A1B4E; stroke-width: 0.3; }
+/* the mechanism the paddle would operate glows — the child always knows what the button does */
+.rl-seesaw.near rect, .rl-lift.near, .rl-girder.near rect, .rl-gate.near { filter: drop-shadow(0 0 1.4px #FFF3B0); }
+.rl-star { fill: #FFC93C; stroke: #5A3E20; stroke-width: 0.3; }
+.rl-finish path { stroke: #FFF8F0; stroke-width: 0.4; }
+.rl-finish rect { fill: #FFF8F0; stroke: #2A1B4E; stroke-width: 0.3; }
+.rl-trail { fill: #FFF8F0; }
+.rl-ball.dizzy { animation: rlDizzy 0.5s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes rlDizzy { 0%,100% { rotate: -12deg; } 50% { rotate: 12deg; } }
+.rl-chute { fill: #FF9AD5; stroke: #2A1B4E; stroke-width: 0.3; opacity: 0.9; }
+.roll-par { opacity: 0.85; }
+.roll-help { position: absolute; top: 10px; left: 10px; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--ink); background: var(--card); font: 700 22px var(--font-display); color: var(--ink); z-index: 6; }
+/* Two thumb buttons in the bottom corners, 96px, inset — the brief's exact shape. */
+.roll-paddle, .roll-hop {
+  position: absolute; bottom: 24px; width: 96px; height: 96px; border-radius: 50%;
+  border: 4px solid var(--ink); font-size: 40px; z-index: 7; touch-action: none;
+  box-shadow: 0 6px 0 rgba(42,27,78,.35); display: flex; align-items: center; justify-content: center;
+}
+.roll-paddle { left: 24px; background: #8FC7FF; }
+.roll-hop { right: 24px; background: var(--star); }
+.roll-paddle.held, .roll-hop.held { transform: translateY(5px); box-shadow: 0 1px 0 rgba(42,27,78,.35); }
+.roll14 .roll-stick { bottom: 24px; }
+@media (max-width: 600px) {
+  .roll14 .roll-course-grid { grid-template-columns: repeat(2, 1fr); }
+  .roll-paddle, .roll-hop { width: 76px; height: 76px; bottom: 14px; font-size: 32px; }
+  .roll-paddle { left: 12px; } .roll-hop { right: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .rl-ball.dizzy { animation: none; } }
+
 /* RUN10 P7 — Boo Roll 2.0 side-view review course. */
 .screen.booroll2 { width: 100%; height: 100%; display: flex; flex-direction: column; }
 .roll2-start {
