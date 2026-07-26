@@ -3570,6 +3570,74 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 .t-photo-inner svg { display: block; }
 
+
+/* ---------------------------------------------------------------------------
+   RUN13 T5 — four more dance moves, the Boo-of-the-moment spotlight, the two new
+   costume idles, the fluttering cape and two extra idles per species.
+   Everything below is transform-only and has a reduced-motion path at the end.
+   --------------------------------------------------------------------------- */
+.disco-wiggle { animation: discoWiggle .5s ease; }
+.disco-robot { animation: discoRobot .7s steps(4); }
+.disco-clap { animation: discoClap .45s ease; }
+.disco-twirl { animation: discoTwirl .9s ease; }
+@keyframes discoWiggle { 25% { transform: translateX(-7px) rotate(-9deg); } 75% { transform: translateX(7px) rotate(9deg); } }
+@keyframes discoRobot { 0% { transform: translateX(-6px); } 50% { transform: translateX(6px) rotate(4deg); } 100% { transform: translateX(-6px); } }
+@keyframes discoClap { 40% { transform: translateY(-6px) scale(1.06, .94); } }
+@keyframes discoTwirl { 50% { transform: rotate(180deg) scale(.9); } 100% { transform: rotate(360deg); } }
+/* The spotlight: one dancer steps forward to the centre of the floor for eight bars. */
+.disco-dancer { transition: transform .5s cubic-bezier(.2,.8,.3,1), filter .5s ease; }
+.disco-dancer.spotlit {
+  transform: translateY(-10px) scale(1.28);
+  z-index: 12;
+  filter: drop-shadow(0 10px 8px rgba(0,0,0,.4)) drop-shadow(0 0 22px rgba(255,201,60,.85));
+}
+.disco-dancer.spotlit::after {
+  content: '';
+  position: absolute;
+  inset: -18% -22% -12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,201,60,.34), transparent 68%);
+  pointer-events: none;
+  z-index: -1;
+}
+/* Costume idles: the Astronaut's slow moon bounce and the Pirate's hearty wave. */
+.costume-moon-bounce { animation: costumeMoonBounce 2.2s cubic-bezier(.33,0,.66,1); }
+@keyframes costumeMoonBounce { 45% { transform: translateY(-26px) rotate(-3deg); } 100% { transform: none; } }
+.costume-hearty-wave { animation: costumeHeartyWave 1.4s ease; }
+@keyframes costumeHeartyWave { 20%,60% { transform: rotate(-9deg); } 40%,80% { transform: rotate(9deg); } }
+/* The Comet Cape flies ONLY while she is walking (town.js toggles the class). */
+.acc-cape { transform-origin: 60px 62px; }
+.acc-cape-flutter { animation: accCapeFlutter .55s ease-in-out infinite alternate; }
+@keyframes accCapeFlutter { to { transform: rotate(-13deg) skewX(9deg); } }
+/* Species idles: a universal blink-and-look-around plus one flavoured per species. */
+.idle-blink-look { animation: idleBlinkLook 1.1s ease; }
+@keyframes idleBlinkLook { 25% { transform: translateX(-5px) rotate(-4deg); } 60% { transform: translateX(5px) rotate(4deg) scaleY(.94); } }
+.idle-jiggle { animation: idleJiggle 1.1s ease; }
+@keyframes idleJiggle { 20%,60% { transform: scale(1.07,.93); } 40%,80% { transform: scale(.94,1.06); } }
+.idle-ear-flick { animation: idleEarFlick 1.1s ease; }
+@keyframes idleEarFlick { 30% { transform: rotate(-7deg) translateY(-3px); } 55% { transform: rotate(6deg); } }
+.idle-nibble-air { animation: idleNibble 1.1s ease; }
+@keyframes idleNibble { 20%,45%,70% { transform: translateY(2px) scaleY(.93); } 32%,58%,82% { transform: translateY(-2px) scaleY(1.05); } }
+.idle-antenna-bob { animation: idleAntennaBob 1.1s ease; }
+@keyframes idleAntennaBob { 35% { transform: translateY(-7px) rotate(3deg); } 70% { transform: translateY(-2px) rotate(-3deg); } }
+.idle-sun-stretch { animation: idleSunStretch 1.1s ease; }
+@keyframes idleSunStretch { 45% { transform: scaleY(1.12) translateY(-6px); } }
+.idle-twinkle { animation: idleTwinkle 1.1s ease; }
+@keyframes idleTwinkle { 30% { transform: scale(1.1) rotate(6deg); filter: brightness(1.25); } 65% { transform: scale(.97) rotate(-4deg); } }
+.idle-snuggle-down { animation: idleSnuggle 1.1s ease; }
+@keyframes idleSnuggle { 50% { transform: translateY(5px) scale(1.04,.9); } }
+.idle-zoom-shiver { animation: idleZoomShiver 1.1s ease; }
+@keyframes idleZoomShiver { 10%,30%,50%,70% { transform: translateX(-3px); } 20%,40%,60%,80% { transform: translateX(3px); } }
+.idle-neck-crane { animation: idleNeckCrane 1.1s ease; }
+@keyframes idleNeckCrane { 40% { transform: translateY(-9px) rotate(-5deg); } 75% { transform: translateY(-3px) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .disco-wiggle, .disco-robot, .disco-clap, .disco-twirl,
+  .costume-moon-bounce, .costume-hearty-wave, .acc-cape-flutter,
+  .idle-blink-look, .idle-jiggle, .idle-ear-flick, .idle-nibble-air, .idle-antenna-bob,
+  .idle-sun-stretch, .idle-twinkle, .idle-snuggle-down, .idle-zoom-shiver, .idle-neck-crane { animation: none; }
+  .disco-dancer, .disco-dancer.spotlit { transition: none; }
+}
+
 /* Boo Quest (RUN6 C6) */
 .quest-card { display: flex; align-items: center; gap: 12px; width: min(92%, 520px); margin: 0 auto; padding: 12px 18px; border-radius: 18px; border: 3px solid var(--ink); background: linear-gradient(120deg, #5F4FC4, #8F7FF0); color: var(--card); cursor: pointer; box-shadow: var(--card-shadow); }
 .quest-ic { font-size: 26px; }

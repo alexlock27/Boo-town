@@ -68,6 +68,16 @@ export function locomotionFor(booId) {
   const feet = BY_ID[equippedIds(booId).feet];
   return feet && feet.locomotion || null;
 }
+// RUN13 T5: a movement-only flourish, declared on the item the same way `locomotion` is.
+// The Comet Cape's `motion: 'flutter'` is read by town.js's walk loop, so the cape flies
+// only while she is actually going somewhere and hangs perfectly still when she stops.
+export function motionFor(booId) {
+  for (const id of Object.values(equippedIds(booId))) {
+    const item = BY_ID[id];
+    if (item && item.motion) return item.motion;
+  }
+  return null;
+}
 export function costumeFor(booId) {
   const values = Object.values(equippedIds(booId));
   for (const id of values) {

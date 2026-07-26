@@ -16,7 +16,7 @@ import { voiceBooIds, playVoice } from './voices.js';
 import { checkRequestOpen, activeRequest, takeTreat } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
-import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay } from './accessories.js';
+import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
 import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
@@ -68,6 +68,29 @@ const HOUSE_KIND_FOR = {
   deco_sofa: 'lounge', deco_armchair: 'lounge', deco_rug: 'lounge'
 };
 const CHAT_PIP_MS = 2600;        // how often a lounging pair swaps a chat pip
+// ---- RUN13 T5: species idles -----------------------------------------------------------
+// Two more idles for every species: a universal blink-and-look-around, and one flavoured by
+// what that species IS. They fire only while a Boo is standing still, and they are
+// "occasional" in the house-law sense: HARD-capped, per Boo and per scene, so a room full
+// of Boos never turns into a twitch. IDLE_MIN_GAP_MS is the floor between one Boo's idles;
+// IDLE_MAX_PER_MIN is the ceiling on how many she may play in any rolling minute.
+const SPECIES_IDLE = {
+  bloop: 'jiggle',      // a round Boo settles by wobbling
+  pip:   'ear-flick',   // those ears hear everything
+  munch: 'nibble-air',  // an optimistic little chew
+  twirl: 'antenna-bob', // the antenna picks something up
+  sunny: 'sun-stretch',
+  nova:  'twinkle',
+  snug:  'snuggle-down',
+  zippy: 'zoom-shiver',
+  giraffe: 'neck-crane'
+};
+const IDLE_BLINK = 'blink-look';
+const IDLE_MIN_GAP_MS = 14000;    // per Boo: never twice inside this window
+const IDLE_MAX_PER_MIN = 3;       // per Boo: rolling-minute ceiling (rule 2, hard cap)
+const IDLE_SCENE_CAP = 4;         // per scene: never more than this many idling at once
+const IDLE_CHANCE = 0.35;         // odds a qualifying pause becomes an idle
+const IDLE_MS = 1100;             // how long an idle plays
 const SNACK_BITE_MS = 1500;      // one nibble cycle at the table
 
 const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of viewport height
@@ -2449,8 +2472,11 @@ export function mount(container, params, ctx) {
     return { wrap, item, place, dancing: false, row: rowOf(place),
       home: 0, dx: 0, vx: 0, state: 'pause', t: 0, next: 400 + Math.random() * 1200, hopT: 0,
       depth: 0, depthTarget: 0, goal: null,
-      locomotion: locomotionFor(item.id), costume: costumeFor(item.id),
-      costumeIdleAt: performance.now() + costumeIdleDelay(), lastStomp: 0, wellieBursts: 0, whirring: false };
+      locomotion: locomotionFor(item.id), costume: costumeFor(item.id), motion: motionFor(item.id),
+      costumeIdleAt: performance.now() + costumeIdleDelay(), lastStomp: 0, wellieBursts: 0, whirring: false,
+      // RUN13 T5: species-idle bookkeeping. `idleLog` holds the timestamps of the idles she
+      // has played, trimmed to the last minute — that IS the cap, not an approximation of it.
+      idleLog: [], idleUntil: 0, idleNextAt: performance.now() + IDLE_MIN_GAP_MS * (0.6 + Math.random() * 0.8) };
   }
   function startLoop() {
     if (REDUCED) return;              // reduced motion: static poses, no wandering
@@ -2500,6 +2526,24 @@ export function mount(container, params, ctx) {
         lean = flip * 7;
         if (!a.whirring) { a.whirring = true; sfx.whirr(); }
       } else a.whirring = false;
+      // RUN13 T5 — behaviour-changing accessories. Springy boots turn the walk into a
+      // continuous boing; flippers give it a wide, comical waddle-slap. Both are locomotion
+      // swaps in exactly the rollerskates' shape, so the walk itself changes, not a badge.
+      if (a.state === 'walk' && a.locomotion === 'spring') {
+        ty += -Math.abs(Math.sin(now / 190)) * 15;
+        lean = flip * Math.sin(now / 190) * 5;
+      }
+      if (a.state === 'walk' && a.locomotion === 'flap') {
+        ty += Math.abs(Math.sin(now / 260)) * 4;
+        lean = flip * Math.sin(now / 260) * 11;
+      }
+      // The Comet Cape only flies while she is actually going somewhere.
+      if (a.motion === 'flutter') {
+        const cape = a.wrap.querySelector('.acc-cape');
+        if (cape) cape.classList.toggle('acc-cape-flutter', a.state === 'walk' && !REDUCED);
+      }
+      // …and an idle can start whenever she is standing still and under her caps.
+      if (a.state === 'pause' && !a.goal && !a.role) maybeIdle(a, now);
       if (a.state === 'walk' && a.locomotion === 'stomp' && currentSeasonName === 'rain' && now - a.lastStomp >= 240) {
         a.lastStomp = now;
         spawnWellieSplash(a);
@@ -2510,18 +2554,55 @@ export function mount(container, params, ctx) {
     }
   }
 
+  // RUN13 T5: costume idles are read from the SET's own `idle` field now, so a new costume
+  // brings its idle with it instead of being wired in by name here. Astronaut = a slow
+  // moon bounce; Pirate = a hearty wave.
+  const COSTUME_IDLE_CLASS = {
+    hammer: 'costume-hammer-taps', stir: 'costume-spoon-stir',
+    moonbounce: 'costume-moon-bounce', heartywave: 'costume-hearty-wave'
+  };
+  const COSTUME_IDLE_MS = { hammer: 900, stir: 900, moonbounce: 2200, heartywave: 1400 };
   function triggerCostumeIdle(a, now = performance.now()) {
-    const kind = a.costume && a.costume.id === 'acc_set_builder' ? 'hammer' : a.costume && a.costume.id === 'acc_set_chef' ? 'stir' : null;
+    const kind = (a.costume && a.costume.idle) || null;
     a.costumeIdleAt = now + costumeIdleDelay();
-    if (!kind) return null;
+    const cls = kind && COSTUME_IDLE_CLASS[kind];
+    if (!cls) return null;
     const svg = a.wrap.querySelector('svg');
-    const cls = kind === 'hammer' ? 'costume-hammer-taps' : 'costume-spoon-stir';
-    svg.classList.remove('costume-hammer-taps', 'costume-spoon-stir');
+    svg.classList.remove(...Object.values(COSTUME_IDLE_CLASS));
     void svg.offsetWidth;
     svg.classList.add(cls);
     if (kind === 'hammer') { sfx.tap(); setTimeout(() => sfx.tap(), 180); }
-    setTimeout(() => svg.classList.remove(cls), 900);
+    setTimeout(() => svg.classList.remove(cls), COSTUME_IDLE_MS[kind] || 900);
     return kind;
+  }
+
+  // ---- RUN13 T5: species idles, hard-capped ---------------------------------------------
+  // Two per species: the universal blink-and-look-around, and one flavoured by the species.
+  // A Boo may only idle while standing still, no more often than IDLE_MIN_GAP_MS, no more
+  // than IDLE_MAX_PER_MIN times in any rolling minute, and never while IDLE_SCENE_CAP other
+  // Boos are already idling. The caps are enforced here, not left to the odds.
+  function idlingCount() { const now = performance.now(); return actors.filter(x => x.idleUntil > now).length; }
+  function maybeIdle(a, now = performance.now(), force = null) {
+    if (REDUCED) return null;
+    if (a.idleUntil > now) return null;                       // already playing one
+    if (now < a.idleNextAt) return null;                      // per-Boo gap
+    a.idleLog = a.idleLog.filter(t => now - t < 60000);
+    if (a.idleLog.length >= IDLE_MAX_PER_MIN) return null;    // per-Boo rolling-minute cap
+    if (idlingCount() >= IDLE_SCENE_CAP) return null;         // scene cap
+    if (force == null && Math.random() > IDLE_CHANCE) return null;
+    const species = (a.item && a.item.species) || 'bloop';
+    const flavour = SPECIES_IDLE[species] || SPECIES_IDLE.bloop;
+    const which = force || (Math.random() < 0.5 ? IDLE_BLINK : flavour);
+    const svg = a.wrap.querySelector('svg');
+    if (!svg) return null;
+    svg.classList.remove(`idle-${IDLE_BLINK}`, `idle-${flavour}`);
+    void svg.offsetWidth;
+    svg.classList.add(`idle-${which}`);
+    a.idleUntil = now + IDLE_MS;
+    a.idleLog.push(now);
+    a.idleNextAt = now + IDLE_MIN_GAP_MS;
+    setTimeout(() => svg.classList.remove(`idle-${which}`), IDLE_MS);
+    return which;
   }
   function spawnWellieSplash(a) {
     a.wellieBursts++;
@@ -3083,6 +3164,15 @@ export function mount(container, params, ctx) {
         return markup;
       },
       litLamps: () => [...ground.querySelectorAll('.t-item.lit')].map(n => n.dataset.item),
+      // RUN13 T5 QA hooks: idles and the behaviour-changing accessories.
+      idleCaps: () => ({ minGapMs: IDLE_MIN_GAP_MS, maxPerMin: IDLE_MAX_PER_MIN, sceneCap: IDLE_SCENE_CAP, ms: IDLE_MS }),
+      idleFor: (i) => { const a = actors[i]; return a ? { species: (a.item && a.item.species) || null, blink: IDLE_BLINK, flavour: SPECIES_IDLE[(a.item && a.item.species) || 'bloop'] } : null; },
+      forceIdle: (i, which) => { const a = actors[i]; if (!a) return null; a.idleNextAt = 0; a.idleUntil = 0; return maybeIdle(a, performance.now(), which || true); },
+      tryIdle: (i) => { const a = actors[i]; if (!a) return null; return maybeIdle(a, performance.now()); },
+      idleLog: (i) => { const a = actors[i]; return a ? a.idleLog.slice() : null; },
+      idleClasses: () => [...ground.querySelectorAll('.t-item.boo svg')].map(s => [...s.classList].filter(cn => cn.startsWith('idle-')).join(',')).filter(Boolean),
+      costumeIdle: (i) => { const a = actors[i]; return a ? triggerCostumeIdle(a) : null; },
+      capeFluttering: () => ground.querySelectorAll('.acc-cape-flutter').length,
       snackCrumbs: () => ground.querySelectorAll('.t-snack-crumb').length,
       // RUN10 P1: an area is 4 viewports wide, so a single "centred" scroll no longer
       // shows the whole area (e.g. the funfair's 5 rides span x 0.18-0.92) — tests that

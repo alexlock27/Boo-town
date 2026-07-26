@@ -38,6 +38,9 @@ async function openCare({ boo = 'boo_inky', action, treats = 5, points = 0, cont
   const ctx = await browser.newContext({ viewport: { width, height } });
   const page = await ctx.newPage();
   page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
+  // RUN13 T1 gave Play two variants, chosen by a coin toss. Pin it: this suite's Play
+  // assertions are about the peekaboo choreography, and a coin toss is not a test.
+  await page.addInitScript(() => { window.__carePlayVariant = 'peek'; });
   await page.goto(`${BASE}/index.html`, { waitUntil: 'load' });
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save({ boo, treats, points, content }));
   await page.reload({ waitUntil: 'load' });

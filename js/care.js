@@ -554,7 +554,13 @@ export function openCare(item, options = {}) {
   // 5. Play — peekaboo, or the ball she throws for the Boo to chase and return.
   // ---------------------------------------------------------------------------
   function play() {
-    playVariant = options.playVariant || PLAY_VARIANTS[Math.floor(Math.random() * PLAY_VARIANTS.length)];
+    // The variant is a coin toss so the second visit is not the first one again. A caller
+    // may pin it (options.playVariant), and so may a suite (`window.__carePlayVariant`) —
+    // same QA-override convention as `window.__bootownHour`, because a randomised branch
+    // that a suite cannot pin is a flake generator.
+    playVariant = options.playVariant
+      || (typeof window !== 'undefined' && PLAY_VARIANTS.includes(window.__carePlayVariant) ? window.__carePlayVariant : null)
+      || PLAY_VARIANTS[Math.floor(Math.random() * PLAY_VARIANTS.length)];
     if (playVariant === 'ball') playBall();
     else playPeek();
   }
