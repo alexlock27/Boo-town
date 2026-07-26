@@ -52,22 +52,29 @@ main. Vanilla HTML/JS/CSS. No frameworks. No build step. ~1MB total.
 - Push auth failure → queue commits, keep building, record the exact ask in
   NEEDS_ALEX.md. (The maintainer holds a fine-grained PAT in their password manager.)
 
-## Testing — THE BOARD LAW (RUN14 U-0, binding on every future run)
-- Board: `./_runall.sh` — SHARDED: N worker lanes (default 3, auto 4 on 8+ cores,
-  `--workers N`) balanced by tests/lib/board-durations.json, then the `@serial` set
-  (frame-sampling, audio-timing, device-simulation suites, tagged `// @serial` in
-  their headers) runs ALONE at the end. `--serial` restores the old one-at-a-time mode.
-- Packet gates use `./_runall.sh --smoke` (routes + contrast audit + era migrations +
-  `SMOKE_EXTRA="…"` for the packets touched this session; target under 5 minutes).
-  FULL boards run EXACTLY once per run, at its end gate.
-- Never edit any file while any board is running. If a board finds failures: let it
-  finish, fix, verify the fixed suites directly, and rerun the board only if product
-  files changed materially. Report every board's wall time.
-- Budget: the full sharded board completes in 25 minutes or less; no single suite
-  exceeds 120 seconds except @serial frame-evidence suites justified in writing in
-  tests/board-serial-baseline.md. Any new suite states its expected runtime when added.
-- A lone sharded-board failure must reproduce serially before it counts as real
-  (parallel load slows rAF cadence several-fold; suites poll with generous ceilings).
+## Testing — THE BOARD LAW (amended 2026-07-27; this AMENDED version binds)
+The full-board-per-run regime proved too heavy. The regime now is TARGETED:
+- **Per packet: `./_runall.sh --smoke` only.** (routes + contrast audit + era migrations
+  + `SMOKE_EXTRA="…"` naming the suites for the packets touched. Target under 5 minutes.)
+- **Per run-end gate: ONLY THE AFFECTED SUITES.** The suites covering the files that run
+  changed, plus their importers/dependents, plus a fixed small core: routing
+  (`r12s1-routes`), save/era migration (`r8p1-migrations`), the sw asset manifest
+  (`m3-pwa`), and one contrast/tap-target check (`r12s4-contrast` or `r12s13-a11y`).
+  **NOT the full board.**
+- **After a fix: re-verify ONLY the changed/affected suites, directly.** Never re-run a
+  broad board for a small fix.
+- **Known flaky suites are flakes on sight**: at most ONE serial re-run to confirm, then
+  move on. (Standing examples: rAF/ceremony-paced waits under parallel load — `m2-full`,
+  `r3p1-spellboo`, `r10p3-buildmode`, `r6p8-booquest`.)
+- **NO full 130-suite board during a run.** One dedicated full-board sweep runs ONCE at
+  the very end of the whole programme, after RUN17 ships live, as a standalone job.
+- Never edit any file while any suite run is in flight. Report wall time for what you run.
+- Budget: no single suite exceeds 120 seconds except @serial frame-evidence suites
+  justified in writing in tests/board-serial-baseline.md. Any new suite states its
+  expected runtime when added.
+- Runner mechanics (unchanged): `./_runall.sh` shards across N worker lanes (default 3,
+  auto 4 on 8+ cores, `--workers N`) balanced by tests/lib/board-durations.json, then runs
+  the `@serial` set alone at the end; `--serial` forces one-at-a-time.
 - New tests join tests/ so the glob finds them; avoid the excluded prefixes shoot,
   sim-blocks, device-qa.
 - Pitfalls: seed saves in a FRESH browser context (live autosave overwrites seeds);

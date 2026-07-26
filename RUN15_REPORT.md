@@ -6,6 +6,32 @@ real award machinery and the real prices) and `tests/r15v-economy.mjs`.
 
 ---
 
+## The end gate
+
+Closed under the **amended Board Law** (2026-07-27, recorded in CLAUDE.md): a run's end
+gate is the affected suites, verified directly — not a full board.
+
+Two full boards did run before the amendment landed (130 suites, 23m 06s and 23m 33s), and
+they were worth their time: between them they found **three real regressions from V4**,
+every one of them mine.
+
+1. `r12s6-intro-pause` — `js/shop.js` ran an intro without being pause-aware, so its
+   ceremonies could fire behind the overlay. It now takes `createRoundTimers()`.
+2. `r4p12-reach` — the shop's fourth collection tab pushed that row past 360px.
+3. `r11audit` — **my fix for (2) broke a different law.** Shrinking the tabs' padding left
+   them 37px tall against the 44px touch-target rule. The correct fix is *wrapping*, not
+   shrinking: `flex-wrap` plus `min-height: 44px`, verified against both suites together.
+
+Three further failures did not reproduce serially and were treated as parallel-load flakes:
+`m2-full` and `r3p1-spellboo` (4s/5s waits on rAF-paced ceremony animations, now given
+load-proof ceilings — no assertion weakened), and `r14u2-beat`, where my own sweep judged
+the verdict against the *aimed* offset rather than the *measured* error. Under load a tap
+aimed at 300ms landed inside the window and was correctly graded `good`; the assertion was
+testing the scheduler, not the judge. It now checks the grade against the measured error,
+which is the real contract and is timing-independent.
+
+All six suites verified green directly.
+
 ## G11 — stars never shrink, and this is structural
 
 The law is not a convention here; it is the shape of the data:
