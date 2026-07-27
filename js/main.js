@@ -33,6 +33,7 @@ const registry = {
   oddboo:     () => import('./games/oddboo.js'),        // RUN10 P19
   flashboos:  () => import('./games/flashboos.js'),     // RUN10 P19
   soundsorter: () => import('./games/soundsorter.js'),  // Sound Sorter (RUN16 W1)
+  blendit:    () => import('./games/blendit.js'),       // Blend It (RUN16 W2)
   shop:       () => import('./shop.js'),         // the Boo Shop (RUN15 V4)
   golden:     () => import('./golden.js'),
   toddlergame: () => import('./toddler.js'),   // Toddler mode's four games (RUN5 C7)

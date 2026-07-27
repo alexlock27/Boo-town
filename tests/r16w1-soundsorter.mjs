@@ -35,8 +35,12 @@ async function open(route, params, settings = {}) {
   page.on('pageerror', e => errors.push(String(e)));
   await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), save(settings));
   await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
-  await page.waitForFunction(() => window.BooTown, null, { timeout: 20000 });
+  // boot() navigates to the hub itself; a go() issued before that lands is silently
+  // superseded by main.js's navToken. Wait for the first screen, navigate, then wait for
+  // the route to own the screen — a condition-wait, never a sleep.
+  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
   await page.evaluate(([r, p]) => window.BooTown.go(r, p || {}), [route, params]);
+  await page.waitForFunction(r => document.getElementById('screen').dataset.screen === r, route, { timeout: 20000 });
   return { ctx, page };
 }
 

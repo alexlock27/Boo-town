@@ -37,6 +37,7 @@ const GAMES = [
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
   { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'soundsorter', name: 'Sound Sorter', tag: 'Hear the sound', accent: 'var(--pop)', icon: soundIcon, group: 'Learn' },   // RUN16 W1
+  { id: 'blendit',   name: 'Blend It',     tag: 'Slide sounds together', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'oddboo',    name: 'Odd Boo Out',  tag: 'Spot the difference', accent: 'var(--zing)', icon: oddIcon, group: 'Learn' },
   { id: 'flashboos', name: 'Flash Boos',   tag: 'Look, hide, remember', accent: 'var(--pop)', icon: flashIcon, group: 'Learn' },
@@ -600,6 +601,10 @@ function attachLongPress(node, ms, onHold) {
 // ---- RUN16 literacy icons ----
 function soundIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="6" y="14" width="34" height="32" rx="8" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><text x="23" y="39" font-family="Fredoka,sans-serif" font-size="20" font-weight="700" fill="var(--ink)" text-anchor="middle">sh</text><path d="M46 22c4 5 4 11 0 16" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><path d="M52 17c7 8 7 18 0 26" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/></svg>`;
+}
+
+function blendIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="4" y="18" width="16" height="24" rx="5" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="22" y="18" width="16" height="24" rx="5" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="40" y="18" width="16" height="24" rx="5" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><path d="M14 50h32" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><path d="M20 46l-6 4 6 4M40 46l6 4-6 4" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function bubbleIcon() {
