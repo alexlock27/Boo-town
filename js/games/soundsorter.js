@@ -326,13 +326,11 @@ export function phonemeMiss(target) {
   const p = PHONEME_BY_KEY[target.sound];
   const answer = target.correct[0];
   const decoys = target.cards.filter(w => !target.correct.includes(w)).slice(0, 2);
+  const options = [answer, ...decoys];
   return {
-    ...choiceMiss({
-      id: 'ph:' + target.sound, game: 'soundsorter',
-      prompt: `Which word has the ${p.card} sound?`,
-      options: [answer, ...decoys], answer
-    }),
-    art: true, say: `Which word has the ${p.say} sound?`
+    ...choiceMiss({ id: 'ph:' + target.sound, game: 'soundsorter', prompt: `Which word has the ${p.card} sound?`, options, answer }),
+    pics: Object.fromEntries(options.map(w => [w, renderWordArt(w, { size: 74, label: w })])),
+    say: `Which word has the ${p.say} sound?`
   };
 }
 export { positionsOf };

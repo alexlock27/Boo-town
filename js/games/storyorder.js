@@ -357,12 +357,11 @@ export function mount(container, params, ctx) {
 
 // A missed comprehension question goes to the Tricky Pile with its own three pictures.
 export function storyMiss(story) {
+  const options = story.options.slice(0, 3);
   return {
-    ...choiceMiss({
-      id: 'st:' + story.id, game: 'storyorder',
-      prompt: story.question, options: story.options.slice(0, 3), answer: story.answer
-    }),
-    storyArt: story.optionArt, say: story.question
+    ...choiceMiss({ id: 'st:' + story.id, game: 'storyorder', prompt: story.question, options, answer: story.answer }),
+    pics: Object.fromEntries(options.map(o => [o, renderStoryArt(story.optionArt[o], { w: 96, label: o })])),
+    say: story.question
   };
 }
 export { STORIES };

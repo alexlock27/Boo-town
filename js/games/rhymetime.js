@@ -348,21 +348,20 @@ function lastWordOf(line) { return (String(line).trim().replace(/[^A-Za-z' ]/g, 
 // A missed rhyme goes to the Tricky Pile as pictures: which of these rhymes with the word?
 export function rhymeMiss(t) {
   const decoys = t.cards.filter(w => !t.correct.includes(w)).slice(0, 2);
+  const options = [t.correct[0], ...decoys];
   return {
-    ...choiceMiss({
-      id: 'rh:' + t.family, game: 'rhymetime',
-      prompt: `Which word rhymes with ${t.target}?`, options: [t.correct[0], ...decoys], answer: t.correct[0]
-    }),
-    art: true, say: `Which word rhymes with ${t.target}?`
+    ...choiceMiss({ id: 'rh:' + t.family, game: 'rhymetime', prompt: `Which word rhymes with ${t.target}?`, options, answer: t.correct[0] }),
+    pics: picsFor(options),
+    say: `Which word rhymes with ${t.target}?`
   };
 }
 export function coupletMiss(t) {
+  const options = t.cards.slice(0, 3);
   return {
-    ...choiceMiss({
-      id: 'cp:' + t.answer, game: 'rhymetime',
-      prompt: t.lines[1].replace(/_+/, '____'), options: t.cards.slice(0, 3), answer: t.answer
-    }),
-    art: true, say: t.lines.join(' ').replace(/_+/, 'mmm')
+    ...choiceMiss({ id: 'cp:' + t.answer, game: 'rhymetime', prompt: t.lines[1].replace(/_+/, '____'), options, answer: t.answer }),
+    pics: picsFor(options),
+    say: t.lines.join(' ').replace(/_+/, 'mmm')
   };
 }
+const picsFor = (options) => Object.fromEntries(options.map(w => [w, renderWordArt(artKeyFor(w), { size: 74, label: w })]));
 export { RHYME_FAMILIES, COUPLETS };

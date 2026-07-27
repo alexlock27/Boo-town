@@ -226,7 +226,26 @@ const ANSWERS = {
     E(30, 74, 10, 8, CL.pink, T2) + E(52, 76, 9, 7, CL.gold, T2) + tree(70, 80, 0.55)
 };
 
-const ALL = { ...PANELS, ...ANSWERS };
+// ---- the three ending panels for Lesson C's "what happens next?" step -----------------
+// Authored in CONTENT_LESSONS.md: a flower grows [correct], a boat sails past, it starts
+// snowing. They are drawn as story panels, not word pictures, because they finish a story.
+const ENDINGS = {
+  endFlower: () => sky() + R(0, 74, 160, 36, 0, CL.brown, NO) + L('M0 74 H160', INK, 2.5) + sun(28, 20, 10) +
+    L('M80 84 V44', CL.darkgreen, 5) + P('M80 66 q-16 -6 -12 6 q12 4 12 -6 Z', CL.green, T2) +
+    [0, 60, 120, 180, 240, 300].map(a => { const r = a * Math.PI / 180;
+      return E((80 + 14 * Math.cos(r)).toFixed(1), (36 + 14 * Math.sin(r)).toFixed(1), 9, 9, CL.pink, T2); }).join('') +
+    C(80, 36, 9, CL.gold, T2),
+  endBoat: () => sky() + R(0, 62, 160, 48, 0, CL.seablue, NO) + L('M0 62 H160', INK, 2.5) +
+    P('M44 78 H116 L106 96 H54 Z', CL.cocoa, T2) + L('M80 78 V42', CL.cream, 3) +
+    P('M84 44 L110 74 L84 74 Z', CL.pink, T2) +
+    L('M14 90 q12 -6 24 0 t24 0', '#fff', 2.5, 'opacity="0.6"'),
+  endSnow: () => sky('#D6E4F0') + R(0, 74, 160, 36, 0, CL.brown, NO) + L('M0 74 H160', INK, 2.5) +
+    R(0, 74, 160, 10, 0, CL.white, NO) +
+    [[24, 22], [52, 40], [80, 18], [108, 44], [136, 28], [40, 60], [96, 62], [124, 12]]
+      .map(([x, y]) => C(x, y, 4.5, CL.white, T2)).join(''),
+};
+
+const ALL = { ...PANELS, ...ANSWERS, ...ENDINGS };
 export const STORY_ART_KEYS = Object.keys(ALL);
 export function hasStoryArt(key) { return !!ALL[key]; }
 

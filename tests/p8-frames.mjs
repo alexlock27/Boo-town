@@ -17,10 +17,13 @@ await page.evaluate((s) => localStorage.setItem('bootown.save.v1', s), SAVE);
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('.hub');
 
-// ---- Teach Me: 6 lessons exist; a lesson plays to 3 stars; a slip -> 2 stars ----
+// ---- Teach Me: the nine lessons; a lesson plays to 3 stars; a slip -> 2 stars ----
+// RUN16 W5 rebuilt the lesson format (hook -> show -> try x3 -> win) and DELETED the
+// silent rewind this suite used to assert. Both expectations are updated here to the
+// current spec: nine lessons, and a wrong TRY step explains without rewinding.
 console.log('== Teach Me ==');
 const lessonCount = await page.evaluate(async () => (await import('./data/lessons.js')).LESSONS.length);
-assert(lessonCount === 6, 'six lessons at launch (' + lessonCount + ')');
+assert(lessonCount === 9, 'nine lessons after RUN16 (' + lessonCount + ')');
 
 async function playLesson(name, mode) {
   await page.evaluate(() => window.BooTown.go('teachme'));
@@ -30,24 +33,27 @@ async function playLesson(name, mode) {
   const before = await page.evaluate(() => window.BooTown.State.getState().stars.byGame.teachme.plays);
   const res = await page.evaluate(async (mode) => {
     const T = window.__teachme; const sleep = ms => new Promise(r => setTimeout(r, ms));
-    let g = 0, checksSeen = 0, sawVisual = false, sawWorked = false, backAfterWrong = false;
-    while (!T.ended() && g++ < 80) {
+    let g = 0, checksSeen = 0, sawVisual = false, sawWorked = false, sawHook = false;
+    let stayedPut = false, explained = '';
+    while (!T.ended() && g++ < 120) {
       const c = T.card();
+      if (c.type === 'hook') sawHook = true;
       if (c.type === 'visual') sawVisual = true;
       if (c.type === 'workedStep') sawWorked = true;
-      if (c.type === 'check') {
+      if (c.type === 'try') {
         checksSeen++;
         if (mode === 'slip' && checksSeen === 1 && T.state().slips === 0) {
-          T.answer(false); await sleep(850);   // route-back fires ~700ms after a wrong answer
-          if (T.card().type !== 'check') backAfterWrong = true;
-          // now tap through back to the check and answer correctly (re-ask)
-          let h = 0; while (T.card().type !== 'check' && h++ < 10) { T.tapNext(); await sleep(60); }
+          const at = c.idx;
+          T.answer(false); await sleep(850);
+          // the RUN16 contract: the step stays exactly where it is and the guide explains
+          stayedPut = T.card().idx === at && T.card().type === 'try';
+          explained = T.feedback();
           T.answer(true);
         } else T.answer(true);
-      } else T.tapNext();
-      await sleep(70);
+        await sleep(1000);
+      } else { T.tapNext(); await sleep(90); }
     }
-    return { ...T.state(), sawVisual, sawWorked, backAfterWrong };
+    return { ...T.state(), sawVisual, sawWorked, sawHook, stayedPut, explained };
   }, mode);
   await page.waitForSelector('.result-card', { timeout: 4000 }).catch(() => {});
   await page.waitForTimeout(200);
@@ -55,11 +61,12 @@ async function playLesson(name, mode) {
   return { res, plays: after.plays, before, best: after.best };
 }
 const clean = await playLesson('Telling the time', 'clean');
-assert(clean.res.ended && clean.res.sawVisual && clean.res.sawWorked, 'lesson plays through talk/visual/worked/check to the end');
+assert(clean.res.ended && clean.res.sawHook && clean.res.sawVisual && clean.res.sawWorked, 'lesson plays hook -> talk/visual/worked -> try steps -> the end');
 assert(clean.res.slips === 0, 'clean run has 0 slips (3 stars)');
 assert(clean.plays === clean.before + 1, 'teachme play recorded (feeds the meter)');
 const slip = await playLesson('Jumping over ten', 'slip');
-assert(slip.res.backAfterWrong, 'a wrong check routes back to an explanation card, then re-asks');
+assert(slip.res.stayedPut, 'a wrong TRY step does NOT rewind — she stays on the step');
+assert(!!slip.res.explained, `and the guide explains instead: "${slip.res.explained}"`);
 assert(slip.res.slips === 1, 'one slip recorded -> 2 stars');
 
 // ---- Boo Dash: completable + 3-starrable + bonk path + pause when hidden ----

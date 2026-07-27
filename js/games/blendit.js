@@ -315,12 +315,11 @@ export function mount(container, params, ctx) {
 // A mis-blended word goes to the Tricky Pile as three pictures, one of which is the word.
 export function blendMiss(item) {
   const decoys = item.options.filter(o => o !== item.w).slice(0, 2);
+  const options = [item.w, ...decoys];
   return {
-    ...choiceMiss({
-      id: 'bl:' + item.w, game: 'blendit',
-      prompt: `Which picture is ${item.w}?`, options: [item.w, ...decoys], answer: item.w
-    }),
-    art: true, say: `Which picture is ${item.w}?`
+    ...choiceMiss({ id: 'bl:' + item.w, game: 'blendit', prompt: `Which picture is ${item.w}?`, options, answer: item.w }),
+    pics: Object.fromEntries(options.map(w => [w, renderWordArt(w, { size: 74, label: w })])),
+    say: `Which picture is ${item.w}?`
   };
 }
 export { BLEND_LEVELS };

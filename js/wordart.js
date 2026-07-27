@@ -98,6 +98,8 @@ const ART = {
   chip: () => P('M32 44 L88 44 L78 108 L42 108 Z', CL.cream) +
     [[44, 34], [58, 28], [72, 34], [51, 40], [65, 40]].map(([x, y]) => R(x, y, 10, 34, 4, CL.gold)).join('') +
     P('M32 44 L88 44 L78 108 L42 108 Z', 'none', S),
+  // the lesson pack writes "chips"; the drawing is the same cone of chips
+  chips: () => ART.chip(),
   chair: () => R(34, 22, 52, 46, 6, CL.teal) + R(30, 64, 60, 12, 4, CL.teal) +
     L('M36 76 V104', CL.ink, 5) + L('M84 76 V104', CL.ink, 5) + L('M44 76 V98', CL.ink, 4),
   beach: () => sky() + C(96, 24, 14, CL.gold) + water(58) + R(0, 78, 120, 42, 0, CL.sand, NO) + L('M0 78 H120', CL.ink, 3) +

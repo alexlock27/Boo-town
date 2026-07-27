@@ -1,36 +1,60 @@
-// js/games/teachme.js — Teach Me (EXPANSION_2 frame 1).
-// Short guide-led mini-lessons: the guide walks a sequence of cards (hook, explanation
-// style A, a worked example tapped step by step, explanation style B, then a 3-question
-// quick check). Five visual primitives are implemented once; all lessons are data.
+// js/games/teachme.js — Teach Me (EXPANSION_2 frame 1; rebuilt as Teach Me 2.0, RUN16 W5).
+//
+// THE PROBLEM RUN16 W5 SET OUT TO FIX: lessons read as homework sitting beside games. The
+// FORMAT is what changed, not the teaching:
+//
+//   HOOK  — a ten-second animated scene posing the idea as a problem the Boos have, so a
+//           lesson opens with a reason to care instead of with a definition.
+//   SHOW  — the existing two-ways explanation, KEPT. It is genuinely good pedagogy and the
+//           brief says to keep it: same cards, same words, same worked examples.
+//   TRY   — three steps where she DOES the thing by direct manipulation: drags the answer
+//           into the gap, sorts the pictures, orders the panels. Never multiple choice.
+//           (The three primitives live in js/lessonstages.js.)
+//   WIN   — the ceremony shipped in RUN15 V3, REUSED as-is with its Lesson Stars and its
+//           Journal stamp. It is not rebuilt here.
+//
+// AND THE SILENT REWIND IS GONE. The old behaviour — a wrong answer jumps back to the
+// worked example with no message — is the specific thing RUN12 asked to have fixed and
+// RUN16 W5 names again. A wrong move now springs the piece back, the step stays exactly
+// where it is, and the guide explains. If she is stuck after two goes the lesson's own
+// authored variant is offered, and she is TOLD that is what is happening. Nothing rewinds;
+// nothing is silent.
 
 import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { renderGuide } from '../art.js';
-import { guideLine, speakMaybe } from '../guide.js';
+import { speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { LESSONS } from '../../data/lessons.js';
 import { bestStars, recordBest, saveLastPick } from '../picker.js';
 import { stampJournal } from '../quests.js';
 import { confetti } from '../ui.js';
+import { mountHook, mountTryStep } from '../lessonstages.js';
 
-const rand = (n) => (Math.random() * n) | 0;
-function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-const LESSON_ICON = { tower: '🗼', spring: '🌀', footsteps: '👣', cakeslice: '🍰', dotsgrid: '⚄', clock: '🕒' };
+const LESSON_ICON = {
+  tower: '🗼', spring: '🌀', footsteps: '👣', cakeslice: '🍰', dotsgrid: '⚄', clock: '🕒',
+  // RUN16 W5: the three literacy lessons
+  mouth: '👄', twins: '👯', hill: '⛰️'
+};
 export const LESSON_CEREMONY_MS = 2200;   // the beat a finished lesson gets, matching a game's
+const STUCK_AT = 2;                       // wrong tries on ONE step before the variant is offered
 
 // RUN15 V3.2 — a lesson finishes like an achievement, not like homework. The guide names
 // what she learned, a badge stamps in, and the whole thing has the weight of a game's
 // celebration before the results screen takes over.
+// RUN16 W5 REUSES this ceremony rather than building a second one; the only change is that
+// the Journal line now shows the lesson's own authored stamp where it has one.
 function lessonCeremony(lesson, stars, isRecap, onDone) {
+  const stamp = (lesson.win && lesson.win.stamp) || null;
   const wrap = el('div', { class: 'lesson-ceremony', role: 'dialog', 'aria-label': 'Lesson complete' });
   const panel = el('div', { class: 'card lc-panel' }, [
     el('div', { class: 'lc-badge', text: LESSON_ICON[lesson.icon] || '📘' }),
     el('h2', { class: 'lc-title', text: isRecap ? 'Nice recap!' : 'Lesson learned!' }),
     el('p', { class: 'lc-name', text: lesson.name }),
     el('div', { class: 'lc-stars', html: starsRow(stars, { size: 30 }) }),
-    el('p', { class: 'lc-journal', text: '📓 A badge for your Journal' })
+    el('p', { class: 'lc-journal', text: stamp ? `📓 ${stamp}` : '📓 A badge for your Journal' })
   ]);
   wrap.appendChild(panel);
   document.body.appendChild(wrap);
@@ -38,10 +62,59 @@ function lessonCeremony(lesson, stars, isRecap, onDone) {
   sfx.star();
   if (!REDUCED) confetti({ count: stars >= 3 ? 90 : 60, power: 1 });
   speakMaybe(isRecap ? `Nice recap of ${lesson.name}!` : `You learned ${lesson.name}!`);
-  const close = () => { wrap.classList.remove('show'); setTimeout(() => wrap.remove(), 220); onDone(); };
-  const t = setTimeout(close, REDUCED ? 900 : LESSON_CEREMONY_MS);
-  wrap.addEventListener('click', () => { clearTimeout(t); close(); });
+  // close() must be idempotent and must cancel its own timer. It was not: only the click
+  // handler cleared the auto-close timeout, so closing the ceremony ANY other way left the
+  // timer armed and fired onDone a second time — a second ctx.go('results') landing
+  // seconds later, on top of whatever the child had started next. (Found by RUN16 W5's
+  // suite, which plays nine lessons back to back; the second navigation unmounted the
+  // lesson she had just opened.)
+  let closed = false, t = null;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(t);
+    wrap.classList.remove('show');
+    setTimeout(() => wrap.remove(), 220);
+    onDone();
+  };
+  t = setTimeout(close, REDUCED ? 900 : LESSON_CEREMONY_MS);
+  wrap.addEventListener('click', close);
   if (typeof window !== 'undefined') window.__lessonCeremony = { shown: true, recap: isRecap, close };
+}
+
+// The SHOW stage, normalised. The six maths lessons carry `cards` (talk | visual |
+// workedStep, unchanged since EXPANSION_2); the three literacy lessons carry the pack's own
+// `show` blocks — two ways, each either a line to say or a picture to look at. Both become
+// the same card list, so the renderer has one path and the authored words are untouched.
+export function showCardsOf(lesson) {
+  if (lesson.cards) return lesson.cards;
+  const out = [];
+  for (const s of (lesson.show || [])) {
+    if (s.kind === 'baskets') {
+      out.push({ type: 'visual', kind: 'baskets', title: s.title, spec: {
+        baskets: s.baskets,
+        caption: s.baskets.map(b => `${b.label}: ${b.example}`).join('  ·  '),
+        say: s.baskets.map(b => b.example).join('. ') + '.'
+      } });
+    } else if (s.kind === 'hill') {
+      out.push({ type: 'visual', kind: 'hill', title: s.title, spec: { caption: s.text, say: s.text } });
+    } else {
+      out.push({ type: 'talk', title: s.title, text: s.text });
+    }
+    // lesson B's second way carries an extra authored paragraph; it gets its own card
+    if (s.also) out.push({ type: 'talk', title: s.title, text: s.also });
+  }
+  return out;
+}
+
+// The stages a lesson walks, in order. Exported so a suite can assert the four-stage shape
+// of all nine lessons without playing all nine.
+export function stagesOf(lesson) {
+  return [
+    { type: 'hook' },
+    ...showCardsOf(lesson).map(c => ({ type: c.type, card: c })),
+    ...(lesson.try || []).map((step, i) => ({ type: 'try', step, i }))
+  ];
 }
 
 export function mount(container, params, ctx) {
@@ -58,7 +131,7 @@ export function mount(container, params, ctx) {
     const card = el('div', { class: 'start-card card teachme-list' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 96 }) }),
       el('h2', { text: 'Teach Me' }),
-      el('p', { class: 'sc-intro', text: "Little lessons, explained two ways. Pick one to learn!" })
+      el('p', { class: 'sc-intro', text: "Little lessons, explained two ways — then you have a go. Pick one!" })
     ]);
     const grid = el('div', { class: 'lesson-grid' });
     for (const lesson of LESSONS) {
@@ -71,38 +144,50 @@ export function mount(container, params, ctx) {
     }
     card.appendChild(grid);
     root.appendChild(card);
-    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
   }
 
   function playLesson(lesson) {
     clear(root); music.play('game');
-    const cards = lesson.cards;
-    const checkIdxs = cards.map((c, i) => c.type === 'check' ? i : -1).filter(i => i >= 0);
-    let cardIdx = 0, slips = 0, ended = false;
-    const useVariant = {};   // check card index -> show its variant
-    const firstTry = {};     // check card index -> still first attempt
+    const stages = stagesOf(lesson);
+    const tryTotal = (lesson.try || []).length;
+    let stageIdx = 0, slips = 0, ended = false;
+    let live = null;                        // the mounted TRY step, when we are on one
+    let stepWrongs = 0, usingVariant = false;
 
-    shell = createGameShell({ title: lesson.name, rounds: checkIdxs.length, accent: 'var(--zing)', onBack: () => ctx.go('hub'), hintEnabled: false, onHelp: () => replayIntro('teachme') });
+    shell = createGameShell({
+      title: lesson.name, rounds: Math.max(1, tryTotal), accent: 'var(--zing)',
+      onBack: () => ctx.go('hub'), hintEnabled: false, onHelp: () => replayIntro('teachme'),
+      bank: () => ({ correct: doneSteps(), of: Math.max(1, tryTotal) })
+    });
     root.appendChild(shell.root);
     const stage = el('div', { class: 'tm-stage' });
     shell.area.appendChild(stage);
 
-    renderCard();
+    renderStage();
 
-    function progressForCard(i) { return checkIdxs.filter(ci => ci < i).length; }
+    function doneSteps() { return stages.slice(0, stageIdx).filter(s => s.type === 'try').length; }
+    function stageChip(n, label) { return el('div', { class: 'tm-stage-chip', text: `${n} · ${label}` }); }
 
-    function renderCard() {
-      if (cardIdx >= cards.length) return finish();
-      const c = cards[cardIdx];
-      shell.setProgress(progressForCard(cardIdx));
+    function renderStage() {
+      if (stageIdx >= stages.length) return finish();
+      if (live && live.destroy) live.destroy();
+      live = null;
+      const s = stages[stageIdx];
+      shell.setProgress(doneSteps());
       clear(stage);
-      if (c.type === 'talk') return renderTalk(c);
-      if (c.type === 'visual') return renderVisual(c);
-      if (c.type === 'workedStep') return renderWorked(c);
-      if (c.type === 'check') return renderCheck(cardIdx, c);
+      if (s.type === 'hook') return renderHook();
+      if (s.type === 'try') return renderTry(s);
+      return renderShow(s.card);
     }
-    function nextCard() { cardIdx++; renderCard(); }
+    function nextStage() { stageIdx++; renderStage(); }
 
+    // ---- HOOK ----
+    function renderHook() {
+      live = mountHook(stage, lesson, { onDone: nextStage, say: (t) => speakMaybe(t) });
+    }
+
+    // ---- SHOW (the two-ways explanation, unchanged) ----
     function guideRow(text) {
       const row = el('div', { class: 'tm-guide-row' }, [
         el('div', { class: 'tm-guide', html: renderGuide(getState().guide, { view: 'head', size: 84 }) }),
@@ -111,18 +196,18 @@ export function mount(container, params, ctx) {
       speakMaybe(text);
       return row;
     }
-
-    function renderTalk(c) {
-      stage.appendChild(guideRow(c.text));
-      stage.appendChild(el('button', { class: 'btn big tm-next', text: 'Next ➜', onclick: () => { sfx.tap(); nextCard(); } }));
+    function renderShow(c) {
+      stage.appendChild(stageChip(2, c.title || 'Two ways to see it'));
+      if (c.type === 'workedStep') return renderWorked(c);
+      if (c.type === 'talk') stage.appendChild(guideRow(c.text));
+      else if (c.type === 'visual') {
+        stage.appendChild(el('div', { class: 'tm-visual', html: renderPrimitive(c.kind, c.spec) }));
+        if (c.spec.caption) stage.appendChild(el('p', { class: 'tm-caption', text: c.spec.caption }));
+        // a picture card the guide names aloud (the pack asks for this on the baskets card)
+        if (c.spec.say) speakMaybe(c.spec.say);
+      }
+      stage.appendChild(el('button', { class: 'btn big tm-next', text: 'Next ➜', onclick: () => { sfx.tap(); nextStage(); } }));
     }
-
-    function renderVisual(c) {
-      stage.appendChild(el('div', { class: 'tm-visual', html: renderPrimitive(c.kind, c.spec) }));
-      if (c.spec.caption) stage.appendChild(el('p', { class: 'tm-caption', text: c.spec.caption }));
-      stage.appendChild(el('button', { class: 'btn big tm-next', text: 'Next ➜', onclick: () => { sfx.tap(); nextCard(); } }));
-    }
-
     function renderWorked(c) {
       let step = 0;
       const title = el('div', { class: 'tm-worked-title', text: c.title || 'Watch closely' });
@@ -130,75 +215,120 @@ export function mount(container, params, ctx) {
       c.steps.forEach((t, i) => steps.appendChild(el('div', { class: 'tm-step' + (i === 0 ? ' on' : ''), text: t })));
       const btn = el('button', { class: 'btn big tm-next', text: 'Tap 👆', onclick: advance });
       stage.append(title, steps, btn);
+      speakMaybe(c.steps[0]);
       function advance() {
         sfx.tap();
         step++;
         if (step < c.steps.length) {
           steps.children[step].classList.add('on');
           [...steps.children].forEach((n, i) => n.classList.toggle('cur', i === step));
+          speakMaybe(c.steps[step]);
           if (step === c.steps.length - 1) btn.textContent = 'Next ➜';
-        } else nextCard();
+        } else nextStage();
       }
     }
 
-    function renderCheck(idx, c) {
-      if (firstTry[idx] === undefined) firstTry[idx] = true;
-      const q = useVariant[idx] && c.variant ? c.variant : c;
-      const opts = q.options.map((text, i) => ({ text, correct: i === q.correct }));
-      shuffle(opts);
-      stage.appendChild(el('div', { class: 'tm-check-q', text: q.q }));
-      const optWrap = el('div', { class: 'tm-check-opts' });
-      opts.forEach(o => optWrap.appendChild(el('button', { class: 'btn tm-opt', text: o.text, onclick: (e) => onAnswer(idx, c, o, e.currentTarget) })));
-      stage.appendChild(optWrap);
-      speakMaybe(q.q);
+    // ---- TRY ----
+    function renderTry(s) { stepWrongs = 0; usingVariant = false; mountStep(s.step, s.i); }
+    function mountStep(step, i) {
+      clear(stage);
+      stage.appendChild(stageChip(3, `Your turn — ${i + 1} of ${tryTotal}`));
+      if (step.title) stage.appendChild(el('div', { class: 'tm-worked-title', text: step.title }));
+      live = mountTryStep(stage, step, {
+        onDone: () => {
+          sfx.star();
+          const box = stage.getBoundingClientRect();
+          if (!REDUCED) sparkleAt(box.left + box.width / 2, box.top + 60);
+          shell.react('You did it! 🌟', { voice: false, hold: 1200 });
+          shell.advance();
+          shell.timeout(nextStage, REDUCED ? 400 : 900);
+        },
+        onWrong: (line, isTrap) => {
+          // NOT a rewind: the step stays exactly where it is and the guide explains.
+          if (!isTrap) slips++;      // making a real word in the ship/chip trap is not a slip
+          stepWrongs++;
+          shell.dimHeart();
+          shell.react(line, { voice: false, hold: 3200 });
+          if (stepWrongs >= STUCK_AT && step.variant && !usingVariant) offerVariant(step, i);
+        },
+        say: (t) => speakMaybe(t),
+        react: (t) => speakMaybe(t)
+      });
     }
-    function onAnswer(idx, c, opt, node) {
-      if (opt.correct) {
-        sfx.correct();
-        node.classList.add('right');
-        const r = node.getBoundingClientRect(); if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
-        shell.timeout(nextCard, 420);
-      } else {
-        sfx.oops();
-        node.classList.add('wrong');
-        if (firstTry[idx]) { slips++; firstTry[idx] = false; useVariant[idx] = true; }
-        // route back to the relevant explanation card, guide encourages, then re-ask
-        shell.react(guideLine('encourage'), { hold: 1800 });
-        shell.timeout(() => { cardIdx = (c.backTo != null ? c.backTo : cardIdx); renderCard(); }, 700);
-      }
+    // Stuck twice? She is offered the lesson's own authored variant — a different question
+    // of the same shape — and she is told out loud that that is what just happened.
+    function offerVariant(step, i) {
+      usingVariant = true;
+      const merged = { ...step, ...step.variant, variant: null };
+      const line = "Let's try another one like it.";
+      shell.timeout(() => {
+        shell.react(line, { voice: false, hold: 2200 });
+        speakMaybe(line);
+        stepWrongs = 0;
+        mountStep(merged, i);
+      }, REDUCED ? 300 : 1400);
     }
 
     function finish() {
-      if (ended) return; ended = true; shell.cleanup();
+      if (ended) return; ended = true;
+      if (live && live.destroy) live.destroy();
+      shell.cleanup();
       const stars = slips === 0 ? 3 : slips === 1 ? 2 : 1;
-      // RUN15 V3.3: a lesson replayed AFTER mastery is a "quick recap" — welcome, warm,
-      // and un-farmable. It still pays (nothing is ever taken away) but at the cosy award,
-      // so revisiting a lesson she has already aced cannot mint Lesson Stars on repeat.
+      // RUN15 V3.3: a lesson replayed AFTER mastery is a "quick recap" — welcome, warm and
+      // un-farmable. It still pays (nothing is ever taken away) but at the cosy award.
       const wasMastered = bestStars('teachme', lesson.id) >= 3;
       recordBest('teachme', lesson.id, stars);
-      // V3.2: the lesson gets a real ceremony before the results screen — the guide
-      // reacts by name and the Journal takes a lesson badge.
       stampJournal('lesson_' + lesson.id);
       lessonCeremony(lesson, stars, wasMastered, () => {
         ctx.go('results', {
           game: 'teachme', gameName: lesson.name, stars,
           starType: 'lesson',                    // V1: lessons always pay Lesson Stars
-          extraCosy: wasMastered,                // V3.3: a recap is a cosy round
+          extraCosy: wasMastered,
           recap: wasMastered,
           replay: () => ctx.go('teachme')
         });
       });
     }
 
-    // test hook
+    // test hook — the same shape the older suites drive, with `try` where `check` was.
     if (typeof window !== 'undefined') window.__teachme = {
-      card: () => ({ idx: cardIdx, type: cards[cardIdx] && cards[cardIdx].type, total: cards.length }),
+      card: () => ({ idx: stageIdx, type: stages[stageIdx] && stages[stageIdx].type, total: stages.length }),
+      stages: () => stages.map(s => s.type),
       tapNext: () => { const b = stage.querySelector('.tm-next'); if (b) b.click(); },
       tapWorked: () => { const b = stage.querySelector('.tm-next'); if (b) b.click(); },
-      answer: (wantCorrect) => { const btns = [...stage.querySelectorAll('.tm-opt')]; const c = cards[cardIdx]; const q = (useVariant[cardIdx] && c.variant) ? c.variant : c; const correctText = q.options[q.correct]; const t = wantCorrect ? btns.find(b => b.textContent === correctText) : btns.find(b => b.textContent !== correctText); if (t) t.click(); },
-      state: () => ({ slips, cardIdx, ended }),
+      // answer(true) completes the current TRY step the way she would; answer(false) makes
+      // a genuine wrong move — a real drop onto a real wrong target, not a simulated one.
+      answer: (wantCorrect) => {
+        const h = live && live.hooks;
+        if (!h || !h.kind) { const b = stage.querySelector('.tm-next'); if (b) b.click(); return; }
+        if (wantCorrect) return h.solve && h.solve();
+        return wrongMove(h);
+      },
+      solveStep: () => live && live.hooks && live.hooks.solve && live.hooks.solve(),
+      wrongStep: () => live && live.hooks && wrongMove(live.hooks),
+      stepHooks: () => live && live.hooks,
+      stepKind: () => live && live.hooks && live.hooks.kind,
+      feedback: () => (live && live.hooks && live.hooks.feedback) ? live.hooks.feedback() : '',
+      usingVariant: () => usingVariant,
+      state: () => ({ slips, cardIdx: stageIdx, stageIdx, ended, stepWrongs }),
       ended: () => ended
     };
+    function wrongMove(h) {
+      const s = stages[stageIdx];
+      const step = s && s.step;
+      if (!step) return false;
+      if (h.kind === 'sort') {
+        const bin = h.binsOf()[0];
+        const bad = (step.items || []).find(it => it.bin !== bin);
+        if (bad) return h.drop(bad.key, bin);
+      } else if (h.kind === 'place') {
+        const answers = h.answers();
+        const tiles = (usingVariant && step.variant && step.variant.tiles) ? step.variant.tiles : step.tiles;
+        const bad = (tiles || []).find(t => t.key !== answers[0]);
+        if (bad) return h.drop(bad.key, 0);
+      }
+      return false;   // `order` has no wrong move, by design
+    }
   }
 
   return { unmount() { if (shell) shell.cleanup(); } };
@@ -206,6 +336,8 @@ export function mount(container, params, ctx) {
 
 // ===================== visual primitives (implemented once) =====================
 export function renderPrimitive(kind, spec) {
+  if (kind === 'baskets') return basketsSVG(spec);
+  if (kind === 'hill') return storyHillSVG(spec);
   if (kind === 'placeValue') return placeValueSVG(spec);
   if (kind === 'numberLine') return numberLineSVG(spec);
   if (kind === 'fractionCircle') return fractionCircleSVG(spec);
@@ -214,6 +346,38 @@ export function renderPrimitive(kind, spec) {
   return '';
 }
 const INK = '#2A1B4E';
+
+// RUN16 W5 — the two literacy SHOW pictures.
+// baskets: the pack's "three baskets, each with its grapheme card, each holding one example".
+function basketsSVG(spec) {
+  const bs = spec.baskets || [];
+  const W = bs.length * 120 + 20, H = 190;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:34vh;" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(W, H);
+  bs.forEach((b, i) => {
+    const x = 20 + i * 120;
+    s += `<path d="M${x} 74 L${x + 100} 74 L${x + 88} 162 Q${x + 50} 172 ${x + 12} 162 Z" fill="#F0D28C" stroke="${INK}" stroke-width="3"/>`;
+    for (let k = 0; k < 4; k++) s += `<path d="M${x + 14 + k * 22} 76 L${x + 20 + k * 20} 160" stroke="#8A5A44" stroke-width="2.5" fill="none"/>`;
+    s += `<rect x="${x + 22}" y="16" width="56" height="46" rx="10" fill="#FFC93C" stroke="${INK}" stroke-width="3"/>`;
+    s += `<text x="${x + 50}" y="50" text-anchor="middle" font-family="Fredoka,sans-serif" font-size="28" font-weight="700" fill="${INK}">${b.label}</text>`;
+    s += `<text x="${x + 50}" y="184" text-anchor="middle" font-family="Fredoka,sans-serif" font-size="17" font-weight="700" fill="#fff">${b.example}</text>`;
+  });
+  return s + '</svg>';
+}
+// hill: "a simple hill diagram, the story climbing up to the problem at the top".
+function storyHillSVG() {
+  const W = 460, H = 200;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:32vh;" xmlns="http://www.w3.org/2000/svg">`;
+  s += drawBoard(W, H);
+  s += `<path d="M40 160 Q140 30 230 30 Q320 30 420 160" fill="none" stroke="#FFC93C" stroke-width="6" stroke-linecap="round"/>`;
+  const pts = [[40, 160, 'beginning'], [230, 30, 'middle'], [420, 160, 'end']];
+  pts.forEach(([x, y, label]) => {
+    s += `<circle cx="${x}" cy="${y}" r="11" fill="#FF7AC6" stroke="${INK}" stroke-width="3"/>`;
+    s += `<text x="${x}" y="${y > 100 ? y + 30 : y - 20}" text-anchor="middle" font-family="Fredoka,sans-serif" font-size="17" font-weight="700" fill="#fff">${label}</text>`;
+  });
+  s += `<text x="230" y="${H - 8}" text-anchor="middle" font-family="Fredoka,sans-serif" font-size="15" fill="#FFC93C">the problem sits at the top</text>`;
+  return s + '</svg>';
+}
 
 function drawBoard(W, H) {
   return `<rect x="2" y="2" width="${W-4}" height="${H-4}" rx="16" fill="#1E143A" stroke="#3A2863" stroke-width="4"/>` + 
