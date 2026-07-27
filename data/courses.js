@@ -53,7 +53,13 @@ export const COURSES = [
       { t: 'platform', x: 76, y: 14, w: 10 },
       { t: 'platform', x: 86, y: 14, w: 14 },
       // lower deck
-      { t: 'platform', x: 30, y: 40, w: 34, catch: true }
+      // GEOMETRY FIX, Alex-approved 2026-07-27 (was w:34). The deck ended at x 64 and the
+      // lift begins at x 68, so a 4-unit void separated them: the only fall from the upper
+      // route lands on the lift, and rolling left off the lift dropped out of the course.
+      // The deck could not be stood on at all (closest approach to its star: 18.3 units,
+      // BLOCKED.md RUN14 U1). At w:38 it meets the lift, so the note's authored route
+      // works as written: fall, land on the deck, take the third star, ride the lift back.
+      { t: 'platform', x: 30, y: 40, w: 38, catch: true }
     ],
     mechanisms: [
       { t: 'lift', x: 68, y: 40, rise: 26, w: 8 }
@@ -67,8 +73,22 @@ export const COURSES = [
     teaches: 'the lift, patience',
     start: { x: 4, y: 44 },
     segments: [
-      { t: 'platform', x: 2, y: 50, w: 22 },
-      { t: 'wall', x: 24, y: 50, h: 14 },
+      // ...and the approach platform reaches the lift deck (was w:22, ending at x 24).
+      // Moving the wall alone is not enough: the wall was also PLUGGING the 2-unit void
+      // between the platform end and the lift at x 26, so with the wall gone the ball
+      // rolled straight off the edge and out of the course (simulated: falls to y 66).
+      // BLOCKED.md offered this as its other one-number option — "a 2-unit-wide bridge at
+      // y 50" — and finishability is the point, so both halves are applied.
+      { t: 'platform', x: 2, y: 50, w: 24 },
+      // GEOMETRY FIX, Alex-approved 2026-07-27 (was x:24). As authored the wall stood
+      // BEFORE lift 1, between the only approach platform and the lift deck, so the deck
+      // was unreachable and the course could not be finished by anyone — 42 simulated
+      // input policies all ended resting against it at x 22.7 (BLOCKED.md, RUN14 U1).
+      // At x 36 it stands on the FAR side of the lift, which is what the course's own
+      // ANTI-LEAN NOTE describes: "a leaning ball rests against the first wall until the
+      // heat-death of the universe" — it rests on the lift deck, and one paddle press
+      // carries it up. Nothing else about the course changed.
+      { t: 'wall', x: 36, y: 50, h: 14 },
       { t: 'platform', x: 36, y: 24, w: 18 },
       { t: 'ramp', x: 54, y: 24, w: 14, deg: -9 },
       { t: 'platform', x: 68, y: 30, w: 10 },
@@ -154,12 +174,12 @@ export const COURSES = [
 ];
 export const COURSE_KEYS = COURSES.map(c => c.key);
 
-// RUN14 U1 / BLOCKED.md — Course 3 "Lift Off" cannot be finished as authored: a wall at
-// x 24 stands between its only approach platform and its first lift at x 26, and the hop
-// (tuned to the courses' own pickup stars) cannot clear it. The geometry is authored
-// content and not an executor's to change, so the course ships EXACTLY as written but its
-// card is a construction site: a child is never handed a course she cannot finish. Lives
-// here, beside the data, so both the game and the trophy rules read one source without
-// importing each other. Delete this entry the moment the geometry question is answered.
-export const UNPLAYABLE = { 'lift-off': 'Being built — back soon! 🚧' };
+// RESOLVED 2026-07-27. Course 3 "Lift Off" was shipped as a construction site because it
+// could not be finished as authored (a wall at x 24 sealed off its own first lift). Alex
+// approved the geometry fix, the wall moved to x 36 with the approach platform reaching
+// the lift deck, and the course now finishes — so the gate is EMPTY and every card is
+// enterable. The map is kept (rather than deleted) because it is the one place the game
+// and the trophy rules both read to answer "may this card be entered?", and a future
+// course may need it again.
+export const UNPLAYABLE = {};
 export const PLAYABLE_KEYS = COURSE_KEYS.filter(k => !UNPLAYABLE[k]);

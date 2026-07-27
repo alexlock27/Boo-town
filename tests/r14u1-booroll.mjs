@@ -67,15 +67,13 @@ console.log('== the drag fallback (a finger puck) completes a course too ==');
   ok(sim.state.finished, `first-roll completes through the drag-puck tilt channel (${(sim.elapsedMs() / 1000).toFixed(1)}s)`);
 }
 
-console.log('== every star is reachable, by routes that use the hop (two authored exceptions) ==');
-// RUN14 U1 / BLOCKED.md: two authored stars have no route to them, for the same class of
-// reason as Course 3's wall — the geometry around them, not the physics. They are pinned
-// here BY NAME with their measured closest approach, so this suite still fails the moment
-// a reachable star stops being reachable, and equally when one of these two becomes
-// reachable (which is what a geometry fix would look like, and is worth noticing).
-const KNOWN_UNREACHABLE = {
-  'over-and-under:2': 'the lower-deck star at {36,35}: the deck spans x30-64 with no hole above it, and the only fall (the 70-76 gap) lands on the lift at x68-76 — a 4-unit void separates lift from deck, so the deck cannot be stood on at all'
-};
+console.log('== every star is reachable, by routes that use the hop ==');
+// RESOLVED 2026-07-27. This table used to pin Course 2's third star as an authored dead
+// end (the lower deck ended 4 units short of the lift, so it could not be stood on at
+// all). Alex approved widening the deck to w:38; it meets the lift now and the star is
+// reachable, so the pin is gone and EVERY star in EVERY course is asserted reachable —
+// which is the assertion this suite always wanted to be able to make.
+const KNOWN_UNREACHABLE = {};
 for (const course of COURSES) {
   if (UNPLAYABLE[course.key]) continue;
   // Per star: a route that drives to it and hops under it. Reachability is a geometry
@@ -90,6 +88,12 @@ for (const course of COURSES) {
     // small family of sensible attempts is tried per star, exactly as a child would.
     const huntingBelow = star.y > course.start.y + 20;
     let taken = false, hopped = false, usedRoute = null;
+    // A star BELOW is reached by going PAST it and dropping through the hole beyond — so
+    // the family includes "slow to a crawl once you are well past it", which is what a
+    // child does when she has spotted a star underneath and is hunting for the way down.
+    // At full roll she sails clean over the hole; at a crawl she drops into it.
+    const creepPoints = huntingBelow ? [Infinity, star.x + 20, star.x + 24, star.x + 28] : [Infinity];
+    for (const creepFrom of creepPoints) {
     for (const lead of [0, -2, 2]) {
       for (const brake of [false, true]) {
         const sim = createRoll(course);
@@ -102,15 +106,24 @@ for (const course of COURSES) {
           // A star BELOW needs a crawl to the edge, so she drops nearly straight down onto
           // the deck rather than sailing past it; a star ABOVE needs her slow enough to be
           // on the ground under it rather than already airborne past it.
-          const creeping = huntingBelow && s.grounded && Math.abs(s.vx) > 0.15;
+          // below the drop she drives at the star; above it she creeps only once past it
+          const belowNow = huntingBelow && s.y > star.y - 10;
+          const creeping = huntingBelow && s.grounded && !belowNow && s.x > creepFrom && Math.abs(s.vx) > 0.10;
           const closing = brake && Math.abs(s.x - star.x) < 14 && Math.abs(s.vx) > 0.2;
-          const tilt = (creeping || closing) ? -Math.sign(s.vx) : base.tilt;
+          const homing = belowNow ? (Math.sign(star.x - s.x) || -1) : null;
+          const tilt = homing != null ? homing : ((creeping || closing) ? -Math.sign(s.vx) : base.tilt);
           sim.step({ ...base, tilt, hop: (huntingBelow ? false : base.hop) || wantHop });
           if (sim.state.finished) break;
         }
-        if (sim.state.stars[i]) { taken = true; hopped = thisHopped; usedRoute = `lead ${lead}${brake ? ' + brake' : ''}`; break; }
+        if (sim.state.stars[i]) {
+          taken = true; hopped = thisHopped;
+          usedRoute = `lead ${lead}${brake ? ' + brake' : ''}${creepFrom < Infinity ? ` + creep from x${creepFrom}` : ''}`;
+          break;
+        }
       }
       if (taken) break;
+    }
+    if (taken) break;
     }
     got.push({ i, taken, hopped, usedRoute });
   });
@@ -334,7 +347,7 @@ console.log('== calibration: the authored copy, and ANY starting pose becomes ze
   await ctx.close();
 }
 
-console.log('== the blocked course is never handed to a child (BLOCKED.md) ==');
+console.log('== every course is enterable now that the geometry is fixed (BLOCKED.md RESOLVED) ==');
 {
   const { ctx, page } = await open({ width: 1024, height: 768 });
   const cards = await page.evaluate(() => [...document.querySelectorAll('.roll-course-card')].map(b => ({
@@ -342,8 +355,9 @@ console.log('== the blocked course is never handed to a child (BLOCKED.md) ==');
   })));
   ok(cards.length === 6, 'all six authored courses are shown');
   const lift = cards.find(c => c.name === 'Lift Off');
-  ok(lift.disabled && lift.building, 'Lift Off shows as a construction site and cannot be entered');
-  ok(cards.filter(c => !c.disabled).length === 5, 'the other five are playable');
+  ok(!lift.disabled && !lift.building, 'Lift Off is enterable — no construction site left on its card');
+  ok(cards.filter(c => !c.disabled).length === 6, 'all six are playable');
+  ok(cards.every(c => !c.building), 'and no course anywhere still shows as being built');
   await page.screenshot({ path: `${SHOTS}/map-1024x768.png` });
   await ctx.close();
 }
