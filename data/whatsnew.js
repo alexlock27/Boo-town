@@ -22,6 +22,33 @@
 
 export const WHATSNEW = [
   {
+    // RUN16 (Literacy & Lessons 2.0) shipped in parallel with RUN17 and could not be seen
+    // from that branch, so its entries are added here at the merge — which is exactly the
+    // failure X4's law exists to prevent: four whole games the children would never have
+    // been told about. Ships under the merged stamp, so one card covers both runs.
+    version: 'run16-17-20260727',
+    entries: [
+      { icon: '👂', title: 'Sound Sorter',
+        blurb: 'I say a sound — like shhh! — and you find it hiding in the pictures. Twelve sounds to hunt for.',
+        route: 'soundsorter' },
+      { icon: '🤝', title: 'Blend It',
+        blurb: 'The sounds sit apart until you pull them together. Watch them slide into a word, then tap the picture it makes!',
+        route: 'blendit' },
+      { icon: '🎵', title: 'Rhyme Time',
+        blurb: 'Cat, hat, mat! Find the words that chime at the end — and watch out, some only LOOK like they rhyme.',
+        route: 'rhymetime' },
+      { icon: '📖', title: 'Story Order',
+        blurb: 'Six little stories got muddled up. Put the pictures back in order and I will read the whole thing to you.',
+        route: 'storyorder' },
+      { icon: '📘', title: 'Three new lessons',
+        blurb: 'Sounds in words, words that sound the same, and how a story works. Every lesson now lets you have a go yourself.',
+        route: 'teachme' },
+      { icon: '🎢', title: 'Lift Off is finished',
+        blurb: 'The Boo Roll course that said "being built" is built! All six courses are open now, and every star can be reached.',
+        route: 'booroll' }
+    ]
+  },
+  {
     version: 'run17-heart-20260727',
     entries: [
       { icon: '🎭', title: 'The Joke Boo',
