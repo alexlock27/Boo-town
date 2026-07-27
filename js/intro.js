@@ -58,6 +58,11 @@ export const INTRO_SCRIPTS = {
     { text: 'Tap EVERY picture with that sound hiding in it.' },
     { text: 'The letter card means you can play in silence!' }
   ],
+  blendit: [
+    { text: 'These sounds are shy — they sit apart!' },
+    { text: 'Pull them together, or tap Blend.' },
+    { text: 'Then tap the picture the word makes!' }
+  ],
   teachme: [
     { text: "Pick a lesson and I'll teach you, step by step!" }
   ],

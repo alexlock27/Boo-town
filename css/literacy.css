@@ -77,9 +77,11 @@
 
 /* ============================ W2 Blend It ============================ */
 .blendit .bl-stage { display: grid; gap: 10px; justify-items: center; }
+/* The tiles sit in a gapless row and are pushed apart by TRANSFORM only (--dx per tile),
+   so the slide-together is a compositor animation, never a layout reflow. */
 .bl-tiles {
-  display: flex; gap: var(--gap, 16px); justify-content: center; align-items: center;
-  flex-wrap: wrap; min-height: 88px; padding: 6px;
+  display: flex; gap: 0; justify-content: center; align-items: center;
+  min-height: 88px; padding: 6px;
 }
 .bl-tile {
   background: var(--pop, #FF7AC6);
@@ -91,12 +93,14 @@
   color: var(--ink, #2A1B4E);
   box-shadow: 0 5px 0 rgba(42, 27, 78, .4);
   cursor: grab; touch-action: none; user-select: none;
+  transform: translateX(var(--dx, 0px));
   transition: transform .32s cubic-bezier(.2, .9, .3, 1.2);
 }
 .bl-tile.vowel { background: var(--star, #FFC93C); }
-.bl-tile.saying { transform: translateY(-10px) scale(1.12); background: #fff; }
+.bl-tile.saying { transform: translateX(var(--dx, 0px)) translateY(-10px) scale(1.12); background: #fff; }
 .bl-tile.dragging { cursor: grabbing; transition: none; z-index: 5; }
-.bl-tiles.joined { --gap: 0px; }
+.bl-tiles.joined .bl-tile { border-radius: 4px; }
+.bl-tiles.pinching .bl-tile { transition: none; }
 .bl-tiles.joined .bl-tile { border-radius: 4px; }
 .bl-tiles.joined .bl-tile:first-child { border-radius: 14px 4px 4px 14px; }
 .bl-tiles.joined .bl-tile:last-child { border-radius: 4px 14px 14px 4px; }
@@ -288,6 +292,6 @@
   .bl-tile, .so-panel, .tm-drag { transition: none; }
   .bl-pick.wrong, .rt-card.miss, .tm-basket.wobble { animation: none; }
   .so-panel.settled { animation: none; }
-  .bl-tile.saying { transform: none; background: #fff; }
+  .bl-tile.saying { transform: translateX(var(--dx, 0px)); background: #fff; }
   .so-panel.reading { transform: none; }
 }

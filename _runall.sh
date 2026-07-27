@@ -53,16 +53,20 @@ for t in $ALL; do
 done
 if [ "$FORCE_SERIAL" = "1" ]; then SERIAL="$PARALLEL $SERIAL"; PARALLEL=""; fi
 
-mkdir -p /tmp/board
-rm -f /tmp/board/lane_* /tmp/board/exit_* /tmp/board/time_*
+# BOARD_DIR lets two agents run boards at the same time without overwriting each other's
+# verdict files (RUN16/RUN17 ran in parallel worktrees). Default is unchanged.
+BOARD_DIR=${BOARD_DIR:-/tmp/board}
+LOG_DIR=${LOG_DIR:-/tmp}
+mkdir -p "$BOARD_DIR" "$LOG_DIR"
+rm -f "$BOARD_DIR"/lane_* "$BOARD_DIR"/exit_* "$BOARD_DIR"/time_*
 T_START=$(date +%s)
 
 run_suite() {  # $1 = suite name
   local s0=$(date +%s)
-  node "tests/$1.mjs" > "/tmp/reg_$1.log" 2>&1
+  node "tests/$1.mjs" > "$LOG_DIR/reg_$1.log" 2>&1
   local code=$?
-  echo $code > "/tmp/board/exit_$1"
-  echo $(( $(date +%s) - s0 )) > "/tmp/board/time_$1"
+  echo $code > "$BOARD_DIR/exit_$1"
+  echo $(( $(date +%s) - s0 )) > "$BOARD_DIR/time_$1"
   [ $code -ne 0 ] && echo "FAIL: $1"
   return $code
 }
@@ -70,9 +74,9 @@ run_suite() {  # $1 = suite name
 # ---- parallel phase: N lanes balanced by measured durations ----
 if [ -n "$(echo $PARALLEL | tr -d ' ')" ]; then
   node tests/lib/shard_plan.mjs "$WORKERS" $PARALLEL 2>/dev/null | while read lane suite; do
-    echo "$suite" >> "/tmp/board/lane_$lane"
+    echo "$suite" >> "$BOARD_DIR/lane_$lane"
   done
-  for lane_file in /tmp/board/lane_*; do
+  for lane_file in "$BOARD_DIR"/lane_*; do
     [ -f "$lane_file" ] || continue
     (
       while read suite; do run_suite "$suite"; done < "$lane_file"
@@ -93,7 +97,7 @@ T_END=$(date +%s)
 pass=0; fail=0; failed=""; total=0
 for t in $ALL; do
   total=$((total+1))
-  code=$(cat "/tmp/board/exit_$t" 2>/dev/null || echo 99)
+  code=$(cat "$BOARD_DIR/exit_$t" 2>/dev/null || echo 99)
   if [ "$code" = "0" ]; then pass=$((pass+1)); else fail=$((fail+1)); failed="$failed $t"; fi
 done
 echo "=========================="
