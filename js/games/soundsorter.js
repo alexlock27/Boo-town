@@ -165,6 +165,9 @@ export function mount(container, params, ctx) {
     if (!targets.length) return startCard();
     let idx = 0, wrong = 0, hintsUsed = 0, solved = 0;
     let found = new Set(), cardNodes = [], spoken = false;
+    // See the note in rhymetime.js: `solved` ticks when she finishes a target, but the next
+    // set of cards only appears after the celebration. This counts what is on screen.
+    let renders = 0;
 
     shell = createGameShell({
       title, rounds: targets.length, accent: 'var(--pop)',
@@ -196,6 +199,7 @@ export function mount(container, params, ctx) {
     function renderTarget() {
       const t = cur();
       found = new Set();
+      renders++;
       clear(graphemeCard); clear(field);
       graphemeCard.append(
         el('div', { class: 'ss-card-letters', text: PHONEME_BY_KEY[t.sound].card }),
@@ -298,7 +302,7 @@ export function mount(container, params, ctx) {
     }
 
     if (typeof window !== 'undefined') window.__sounds = {
-      state: () => ({ idx, wrong, hintsUsed, solved, total: targets.length }),
+      state: () => ({ idx, wrong, hintsUsed, solved, renders, total: targets.length }),
       target: () => ({ ...cur(), found: [...found] }),
       cards: () => cur().cards.slice(),
       tap: (w) => { const i = cur().cards.indexOf(w); if (i >= 0) cardNodes[i].click(); },
