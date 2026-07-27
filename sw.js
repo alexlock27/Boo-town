@@ -95,6 +95,8 @@ const ASSETS = [
   'js/encouragement.js',
   'js/feelings.js',
   'data/feelingsLines.js',
+  'js/whatsnew.js',
+  'data/whatsnew.js',
   'data/jokes.js',
   'js/content.js',
   'js/games/bubblepop.js',

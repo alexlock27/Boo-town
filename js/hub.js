@@ -26,6 +26,7 @@ import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
 import { encouragementFor, returningAfterBreak, inLongSession } from './encouragement.js';   // RUN17 X2
 import { feelingsAvailable } from './feelings.js';   // RUN17 X3 (gated: off by default, Medium/Full only)
+import { createWhatsNewCard } from './whatsnew.js';   // RUN17 X4
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -239,6 +240,14 @@ export function mount(container, params, ctx) {
 
   // ---- Golden Round + daily quests cards (RUN3 C3/C4) ----
   const specials = el('section', { class: 'hub-specials' });
+
+  // RUN17 X4: "Something new arrived!" — one card, in the hub's own flow, on the first
+  // open after a new version. It is page content and not a layer over the page, so it
+  // cannot block play; and the hub is its only caller, so it cannot appear mid-round.
+  {
+    const wn = createWhatsNewCard(ctx);
+    if (wn) specials.appendChild(wn);
+  }
 
   // One-time age question for saves from before the age step existed (job 4).
   // A friendly inline card — it never blocks anything; answer or skip sets the flag
