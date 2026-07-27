@@ -43,9 +43,16 @@ main. Vanilla HTML/JS/CSS. No frameworks. No build step. ~1MB total.
 ## Working loop (every task)
 - Commit AND push at meaningful sub-steps, not just at the end (the PC may be
   switched off at any moment). Small commits, present-tense messages.
-- Deploy gate when a task completes: bump BUILD_STAMP → push → fetch the live URL →
-  confirm the new stamp serves → update PROGRESS.md (gitignored, keep it current so
-  a fresh session can resume from it alone).
+- Deploy gate when a task completes: bump BUILD_STAMP → **append a What's New block** →
+  push → fetch the live URL → confirm the new stamp serves → update PROGRESS.md
+  (gitignored, keep it current so a fresh session can resume from it alone).
+- WHAT'S NEW IS PART OF THE DEPLOY GATE (RUN17 X4, standing law). Every run that ships a
+  child-facing feature appends a block to data/whatsnew.js — `{ version, entries:[{ icon,
+  title, blurb, route, params? }] }`, newest FIRST, `version` equal to the BUILD_STAMP it
+  ships under. Written for a child, and every `route` must resolve in js/main.js's registry
+  (tests/r17x4-whatsnew.mjs resolves them all). A feature the children are never told about
+  may as well not have been built — that is the whole reason this rule exists. Never
+  advertise anything a grown-up has to switch on.
 - Blocked twice on the same step → write a repro to BLOCKED.md and move on. Never
   improvise an alternative design; never idle; never pause to ask permission
   mid-run unless a brief says otherwise.

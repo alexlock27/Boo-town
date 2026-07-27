@@ -24,6 +24,9 @@ import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './
 import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
+import { encouragementFor, returningAfterBreak, inLongSession } from './encouragement.js';   // RUN17 X2
+import { feelingsAvailable } from './feelings.js';   // RUN17 X3 (gated: off by default, Medium/Full only)
+import { createWhatsNewCard } from './whatsnew.js';   // RUN17 X4
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -242,6 +245,14 @@ export function mount(container, params, ctx) {
   // ---- Golden Round + daily quests cards (RUN3 C3/C4) ----
   const specials = el('section', { class: 'hub-specials' });
 
+  // RUN17 X4: "Something new arrived!" — one card, in the hub's own flow, on the first
+  // open after a new version. It is page content and not a layer over the page, so it
+  // cannot block play; and the hub is its only caller, so it cannot appear mid-round.
+  {
+    const wn = createWhatsNewCard(ctx);
+    if (wn) specials.appendChild(wn);
+  }
+
   // One-time age question for saves from before the age step existed (job 4).
   // A friendly inline card — it never blocks anything; answer or skip sets the flag
   // and it never appears again. The grown-ups tier setting always overrides later.
@@ -341,6 +352,19 @@ export function mount(container, params, ctx) {
       ]));
     }
 
+    // RUN17 X3: the Feelings Corner chip. Present ONLY when a grown-up has switched it on
+    // AND the content tier is Medium or Full. Otherwise there is no chip, no greyed card
+    // and no explanation — a corner she is not meant to find has no door at all.
+    if (feelingsAvailable()) {
+      railInner.appendChild(el('button', { class: 'trail-chip feelings', onclick: () => { sfx.tap(); ctx.go('feelings'); } }, [
+        el('span', { class: 'tc-ic', text: '🪟' }),
+        el('span', { class: 'tc-txt' }, [
+          el('span', { class: 'tc-title', text: 'Feelings Corner' }),
+          el('span', { class: 'tc-sub', text: 'A quiet place to sit' })
+        ])
+      ]));
+    }
+
     // Boo of the Day chip (mini portrait) — only when she owns Boos
     if (botd) {
       const chip = el('button', { class: 'trail-chip botd', onclick: () => { sfx.tap(); ctx.go('collection'); } }, [
@@ -400,6 +424,21 @@ export function mount(container, params, ctx) {
       .replace(/\{n\}/g, String(nearZone.unlock - s.stars.total)), { voice: false });
   } else {
     gb.say(greetKey);
+  }
+
+  // ---- RUN17 X2: the hub's two capped kind-word moments -----------------------------
+  // Coming back after a couple of days away, and a long session's natural pause (she has
+  // come back to the hub after a good long play). Both are once-per-session, both go
+  // through the guide's own bubble, and both are refused outright by the policy once the
+  // session's three kind words are used up. The guide's greeting still lands first —
+  // this arrives a beat later, so it reads as a warm afterthought, not a second greeting.
+  {
+    const moment = returningAfterBreak() ? 'returning' : inLongSession() ? 'longSession' : null;
+    if (moment) {
+      const kind = encouragementFor(moment);
+      if (kind) setTimeout(() => gb.sayText(kind), 2200);
+      if (typeof window !== 'undefined') window.__hubEncourage = kind ? { moment, line: kind } : null;
+    } else if (typeof window !== 'undefined') window.__hubEncourage = null;
   }
 
   // rotate idle / boxReady lines

@@ -12,6 +12,9 @@ mkdirSync('screenshots', { recursive: true });
 const errors = []; let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
 const browser = await chromium.launch();
+// Gift landmarks the Meadow pre-places for her: they are scenery the app gave, not
+// placements she made, so counts of "what SHE put down" exclude them.
+const SEEDED_LANDMARKS = ['deco_wishwell', 'deco_jokestage'];
 function watch(p) { p.on('pageerror', e => errors.push('PE ' + e.message)); p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/i.test(m.text())) errors.push(m.text()); }); }
 const BASESAVE = (o) => ({ version: 6, name: 'Ada',
   guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'Twiggy' },
@@ -46,9 +49,10 @@ console.log('== old grid town migrates to Meadow ==');
     town: [{ plot: 8, item: 'boo_inky' }, { plot: 2, item: 'deco_tree' }, { plot: 20, item: 'boo_beam' }] };
   const { ctx, page } = await open(old, 'meadow');
   const all = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
-  // RUN10 P20 pre-places the Wish Well in the Meadow, so the area legitimately holds one
-  // scenery item beyond her migrated placements. Count only what SHE placed. (RUN11 Q9.)
-  const items = all.filter(t => t.item !== 'deco_wishwell');
+  // The Meadow pre-places gift landmarks — the Wish Well (RUN10 P20) and the Joke Boo's
+  // stage (RUN17 X1) — so the area legitimately holds scenery beyond her migrated
+  // placements. Count only what SHE placed. (RUN11 Q9.)
+  const items = all.filter(t => !SEEDED_LANDMARKS.includes(t.item));
   assert(items.every(t => t.zone === 'meadow' && typeof t.x === 'number'), 'all migrated to Meadow with x (' + JSON.stringify(items) + ')');
   assert(items.length === 3, 'all 3 placements kept');
   assert(await page.$$eval('.t-item', e => e.length) === all.length, 'migrated items render');
@@ -90,7 +94,7 @@ console.log('== placements persist per-area ==');
   const riverZones = await page.$$eval('.t-item', els => els.map(e => e.dataset.zone).sort());
   assert(riverZones.length >= 1 && riverZones.every(z => z === 'riverside'), 'riverside mount shows only its own items after reload (' + riverZones + ')');
   const full = await page.evaluate(() => window.BooTown.State.getState().town.areas);
-  const herMeadow = full.meadow.items.filter(t => t.item !== 'deco_wishwell');
+  const herMeadow = full.meadow.items.filter(t => !SEEDED_LANDMARKS.includes(t.item));
   assert(herMeadow.length === 1 && full.riverside.items.length === 1, 'both areas persist their own item independently');
   await ctx.close();
 }
