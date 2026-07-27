@@ -68,6 +68,11 @@ export const INTRO_SCRIPTS = {
     { text: 'Cat, hat, mat! Tap the two that rhyme.' },
     { text: 'Some words look alike but do NOT rhyme — careful!' }
   ],
+  storyorder: [
+    { text: 'These story pictures got muddled up!' },
+    { text: 'Tap one, then tap where it should go.' },
+    { text: 'Get it right and I will read it to you!' }
+  ],
   teachme: [
     { text: "Pick a lesson and I'll teach you, step by step!" }
   ],
