@@ -5297,3 +5297,16 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .jb-bubble.pop, .jb-boo.giggle, .jb-brow, .jb-heart.bump { animation: none; }
   .jb-card:active { transform: none; }
 }
+
+/* RUN17 X2 — a kind word on the results screen. Its own quiet beat, never a badge and
+   never a score: it fades in after the round's own line has landed. */
+.result-encourage {
+  margin: 6px auto 2px; max-width: 34ch; padding: 8px 14px;
+  border-radius: 14px; background: rgba(53, 208, 186, 0.14);
+  color: var(--ink); font-size: 1rem; font-weight: 700; text-align: center;
+  opacity: 0; transition: opacity .5s ease;
+}
+.result-encourage.in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .result-encourage { transition: none; }
+}

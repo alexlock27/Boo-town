@@ -155,5 +155,75 @@ export const LINES = {
 
   // ---- Run 10 P20 additions (Wish Well) ----
   L_WISH_OPEN: ["Spell what you wish for!"],
-  L_WISH_NEARLY: ["Ooh, nearly! The well is listening..."]
+  L_WISH_NEARLY: ["Ooh, nearly! The well is listening..."],
+
+  // ---- RUN17 X2: kind words woven through --------------------------------------------
+  // AUTHORED in CONTENT_WARMTH.md sections X2a and X2b, transcribed exactly. Nothing here
+  // was written by the implementer, and nothing here may be paraphrased.
+  //
+  // THE RULE BEHIND EVERY LINE (CONTENT_WARMTH.md): praise the effort, the choice or the
+  // persistence — never the ability. "You kept going" builds a child who keeps going;
+  // "you're so clever" builds a child who avoids anything that might prove otherwise. No
+  // line compares her to anyone, mentions a streak, a number or a score, or implies she
+  // should have found something easy. tests/r17x2-encouragement.mjs machine-checks that.
+  //
+  // WHEN these fire, and how hard they are capped, is js/encouragement.js — not here.
+
+  // X2a. General encouragement (40 lines).
+  encourageEffort: [
+    "You kept going. That's the good bit.",
+    "That was a tricky one and you stayed with it.",
+    "I like how you had a think about that.",
+    "Nice — you tried it a different way.",
+    "Look at you, having a go.",
+    "You didn't give up. Brilliant.",
+    "That took some working out, didn't it?",
+    "Good thinking, that.",
+    "You're getting the hang of this.",
+    "Sticking with it — that's the whole trick.",
+    "Ooh, you spotted it!",
+    "That's the way. Slow and sure.",
+    "You had a wobble and carried on. Ace.",
+    "I saw you thinking hard there.",
+    "Lovely bit of concentrating.",
+    "You chose a tricky one. Good for you.",
+    "That's it — try, look, try again.",
+    "Nice one for having another go.",
+    "Careful work, that.",
+    "You worked that out all by yourself.",
+    "Good spot!",
+    "That was a proper puzzle and you cracked on.",
+    "Brave, picking that one.",
+    "Steady as you go. It's working.",
+    "I like your style.",
+    "You keep having a go, and it keeps working.",
+    "That's the sort of thinking I like.",
+    "Well noticed.",
+    "You took your time. That's allowed, you know.",
+    "Look how you stuck at that.",
+    "Trying is the whole game, really.",
+    "You gave that a proper go.",
+    "Nice — you didn't rush it.",
+    "That's a good way to think about it.",
+    "You had a plan. I could tell.",
+    "Coming back to it — that's a good move, that.",
+    "You're doing the hard bit: keeping on.",
+    "Good effort, that one.",
+    "You found your own way through.",
+    "That's it. You're getting there."
+  ],
+
+  // X2b. After a hard round (8 lines). Fired ONLY after an above-comfort round that
+  // scored one star. These name the difficulty honestly, because pretending it was easy
+  // is worse than useless to a child who has just found it hard.
+  encourageHardRound: [
+    "That one was HARD. And you still finished it.",
+    "Tricky, that. You stayed all the way through.",
+    "That was a stretch. Well done for reaching.",
+    "Hard ones are hard. You did it anyway.",
+    "Not an easy round, that. You kept going.",
+    "You picked a tough one and saw it out.",
+    "That was a proper challenge. Good on you.",
+    "Difficult, that one. And here you still are."
+  ]
 };

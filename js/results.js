@@ -13,6 +13,7 @@ import { noteQuest, stampJournal } from './quests.js';
 import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
 import { grantRoundTreat } from './care.js';
+import { encouragementFor } from './encouragement.js';   // RUN17 X2
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
@@ -27,6 +28,9 @@ export function mount(container, params, ctx) {
   // increments stars.total itself — every round routes here via ctx.go('results').
   const before = s.meter;
   const beforeTotal = s.stars.total;
+  // RUN17 X2: read BEFORE the mutate below increments it — "a first-ever try of any game"
+  // is only true of the round she has just this second finished.
+  const playsBefore = ((s.stars.byGame[game] || {}).plays) || 0;
   mutate(st => {
     const g = st.stars.byGame[game];
     if (g) { g.plays += 1; g.best = Math.max(g.best, stars); g.earned = (g.earned || 0) + stars; }  // C0 Star Ledger tally
@@ -90,6 +94,8 @@ export function mount(container, params, ctx) {
   noteRequest('roundEnd', { game, stars });
   if (stars >= 3) stampJournal('star3_' + game);
   if (game === 'golden' && stars >= 3) stampJournal('golden3');
+
+  if (typeof window !== 'undefined') window.__encourage = null;   // RUN17 X2: never read a previous round's
 
   const root = el('div', { class: 'screen results' });
   root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
@@ -167,6 +173,17 @@ export function mount(container, params, ctx) {
     card.insertBefore(awardBox, meterBox);
     if (typeof window !== 'undefined') window.__resultAward = { type: roundType, ...award, above: verdict.above, stars };
 
+    // ---- RUN17 X2: a kind word, at one of the capped moments ------------------------
+    // The moment is chosen here; whether anything is actually SAID is js/encouragement.js's
+    // decision, and it says no far more often than yes. An aced round never qualifies —
+    // the policy enforces that itself, so this call site cannot get it wrong.
+    // It arrives as its own beat after the results line, so it reads as the guide adding
+    // something rather than as more scoring.
+    const moment = (verdict.above && stars === 1) ? 'hardRound'
+      : (playsBefore === 0 && !partial) ? 'firstTry'
+        : null;
+    if (moment) sayKindly(encouragementFor(moment, { stars }));
+
     // fill meter: from `before` up to new meter (handle wrap visually)
     fillMeter(before, banked.meter, banked.boxesEarned);
 
@@ -177,7 +194,10 @@ export function mount(container, params, ctx) {
       mountRescue(rescueWrap, tricky, {
         onGift: () => showGift(),
         onRescue: () => relightMeter(),
-        onDone: () => { relightMeter(); }
+        // RUN17 X2: finishing a Tricky Pile rescue is one of the capped kind-word moments.
+        // No stars are passed because a rescue is not a scored round — it is untimed,
+        // hint-free work she chose to do, which is exactly what the pool praises.
+        onDone: () => { relightMeter(); sayKindly(encouragementFor('rescue')); }
       });
     }
 
@@ -201,6 +221,19 @@ export function mount(container, params, ctx) {
 
     // Newly earned certificates / medals / trophies celebrate here (RUN4 C4).
     setTimeout(() => { try { checkAndCelebrate(); } catch (e) { console.warn(e); } }, 600);
+  }
+
+  // RUN17 X2: show and speak a kind word, once, as its own quiet beat. Empty string means
+  // the policy declined — the overwhelmingly common case — and nothing appears at all.
+  // Speech goes through the shared guide path, so the voice mute governs it like everything.
+  let kindShown = false;
+  function sayKindly(line) {
+    if (!line || kindShown) return;
+    kindShown = true;
+    const node = el('div', { class: 'result-encourage', text: line });
+    card.insertBefore(node, meterBox);
+    setTimeout(() => { node.classList.add('in'); speakMaybe(line); }, 900);
+    if (typeof window !== 'undefined') window.__encourage = { line, moment: true };
   }
 
   // Re-light meter segments from the current state (after rescue +1s).
