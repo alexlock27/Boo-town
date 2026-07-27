@@ -5,6 +5,8 @@
 // Unrescued items persist (save.trickyPile) and seed the next Smart Mix round.
 
 import { el, sparkleAt } from './ui.js';
+import { speakMaybe } from './guide.js';
+import { renderWordArt } from './wordart.js';
 import { getState, mutate } from './state.js';
 import { sfx } from './sfx.js';
 import { addMeterPoints } from './rewards.js';
@@ -121,9 +123,19 @@ export function mountRescue(container, items, { onGift, onDone, onRescue } = {})
       ]),
       el('div', { class: 'rescue-prompt', text: item.prompt })
     );
-    const opts = el('div', { class: 'rescue-options' });
+    // RUN16 W6: a literacy item may carry `art` (its options are picture words) and `say`
+    // (the prompt read aloud). Both are optional, so every pre-RUN16 item renders exactly
+    // as before — but a rescue built from a phonics or blending miss now works for a child
+    // who cannot read the three options (G14).
+    speakMaybe(item.say || item.prompt);
+    const opts = el('div', { class: 'rescue-options' + (item.art ? ' art' : '') });
     shuffle(item.options.slice()).forEach(o => {
-      opts.appendChild(el('button', { class: 'btn rescue-opt', text: o, onclick: () => answer(o, item) }));
+      opts.appendChild(el('button', {
+        class: 'btn rescue-opt' + (item.art ? ' pic' : ''), 'aria-label': o,
+        onclick: () => answer(o, item)
+      }, item.art
+        ? [el('span', { class: 'ro-pic', html: renderWordArt(o, { size: 74, label: o }) }), el('span', { class: 'ro-word', text: o })]
+        : [el('span', { text: o })]));
     });
     panel.appendChild(opts);
     // a free hint: dim one wrong option
@@ -144,7 +156,7 @@ export function mountRescue(container, items, { onGift, onDone, onRescue } = {})
       render();
     } else {
       sfx.oops();
-      const btn = [...panel.querySelectorAll('.rescue-opt')].find(b => b.textContent === choice);
+      const btn = [...panel.querySelectorAll('.rescue-opt')].find(b => b.getAttribute('aria-label') === choice || b.textContent === choice);
       if (btn) { btn.classList.add('wrong'); setTimeout(() => btn.classList.remove('wrong'), 400); }
     }
   }

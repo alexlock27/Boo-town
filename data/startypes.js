@@ -27,6 +27,8 @@ export const GAME_STAR_TYPE = {
   blocks: 'maths',
   // Word — Spell Boo, Word Detective (Feed the Boos is content-dependent, below)
   spellboo: 'word', detective: 'word',
+  // RUN16: the four literacy games are Word content end to end
+  soundsorter: 'word', blendit: 'word', rhymetime: 'word', storyorder: 'word',
   // Puzzle — Odd Boo Out, Flash Boos, Echo Boos, Boo Roll, the Expedition, the Caper
   oddboo: 'puzzle', flashboos: 'puzzle', echoboos: 'puzzle', booroll: 'puzzle',
   expedition: 'puzzle', expeditionpuzzle: 'puzzle', caper: 'puzzle', booquest: 'puzzle',
