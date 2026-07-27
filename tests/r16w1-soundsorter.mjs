@@ -191,12 +191,13 @@ console.log('== 5. sound off: the grapheme card carries the target and a full ro
   await page.screenshot({ path: SHOTS + '/sound-off.png' });
 
   // play the whole round through the picture cards alone
-  await page.evaluate(async () => {
-    for (let i = 0; i < 8; i++) {
-      window.__sounds.solveTarget();
-      await new Promise(r => setTimeout(r, 950));
-    }
-  });
+  // Drive the round on its own state: wait for target N's cards to be on screen, solve
+  // them, wait for N+1. A fixed sleep here would be a flake waiting to happen — `solved`
+  // ticks before the next set of cards is rendered.
+  for (let i = 0; i < 8; i++) {
+    await page.waitForFunction(n => window.__sounds && window.__sounds.state().renders === n && window.__sounds.state().solved === n - 1, i + 1, { timeout: 15000 });
+    await page.evaluate(() => window.__sounds.solveTarget());
+  }
   await page.waitForSelector('.screen.results', { timeout: 20000 });
   await page.waitForTimeout(300);
   const done = await page.evaluate(() => {

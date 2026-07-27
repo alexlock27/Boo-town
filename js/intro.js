@@ -63,6 +63,11 @@ export const INTRO_SCRIPTS = {
     { text: 'Pull them together, or tap Blend.' },
     { text: 'Then tap the picture the word makes!' }
   ],
+  rhymetime: [
+    { text: 'Rhymes sound the same at the END.' },
+    { text: 'Cat, hat, mat! Tap the two that rhyme.' },
+    { text: 'Some words look alike but do NOT rhyme — careful!' }
+  ],
   teachme: [
     { text: "Pick a lesson and I'll teach you, step by step!" }
   ],

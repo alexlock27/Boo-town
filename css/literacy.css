@@ -295,3 +295,21 @@
   .bl-tile.saying { transform: translateX(var(--dx, 0px)); background: #fff; }
   .so-panel.reading { transform: none; }
 }
+
+/* W3 additions: the word under each picture card, the punchline bounce, the hint nudge */
+.rt-card { flex-direction: column; gap: 2px; }
+.rt-cardword {
+  font-family: Fredoka, system-ui, sans-serif; font-weight: 700; font-size: 17px;
+  color: var(--ink, #2A1B4E);
+}
+.rt-card.bounce { animation: rtBounce .58s cubic-bezier(.2, .9, .3, 1.4); }
+.rt-card.nudge, .ss-card.nudge { border-color: var(--star, #FFC93C); }
+.rt-card.nudge { animation: rtNudge 1.1s ease-in-out 2; }
+@keyframes rtBounce { 0%, 100% { transform: translateY(0) scale(1.03); } 45% { transform: translateY(-16px) scale(1.1); } }
+@keyframes rtNudge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+.rt-stage { display: grid; gap: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-card.bounce, .rt-card.nudge { animation: none; }
+  .rt-card.nudge { background: #FFF3CF; }
+}
+.rt-cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 420px; }

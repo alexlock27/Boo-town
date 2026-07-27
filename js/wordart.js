@@ -445,6 +445,9 @@ const ART = {
     E(50, 66, 7, 10, CL.iceblue, NO) + L('M26 104 q10 -6 20 0', CL.seablue, 3) + L('M74 104 q10 -6 20 0', CL.seablue, 3),
   hop: () => grass(104) + boo(66, 52, CL.teal, { r: 20 }) + L('M58 72 L50 92', CL.teal, 6) + L('M74 72 L84 90', CL.teal, 6) +
     L('M18 100 Q40 52 66 30', CL.slate, 3, 'stroke-dasharray="5 6"') + arrowUp(18, 86, CL.slate),
+  // the -ight near-miss: 'igh' letters that do not say /igh/ (eight), drawn as eight things
+  eight: () => [0, 1, 2, 3].map(i => C(26 + i * 23, 46, 11, [CL.pink, CL.teal, CL.gold, CL.lilac][i])).join('') +
+    [0, 1, 2, 3].map(i => C(26 + i * 23, 82, 11, [CL.teal, CL.gold, CL.lilac, CL.pink][i])).join(''),
   gate: () => sky() + grass(104) + L('M20 40 V106', CL.cocoa, 7) + L('M100 40 V106', CL.cocoa, 7) +
     [48, 62, 76, 90].map(y => L(`M20 ${y} H100`, CL.cocoa, 5)).join('') + L('M22 96 L98 46', CL.cocoa, 5),
   // the -og near-miss: 'og' letters that do not say /og/ (yoga), drawn as a calm Boo sitting

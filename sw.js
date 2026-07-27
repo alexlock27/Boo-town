@@ -51,6 +51,7 @@ const ASSETS = [
   'js/wordart.js',
   'js/games/soundsorter.js',
   'js/games/blendit.js',
+  'js/games/rhymetime.js',
   'js/dragdrop.js',
   'js/toddler.js',
   'js/trophies.js',
