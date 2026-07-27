@@ -23,6 +23,12 @@
 >   respawn watch; the minute-long observation IS the assertion.
 > Every non-@serial suite measured under 120s (slowest: r12s4-contrast 109s,
 > r4p3-rewards 108s, r12s1-routes 94s).
+>
+> **@serial suites added since (Board Law: each states its expected runtime):**
+> - `r17x3-feelings` (~95s, RUN17 X3) — INSIDE the 120s budget, but @serial on the other
+>   Board Law ground: it MEASURES the breathing cycle's authored 4s/2s/6s x4 timings
+>   against a real clock, and a deliberately unhurried 48-second rhythm is exactly the
+>   cadence parallel load starves. Tagged at birth rather than after a flake.
 
 > **This file is the official serial comparison baseline for RUN14 packet U-0's sharding
 > acceptance.** A sharded run is accepted only if it reproduces the PASS and FAIL verdicts

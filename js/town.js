@@ -424,6 +424,26 @@ export function mount(container, params, ctx) {
       items.push({ zone:'meadow', ...position, item:'deco_wishwell', scale:1.1 });
     });
   }
+  // RUN17 X1: the Joke Boo's stage, on the same terms as the well above — a gift landmark
+  // that never displaces anything, and stays in Build → Landscape if she puts it away.
+  if (AREA.key === 'meadow' && !((getState().seen || {}).jokeStageSeeded)) {
+    mutate(st => {
+      st.seen = st.seen || {};
+      st.seen.jokeStageSeeded = true;
+      const items = areaItems(st);
+      if (items.length >= AREA_CAP) return;
+      const candidates = [.20, .32, .44, .56, .68, .80, .88, .10];
+      const rows = [1, 2, 0];
+      let position = null;
+      for (const row of rows) {
+        const x = candidates.find(candidate =>
+          items.every(placed => placed.row !== row || Math.abs((placed.x || 0) - candidate) >= .09));
+        if (x != null) { position = { x, row }; break; }
+      }
+      if (!position) return;   // a full Meadow keeps it in the Build drawer instead
+      items.push({ zone:'meadow', ...position, item:'deco_jokestage', scale:1.05 });
+    });
+  }
 
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
@@ -2211,6 +2231,7 @@ export function mount(container, params, ctx) {
       return;
     }
     if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
+    if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo'); return; }   // RUN17 X1
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);
   }

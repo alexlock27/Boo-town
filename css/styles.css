@@ -5196,3 +5196,281 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .read-aloud-btn:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) { .read-aloud-btn:active { transform: none; } }
 .hear-btn { margin-left: 8px; }
+
+/* ============================================================
+   RUN17 X1 — the Joke Boo's stage.
+   A small, warm stage: four type cards, then one Boo, one bubble, one rhythm.
+   Every animation here is transform/opacity only and has a reduced-motion path.
+   ============================================================ */
+.jokeboo { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px 28px; max-width: 760px; margin: 0 auto; }
+.jb-top { display: flex; align-items: center; gap: 10px; }
+/* The title and lead sit straight on the night sky, not on a card, so they take the
+   cream ink the rest of the app uses there — --ink on --sky-deep is 1.07:1. */
+.jb-title { flex: 1; margin: 0; font-size: 1.5rem; text-align: center; color: var(--card); }
+.jb-help { flex: 0 0 auto; }
+.jb-lead { margin: 0; text-align: center; font-size: 1.05rem; color: var(--card); opacity: .92; }
+
+/* ---- the four type cards (never more than 8 primary buttons at phone width) ---- */
+.jb-picker { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.jb-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-height: 128px; padding: 14px 10px;
+  border: 3px solid var(--ink); border-radius: 20px;
+  background: var(--card); color: var(--ink); cursor: pointer;
+  transition: transform .14s ease;
+}
+.jb-card:active { transform: scale(0.97); }
+.jb-card-ic { font-size: 2.2rem; line-height: 1; }
+.jb-card-name { font-weight: 800; font-size: 1.05rem; text-align: center; }
+.jb-card-sub { font-size: .82rem; opacity: .78; text-align: center; }
+.jb-card-knock  { background: color-mix(in srgb, var(--pop) 16%, var(--card)); }
+.jb-card-animal { background: color-mix(in srgb, var(--zing) 16%, var(--card)); }
+.jb-card-silly  { background: color-mix(in srgb, var(--star) 18%, var(--card)); }
+.jb-card-boo    { background: color-mix(in srgb, var(--lilac, #B39DFF) 18%, var(--card)); }
+
+/* ---- the stage ---- */
+.jb-stage-wrap { display: flex; flex-direction: column; gap: 14px; }
+.jb-stage {
+  position: relative; display: block; width: 100%;
+  min-height: 300px; padding: 18px 16px 34px;
+  border: 3px solid var(--ink); border-radius: 24px;
+  background: var(--card); color: var(--ink); text-align: left; cursor: pointer;
+}
+.jb-stage-inner { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.jb-said { min-height: 92px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.jb-who { font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.jb-who.child { color: var(--pop); }
+.jb-bubble {
+  max-width: 30ch; padding: 12px 16px; border: 3px solid var(--ink); border-radius: 18px;
+  background: #fff; color: #2A1B4E; font-size: 1.2rem; font-weight: 700; text-align: center;
+}
+.jb-bubble.pop { animation: jbPop .26s ease; }
+@keyframes jbPop { 0% { transform: scale(.86); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+.jb-boo { position: relative; display: inline-block; transition: transform .2s ease; }
+.jb-boo[data-pose="beat"]  { transform: rotate(-4deg); }
+.jb-boo[data-pose="punch"] { transform: scale(1.04); }
+.jb-boo.giggle { animation: jbGiggle .62s ease; }
+@keyframes jbGiggle {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  20% { transform: translateY(-8px) rotate(-5deg); }
+  45% { transform: translateY(0) rotate(4deg); }
+  70% { transform: translateY(-5px) rotate(-3deg); }
+}
+/* the raised eyebrow of the anticipation beat */
+.jb-brow {
+  position: absolute; top: 26%; left: 50%; width: 26px; height: 12px;
+  margin-left: -34px; border-top: 4px solid var(--ink);
+  border-radius: 50% 50% 0 0; transform: rotate(-12deg);
+  animation: jbBrow .3s ease;
+}
+@keyframes jbBrow { from { transform: rotate(-12deg) translateY(6px); } to { transform: rotate(-12deg) translateY(0); } }
+
+.jb-tap-hint {
+  position: absolute; left: 0; right: 0; bottom: 10px;
+  text-align: center; font-size: .8rem; opacity: .6;
+}
+
+/* ---- the buttons under the stage ---- */
+.jb-btns { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.jb-heart {
+  width: 52px; height: 52px; min-width: 52px; flex: 0 0 auto;
+  border: 3px solid var(--ink); border-radius: 50%;
+  background: var(--card); color: var(--ink); font-size: 1.5rem; cursor: pointer;
+}
+.jb-heart.on { background: color-mix(in srgb, var(--pop) 30%, var(--card)); }
+.jb-heart.bump { animation: jbBump .4s ease; }
+@keyframes jbBump { 0% { transform: scale(1); } 45% { transform: scale(1.28); } 100% { transform: scale(1); } }
+.jb-again { flex: 1 1 auto; min-height: 52px; }
+.jb-types { flex: 0 0 auto; min-height: 52px; }
+
+@media (max-width: 600px) {
+  .jokeboo { padding: 10px 10px 24px; }
+  .jb-title { font-size: 1.25rem; }
+  .jb-bubble { font-size: 1.08rem; max-width: 26ch; }
+  .jb-stage { min-height: 268px; }
+  .jb-again, .jb-types { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jb-card, .jb-boo { transition: none; }
+  .jb-bubble.pop, .jb-boo.giggle, .jb-brow, .jb-heart.bump { animation: none; }
+  .jb-card:active { transform: none; }
+}
+
+/* RUN17 X2 — a kind word on the results screen. Its own quiet beat, never a badge and
+   never a score: it fades in after the round's own line has landed. */
+.result-encourage {
+  margin: 6px auto 2px; max-width: 34ch; padding: 8px 14px;
+  border-radius: 14px; background: rgba(53, 208, 186, 0.14);
+  color: var(--ink); font-size: 1rem; font-weight: 700; text-align: center;
+  opacity: 0; transition: opacity .5s ease;
+}
+.result-encourage.in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .result-encourage { transition: none; }
+}
+
+/* ============================================================
+   RUN17 X3 — the Feelings Corner.
+   A window seat, soft light, a Boo curled beside her. Nothing here is a form, a
+   test, a tracker or a therapist: no progress bar, no score, no history, no
+   "well done". The leave control is visible in every single state.
+   ============================================================ */
+.feelings {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 12px 14px 30px; max-width: 660px; margin: 0 auto;
+}
+.fe-top { width: 100%; display: flex; }
+
+/* the cosy corner */
+.fe-seat {
+  position: relative; width: 100%; min-height: 210px;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 18px 0 8px;
+  border: 3px solid var(--ink); border-radius: 26px;
+  background: linear-gradient(180deg, #3B2E7E 0%, #4A3A92 62%, #6B5AB8 100%);
+  overflow: hidden;
+}
+.fe-window {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 132px; height: 96px; border: 3px solid var(--ink); border-radius: 14px 14px 4px 4px;
+  background: radial-gradient(circle at 50% 34%, #FFF3C4 0%, #8E7AD6 60%, #4A3A92 100%);
+}
+.fe-moon { position: absolute; top: 18px; left: 50%; margin-left: -13px; width: 26px; height: 26px; border-radius: 50%; background: #FFF6D4; }
+.fe-glow { position: absolute; inset: -30px; background: radial-gradient(circle, rgba(255,243,196,.34), transparent 68%); }
+.fe-boo { position: relative; z-index: 1; transition: transform .4s ease; }
+.fe-boo-art, .fe-face { display: block; }
+.fe-face { position: absolute; inset: 0; pointer-events: none; }
+
+/* posture — the Boo MIRRORS the feeling. Transform-only, every one with a still path. */
+.fe-boo[data-pose="happy"]   { animation: feBounce 1.5s ease-in-out infinite; }
+.fe-boo[data-pose="excited"] { animation: feHop .55s ease-in-out infinite; }
+.fe-boo[data-pose="calm"]    { animation: feSway 4.4s ease-in-out infinite; }
+.fe-boo[data-pose="tired"]   { animation: feDroop 5.5s ease-in-out infinite; transform-origin: 50% 100%; }
+.fe-boo[data-pose="worried"] { animation: feFidget 1.7s ease-in-out infinite; transform: scale(.93); }
+.fe-boo[data-pose="sad"]     { transform: scale(.95) translateY(4px); }
+.fe-boo[data-pose="dance"]   { animation: feDance .6s ease-in-out infinite; }
+.fe-boo.sitting              { animation: feSway 6s ease-in-out infinite; }
+@keyframes feBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes feHop    { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-11px) rotate(2deg); } }
+@keyframes feSway   { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes feDroop  { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.965); } }
+@keyframes feFidget { 0%,100% { transform: scale(.93) translateX(-2px); } 50% { transform: scale(.93) translateX(2px); } }
+@keyframes feDance  { 0%,100% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(8deg) translateY(-8px); } }
+
+/* the one line on screen */
+.fe-say {
+  margin: 0; max-width: 34ch; text-align: center;
+  font-size: 1.22rem; font-weight: 700; line-height: 1.45; color: var(--card);
+}
+
+/* the six faces */
+.fe-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.fe-choice {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: 108px; padding: 10px 6px;
+  border: 3px solid var(--ink); border-radius: 18px;
+  background: var(--card); color: var(--ink); cursor: pointer;
+  transition: transform .14s ease;
+}
+.fe-choice:active { transform: scale(0.96); }
+.fe-choice-face { width: 66px; height: 71px; display: block; }
+.fe-choice-word { font-weight: 800; font-size: .98rem; }
+
+/* the offer — a button, never a demand */
+.fe-offers { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.fe-offer, .fe-again, .fe-stop { min-height: 52px; }
+
+/* breathe with me: an expanding ring, unhurried, stoppable from the first frame */
+.fe-activity { width: 100%; display: flex; justify-content: center; }
+.fe-breathe { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 0 4px; }
+.fe-ring {
+  width: 116px; height: 116px; border-radius: 50%;
+  border: 5px solid var(--zing); background: rgba(53, 208, 186, 0.12);
+  transform: scale(0.62);
+  transition: transform var(--ms, 4000ms) ease-in-out;
+}
+.fe-ring[data-phase="in"]   { transform: scale(1.18); }
+.fe-ring[data-phase="hold"] { transform: scale(1.18); }
+.fe-ring[data-phase="out"]  { transform: scale(0.62); }
+.fe-ring[data-phase="done"] { transform: scale(0.9); }
+.fe-breath-copy { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--card); text-align: center; min-height: 1.5em; }
+
+/* dance it out */
+.fe-dance-floor { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fe-dancer { border: none; background: none; cursor: pointer; padding: 0; animation: feDance .6s ease-in-out infinite; }
+.fe-dance-floor.joined .fe-dancer { animation-duration: .42s; }
+.fe-join-hint { font-size: .95rem; color: var(--card); opacity: .9; }
+
+/* sit a while: nothing but the way out */
+.fe-sit { display: flex; justify-content: center; padding-top: 4px; }
+
+@media (max-width: 600px) {
+  .fe-say { font-size: 1.08rem; }
+  .fe-choices { gap: 8px; }
+  .fe-choice { min-height: 100px; }
+  .fe-seat { min-height: 190px; }
+}
+
+/* Reduced motion: the corner still works, it simply stops moving. The breathing ring
+   holds its size per phase rather than easing, so the 4/2/6 rhythm is still readable. */
+@media (prefers-reduced-motion: reduce) {
+  .fe-boo, .fe-boo.sitting, .fe-dancer, .fe-dance-floor.joined .fe-dancer { animation: none; }
+  .fe-boo { transition: none; }
+  .fe-ring { transition: none; }
+  .fe-choice { transition: none; }
+  .fe-choice:active { transform: none; }
+}
+
+/* the grown-ups note when the corner is switched on but the tier keeps it hidden */
+.gu-note-off { opacity: .75; font-style: italic; }
+
+/* ============================================================
+   RUN17 X4 — "Something new arrived!"
+   ONE card, in the hub's own flow. Never a modal, never an overlay, never
+   anything she must dismiss before she can play. Collapsed it is a single line;
+   expanded it is a scrollable list with a way straight to each thing.
+   ============================================================ */
+.wn-card {
+  position: relative; display: flex; align-items: stretch; gap: 0;
+  padding: 0; overflow: hidden;
+  border: 3px solid var(--ink); border-radius: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--star) 26%, var(--card)), var(--card));
+}
+.wn-open {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  min-height: 60px; padding: 10px 12px;
+  border: none; background: none; color: var(--ink); cursor: pointer; text-align: left;
+}
+.wn-spark { font-size: 1.6rem; line-height: 1; }
+.wn-open-txt { display: flex; flex-direction: column; }
+.wn-title { font-family: var(--font-display); font-weight: 800; font-size: 1.06rem; }
+.wn-sub { font-size: .85rem; opacity: .8; }
+.wn-chev { margin-left: auto; font-size: 1.5rem; opacity: .6; }
+.wn-x {
+  flex: 0 0 auto; width: 44px; min-width: 44px; min-height: 44px;
+  border: none; background: none; color: var(--ink);
+  font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
+
+/* expanded */
+.wn-card.open { flex-direction: column; padding: 10px 12px 12px; }
+.wn-head { display: flex; align-items: center; gap: 8px; }
+.wn-head .wn-title { flex: 1; }
+.wn-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 46vh; overflow-y: auto; }
+.wn-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 14px; background: rgba(255, 255, 255, 0.55);
+}
+.wn-ic { font-size: 1.5rem; line-height: 1; flex: 0 0 auto; }
+.wn-txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.wn-item-title { font-weight: 800; font-size: .98rem; }
+.wn-blurb { font-size: .85rem; opacity: .85; line-height: 1.35; }
+.wn-go { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: .9rem; }
+
+@media (max-width: 600px) {
+  .wn-item { flex-wrap: wrap; }
+  .wn-go { width: 100%; margin-top: 4px; }
+  .wn-list { max-height: 52vh; }
+}
