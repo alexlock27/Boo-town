@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run16-v2-20260727';  // RUN16 + the Alex-approved Boo Roll geometry fixes
+const BUILD_STAMP = 'run16-17-20260727';  // RUN16 Literacy + RUN17 Heart & Humour, merged
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
