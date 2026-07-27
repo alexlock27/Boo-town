@@ -146,6 +146,9 @@ export const CATALOGUE = [
   { id: 'deco_rock',       kind: 'landscape', name: 'Rock',       rarity: 'common', deco: 'rock',       free: true, blurb: 'Solid, mossy, an excellent place to sit and think.' },
   { id: 'deco_flowerbed',  kind: 'landscape', name: 'Flowerbed',  rarity: 'common', deco: 'flowerbed',  free: true, blurb: 'A tidy row of blooms, strictly not for eating.' },
   { id: 'deco_wishwell',   kind: 'landscape', name: 'Wish Well',  rarity: 'rare',   deco: 'wishwell',   free: true, blurb: 'Spell a wish and watch the well make it real.' },
+  // RUN17 X1: the Joke Boo's stage. Same contract as the Wish Well — a free landmark that
+  // always lives in Build → Landscape, so putting it away is never losing it.
+  { id: 'deco_jokestage',  kind: 'landscape', name: 'Joke Boo',   rarity: 'rare',   deco: 'jokestage',  free: true, blurb: 'A Boo with 120 jokes and no shame whatsoever.' },
 
   // --- Furniture (8, RUN10 P4): kind:'furniture', indoor-only, joins box pools at
   // decoration odds (bucketed under 'deco' in BY_TYPE_RARITY below, not a separate type
