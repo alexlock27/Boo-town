@@ -53,6 +53,11 @@ export const INTRO_SCRIPTS = {
     { text: 'Drag the clock hands to match each order!' },
     { text: 'Little hand hours, big hand minutes!' }
   ],
+  soundsorter: [
+    { text: "I'll say a sound — like shhh!" },
+    { text: 'Tap EVERY picture with that sound hiding in it.' },
+    { text: 'The letter card means you can play in silence!' }
+  ],
   teachme: [
     { text: "Pick a lesson and I'll teach you, step by step!" }
   ],
