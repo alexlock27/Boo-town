@@ -6,7 +6,12 @@ Thumbs.db
 /screenshots/tmp/
 .tmp/
 
-.claude/
+# Local Claude Code state stays private, EXCEPT the sub-agent definitions, which are
+# tooling the whole programme depends on and must travel with the repo. (Note the
+# `.claude/*` form: a negation cannot re-include anything under a directory that is
+# itself excluded, so `.claude/` + `!.claude/agents/` would silently not work.)
+.claude/*
+!.claude/agents/
 
 # QA artifacts (regenerable via tests)
 screenshots/
@@ -47,6 +52,11 @@ CONTENT_LESSONS.md
 CONTENT_PRICES.md
 CONTENT_STORIES.md
 CONTENT_WARMTH.md
+
+# The RUN18-RUN20 programme bundle (briefs, depth reviews, agent definitions, QA seed).
+# Private planning material in the same class as the RUN*.md briefs above — never
+# published. Its agents/ are copied to .claude/agents/ and committed from there.
+_programme/
 
 # Private audit / working-state docs — never published to the public repo
 AUDIT_23.07.26.md
