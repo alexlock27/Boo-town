@@ -5,6 +5,7 @@
 import { getState, mutate, todayKey } from './state.js';
 import { addMeterPoints } from './rewards.js';
 import { braveTargetRank, rankName } from './comfort.js';
+import { jokeById, jokeTitle } from '../data/jokes.js';   // RUN17 X1: joke-book stamps
 
 // "Try Level {comfort+1} of any game" resolves against her current comfort (C3).
 function braveTargetName() { return rankName(braveTargetRank()); }
@@ -94,7 +95,8 @@ export const JOURNAL_CATALOG = [
   { prefix: 'star3_', label: '3 stars', icon: '⭐' },
   { prefix: 'zone_', label: 'Unlocked', icon: '🗺️' },
   { prefix: 'allQuests', label: 'All quests done', icon: '🎯' },
-  { prefix: 'trophy_', label: 'Trophy Room', icon: '🏆' }   // RUN4 C4 earnables
+  { prefix: 'trophy_', label: 'Trophy Room', icon: '🏆' },   // RUN4 C4 earnables
+  { prefix: 'joke_', label: 'Joke book', icon: '😄' }   // RUN17 X1: a joke she chose to keep
 ];
 
 // Record a stamp with today's date if not already present. Returns true if newly stamped.
@@ -108,6 +110,13 @@ export function hasStamp(key) { const s = getState(); return !!(s.journal && s.j
 
 // Pretty label + icon for a stamp key (resolves prefixes like star3_bubblepop, zone_riverside).
 export function stampMeta(key) {
+  // Joke book (RUN17 X1): the sticker wears the joke itself, so the Journal page reads
+  // like a joke book rather than a list of ids. Handled before the generic prefix walk
+  // because a joke id carries a ':' the generic resolver would strip.
+  if (key.startsWith('joke_')) {
+    const j = jokeById(key.slice(5));
+    return { icon: '😄', label: j ? jokeTitle(j) : 'Joke book' };
+  }
   // Trophy Room earnables (RUN4 C4): typed labels without importing trophies.js.
   if (key.startsWith('trophy_')) {
     const rest = key.slice(7);

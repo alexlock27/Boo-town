@@ -988,6 +988,22 @@ export function renderDeco(item, opts = {}) {
         path('M14 34 Q60 4 106 34 L96 50 Q60 26 24 50 Z', COLORS.bubblegum, ink) +
         `<circle cx="60" cy="68" r="7" fill="${COLORS.gold}" opacity=".9"/><path d="M60 56v20" stroke="${COLORS.gold}" stroke-width="3"/>`;
       break;
+    // RUN17 X1: the Joke Boo's little stage — a round plinth, a striped backdrop and a
+    // microphone. Nobody is drawn on it; the Boo who tells the joke appears inside.
+    case 'jokestage':
+      inner =
+        path('M22 40 Q60 16 98 40 L98 48 Q60 26 22 48 Z', COLORS.bubblegum, halo) +
+        path('M22 40 Q60 16 98 40 L98 48 Q60 26 22 48 Z', COLORS.bubblegum, ink) +
+        rrect(30, 46, 12, 44, 3, COLORS.cream, ink) +
+        rrect(54, 46, 12, 44, 3, COLORS.cream, ink) +
+        rrect(78, 46, 12, 44, 3, COLORS.cream, ink) +
+        ell(60, 98, 44, 13, COLORS.lilac, halo) +
+        ell(60, 98, 44, 13, COLORS.lilac, ink) +
+        `<path d="M60 96 V64" fill="none" ${ink}/>` +
+        ell(60, 58, 8, 10, COLORS.cocoa, halo) +
+        ell(60, 58, 8, 10, COLORS.cocoa, ink) +
+        `<circle cx="60" cy="56" r="3" fill="${COLORS.gold}"/>`;
+      break;
     case 'lamp':
       inner =
         rrect(56, 60, 8, 52, 4, COLORS.cocoa, halo) +
