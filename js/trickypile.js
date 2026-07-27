@@ -92,6 +92,12 @@ export function clearPersisted(ids) {
   mutate(s => { s.trickyPile = (s.trickyPile || []).filter(id => !ids.includes(id)); });
 }
 export function persistedPile() { const s = getState(); return (s && s.trickyPile) || []; }
+// RUN16 W6 — spaced retrieval, closed. Items she missed and did NOT rescue were persisted
+// but nothing ever read them back, so "unrescued items seed the next Smart Mix round" was
+// only half true. A pool item whose id is sitting in the pile now carries extra weight, so
+// the thing she got wrong last time is the thing she is most likely to meet next time.
+export const PILE_BOOST = 3;
+export function pileBoost(id, base = 1) { return persistedPile().includes(id) ? base * PILE_BOOST : base; }
 
 // The Rescue step, rendered into `container`. Offers items one at a time.
 // onGift() is called if a rescue's +1 meter banks a box. Calls onDone() when finished.

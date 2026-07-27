@@ -119,11 +119,19 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await page.evaluate(() => window.BooTown.go('teachme'));
   await page.waitForSelector('.lesson-grid');
   await sleep(250);
-  const tm = await page.evaluate(() => {
+  // The count comes from the data, not a literal: RUN16 W5 took Teach Me from six lessons
+  // to nine, and a hard-coded 6 here would have to be edited every time a lesson is added.
+  // What this check is actually for is that NONE of them is clipped, at any width.
+  const tm = await page.evaluate(async () => {
+    const { LESSONS } = await import('./data/lessons.js');
     const cards = [...document.querySelectorAll('.lesson-card')];
-    return { n: cards.length, clipped: cards.filter(c => { const r = c.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth; }).length };
+    return {
+      n: cards.length, expected: LESSONS.length,
+      clipped: cards.filter(c => { const r = c.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth; }).length
+    };
   });
-  assert(tm.n === 6 && tm.clipped === 0, `teachme: all ${tm.n} lesson cards fully visible (clipped: ${tm.clipped})`);
+  assert(tm.n === tm.expected, `teachme: every lesson in the data has a card (${tm.n} of ${tm.expected})`);
+  assert(tm.clipped === 0, `teachme: all ${tm.n} lesson cards fully visible (clipped: ${tm.clipped})`);
   // …and a REAL click on the last card starts its lesson
   await page.evaluate(() => document.querySelector('.lesson-card:last-of-type').scrollIntoView({ block: 'center' }));
   await page.click('.lesson-card:last-of-type');

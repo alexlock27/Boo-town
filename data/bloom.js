@@ -1,7 +1,13 @@
+// RUN16 W6: the four literacy games join the two petals the brief names.
+//   Identify — Sound Sorter (spot a sound inside a word) and Rhyme Time (spot the words
+//              that chime): both are "which of these is the one?" work.
+//   Analyze  — Blend It (work out what the parts make) and Story Order (work out what
+//              order the parts go in): both are "put it together and see" work.
+// The maths mapping below is untouched.
 export const BLOOM_PETALS = [
-  { id: 'identify', display: 'Spot it!', games: ['oddboo', 'feedboos'] },
+  { id: 'identify', display: 'Spot it!', games: ['oddboo', 'feedboos', 'soundsorter', 'rhymetime'] },
   { id: 'memorize', display: 'Remember it!', games: ['flashboos', 'echoboos', 'pairs', 'tpairs'] },
-  { id: 'analyze', display: 'Figure it out!', games: ['expedition', 'caper', 'detective'] },
+  { id: 'analyze', display: 'Figure it out!', games: ['expedition', 'caper', 'detective', 'blendit', 'storyorder'] },
   { id: 'compute', display: 'Number it!', games: ['bubblepop', 'boopop', 'bounce', 'clockshop'] },
   { id: 'visualize', display: 'Picture it!', games: ['booroll', 'blocks'] }
 ];

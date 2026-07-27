@@ -24,7 +24,7 @@ import * as tts from '../tts.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { buildSmartMix } from '../smartmix.js';
-import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { filterLevels } from '../content.js';
 import { renderWordArt } from '../wordart.js';
 import { BLEND_LEVELS, BLEND_LEVEL_NUMBERS, blendLevel, blendEntry, ALL_BLEND_WORDS } from '../../data/blending.js';
@@ -91,7 +91,7 @@ export function mount(container, params, ctx) {
   }
   // Smart Mix: every word from every level, weighted by the mistake ledger.
   function playMix() {
-    const pool = ALL_BLEND_WORDS.map(w => ({ id: 'bl:' + w, word: w, boost: 1 }));
+    const pool = ALL_BLEND_WORDS.map(w => ({ id: 'blendit:' + w, word: w, boost: pileBoost('blendit:' + w) }));
     const items = buildSmartMix(pool, ROUND_WORDS).map(it => {
       const e = blendEntry(it.word);
       return { ...e, options: pickPictures(e.w, e.level) };
@@ -240,7 +240,7 @@ export function mount(container, params, ctx) {
           right++;
           node.classList.add('right');
           sfx.star();
-          recordResult('bl:' + item.w, true);
+          recordResult('blendit:' + item.w, true);
           const r = node.getBoundingClientRect();
           if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
           shell.react(`${item.w}! You read it! 🌟`, { voice: false, hold: 1500 });
@@ -253,7 +253,7 @@ export function mount(container, params, ctx) {
           shell.dimHeart();
           sfx.oops();
           node.classList.remove('wrong'); void node.offsetWidth; node.classList.add('wrong');
-          recordResult('bl:' + item.w, false);
+          recordResult('blendit:' + item.w, false);
           collector.addAttempted(blendMiss(item));
           const line = `That's ${opt}. Listen again — ${item.g.join(', ')} — ${item.w}!`;
           shell.react(line, { voice: false, hold: 2800 });
@@ -317,7 +317,7 @@ export function blendMiss(item) {
   const decoys = item.options.filter(o => o !== item.w).slice(0, 2);
   const options = [item.w, ...decoys];
   return {
-    ...choiceMiss({ id: 'bl:' + item.w, game: 'blendit', prompt: `Which picture is ${item.w}?`, options, answer: item.w }),
+    ...choiceMiss({ id: 'blendit:' + item.w, game: 'blendit', prompt: `Which picture is ${item.w}?`, options, answer: item.w }),
     pics: Object.fromEntries(options.map(w => [w, renderWordArt(w, { size: 74, label: w })])),
     say: `Which picture is ${item.w}?`
   };
