@@ -12,6 +12,10 @@ import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
 import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected, needsBackupReminder, storageStatus, lastBackupInfo, isIOSStandalone } from './backup.js';
 import { bloomStats } from '../data/bloom.js';
 import { alphaKeysOn, alphaKeysDefault, setAlphaKeys, readAloudOn, setReadAloud } from './a11y.js';
+// RUN17 X3: the Feelings Corner switch. The label and description are AUTHORED copy —
+// imported, never retyped here. feelingsTierOk keeps the Medium/Full gate in one place.
+import { TOGGLE_COPY as FEELINGS_TOGGLE_COPY, TOGGLE_LABEL as FEELINGS_TOGGLE_LABEL } from '../data/feelingsLines.js';
+import { feelingsTierOk } from './feelings.js';
 
 // Rough platform sniff, only to word the "where did it save?" helper text. Never gates
 // behaviour — the buttons feature-detect (canShareFiles) regardless.
@@ -93,6 +97,21 @@ export function mount(container, params, ctx) {
     return wrap;
   }
 
+  // The Feelings Corner's authored description, with {name} filled in the way every other
+  // piece of guide copy in the app is. Kept gender-neutral throughout, as authored.
+  const feelingsNote = el('p', { class: 'gu-note' });
+  const feelingsTierNote = el('p', { class: 'gu-note' });
+  function renderFeelingsNote() {
+    const st = getState();
+    feelingsNote.textContent = FEELINGS_TOGGLE_COPY.replace(/\{name\}/g, (st && st.name) || 'they');
+    const tierOk = feelingsTierOk();
+    feelingsTierNote.textContent = tierOk
+      ? 'Available on this device because the content setting is Medium or Full.'
+      : 'It stays hidden while the content setting is Toddler or Light — this corner is for age 8 and up.';
+    feelingsTierNote.classList.toggle('gu-note-off', !tierOk);
+  }
+  renderFeelingsNote();
+
   // ---- microphone / Boo voices (RUN3 C7) ----
   const delMsg = el('span', { class: 'gu-msg' });
   const delBtn = el('button', { class: 'btn danger', text: 'Delete all recordings', onclick: async () => { await deleteAllVoices(); delMsg.textContent = 'All recordings deleted.'; setTimeout(() => delMsg.textContent = '', 2500); } });
@@ -108,6 +127,19 @@ export function mount(container, params, ctx) {
     el('h3', { text: 'Boo requests' }),
     toggle('Occasional Boo requests', s.settings.requests !== false, v => { setRequestsEnabled(v); }),
     el('p', { class: 'gu-note', text: 'Now and then a Boo asks for a little something (like "play a maths game!"). At most one at a time, never a nag. Turn off to stop them entirely.' })
+  ]);
+
+  // ---- the Feelings Corner (RUN17 X3) ----
+  // OFF by default and only offered from age 8 up (content tier Medium or Full). The
+  // description beside the switch is AUTHORED in CONTENT_WARMTH.md and says exactly what
+  // this does and does not do — including that nothing is recorded, not even for the
+  // grown-up reading it. There is deliberately NO report, summary or history anywhere in
+  // this screen, because there is nothing to report: nothing is ever stored (G17).
+  const feelingsCard = el('div', { class: 'gu-card' }, [
+    el('h3', { text: FEELINGS_TOGGLE_LABEL }),
+    toggle(FEELINGS_TOGGLE_LABEL, s.settings.feelingsCorner === true, v => { mutate(st => { st.settings.feelingsCorner = v; }); renderFeelingsNote(); }),
+    feelingsNote,
+    feelingsTierNote
   ]);
 
   // ---- backup ----
@@ -307,7 +339,7 @@ export function mount(container, params, ctx) {
 
   // ---- tabs (RUN6 C0.2): Settings first, so no setting hides behind the editors ----
   const TABS = [
-    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, contentCard, micCard, requestsCard] },
+    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, contentCard, micCard, requestsCard, feelingsCard] },
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },

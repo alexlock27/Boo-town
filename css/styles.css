@@ -5310,3 +5310,118 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @media (prefers-reduced-motion: reduce) {
   .result-encourage { transition: none; }
 }
+
+/* ============================================================
+   RUN17 X3 — the Feelings Corner.
+   A window seat, soft light, a Boo curled beside her. Nothing here is a form, a
+   test, a tracker or a therapist: no progress bar, no score, no history, no
+   "well done". The leave control is visible in every single state.
+   ============================================================ */
+.feelings {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 12px 14px 30px; max-width: 660px; margin: 0 auto;
+}
+.fe-top { width: 100%; display: flex; }
+
+/* the cosy corner */
+.fe-seat {
+  position: relative; width: 100%; min-height: 210px;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 18px 0 8px;
+  border: 3px solid var(--ink); border-radius: 26px;
+  background: linear-gradient(180deg, #3B2E7E 0%, #4A3A92 62%, #6B5AB8 100%);
+  overflow: hidden;
+}
+.fe-window {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 132px; height: 96px; border: 3px solid var(--ink); border-radius: 14px 14px 4px 4px;
+  background: radial-gradient(circle at 50% 34%, #FFF3C4 0%, #8E7AD6 60%, #4A3A92 100%);
+}
+.fe-moon { position: absolute; top: 18px; left: 50%; margin-left: -13px; width: 26px; height: 26px; border-radius: 50%; background: #FFF6D4; }
+.fe-glow { position: absolute; inset: -30px; background: radial-gradient(circle, rgba(255,243,196,.34), transparent 68%); }
+.fe-boo { position: relative; z-index: 1; transition: transform .4s ease; }
+.fe-boo-art, .fe-face { display: block; }
+.fe-face { position: absolute; inset: 0; pointer-events: none; }
+
+/* posture — the Boo MIRRORS the feeling. Transform-only, every one with a still path. */
+.fe-boo[data-pose="happy"]   { animation: feBounce 1.5s ease-in-out infinite; }
+.fe-boo[data-pose="excited"] { animation: feHop .55s ease-in-out infinite; }
+.fe-boo[data-pose="calm"]    { animation: feSway 4.4s ease-in-out infinite; }
+.fe-boo[data-pose="tired"]   { animation: feDroop 5.5s ease-in-out infinite; transform-origin: 50% 100%; }
+.fe-boo[data-pose="worried"] { animation: feFidget 1.7s ease-in-out infinite; transform: scale(.93); }
+.fe-boo[data-pose="sad"]     { transform: scale(.95) translateY(4px); }
+.fe-boo[data-pose="dance"]   { animation: feDance .6s ease-in-out infinite; }
+.fe-boo.sitting              { animation: feSway 6s ease-in-out infinite; }
+@keyframes feBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes feHop    { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-11px) rotate(2deg); } }
+@keyframes feSway   { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes feDroop  { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.965); } }
+@keyframes feFidget { 0%,100% { transform: scale(.93) translateX(-2px); } 50% { transform: scale(.93) translateX(2px); } }
+@keyframes feDance  { 0%,100% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(8deg) translateY(-8px); } }
+
+/* the one line on screen */
+.fe-say {
+  margin: 0; max-width: 34ch; text-align: center;
+  font-size: 1.22rem; font-weight: 700; line-height: 1.45; color: var(--card);
+}
+
+/* the six faces */
+.fe-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.fe-choice {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: 108px; padding: 10px 6px;
+  border: 3px solid var(--ink); border-radius: 18px;
+  background: var(--card); color: var(--ink); cursor: pointer;
+  transition: transform .14s ease;
+}
+.fe-choice:active { transform: scale(0.96); }
+.fe-choice-face { width: 66px; height: 71px; display: block; }
+.fe-choice-word { font-weight: 800; font-size: .98rem; }
+
+/* the offer — a button, never a demand */
+.fe-offers { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.fe-offer, .fe-again, .fe-stop { min-height: 52px; }
+
+/* breathe with me: an expanding ring, unhurried, stoppable from the first frame */
+.fe-activity { width: 100%; display: flex; justify-content: center; }
+.fe-breathe { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 0 4px; }
+.fe-ring {
+  width: 116px; height: 116px; border-radius: 50%;
+  border: 5px solid var(--zing); background: rgba(53, 208, 186, 0.12);
+  transform: scale(0.62);
+  transition: transform var(--ms, 4000ms) ease-in-out;
+}
+.fe-ring[data-phase="in"]   { transform: scale(1.18); }
+.fe-ring[data-phase="hold"] { transform: scale(1.18); }
+.fe-ring[data-phase="out"]  { transform: scale(0.62); }
+.fe-ring[data-phase="done"] { transform: scale(0.9); }
+.fe-breath-copy { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--card); text-align: center; min-height: 1.5em; }
+
+/* dance it out */
+.fe-dance-floor { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fe-dancer { border: none; background: none; cursor: pointer; padding: 0; animation: feDance .6s ease-in-out infinite; }
+.fe-dance-floor.joined .fe-dancer { animation-duration: .42s; }
+.fe-join-hint { font-size: .95rem; color: var(--card); opacity: .9; }
+
+/* sit a while: nothing but the way out */
+.fe-sit { display: flex; justify-content: center; padding-top: 4px; }
+
+@media (max-width: 600px) {
+  .fe-say { font-size: 1.08rem; }
+  .fe-choices { gap: 8px; }
+  .fe-choice { min-height: 100px; }
+  .fe-seat { min-height: 190px; }
+}
+
+/* Reduced motion: the corner still works, it simply stops moving. The breathing ring
+   holds its size per phase rather than easing, so the 4/2/6 rhythm is still readable. */
+@media (prefers-reduced-motion: reduce) {
+  .fe-boo, .fe-boo.sitting, .fe-dancer, .fe-dance-floor.joined .fe-dancer { animation: none; }
+  .fe-boo { transition: none; }
+  .fe-ring { transition: none; }
+  .fe-choice { transition: none; }
+  .fe-choice:active { transform: none; }
+}
+
+/* the grown-ups note when the corner is switched on but the tier keeps it hidden */
+.gu-note-off { opacity: .75; font-style: italic; }

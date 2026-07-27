@@ -93,6 +93,8 @@ const ASSETS = [
   'js/wishwell.js',
   'js/jokeboo.js',
   'js/encouragement.js',
+  'js/feelings.js',
+  'data/feelingsLines.js',
   'data/jokes.js',
   'js/content.js',
   'js/games/bubblepop.js',

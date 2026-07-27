@@ -62,6 +62,7 @@ const registry = {
   // (RUN11 Q1: the birthday party route is retired; its code is archived under archive/.)
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
   jokeboo:    () => import('./jokeboo.js'),    // the Joke Boo's stage (RUN17 X1)
+  feelings:   () => import('./feelings.js'),   // the Feelings Corner (RUN17 X3; gated, off by default)
   grownups:   () => import('./grownups.js')
 };
 

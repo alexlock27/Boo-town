@@ -25,6 +25,7 @@ import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
 import { encouragementFor, returningAfterBreak, inLongSession } from './encouragement.js';   // RUN17 X2
+import { feelingsAvailable } from './feelings.js';   // RUN17 X3 (gated: off by default, Medium/Full only)
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -335,6 +336,19 @@ export function mount(container, params, ctx) {
       railInner.appendChild(el('button', { class: 'trail-chip golden', onclick: () => { sfx.tap(); ctx.go('golden'); } }, [
         el('span', { class: 'tc-ic', text: '⭐' }),
         el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Golden Round' }), el('span', { class: 'tc-sub', text: `${wc + cc} · double stars!` })])
+      ]));
+    }
+
+    // RUN17 X3: the Feelings Corner chip. Present ONLY when a grown-up has switched it on
+    // AND the content tier is Medium or Full. Otherwise there is no chip, no greyed card
+    // and no explanation — a corner she is not meant to find has no door at all.
+    if (feelingsAvailable()) {
+      railInner.appendChild(el('button', { class: 'trail-chip feelings', onclick: () => { sfx.tap(); ctx.go('feelings'); } }, [
+        el('span', { class: 'tc-ic', text: '🪟' }),
+        el('span', { class: 'tc-txt' }, [
+          el('span', { class: 'tc-title', text: 'Feelings Corner' }),
+          el('span', { class: 'tc-sub', text: 'A quiet place to sit' })
+        ])
       ]));
     }
 
