@@ -24,7 +24,7 @@ import * as tts from '../tts.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { buildSmartMix } from '../smartmix.js';
-import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { filterLevels } from '../content.js';
 import { renderWordArt } from '../wordart.js';
 import {
@@ -128,8 +128,8 @@ export function mount(container, params, ctx) {
   // Smart Mix: every family plus the couplets, weighted by the mistake ledger.
   function playMix() {
     const pool = [
-      ...HOSTABLE.map(f => ({ id: 'rh:' + f.key, family: f.key, boost: 1 })),
-      ...COUPLETS.map((c, i) => ({ id: 'cp:' + c.answer, couplet: i, boost: 1 }))
+      ...HOSTABLE.map(f => ({ id: 'rhymetime:' + f.key, family: f.key, boost: pileBoost('rhymetime:' + f.key) })),
+      ...COUPLETS.map((c, i) => ({ id: 'rhymetime:cp:' + c.answer, couplet: i, boost: pileBoost('rhymetime:cp:' + c.answer) }))
     ];
     const items = buildSmartMix(pool, ROUND_TARGETS)
       .map(it => (it.couplet != null ? buildCoupletTarget(it.couplet) : buildRhymeTarget(it.family, 1 + rand(2))))
@@ -205,7 +205,7 @@ export function mount(container, params, ctx) {
         node.classList.add('picked');
         node.disabled = true;
         sfx.correct();
-        recordResult('rh:' + t.family, true);
+        recordResult('rhymetime:' + t.family, true);
         const r = node.getBoundingClientRect();
         if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
         // the authored kite card: it rhymes, and the guide explains why it looks odd
@@ -221,7 +221,7 @@ export function mount(container, params, ctx) {
         shell.dimHeart();
         sfx.oops();
         node.classList.remove('miss'); void node.offsetWidth; node.classList.add('miss');
-        recordResult('rh:' + t.family, false);
+        recordResult('rhymetime:' + t.family, false);
         collector.addAttempted(rhymeMiss(t));
         const line = rhymeMissLine(word, t.target, word === t.nearMiss);
         shell.react(line, { voice: false, hold: 3000 });
@@ -277,7 +277,7 @@ export function mount(container, params, ctx) {
           gapEl.textContent = word;
           gapEl.classList.add('filled');
           sfx.star();
-          recordResult('cp:' + t.answer, true);
+          recordResult('rhymetime:cp:' + t.answer, true);
           const r = node.getBoundingClientRect();
           if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
           speakMaybe(t.lines.join(' ').replace(/_+/, word));
@@ -291,7 +291,7 @@ export function mount(container, params, ctx) {
           shell.dimHeart();
           sfx.oops();
           node.classList.remove('miss'); void node.offsetWidth; node.classList.add('miss');
-          recordResult('cp:' + t.answer, false);
+          recordResult('rhymetime:cp:' + t.answer, false);
           collector.addAttempted(coupletMiss(t));
           const last = lastWordOf(t.lines[0]);
           const line = `Listen to the end of line one: ${last}. Does ${word} sound like ${last}?`;
@@ -350,7 +350,7 @@ export function rhymeMiss(t) {
   const decoys = t.cards.filter(w => !t.correct.includes(w)).slice(0, 2);
   const options = [t.correct[0], ...decoys];
   return {
-    ...choiceMiss({ id: 'rh:' + t.family, game: 'rhymetime', prompt: `Which word rhymes with ${t.target}?`, options, answer: t.correct[0] }),
+    ...choiceMiss({ id: 'rhymetime:' + t.family, game: 'rhymetime', prompt: `Which word rhymes with ${t.target}?`, options, answer: t.correct[0] }),
     pics: picsFor(options),
     say: `Which word rhymes with ${t.target}?`
   };
@@ -358,7 +358,7 @@ export function rhymeMiss(t) {
 export function coupletMiss(t) {
   const options = t.cards.slice(0, 3);
   return {
-    ...choiceMiss({ id: 'cp:' + t.answer, game: 'rhymetime', prompt: t.lines[1].replace(/_+/, '____'), options, answer: t.answer }),
+    ...choiceMiss({ id: 'rhymetime:cp:' + t.answer, game: 'rhymetime', prompt: t.lines[1].replace(/_+/, '____'), options, answer: t.answer }),
     pics: picsFor(options),
     say: t.lines.join(' ').replace(/_+/, 'mmm')
   };

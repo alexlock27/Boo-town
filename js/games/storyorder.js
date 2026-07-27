@@ -32,7 +32,7 @@ import * as tts from '../tts.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { buildSmartMix } from '../smartmix.js';
-import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { filterLevels } from '../content.js';
 import { makeDraggable, makeDropTargets, clearLift } from '../dragdrop.js';
 import { renderStoryArt } from '../storyart.js';
@@ -95,7 +95,7 @@ export function mount(container, params, ctx) {
     startRound(shuffle(storiesAtLevel(level).slice()), { badgeKey: 'L' + level, level, title: 'Story Order' });
   }
   function playMix() {
-    const pool = STORIES.map(s => ({ id: 'st:' + s.id, story: s.id, boost: 1 }));
+    const pool = STORIES.map(s => ({ id: 'storyorder:' + s.id, story: s.id, boost: pileBoost('storyorder:' + s.id) }));
     const items = buildSmartMix(pool, 3).map(it => STORY_BY_ID[it.story]).filter(Boolean);
     startRound(items.length ? items : [STORIES[0]], { badgeKey: MIX_KEY, level: null, title: 'Smart Mix', mix: true });
   }
@@ -261,7 +261,7 @@ export function mount(container, params, ctx) {
         phase = 'done';
         node.classList.add('right');
         sfx.star();
-        recordResult('st:' + story.id, true);
+        recordResult('storyorder:' + story.id, true);
         const r = node.getBoundingClientRect();
         if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
         shell.react('You understood the whole story! 🌟', { voice: false, hold: 1800 });
@@ -275,7 +275,7 @@ export function mount(container, params, ctx) {
         shell.dimHeart();
         sfx.oops();
         node.classList.remove('miss'); void node.offsetWidth; node.classList.add('miss');
-        recordResult('st:' + story.id, false);
+        recordResult('storyorder:' + story.id, false);
         collector.addAttempted(storyMiss(story));
         const line = `Hmm — think back to the pictures. ${story.question}`;
         shell.react(line, { voice: false, hold: 3000 });
@@ -359,7 +359,7 @@ export function mount(container, params, ctx) {
 export function storyMiss(story) {
   const options = story.options.slice(0, 3);
   return {
-    ...choiceMiss({ id: 'st:' + story.id, game: 'storyorder', prompt: story.question, options, answer: story.answer }),
+    ...choiceMiss({ id: 'storyorder:' + story.id, game: 'storyorder', prompt: story.question, options, answer: story.answer }),
     pics: Object.fromEntries(options.map(o => [o, renderStoryArt(story.optionArt[o], { w: 96, label: o })])),
     say: story.question
   };

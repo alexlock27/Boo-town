@@ -25,7 +25,7 @@ import * as tts from '../tts.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { buildSmartMix } from '../smartmix.js';
-import { createTrickyCollector, choiceMiss } from '../trickypile.js';
+import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { filterLevels } from '../content.js';
 import { renderWordArt } from '../wordart.js';
 import {
@@ -153,7 +153,7 @@ export function mount(container, params, ctx) {
     const pool = [];
     for (const p of PHONEMES) for (const l of SOUND_LEVELS) {
       if (!targetsForLevel(l).includes(p.key)) continue;
-      pool.push({ id: 'ph:' + p.key, sound: p.key, level: l, boost: 1 });
+      pool.push({ id: 'soundsorter:' + p.key, sound: p.key, level: l, boost: pileBoost('soundsorter:' + p.key) });
     }
     const picked = buildSmartMix(pool, ROUND_TARGETS);
     const targets = picked.map(it => buildTarget(it.sound, it.level)).filter(Boolean);
@@ -249,7 +249,7 @@ export function mount(container, params, ctx) {
         node.classList.add('found');
         node.disabled = true;
         sfx.correct();
-        recordResult('ph:' + t.sound, true);
+        recordResult('soundsorter:' + t.sound, true);
         const r = node.getBoundingClientRect();
         if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
         if (found.size >= t.correct.length) finishTarget();
@@ -259,7 +259,7 @@ export function mount(container, params, ctx) {
         shell.dimHeart();
         sfx.oops();
         wobble(node);
-        recordResult('ph:' + t.sound, false);
+        recordResult('soundsorter:' + t.sound, false);
         collector.addAttempted(phonemeMiss(t));
         const line = missLine(word, t.sound);
         shell.react(line, { voice: false, hold: 2600 });
@@ -328,7 +328,7 @@ export function phonemeMiss(target) {
   const decoys = target.cards.filter(w => !target.correct.includes(w)).slice(0, 2);
   const options = [answer, ...decoys];
   return {
-    ...choiceMiss({ id: 'ph:' + target.sound, game: 'soundsorter', prompt: `Which word has the ${p.card} sound?`, options, answer }),
+    ...choiceMiss({ id: 'soundsorter:' + target.sound, game: 'soundsorter', prompt: `Which word has the ${p.card} sound?`, options, answer }),
     pics: Object.fromEntries(options.map(w => [w, renderWordArt(w, { size: 74, label: w })])),
     say: `Which word has the ${p.say} sound?`
   };
