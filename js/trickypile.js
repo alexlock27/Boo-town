@@ -7,6 +7,7 @@
 import { el, sparkleAt } from './ui.js';
 import { speakMaybe } from './guide.js';
 import { renderWordArt } from './wordart.js';
+import { renderStoryArt } from './storyart.js';
 import { getState, mutate } from './state.js';
 import { sfx } from './sfx.js';
 import { addMeterPoints } from './rewards.js';
@@ -128,13 +129,20 @@ export function mountRescue(container, items, { onGift, onDone, onRescue } = {})
     // as before — but a rescue built from a phonics or blending miss now works for a child
     // who cannot read the three options (G14).
     speakMaybe(item.say || item.prompt);
-    const opts = el('div', { class: 'rescue-options' + (item.art ? ' art' : '') });
+    // `art` = the options are picture WORDS (js/wordart.js); `storyArt` = the options are
+    // story answers with their own drawings (js/storyart.js). Either way the child gets a
+    // picture; an item with neither renders as text exactly as it always did.
+    const pics = !!(item.art || item.storyArt);
+    const picFor = (o) => item.storyArt
+      ? renderStoryArt(item.storyArt[o], { w: 96, label: o })
+      : renderWordArt(o, { size: 74, label: o });
+    const opts = el('div', { class: 'rescue-options' + (pics ? ' art' : '') });
     shuffle(item.options.slice()).forEach(o => {
       opts.appendChild(el('button', {
-        class: 'btn rescue-opt' + (item.art ? ' pic' : ''), 'aria-label': o,
+        class: 'btn rescue-opt' + (pics ? ' pic' : ''), 'aria-label': o,
         onclick: () => answer(o, item)
-      }, item.art
-        ? [el('span', { class: 'ro-pic', html: renderWordArt(o, { size: 74, label: o }) }), el('span', { class: 'ro-word', text: o })]
+      }, pics
+        ? [el('span', { class: 'ro-pic', html: picFor(o) }), el('span', { class: 'ro-word', text: o })]
         : [el('span', { text: o })]));
     });
     panel.appendChild(opts);

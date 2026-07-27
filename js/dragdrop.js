@@ -34,15 +34,24 @@ export function makeDraggable(node, { targets, onDrop, onNoDrop = null, onLift =
   let dragging = false, moved = false, sx = 0, sy = 0, pid = null;
   const isOff = () => (typeof disabled === 'function' ? disabled() : !!disabled);
 
+  // The piece being dragged is very often ALSO a drop target (Story Order's panels swap
+  // with each other), and while it is held it sits directly under the pointer — so it
+  // would always win the hit test and every drop would land on itself. Skip self, and
+  // among the rest prefer the one whose centre is nearest the pointer, so overlapping
+  // targets resolve to the one she is actually aiming at.
   const zonesUnder = (x, y) => {
+    let best = null, bestD = Infinity;
     for (const t of (targets() || [])) {
-      if (!t || !t.node) continue;
+      if (!t || !t.node || t.node === node) continue;
       const r = t.node.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return t;
+      if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+      const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+      if (d < bestD) { bestD = d; best = t; }
     }
-    return null;
+    return best;
   };
   const clearOver = () => (targets() || []).forEach(t => t && t.node && t.node.classList.remove('over'));
+  // (the tap path uses dropOn(key) directly, so it is unaffected by the hit test above)
 
   function reset() {
     node.style.transform = '';

@@ -150,6 +150,7 @@
   padding: 6px; min-height: 130px;
 }
 .so-panel {
+  width: 148px; box-sizing: border-box;
   background: var(--cream, #FFF8F0);
   border: 3px solid var(--ink, #2A1B4E);
   border-radius: 16px; padding: 4px;
@@ -167,7 +168,7 @@
   border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center;
   font-weight: 700; font-size: 15px; color: var(--ink, #2A1B4E);
 }
-.so-caption { text-align: center; font-size: 13px; color: var(--ink, #2A1B4E); max-width: 140px; margin: 2px auto 0; }
+.so-caption { text-align: center; font-size: 12.5px; line-height: 1.25; color: var(--ink, #2A1B4E); margin: 3px auto 0; }
 .so-caption.hidden { visibility: hidden; }
 .so-readback { text-align: center; color: var(--cream, #FFF8F0); font-size: 19px; min-height: 30px; margin: 6px 0; }
 @keyframes soSettle { 0% { transform: scale(1.1); } 100% { transform: scale(1); } }
@@ -313,3 +314,42 @@
   .rt-card.nudge { background: #FFF3CF; }
 }
 .rt-cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 420px; }
+
+/* ============================ W4 Story Order ============================ */
+.so-stage { display: grid; gap: 8px; }
+.so-head { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.so-title {
+  font-family: Fredoka, system-ui, sans-serif; font-weight: 700; font-size: 24px;
+  color: var(--cream, #FFF8F0);
+}
+.so-eye, .ss-say { min-height: 44px; }
+.so-panel.lifted, .tm-drag.lifted, .so-panel.nudge {
+  border-color: var(--star, #FFC93C);
+  box-shadow: 0 0 0 4px rgba(255, 201, 60, .5), 0 6px 0 rgba(42, 27, 78, .35);
+}
+.so-panel.lifted { transform: translateY(-8px) scale(1.05); }
+.so-panel.over { border-color: var(--zing, #35D0BA); }
+.so-question { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.so-q-text {
+  font-size: 21px; color: var(--cream, #FFF8F0); max-width: 460px; text-align: center;
+  font-weight: 600;
+}
+.so-options { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.so-option { display: grid; place-items: center; gap: 2px; padding: 6px; min-width: 128px; }
+.so-opt-word { font-size: 15px; font-weight: 700; color: var(--ink, #2A1B4E); max-width: 130px; text-align: center; }
+.so-option.right { background: #DFF7E4; border-color: #2F8F4E; }
+.so-option.miss { animation: blWobble .45s ease-in-out; }
+.storyart { display: block; }
+@media (max-width: 600px) {
+  .so-strip { gap: 6px; }
+  .so-panel { width: 112px; }
+  .so-panel .storyart { width: 100px; height: 69px; }
+  .so-title { font-size: 19px; }
+  .so-q-text { font-size: 18px; }
+  .so-option { min-width: 100px; }
+  .so-option .storyart { width: 96px; height: 66px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .so-option.miss { animation: none; }
+  .so-panel.lifted { transform: none; }
+}

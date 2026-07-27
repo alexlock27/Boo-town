@@ -39,6 +39,7 @@ const GAMES = [
   { id: 'soundsorter', name: 'Sound Sorter', tag: 'Hear the sound', accent: 'var(--pop)', icon: soundIcon, group: 'Learn' },   // RUN16 W1
   { id: 'blendit',   name: 'Blend It',     tag: 'Slide sounds together', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2
   { id: 'rhymetime', name: 'Rhyme Time',   tag: 'Words that chime', accent: 'var(--star)', icon: rhymeIcon, group: 'Learn' },   // RUN16 W3
+  { id: 'storyorder', name: 'Story Order', tag: 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'oddboo',    name: 'Odd Boo Out',  tag: 'Spot the difference', accent: 'var(--zing)', icon: oddIcon, group: 'Learn' },
   { id: 'flashboos', name: 'Flash Boos',   tag: 'Look, hide, remember', accent: 'var(--pop)', icon: flashIcon, group: 'Learn' },
@@ -602,6 +603,10 @@ function attachLongPress(node, ms, onHold) {
 // ---- RUN16 literacy icons ----
 function soundIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="6" y="14" width="34" height="32" rx="8" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><text x="23" y="39" font-family="Fredoka,sans-serif" font-size="20" font-weight="700" fill="var(--ink)" text-anchor="middle">sh</text><path d="M46 22c4 5 4 11 0 16" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><path d="M52 17c7 8 7 18 0 26" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/></svg>`;
+}
+
+function storyIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="4" y="16" width="16" height="20" rx="3" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><rect x="22" y="24" width="16" height="20" rx="3" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><rect x="40" y="16" width="16" height="20" rx="3" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><path d="M14 48h32" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><path d="M40 44l6 4-6 4" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function rhymeIcon() {
