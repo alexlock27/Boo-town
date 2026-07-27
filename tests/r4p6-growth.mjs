@@ -98,10 +98,19 @@ console.log('== the Builders finish in 24h without a visit ==');
   assert(st.journal && st.journal.growth_wildflowers, 'Journal stamped for the milestone');
   assert(st.townGrowth.site && st.townGrowth.site.idx === 1, 'the queued site starts next (one at a time)');
   assert(!!(await page.$('.tg-wildflowers')), 'wildflowers now bloom along the paths');
-  // upgrades never consume plots: her placed Boo at the fountain spot is untouched
-  // The P20 Wish Well is pre-placed meadow scenery, not one of her placements. (RUN11 Q9.)
-  const placed = (await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items)).filter(t => t.item !== 'deco_wishwell');
-  assert(placed.length === 1 && placed[0].x === 0.46, 'placed items stay exactly where she put them');
+  // Upgrades never consume plots: her placed Boo at the fountain spot is untouched.
+  // This used to COUNT the items and subtract the one known landmark (the P20 Wish Well),
+  // which went stale the moment RUN17 seeded a second one (the Joke Boo's stage) on the
+  // same terms. Both are gift landmarks that never displace anything — so assert what this
+  // check actually cares about instead: the thing SHE put down is still exactly where she
+  // put it, and nothing has pushed it. That cannot go stale when a third landmark arrives.
+  const meadow = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items);
+  const hers = meadow.filter(t => !String(t.item).startsWith('deco_'));
+  assert(hers.length === 1 && hers[0].item === 'boo_inky' && hers[0].x === 0.46,
+    `placed items stay exactly where she put them (${JSON.stringify(hers)})`);
+  const landmarks = meadow.filter(t => String(t.item).startsWith('deco_')).map(t => t.item);
+  assert(landmarks.every(l => Math.abs((meadow.find(t => t.item === l).x) - 0.46) >= 0.09),
+    `and the seeded landmarks kept their distance from it (${landmarks.join(', ') || 'none'})`);
   await ctx.close();
 }
 

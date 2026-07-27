@@ -82,7 +82,12 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
     let screenOK = true;
     const flag = (c, m) => { if (!c) screenOK = false; assert(c, `${name}: ${m}`); };
     await go(page);
-    const rendered = await page.waitForSelector(ready, { timeout: 6000 }).then(() => true).catch(() => false);
+    // 6s was too tight for the heaviest screen (the town: parallax, actors, and two
+    // seeded landmarks) when four board lanes are competing for the machine — it failed
+    // with "town: did not render" under load and passed every time on its own. This is a
+    // condition-wait, so a screen that genuinely never renders still fails; it just gets
+    // the time a loaded machine actually needs.
+    const rendered = await page.waitForSelector(ready, { timeout: 20000 }).then(() => true).catch(() => false);
     if (!rendered) { flag(false, `did not render (${ready})`); table[name] = { ...(table[name] || {}), [key]: 'FAIL' }; continue; }
     await sleep(360);
     // some screens reveal their buttons after an entrance animation (results: stars first)
