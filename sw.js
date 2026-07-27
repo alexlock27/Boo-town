@@ -92,6 +92,7 @@ const ASSETS = [
   'js/caper/notebook.js',
   'js/wishwell.js',
   'js/jokeboo.js',
+  'js/encouragement.js',
   'data/jokes.js',
   'js/content.js',
   'js/games/bubblepop.js',

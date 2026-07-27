@@ -24,6 +24,7 @@ import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './
 import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
+import { encouragementFor, returningAfterBreak, inLongSession } from './encouragement.js';   // RUN17 X2
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -396,6 +397,21 @@ export function mount(container, params, ctx) {
       .replace(/\{n\}/g, String(nearZone.unlock - s.stars.total)), { voice: false });
   } else {
     gb.say(greetKey);
+  }
+
+  // ---- RUN17 X2: the hub's two capped kind-word moments -----------------------------
+  // Coming back after a couple of days away, and a long session's natural pause (she has
+  // come back to the hub after a good long play). Both are once-per-session, both go
+  // through the guide's own bubble, and both are refused outright by the policy once the
+  // session's three kind words are used up. The guide's greeting still lands first —
+  // this arrives a beat later, so it reads as a warm afterthought, not a second greeting.
+  {
+    const moment = returningAfterBreak() ? 'returning' : inLongSession() ? 'longSession' : null;
+    if (moment) {
+      const kind = encouragementFor(moment);
+      if (kind) setTimeout(() => gb.sayText(kind), 2200);
+      if (typeof window !== 'undefined') window.__hubEncourage = kind ? { moment, line: kind } : null;
+    } else if (typeof window !== 'undefined') window.__hubEncourage = null;
   }
 
   // rotate idle / boxReady lines
