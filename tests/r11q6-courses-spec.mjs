@@ -45,9 +45,11 @@ console.log('== trophies gate on the courses a child can actually play, and gran
   assert(byKey.trophy_roll_bronze.earned(allB), 'All Bronze earned when every playable course has a medal');
   assert(!byKey.trophy_roll_gold.earned(allB), 'All Gold needs gold everywhere');
   assert(byKey.trophy_roll_gold.earned(allG), 'All Gold earned on golds across the playable set');
-  // A trophy a child CANNOT earn is a taunt: the blocked course must not be required.
-  assert(PLAYABLE_KEYS.length === 5 && !PLAYABLE_KEYS.includes('lift-off'),
-    'the blocked course is excluded from the trophy requirement (BLOCKED.md)');
+  // A trophy a child CANNOT earn is a taunt, which is why a blocked course was excluded.
+  // RESOLVED 2026-07-27: lift-off's geometry was fixed with Alex's approval and its card is
+  // enterable, so all six courses are playable and the medal ladder counts all six.
+  assert(PLAYABLE_KEYS.length === 6 && PLAYABLE_KEYS.includes('lift-off'),
+    'every course counts toward the trophy requirement — none is blocked any more');
   // retired ids from either previous pack must NOT satisfy the trophies
   assert(!byKey.trophy_roll_bronze.earned(save({ roll1: 'gold', roll2: 'gold', roll3: 'gold' })), 'retired RUN9 course medals do not grant the trophies');
   assert(!byKey.trophy_roll_bronze.earned(save({ 'rolling-meadow': 'gold', 'windy-hill': 'gold' })), 'retired RUN10 P8 course medals do not grant them either');

@@ -97,6 +97,11 @@ const RAW = {
       if (!s.stars[0] && s.x < 20) return { tilt: drive(s, 14, 3), paddle: false, hop: hopStar(s, 0, 14, 3) };
       return { tilt: drive(s, lift1.x + lift1.w / 2, 4), paddle: false, hop: false };
     }
+    // The top platform (y 14) is the run-in to the finish. Until the Alex-approved
+    // geometry fix of 2026-07-27 this course could not be finished at all, so its policy
+    // was never exercised past lift 1 and simply drove at lift 2 forever — which parks the
+    // ball at x 82 with the finish 14 units further on. Drive at the finish once up there.
+    if (s.y < 20) return { tilt: drive(s, 96), paddle: false, hop: false };
     return {
       tilt: drive(s, lift2.x + lift2.w / 2, 4),
       paddle: false,
