@@ -316,6 +316,53 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
   `</svg>`;
 }
 
+// ---- RUN17 X3: the Feelings Corner's mirroring face ----------------------
+// The Boo MIRRORS the feeling — that mirroring IS beat one, so it belongs in the art
+// layer beside every other face this app draws, not improvised inside a screen.
+//
+// Returned as a standalone overlay on renderBoo's own 120x130 viewBox and eye geometry
+// (eyes at x 45/75, y 80; mouth around y 95), so it stacks exactly over a rendered Boo.
+// Posture — the bounce, the sway, the fidget — is CSS on the wrapper; this is the face.
+// Each expression is the pack's own description in CONTENT_WARMTH.md X3, nothing added.
+const FEELING_FACES = {
+  // bright eyes, wide smile
+  happy: () =>
+    eyes(45, 75, 80, 14, 'round') + cheeks(40, 80, 90) +
+    path('M48 92 Q60 108 72 92', 'none', `stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"`),
+  // wide eyes
+  excited: () =>
+    eyes(45, 75, 80, 16, 'round') + cheeks(40, 80, 90) +
+    path('M48 91 Q60 110 72 91 Z', INK, `stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"`),
+  // soft eyes half-closed
+  calm: () =>
+    eyes(45, 75, 80, 14, 'sleepy') + cheeks(40, 80, 90) +
+    path('M53 95 Q60 101 67 95', 'none', `stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"`),
+  // droopy eyes, small yawn
+  tired: () =>
+    eyes(45, 75, 80, 14, 'sleepy') +
+    ell(60, 97, 6, 8, INK, `stroke="${INK}" stroke-width="2"`),
+  // raised brows
+  worried: () =>
+    eyes(45, 75, 82, 12, 'round') +
+    path('M36 66 Q45 60 54 64', 'none', `stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"`) +
+    path('M66 64 Q75 60 84 66', 'none', `stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"`) +
+    path('M52 98 Q60 94 68 98', 'none', `stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"`),
+  // downturned mouth
+  sad: () =>
+    eyes(45, 75, 81, 13, 'round') +
+    path('M38 68 Q46 63 54 67', 'none', `stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"`) +
+    path('M66 67 Q74 63 82 68', 'none', `stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"`) +
+    path('M51 99 Q60 92 69 99', 'none', `stroke="${INK}" stroke-width="2.8" fill="none" stroke-linecap="round"`)
+};
+
+export const FEELING_FACE_KEYS = Object.keys(FEELING_FACES);
+
+export function renderFeelingFace(key, { size = 150, cls = '' } = {}) {
+  const draw = FEELING_FACES[key] || FEELING_FACES.calm;
+  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130 / 120}" ` +
+    `class="feeling-face ff-${key} ${cls}" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${draw()}</svg>`;
+}
+
 // ==========================================================================
 // The guide / player character — FIVE species on one shared layered SVG rig.
 // guide = { species, body, pattern, patternColour, eyes, acc, name }
