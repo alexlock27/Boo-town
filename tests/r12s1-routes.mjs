@@ -109,7 +109,12 @@ const FIXTURES = {
     ["cosy bonus", "({ game: 'boopop', gameName: 'Boo Pop', stars: 2, level: 1, cat: 'pop', extraCosy: 1, replay: () => {} })"],
     ["toddler round", "({ game: 'tanimal', gameName: 'Animals', stars: 3, meterOverride: 2, replay: () => {} })"],
     // RUN12 S11: a round LEFT EARLY, banking what she had earned
-    ["a round left early (banked)", "({ game: 'bubblepop', gameName: 'Bubble Pop', stars: 2, level: 1, cat: 'add', mix: false, tricky: [], partial: { correct: 7, of: 10, stars: 2 }, replay: () => {} })"]
+    ["a round left early (banked)", "({ game: 'bubblepop', gameName: 'Bubble Pop', stars: 2, level: 1, cat: 'add', mix: false, tricky: [], partial: { correct: 7, of: 10, stars: 2 }, replay: () => {} })"],
+    // RUN16 W5: js/games/teachme.js has always passed `starType` and `recap`, but the key
+    // scanner above cannot see a key that follows a trailing comment, so neither was ever
+    // driven here. They are now — a lesson round, and a lesson replayed after mastery.
+    ["a lesson round (pays Lesson Stars)", "({ game: 'teachme', gameName: 'Sounds in words', stars: 3, starType: 'lesson', replay: () => {} })"],
+    ["a lesson recap after mastery (cosy award)", "({ game: 'teachme', gameName: 'Telling the time', stars: 3, starType: 'lesson', extraCosy: true, recap: true, replay: () => {} })"]
   ]
 };
 // Param names a fixture is not required to exercise separately (they only ever ride along

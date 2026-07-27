@@ -267,10 +267,13 @@ console.log('== V3: a lesson pays Lesson Stars, stamps the Journal, and gets a c
   const before = await page.evaluate(() => ({ ...window.BooTown.State.getState().stars.byType }));
   await page.evaluate(async () => {
     const T = window.__teachme;
-    for (let i = 0; i < 40 && !T.ended(); i++) {
+    // RUN16 W5: the lesson's answer stage is `try` (direct manipulation) where it used to
+    // be `check` (multiple choice). Same driver, new stage name, plus the beat a solved
+    // TRY step takes before the lesson moves on.
+    for (let i = 0; i < 80 && !T.ended(); i++) {
       const c = T.card();
-      if (c.type === 'check') T.answer(true); else T.tapNext();
-      await new Promise(r => setTimeout(r, 120));
+      if (c.type === 'try') { T.answer(true); await new Promise(r => setTimeout(r, 1000)); }
+      else { T.tapNext(); await new Promise(r => setTimeout(r, 120)); }
     }
   });
   const ceremony = await page.waitForSelector('.lesson-ceremony', { timeout: 6000 }).then(() => true).catch(() => false);
