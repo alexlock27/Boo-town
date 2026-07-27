@@ -136,6 +136,56 @@ console.log('== 2. the position rule and the distractor rule, over 200 generated
   await ctx.close();
 }
 
+// ---- 2b. RUN18A H1: the containment invariant, every phoneme x every offered mode -----
+// The softlock this packet closes: a target whose `correct` list holds a word that was
+// never dealt onto the board can never be finished, so the counter pins and she taps
+// forever. This walks EVERY selectable level/position mode, not just the default one —
+// the standing lesson from this suite's own miss (RECOVERY_PLAN, "one lesson for the
+// test law"): an acceptance suite for a level-structured game enumerates every level.
+console.log('== 2b. every correct word is dealt onto the board (containment), all modes ==');
+{
+  const { ctx, page } = await open('hub', {});
+  const r = await page.evaluate(async () => {
+    const { buildTarget, buildRound, SOUND_GROUPS, levelsForGroup } = await import('./js/games/soundsorter.js');
+    const { PHONEME_KEYS, targetsForLevel } = await import('./data/phonemes.js');
+    const breach = [], empty = [], modes = [];
+    // (a) every phoneme at every level it is offered at, 200 targets each
+    let generated = 0;
+    for (const k of PHONEME_KEYS) for (const l of [1, 2, 3, 4]) {
+      if (!targetsForLevel(l).includes(k)) continue;
+      modes.push(k + '@' + l);
+      for (let i = 0; i < 200; i++) {
+        const t = buildTarget(k, l);
+        if (!t) continue;             // unbuildable is allowed; unwinnable is not
+        generated++;
+        const missing = t.correct.filter(w => !t.cards.includes(w));
+        if (missing.length) breach.push(`${k}@${l}: ${missing.join(',')} not on the board`);
+        if (t.correct.length < 1) empty.push(k + '@' + l);
+      }
+    }
+    // (b) the same invariant through the modes a child can actually PICK, round by round
+    const groupModes = [];
+    for (const g of SOUND_GROUPS) for (const l of levelsForGroup(g.key)) {
+      groupModes.push(`${g.key}/${l}`);
+      for (let i = 0; i < 200; i++) {
+        const targets = buildRound(g.sounds, l, 8);
+        if (targets.length !== 8) breach.push(`${g.key}/${l}: round of ${targets.length}, not 8`);
+        for (const t of targets) {
+          const missing = t.correct.filter(w => !t.cards.includes(w));
+          if (missing.length) breach.push(`${g.key}/${l}/${t.sound}: ${missing.join(',')} not on the board`);
+          if (t.correct.length < 1) empty.push(`${g.key}/${l}/${t.sound}`);
+        }
+      }
+    }
+    return { breach: breach.slice(0, 5), breaches: breach.length, empty: empty.length, generated, modes, groupModes };
+  });
+  assert(r.modes.length >= 24, `walked every phoneme x level mode (${r.modes.length} combinations, ${r.generated} targets)`);
+  assert(r.groupModes.length === 9, `and every group x level a child can pick (${r.groupModes.join(' ')})`);
+  assert(r.breaches === 0, 'every word in `correct` is dealt onto the board — no unwinnable target' + (r.breaches ? ': ' + r.breach.join('; ') : ''));
+  assert(r.empty === 0, 'and no target is generated with an empty `correct` list');
+  await ctx.close();
+}
+
 // ---- 4. the explanation names the actual sound in the tapped word ---------------------
 console.log('== 4. a wrong tap names the word AND its real sound ==');
 {
@@ -242,6 +292,60 @@ console.log('== 6. intro, "?" replay, and the star type ==');
   await page.evaluate(() => document.querySelector('.help-btn').click());
   await page.waitForSelector('.intro-overlay', { timeout: 5000 });
   assert(await page.$('.intro-overlay') !== null, 'and tapping it replays the intro');
+  await ctx.close();
+}
+
+// ---- 7. RUN18A H1: a tile she has already answered is quiet, and so is a won board ----
+// Two stale-tap paths, both of which cost her a heart before this packet. `tapAny` fires
+// the card's own handler even on a disabled tile, so the guards are proven at the handler,
+// not merely at the DOM's disabled attribute — a suite that only clicked would pass on a
+// tile that browsers refuse to click anyway.
+console.log('== 7. already-answered tiles, and the celebration window, cost nothing ==');
+{
+  const { ctx, page } = await open('soundsorter', {});
+  await page.waitForSelector('.start-card', { timeout: 8000 });
+  await page.evaluate(() => document.querySelectorAll('.level-btn')[0].click());
+  await page.waitForFunction(() => window.__sounds, null, { timeout: 8000 });
+
+  // (a) tap ONE correct word (the target has 2-3, so the board stays open), then tap that
+  //     same tile again: no scoring, no new feedback text.
+  const found = await page.evaluate(() => {
+    const t = window.__sounds.target();
+    const w = t.correct[0];
+    window.__sounds.tap(w);
+    const after = { ...window.__sounds.state(), bubble: document.querySelector('.peek-bubble').textContent };
+    window.__sounds.tapAny(w);                       // the stale re-tap
+    const again = { ...window.__sounds.state(), bubble: document.querySelector('.peek-bubble').textContent };
+    return { w, correct: t.correct.length, after, again, disabled: document.querySelector(`.ss-card[data-word="${w}"]`).disabled };
+  });
+  assert(found.correct >= 2, `the target has ${found.correct} correct cards, so one tap leaves the board open`);
+  assert(found.disabled, `the found tile "${found.w}" is disabled the moment she gets it right`);
+  assert(found.again.wrong === found.after.wrong && found.again.solved === found.after.solved,
+    'tapping an already-found tile scores nothing (wrong and solved both unchanged)');
+  assert(found.again.bubble === found.after.bubble, `and says nothing new (bubble still "${found.again.bubble}")`);
+
+  // (b) finish the target, then tap a tile she never touched, inside the celebration.
+  //     Before this fix that tap was judged against the NEXT target: a lost heart and a
+  //     guide line naming a sound that was not even on screen.
+  const window900 = await page.evaluate(() => {
+    window.__sounds.solveTarget();
+    const won = { ...window.__sounds.state(), bubble: document.querySelector('.peek-bubble').textContent };
+    const t = window.__sounds.target();
+    const leftover = t.cards.filter(w => !t.correct.includes(w));
+    const live = leftover.filter(w => !document.querySelector(`.ss-card[data-word="${w}"]`).disabled);
+    window.__sounds.tapAny(leftover[0]);             // the celebration-window tap
+    const after = { ...window.__sounds.state(), bubble: document.querySelector('.peek-bubble').textContent };
+    return { won, after, leftover, live, sound: t.sound };
+  });
+  assert(window900.won.live === false, 'the board closes the instant the target is won');
+  assert(window900.live.length === 0, `and every untouched tile goes quiet too (${window900.leftover.length} of them)`);
+  assert(window900.after.wrong === window900.won.wrong, 'a tap during the celebration costs no heart');
+  assert(!/not /.test(window900.after.bubble), `and the guide does not correct her for a sound she was never asked: "${window900.after.bubble}"`);
+  assert(window900.after.solved === window900.won.solved, 'and cannot finish the next target on the old board');
+
+  // and the round still moves on normally afterwards
+  await page.waitForFunction(() => window.__sounds.state().renders === 2 && window.__sounds.state().live, null, { timeout: 8000 });
+  assert(true, 'the next target renders as normal after the ignored taps');
   await ctx.close();
 }
 

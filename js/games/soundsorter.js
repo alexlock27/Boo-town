@@ -82,7 +82,18 @@ export function buildTarget(sound, level) {
     if (picked.length >= CARDS - correct.length) break;
     if (legal(w) && !picked.includes(w)) picked.push(w);
   }
-  return { sound, position, correct, cards: shuffle([...correct, ...picked]) };
+  const cards = shuffle([...correct, ...picked]);
+
+  // THE CONTAINMENT INVARIANT (RUN18A H1). A round finishes when she has found every word
+  // in `correct`, so a "correct" word that was never dealt onto the board is an unwinnable
+  // board: the counter can never move and she taps forever. The invariant is enforced HERE,
+  // at generation, rather than by softening the finish threshold — a correct word missing
+  // from the board is a generation bug, and lowering the threshold would hide it while
+  // still marking a card she was never shown. If the filter empties `correct`, the target
+  // is unbuildable and callers regenerate; an unwinnable board is never returned.
+  const onBoard = correct.filter(w => cards.includes(w));
+  if (!onBoard.length) return null;
+  return { sound, position, correct: onBoard, cards };
 }
 
 export function buildRound(sounds, level, n = ROUND_TARGETS) {
@@ -165,6 +176,13 @@ export function mount(container, params, ctx) {
     if (!targets.length) return startCard();
     let idx = 0, wrong = 0, hintsUsed = 0, solved = 0;
     let found = new Set(), cardNodes = [], spoken = false;
+    // The board on screen RIGHT NOW, and whether it is still taking taps. `idx` moves the
+    // moment a target is finished, but the cards she is looking at stay up for the 900ms
+    // celebration — so everything that reads the board reads `shown`, never `cur()`, and
+    // nothing scores once `boardLive` is false. Without this, a tap during the celebration
+    // was judged against the NEXT target: it cost a heart and the guide named a sound that
+    // was not even on screen ("That's snail — ai, not th!" while the ch board was still up).
+    let shown = null, boardLive = false;
     // See the note in rhymetime.js: `solved` ticks when she finishes a target, but the next
     // set of cards only appears after the celebration. This counts what is on screen.
     let renders = 0;
@@ -198,6 +216,8 @@ export function mount(container, params, ctx) {
 
     function renderTarget() {
       const t = cur();
+      shown = t;
+      boardLive = true;
       found = new Set();
       renders++;
       clear(graphemeCard); clear(field);
@@ -209,7 +229,7 @@ export function mount(container, params, ctx) {
         const btn = el('button', {
           class: 'ss-card', 'aria-label': w, dataset: { word: w },
           style: REDUCED ? {} : { '--dly': (i * 0.37).toFixed(2) + 's', '--dur': (5.2 + (i % 3) * 0.9).toFixed(2) + 's' },
-          onclick: () => tapCard(w, btn)
+          onclick: () => tapCard(t, w, btn)
         }, [el('span', { class: 'ss-pic', html: renderWordArt(w, { size: 92, label: w }) })]);
         field.appendChild(btn);
         return btn;
@@ -230,7 +250,7 @@ export function mount(container, params, ctx) {
     // Free, unlimited, never disabled: it repeats only what she was already shown.
     function sayCards() {
       sfx.tap();
-      const words = cur().cards;
+      const words = shown.cards;
       speakMaybe(words.join('. ') + '.');
       if (REDUCED) return;
       words.forEach((w, i) => shell.timeout(() => {
@@ -240,8 +260,9 @@ export function mount(container, params, ctx) {
       }, i * 620));
     }
 
-    function tapCard(word, node) {
-      const t = cur();
+    // `t` is the target this card was DEALT for, handed in at render time — never cur().
+    function tapCard(t, word, node) {
+      if (!boardLive || t !== shown) return;
       if (found.has(word) || node.disabled) return;
       const isRight = t.correct.includes(word);
       if (isRight) {
@@ -268,6 +289,11 @@ export function mount(container, params, ctx) {
     }
 
     function finishTarget() {
+      // The board is closed the instant it is won: every tile goes quiet, including the
+      // ones she never tapped. She has finished this one — there is nothing left here to
+      // be wrong about, and the celebration is not a place to lose a heart.
+      boardLive = false;
+      cardNodes.forEach(n => { n.disabled = true; });
       solved++;
       shell.react('All of them! 🌟', { voice: false, hold: 1200 });
       sfx.star();
@@ -278,8 +304,8 @@ export function mount(container, params, ctx) {
     }
 
     function useHint() {
-      if (hintsUsed >= MAX_HINTS) return;
-      const t = cur();
+      if (hintsUsed >= MAX_HINTS || !boardLive) return;
+      const t = shown;
       const next = t.correct.find(w => !found.has(w));
       if (!next) return;
       hintsUsed++;
@@ -301,16 +327,19 @@ export function mount(container, params, ctx) {
       });
     }
 
+    // QA hooks read the board she is looking at (`shown`), not the sequence cursor, so a
+    // suite driving the game sees exactly what a child's finger would reach.
     if (typeof window !== 'undefined') window.__sounds = {
-      state: () => ({ idx, wrong, hintsUsed, solved, renders, total: targets.length }),
-      target: () => ({ ...cur(), found: [...found] }),
-      cards: () => cur().cards.slice(),
-      tap: (w) => { const i = cur().cards.indexOf(w); if (i >= 0) cardNodes[i].click(); },
-      tapCorrect: () => { const w = cur().correct.find(x => !found.has(x)); if (w) window.__sounds.tap(w); },
-      tapWrong: () => { const t = cur(); const w = t.cards.find(x => !t.correct.includes(x)); if (w) window.__sounds.tap(w); },
-      solveTarget: () => { const t = cur(); t.correct.forEach(w => { if (!found.has(w)) window.__sounds.tap(w); }); },
+      state: () => ({ idx, wrong, hintsUsed, solved, renders, total: targets.length, live: boardLive }),
+      target: () => ({ ...shown, found: [...found] }),
+      cards: () => shown.cards.slice(),
+      tap: (w) => { const i = shown.cards.indexOf(w); if (i >= 0) cardNodes[i].click(); },
+      tapCorrect: () => { const w = shown.correct.find(x => !found.has(x)); if (w) window.__sounds.tap(w); },
+      tapWrong: () => { const t = shown; const w = t.cards.find(x => !t.correct.includes(x)); if (w) window.__sounds.tap(w); },
+      solveTarget: () => { const t = shown; t.correct.forEach(w => { if (!found.has(w)) window.__sounds.tap(w); }); },
       hint: () => useHint(),
       sayCards: () => sayCards(),
+      tapAny: (w) => { const i = shown.cards.indexOf(w); if (i >= 0) cardNodes[i].dispatchEvent(new MouseEvent('click', { bubbles: true })); },
       grapheme: () => graphemeCard.querySelector('.ss-card-letters').textContent,
       collected: () => collector.items().length
     };
