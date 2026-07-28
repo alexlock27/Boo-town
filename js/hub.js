@@ -20,6 +20,7 @@ import { renderItem } from './art.js';
 import { getDisplayName } from './accessories.js';
 import { isBestFriend } from './care.js';   // RUN10 P21 best-friend cameo
 import { BY_ID } from '../data/catalogue.js';
+import { CONTAINED as EXPEDITION_CONTAINED } from '../data/expedition.js';   // RUN18A H2
 import { hasUpdateWaiting, onUpdateWaiting, activateUpdate, showToast } from './resilience.js';
 import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
@@ -46,7 +47,7 @@ const GAMES = [
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'oddboo',    name: 'Odd Boo Out',  tag: 'Spot the difference', accent: 'var(--zing)', icon: oddIcon, group: 'Learn' },
   { id: 'flashboos', name: 'Flash Boos',   tag: 'Look, hide, remember', accent: 'var(--pop)', icon: flashIcon, group: 'Learn' },
-  { id: 'expedition', name: 'Boo Expedition', tag: 'Story trail', accent: 'var(--star)', icon: () => '🧭', group: 'Learn' },   // RUN10 P15
+  { id: 'expedition', name: 'Boo Expedition', tag: 'Story trail', accent: 'var(--star)', icon: () => '🧭', group: 'Learn', building: () => EXPEDITION_CONTAINED },   // RUN10 P15; contained RUN18A H2, reopens in RUN18C
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
@@ -216,6 +217,18 @@ export function mount(container, params, ctx) {
   const cards = el('section', { class: 'game-cards-groups' });
   const makeCard = (g) => {
     const best = s.stars.byGame[g.id] ? s.stars.byGame[g.id].best : 0;
+    // A card whose feature is being rebuilt says so and does not open — the Course-3
+    // precedent from Boo Roll's map (UNPLAYABLE). She is told the truth instead of being
+    // let into something unfinished, and no star row is shown for a game she cannot play.
+    const building = typeof g.building === 'function' ? g.building() : g.building;
+    if (building) return el('button', {
+      class: 'game-card building', disabled: '', style: { '--accent': g.accent },
+      'aria-label': `${g.name} — ${building}`
+    }, [
+      el('div', { class: 'gc-icon', html: g.icon() }),
+      el('div', { class: 'gc-name', text: g.name }),
+      el('div', { class: 'gc-tag', text: building })
+    ]);
     return el('button', { class: 'game-card', style: { '--accent': g.accent }, onclick: () => ctx.go(g.id) }, [
       el('div', { class: 'gc-icon', html: g.icon() }),
       el('div', { class: 'gc-name', text: g.name }),

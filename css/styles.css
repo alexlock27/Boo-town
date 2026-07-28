@@ -422,6 +422,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   transition: transform 150ms ease-out;
 }
 .game-card:active { transform: scale(0.96) translateY(2px); }
+/* RUN18A H2: a card whose feature is being rebuilt. Same treatment (and the same tested
+   colour pair) as Boo Roll's blocked course card, so it reads as "not yet" rather than as
+   broken: dashed edge, no press animation, and it never dims below the contrast law. */
+.game-card.building { background: #EFE7DA; border-top-style: dashed; cursor: not-allowed; opacity: 1; }
+.game-card.building:active { transform: none; }
+.game-card.building .gc-name, .game-card.building .gc-tag { color: #5C4B3A; }
+.game-card.building .gc-tag { font-weight: 700; }
 .gc-name { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--ink); }
 .gc-tag { font-size: 14px; color: #6B5E93; }
 .gc-stars { margin-top: 2px; }

@@ -9,8 +9,14 @@ import { freshCaper } from '../caper/state.js';
 import { saveExpeditionPostcard } from './postcard.js';
 
 const BUDGET_KEY = { bridges: 'sneezes', picnic: 'huffs', raft: 'failedSails', hotel: 'wrongRooms' };
+// What the counter CALLS itself to her. The keys above index BUDGETS and must stay as they
+// are; `failedSails: 0 / 3` and `wrongRooms: 0 / 6` were camelCase code on a child's screen.
+const BUDGET_LABEL = { sneezes: 'sneezes', huffs: 'huffs', failedSails: 'wobbles', wrongRooms: 'wrong rooms' };
+// The escalating wonder ladder. Rung 0 for `bridges` is REPLACED at build time by the rule
+// the engine actually generated (RUN18A H2) — the string below is only the honest fallback
+// for a party too thin to generate a rule from, and it no longer names a placeholder.
 const WONDER = {
-  bridges: ['One bridge sneezes at SOMETHING…', 'What do the crossers share?', 'Try a very different Boo!'],
+  bridges: ['One bridge is ticklish about something…', 'What do the crossers share?', 'Try a very different Boo!'],
   picnic: ['Grumps are fussy about ONE thing.', 'Watch what bounces OFF!', 'Compare the happy plates.'],
   raft: ['Neighbours share exactly ONE thing.', 'Too alike is wobbly too!', 'Fix the reddest corner first.'],
   hotel: ['Each floor likes a certain KIND.', 'Who lit their window up?', 'House the sure ones first.']
@@ -21,7 +27,11 @@ function party() {
   return ids.map(id => BY_ID[id] || GUESTS.find(guest => guest.id === id)).filter(Boolean);
 }
 function starCount(wrong, budget, hintUsed) { return !hintUsed && wrong <= budget ? 3 : wrong <= Math.ceil(budget * 1.6) ? 2 : 1; }
-function plural(key, number) { return `${key}: ${number}`; }
+function plural(key, number) { return `${BUDGET_LABEL[key] || key}: ${number}`; }
+// The engine describes a group as "<value> <attribute-noun>", which is right for Boos
+// ("pip species") and wrong for a plate of food — featuresOf() reads a topping's `kind` as
+// its species. Strip the noun so a Grump asks for "sweet ones", never "sweet species".
+function wanted(rule) { return String((rule && rule.text) || '').replace(/ (species|colour)$/, ''); }
 
 export function sharedFeatureCount(a, b) {
   const aa = featuresOf(a), bb = featuresOf(b);
@@ -51,11 +61,14 @@ export function mount(container, params, ctx) {
   const people = party();
   const budget = BUDGETS[node][BUDGET_KEY[node]][tier - 1];
   let wrong = 0, hintUsed = false, solved = [], finished = false, wonderIndex = 0;
-  const status = el('p', { class: 'exp-puzzle-status', text: WONDER[node][0] });
+  // A per-round copy, so a puzzle can replace a rung with the rule it actually generated
+  // without mutating the shared authored table.
+  const lines = WONDER[node].slice();
+  const status = el('p', { class: 'exp-puzzle-status', text: lines[0] });
   const counter = el('p', { class: 'exp-budget', text: `${plural(BUDGET_KEY[node], wrong)} / ${budget}` });
   const board = el('div', { class: `exp-puzzle-board exp-${node}` });
   const updateCounter = () => { counter.textContent = `${plural(BUDGET_KEY[node], wrong)} / ${budget}`; };
-  const wonder = () => { wonderIndex = Math.min(WONDER[node].length - 1, wonderIndex + 1); status.textContent = WONDER[node][wonderIndex]; };
+  const wonder = () => { wonderIndex = Math.min(lines.length - 1, wonderIndex + 1); status.textContent = lines[wonderIndex]; };
   const fail = (message, target) => { wrong++; updateCounter(); status.textContent = message; if (target) wobble(target); if (wrong % 2 === 0) setTimeout(wonder, 350); };
   const finish = () => {
     if (finished) return; finished = true;
@@ -81,12 +94,17 @@ export function mount(container, params, ctx) {
     if (!REDUCED) confetti({ count: 32, power: .55 });
     setTimeout(() => ctx.go('expedition', { trail: true }), 850);
   };
+  // RUN18A H2: the hint used to say 'Hmm… try THAT one!' — it named neither the Boo it was
+  // pointing at nor the rule it had spotted, so the highlight was the entire message and a
+  // child who missed the four-second glow got nothing at all. Each puzzle now supplies the
+  // sentence, and every sentence names the thing AND the rule, Odd-Boo-Out style. The
+  // fallback is the next rung of the wonder ladder — never a placeholder.
   const showHint = () => {
     hintUsed = true;
-    const candidate = informativeNext(people, solved.map(id => ({ id })));
+    const candidate = (api.hintPick && api.hintPick()) || informativeNext(people, solved.map(id => ({ id })));
     const target = candidate && board.querySelector(`[data-id="${candidate.id}"]`);
     if (target) { target.classList.add('exp-hint'); setTimeout(() => target.classList.remove('exp-hint'), 4000); }
-    status.textContent = 'Hmm… try THAT one!';
+    status.textContent = (api.hintLine && api.hintLine(candidate)) || lines[Math.min(1, lines.length - 1)];
   };
   const hint = el('button', { class: 'btn soft', text: '? Hint', onclick: showHint });
   root.append(el('h2', { text: spec.name }), status, counter, board, hint, backControl(() => ctx.go('expedition', { trail: true }), { floating: true }));
@@ -115,7 +133,20 @@ export function mount(container, params, ctx) {
     [0, 1].forEach(side => bridges.appendChild(el('button', { class: `bridge-guardian bridge-${side}`, text: side ? '🌉  😮‍💨' : '😮‍💨  🌉', onclick: event => cross(side, event.currentTarget) })));
     people.forEach((boo, index) => dock.appendChild(el('button', { class: 'exp-puzzle-boo', dataset: { id: boo.id }, text: boo.name, onclick: event => { chosen = boo; dock.querySelectorAll('.selected').forEach(item => item.classList.remove('selected')); event.currentTarget.classList.add('selected'); status.textContent = `${boo.name} is ready at the bridge.`; } })));
     board.append(bridges, dock);
-    return { rules: () => rules, try: index => { chosen = people[index]; const side = rules.findIndex(rule => rule.pred(chosen)); cross(side < 0 ? 0 : side, bridges.children[side < 0 ? 0 : side]); } };
+    // RUN18A H2 — THE RULE IS SHOWN. `'One bridge sneezes at SOMETHING…'` was an authored
+    // placeholder that shipped as literal screen text while the engine was generating real
+    // rules the whole time. It says rules[0] because the two rules are an exclusive
+    // partition of the party: bridge 1 admits rules[1] and therefore sneezes at exactly
+    // rules[0]'s group. Deliberately "one bridge" and not "the left bridge" — which bridge
+    // is which is the thing she is here to discover.
+    if (rules[0]) { lines[0] = `One bridge sneezes at ${rules[0].text}!`; status.textContent = lines[0]; }
+    return {
+      rules: () => rules,
+      hintLine: (boo) => {
+        const rule = boo && rules.find(r => r.pred(boo));
+        return rule ? `${boo.name} will make one bridge sneeze — it sneezes at ${rule.text}!` : null;
+      },
+      try: index => { chosen = people[index]; const side = rules.findIndex(rule => rule.pred(chosen)); cross(side < 0 ? 0 : side, bridges.children[side < 0 ? 0 : side]); } };
   }
 
   function picnicPuzzle() {
@@ -140,9 +171,15 @@ export function mount(container, params, ctx) {
       solved.push(String(active)); status.textContent = 'Rainbow burp! That Grump is delighted.'; plates.children[active].disabled = true;
       if (solved.length === grumpCount) finish();
     };
-    TOPPINGS.forEach(item => tray.appendChild(el('button', { class: 'topping', text: `${item.icon} ${item.name}`, onclick: () => { if (selected[active].length >= 3) { status.textContent = 'That plate is full — serve it!'; return; } selected[active].push(item); draw(); } })));
+    // dataset id so the hint's highlight can find a topping — it only ever found Boos.
+    TOPPINGS.forEach(item => tray.appendChild(el('button', { class: 'topping', dataset: { id: item.id }, text: `${item.icon} ${item.name}`, onclick: () => { if (selected[active].length >= 3) { status.textContent = 'That plate is full — serve it!'; return; } selected[active].push(item); draw(); } })));
     board.append(plates, tray, el('button', { class: 'btn big', text: 'Serve this plate', onclick: serve })); draw();
-    return { rules: () => rules, try: () => { for (let i = 0; i < grumpCount; i++) { active = i; selected[i] = TOPPINGS.filter(item => rules[i].pred(item)).slice(0, 3); serve(); } } };
+    return {
+      rules: () => rules,
+      // the hint belongs to the plate she is filling, and points at a topping, not a Boo
+      hintPick: () => TOPPINGS.find(item => rules[active] && rules[active].pred(item)) || null,
+      hintLine: () => rules[active] ? `This Grump only wants ${wanted(rules[active])} ones — try one of those!` : null,
+      try: () => { for (let i = 0; i < grumpCount; i++) { active = i; selected[i] = TOPPINGS.filter(item => rules[i].pred(item)).slice(0, 3); serve(); } } };
   }
 
   function raftPuzzle() {
@@ -162,7 +199,9 @@ export function mount(container, params, ctx) {
     riders.forEach(boo => dock.appendChild(el('button', { class: 'exp-puzzle-boo', dataset: { id: boo.id }, text: boo.name, onclick: event => { chosen = boo; dock.querySelectorAll('.selected').forEach(item => item.classList.remove('selected')); event.currentTarget.classList.add('selected'); } })));
     const sail = () => { if (seats.filter(Boolean).length < riders.length || !raftValid(seats)) { fail('SPLASH! The raft gives a wobbly little bob.', grid); return; } solved = riders.map(boo => boo.id); status.textContent = 'The sail catches a friendly breeze!'; board.classList.add('raft-sails'); setTimeout(finish, REDUCED ? 150 : 700); };
     board.append(grid, dock, el('button', { class: 'btn big', text: '⛵ Pull the sail', onclick: sail })); draw();
-    return { rules: () => [], try: () => sail(), seats: () => seats.slice(), valid: () => raftValid(seats) };
+    // The raft has no generated rule — its rule is the seating law itself, so the hint
+    // states that law rather than pointing at a Boo.
+    return { rules: () => [], hintLine: () => 'Sit Boos who share exactly ONE thing next to each other.', try: () => sail(), seats: () => seats.slice(), valid: () => raftValid(seats) };
   }
 
   function hotelPuzzle() {
@@ -190,6 +229,12 @@ export function mount(container, params, ctx) {
     };
     people.forEach(boo => dock.appendChild(el('button', { class: 'exp-puzzle-boo', dataset: { id: boo.id }, text: boo.name, onclick: event => { chosen = boo; dock.querySelectorAll('.selected').forEach(item => item.classList.remove('selected')); event.currentTarget.classList.add('selected'); } })));
     board.append(floors, dock); draw();
-    return { rules: () => rules, try: index => { chosen = people[index]; const floor = rules.findIndex(rule => rule.pred(chosen)); const target = floors.querySelector(`.floor-${floor < 0 ? 0 : floor} .hotel-room:not(.warm)`); house(floor < 0 ? 0 : floor, target ? [...target.parentNode.querySelectorAll('.hotel-room')].indexOf(target) : 0, target); } };
+    return {
+      rules: () => rules,
+      hintLine: (boo) => {
+        const floor = boo ? rules.findIndex(rule => rule && rule.pred(boo)) : -1;
+        return floor >= 0 ? `${boo.name} belongs on Floor ${floor + 1} — that floor likes ${rules[floor].text}!` : null;
+      },
+      try: index => { chosen = people[index]; const floor = rules.findIndex(rule => rule.pred(chosen)); const target = floors.querySelector(`.floor-${floor < 0 ? 0 : floor} .hotel-room:not(.warm)`); house(floor < 0 ? 0 : floor, target ? [...target.parentNode.querySelectorAll('.hotel-room')].indexOf(target) : 0, target); } };
   }
 }
