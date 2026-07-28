@@ -4820,7 +4820,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .flash-boo-art.seated { position:absolute; z-index:2; margin:0; }
 /* a held prop: HOLD_SCALE x the Boo, over its front at hand height, never under
    PROP_MIN_PX (both set inline from js/games/flashboos.js) */
-.flash-hold-art { position:absolute; left:40%; z-index:3; filter:drop-shadow(0 2px 1px rgba(42,27,78,.22)); }
+.flash-hold-art { position:absolute; z-index:3; filter:drop-shadow(0 2px 1px rgba(42,27,78,.22)); }
 .flash-boo small,.flash-answer small { font:700 13px var(--font-display); color:var(--ink); text-transform:capitalize; }
 .flash-curtain { position:absolute; z-index:10; inset:0; display:grid; place-items:center; color:#fff; font:700 30px var(--font-display); letter-spacing:3px; background:repeating-linear-gradient(90deg,#7B2E76 0 42px,#963C91 42px 84px); transform:translateY(-100%); transition:transform 600ms cubic-bezier(.7,0,.3,1); box-shadow:inset 0 0 0 8px #E8A4D5; }
 .flash-curtain::after { content:'✦  ✦  ✦'; color:var(--star); position:absolute; top:58%; }

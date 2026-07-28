@@ -100,13 +100,25 @@ export function mount(container, params, ctx) {
       fig.appendChild(el('span', { class: 'flash-boo-art', html: booHTML(boo, 112, { composed: true }) }));
     }
     if (boo.holding) {
-      const prop = FLASH_PROP_BY_KEY[boo.holding];
       fig.appendChild(el('span', {
         class: 'flash-hold-art', dataset: { prop: boo.holding }, html: propHTML(boo.holding, 80),
-        style: { bottom: prop.holdBottomPct + '%', width: `max(${PROP_MIN_PX}px, ${(HOLD_SCALE * BOO_CELL_FRAC * 100).toFixed(1)}%)` }
+        style: { width: `max(${PROP_MIN_PX}px, ${(HOLD_SCALE * BOO_CELL_FRAC * 100).toFixed(1)}%)` }
       }));
     }
     return fig;
+  }
+  // Placed after layout, in pixels, because the prop's width is `max(56px, …)`: below the
+  // floor its size stops tracking the Boo's, and a percentage offset would drift with it —
+  // which is exactly how a held ball ends up on a face at one width and not another.
+  function placeHeldProps() {
+    sceneNode.querySelectorAll('.flash-hold-art').forEach(node => {
+      const prop = FLASH_PROP_BY_KEY[node.dataset.prop];
+      const boo = node.parentNode.querySelector('.flash-boo-art');
+      if (!boo || !prop.holdAnchor) return;
+      const pw = node.offsetWidth, ph = pw * 130 / 120;
+      node.style.left = (boo.offsetLeft + prop.holdAnchor[0] * boo.offsetWidth - prop.holdInk[0] * pw) + 'px';
+      node.style.top = (boo.offsetTop + prop.holdAnchor[1] * boo.offsetHeight - prop.holdInk[1] * ph) + 'px';
+    });
   }
   // How many Boos fit across before the picture has to become two rows. A prop that has
   // shrunk under PROP_MIN_PX is not a prop any more, so the line breaks instead — into
@@ -133,6 +145,7 @@ export function mount(container, params, ctx) {
         dataset: { id: boo.id, pose: boo.seatedOn ? 'on' : boo.holding ? 'holding' : boo.wearing ? 'wearing' : '' }
       }, [figureNode(boo), el('small', { text: boo.name })]));
     });
+    placeHeldProps();
   }
   function hideAndAsk() {
     phase = 'question'; curtain.classList.add('down'); stage.classList.remove('revealing');

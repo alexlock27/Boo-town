@@ -117,6 +117,13 @@ console.log('== 3. Boos and propped counts per tier, colour variation across all
   const lightCount = Array.from({ length: 200 }, () => flashQuestion(flashScene('light'))).some(q => q.kind === 'count');
   const fullCount = Array.from({ length: 200 }, () => flashQuestion(flashScene('full'))).some(q => q.kind === 'count');
   assert(!lightCount && fullCount, '"how many Boos" is asked at tier 3+ only');
+
+  // ...and the composed relations are actually asked about. A scene offers one colour
+  // question per Boo against two or three prop questions, so sampling instances rather than
+  // TYPES would make the poses this packet builds a rarity: the critic measured 20.5%.
+  const kinds = Array.from({ length: 600 }, () => flashQuestion(flashScene('full')).kind);
+  const propShare = kinds.filter(k => k === 'on' || k === 'holding' || k === 'wearing').length / kinds.length;
+  assert(propShare >= 0.3, `a composed prop is what most rounds ask about (${Math.round(propShare * 100)}% of questions)`);
 }
 
 const browser = await chromium.launch({ args: RESOLVE });
@@ -174,6 +181,51 @@ console.log('== 4. a prop is never smaller than 56px, at 390 / 768 / 1024 ==');
     + (small.length ? ': ' + JSON.stringify(small.slice(0, 3)) : ''));
   assert(overflow.length === 0, 'a composed scene never pushes the page sideways'
     + (overflow.length ? ': ' + JSON.stringify(overflow.slice(0, 2)) : ''));
+}
+
+// ---- 4b. a held prop is HELD, not worn on the face --------------------------------------
+// The critic's first verdict on this packet: the ball and the balloon landed over an eye,
+// and a child read it as an eyepatch rather than as something the Boo was holding. The face
+// band below is renderBoo's own geometry (eyes at cx 45/75, cy 80, r 14 in the shared
+// 120x130 viewBox) turned into fractions of the rendered Boo.
+console.log('== 4b. a held prop never crosses the Boo\'s face ==');
+{
+  // renderBoo's own eye geometry in the shared 120x130 viewBox: two circles at cx 45 / 75,
+  // cy 80, r 14. Measured against the prop's largest INK shape (its own <ellipse>), not the
+  // svg box — an svg box is mostly empty space and would fail a picture that reads fine.
+  const EYES = [{ cx: 45 / 120, cy: 80 / 130, r: 14 / 120 }, { cx: 75 / 120, cy: 80 / 130, r: 14 / 120 }];
+  const onEye = [];
+  for (const [w, h] of [[390, 844], [768, 1024], [1024, 768]]) {
+    const { ctx, page } = await open(w, h, 'full');
+    await page.waitForSelector('.flash-boo', { timeout: 15000 });
+    for (const prop of ['ball', 'balloon']) {
+      const got = await page.evaluate(key =>
+        window.__flashboos.force(s => s.items.some(it => it.prop === key)), prop);
+      if (!got) continue;
+      const hit = await page.evaluate(([key, eyes]) => {
+        const boo = window.__flashboos.scene().boos.find(b => b.holding === key);
+        const cell = document.querySelector(`.flash-boo[data-id="${boo.id}"]`);
+        const b = cell.querySelector('.flash-boo-art').getBoundingClientRect();
+        // the prop's biggest drawn shape: the ball itself, or the balloon (not its string)
+        const ink = [...cell.querySelectorAll('.flash-hold-art svg > *')]
+          .map(n => n.getBoundingClientRect())
+          .sort((p, q) => q.width * q.height - p.width * p.height)[0];
+        const worst = eyes.map(e => {
+          const ex = b.left + e.cx * b.width, ey = b.top + e.cy * b.height;
+          const er = e.r * b.width;
+          const dx = Math.abs(ink.left + ink.width / 2 - ex), dy = Math.abs(ink.top + ink.height / 2 - ey);
+          // normalised ellipse separation: < 1 means the two shapes intersect
+          return (dx / (ink.width / 2 + er)) ** 2 + (dy / (ink.height / 2 + er)) ** 2;
+        }).sort((p, q) => p - q)[0];
+        return { sep: +worst.toFixed(2), inkW: Math.round(ink.width) };
+      }, [prop, EYES]);
+      if (hit.sep < 1) onEye.push({ w, prop, ...hit });
+    }
+    await page.screenshot({ path: `${SHOTS}/held-${w}x${h}.png` });
+    await ctx.close();
+  }
+  assert(onEye.length === 0, 'a held ball or balloon never covers an eye at any width'
+    + (onEye.length ? ': ' + JSON.stringify(onEye) : ''));
 }
 
 // ---- 5. the badge row is gone, and the answers never give the prop away -----------------
