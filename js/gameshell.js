@@ -106,6 +106,24 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
   // would have drifted to.
   const clock = createRoundTimers();
 
+  // RUN18D D3 QA hook (invisible; the LAST shell built wins, which is the one on screen).
+  // Every game reaches its round clock through this one object, so a single sweep can ask
+  // any game "are you frozen right now?" without twenty per-game hooks. `stage` is the
+  // fingerprint the sweep compares: node count plus every INLINE style in the play area, so
+  // a spawn or a JS-driven move shows up and a CSS keyframe — which is decoration, not the
+  // round — does not.
+  if (typeof window !== 'undefined') window.__gameshell = {
+    paused: () => clock.paused(),
+    now: () => clock.now(),
+    progress: () => progress,
+    hearts: () => hearts,
+    stage: () => {
+      const out = [area.childElementCount];
+      for (const n of area.querySelectorAll('*')) out.push(n.tagName + '|' + n.className + '|' + (n.getAttribute('style') || ''));
+      return out.join('~');
+    }
+  };
+
   return {
     root, area,
     react,

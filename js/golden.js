@@ -46,10 +46,17 @@ export function mount(container, params, ctx) {
   // build the item list: spelling words first (word / twin), then choice questions
   const items = [];
   for (const w of (golden.words || [])) {
+    // RUN18D D3: a row with no word at all is skipped rather than handed to the speller,
+    // which reads `word.length` and takes the whole screen down with it. The editor cannot
+    // write one; a hand-edited or half-migrated save can.
+    if (!w || typeof w.w !== 'string' || !w.w.trim()) continue;
     if (w.twin && w.rival) items.push({ kind: 'twin', word: w.w, rival: w.rival, clue: w.clue || '' });
     else items.push({ kind: 'word', word: w.w, clue: w.clue || '' });
   }
-  for (const c of (golden.choices || [])) items.push({ kind: 'choice', q: c.q, right: c.right, wrong: (c.wrong || []).filter(Boolean) });
+  for (const c of (golden.choices || [])) {
+    if (!c || !c.q || !c.right) continue;
+    items.push({ kind: 'choice', q: c.q, right: c.right, wrong: (c.wrong || []).filter(Boolean) });
+  }
 
   // test hook must exist before play() runs the first item (which sets _cur)
   if (typeof window !== 'undefined') window.__golden = { itemCount: () => items.length, cur: () => window.__golden._cur, _cur: null };
@@ -94,7 +101,10 @@ export function mount(container, params, ctx) {
       const speller = makeSpeller(area, it.word, { onCorrect: () => { shell.react('Golden! 🌟', { voice: false, hold: 1400 }); speakMaybe(`${it.word}. Brilliant!`); shell.timeout(itemDone, 1200); }, onWrongCheck: () => { wrong++; shell.dimHeart(); } });
       curHint = () => { if (canHint() && speller.hintNextLetter()) { spendHint(); shell.react(guideLine('hintSpell')); if (!canHint()) peekBtn.disabled = true; } };
       function peekHint() { if (!canHint() || speller.isLocked()) return; spendHint(); sfx.tap(); reveal(); if (!canHint()) peekBtn.disabled = true; }
-      function reveal() { peekWord.textContent = it.word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); clearTimeout(reveal._t); reveal._t = setTimeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
+      // RUN18D D3: the two-second look rides the SHELL's clock. On a bare setTimeout the
+      // free auto-look for a normal word was withdrawn behind the first-play intro, so a
+      // child closed the overlay to find the word she had been shown already gone.
+      function reveal() { peekWord.textContent = it.word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); shell.cancel(reveal._t); reveal._t = shell.timeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
       function say() { if (clue) speakMaybe(clue.replace(/_+/g, 'blank')); else speakMaybe(`Can you spell... ${it.word}?`); }
       if (!clue) reveal();
       say();

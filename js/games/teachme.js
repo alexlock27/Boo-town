@@ -184,7 +184,9 @@ export function mount(container, params, ctx) {
 
     // ---- HOOK ----
     function renderHook() {
-      live = mountHook(stage, lesson, { onDone: nextStage, say: (t) => speakMaybe(t) });
+      // RUN18D D3: the hook's beats ride the SHELL's clock, so the first-play intro freezes
+      // the scene it is introducing instead of letting it play out behind itself.
+      live = mountHook(stage, lesson, { onDone: nextStage, say: (t) => speakMaybe(t), after: shell.after, cancel: shell.cancel });
     }
 
     // ---- SHOW (the two-ways explanation, unchanged) ----

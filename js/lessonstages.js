@@ -36,7 +36,12 @@ export const HOOK_MS = 10000;   // the ten-second scene the brief asks for
 // One scene shape covers all nine lessons: a Boo holds up what it has got wrong, the wrong
 // thing sits there long enough to be read, and then it corrects itself while the guide
 // says the line. `before` and `after` are authored per lesson.
-export function mountHook(container, lesson, { onDone, say }) {
+// RUN18D D3: `after`/`cancel` are the SHELL's pause-aware pair. Without them the hook ran on
+// bare setTimeout, so a child opening Teach Me for the very first time read the intro while
+// the ten-second scene that poses the lesson's problem played out, resolved and finished
+// behind the overlay — she met the answer before she had been shown the question. They
+// default to setTimeout so a caller with no shell (there is none today) still works.
+export function mountHook(container, lesson, { onDone, say, after = null, cancel = null }) {
   const hook = lesson.hook || { kind: 'sign', before: lesson.name, after: lesson.name, line: '' };
   const wrap = el('div', { class: 'tm-hook' });
   const scene = el('div', { class: 'tm-hook-scene' });
@@ -63,7 +68,9 @@ export function mountHook(container, lesson, { onDone, say }) {
 
   let ended = false;
   const timers = [];
-  const at = (ms, fn) => timers.push(setTimeout(fn, REDUCED ? Math.min(ms, 400) : ms));
+  const schedule = after ? ((ms, fn) => after(ms, fn)) : ((ms, fn) => setTimeout(fn, ms));
+  const unschedule = cancel || clearTimeout;
+  const at = (ms, fn) => timers.push(schedule(REDUCED ? Math.min(ms, 400) : ms, fn));
 
   // beat 1: the muddle sits there. beat 2: it fixes itself and the guide names the idea.
   at(REDUCED ? 200 : 2600, () => {
@@ -82,7 +89,7 @@ export function mountHook(container, lesson, { onDone, say }) {
   function finish() {
     if (ended) return;
     ended = true;
-    timers.forEach(clearTimeout);
+    timers.forEach(unschedule);
     onDone();
   }
   return {

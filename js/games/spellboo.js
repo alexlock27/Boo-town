@@ -197,7 +197,7 @@ export function mount(container, params, ctx) {
       ]);
       stage.appendChild(card);
       requestAnimationFrame(() => card.classList.add('show'));
-      setTimeout(() => card.remove(), 1400);
+      shell.timeout(() => card.remove(), 1400);   // RUN18D D3: the proud word card waits out an overlay too
     }
 
     function onMiss(id, missItem) { wrong++; shell.dimHeart(); recordResult(id, false); if (missItem) collector.addAttempted(missItem); }
@@ -236,7 +236,10 @@ export function mount(container, params, ctx) {
       // answer-revealing hints is untouched.
       function sayWordAgain() { sfx.tap(); speakMaybe(word); shell.react('Have another listen!', { voice: false, hold: 1200 }); }
       function peekHint() { if (!canHint() || speller.isLocked()) return; spendHint(); sfx.tap(); reveal(); shell.react('A peek! That counts as a hint.', { voice: false, hold: 1400 }); if (!canHint()) peekBtn.disabled = true; }
-      function reveal() { peekWord.textContent = word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); clearTimeout(reveal._t); reveal._t = setTimeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
+      // RUN18D D3: the two-second look rides the SHELL's clock. On a bare setTimeout the
+      // free auto-look for a normal word was withdrawn behind the first-play intro, so a
+      // child closed the overlay to find the word she had been shown already gone.
+      function reveal() { peekWord.textContent = word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); shell.cancel(reveal._t); reveal._t = shell.timeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
       function say() { if (clue) speakMaybe(clue.replace(/_+/g, 'blank')); else speakMaybe(`Can you spell... ${word}?`); }
       if (!clue) reveal();            // auto-look (free) for normal words
       say();

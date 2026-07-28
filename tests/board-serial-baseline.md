@@ -19,6 +19,9 @@
 >   pixel-hash sequences under real clocks; parallel load starves the rAF cadence.
 > - `r13t1-care-direct` (168s) — pixel-hashed 8-frame sequences per care action per
 >   viewport; same real-clock evidence law.
+> - `r18d-intro-freeze` (~110s, RUN18D D3) — drives all eighteen games into a live round and
+>   watches each for 2s with an overlay up. A frozen clock and a clock starved by parallel
+>   load are indistinguishable, so this one has to run alone.
 > - `r12s12-bubble-containment` (132s -> ~185s after RUN18D D2) — a 60s live containment
 >   watch plus a 22s respawn watch; the minute-long observation IS the assertion. D2 added
 >   a 1.5s drift measurement at each of the four levels and a 14s retire/respawn watch,
