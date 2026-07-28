@@ -4,7 +4,7 @@
 import * as State from './state.js';
 import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
-import { starField, clearConfetti, setBackAction, getBackAction, el, clear } from './ui.js';
+import { starField, clearConfetti, setBackAction, getBackAction, backActionGuarded, el, clear } from './ui.js';
 import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker, showToast, listSnapshots, restoreSnapshot } from './resilience.js';
 import { setHapticsEnabled } from './haptics.js';
 import { qaSuspendRound, qaResumeRound } from './intro.js';
@@ -119,8 +119,73 @@ export async function go(name, params = {}) {
   }
   current = { name, api };
   screenEl.dataset.screen = name;
+  recordNav(name, params);
 }
 ctx.go = go;
+
+// ---- in-app history (RUN18B Y11) ---------------------------------------------
+// Every go() records a { name, params } entry and pushes ONE history entry, so the phone's
+// back gesture, the browser's back button and the on-screen "‹" all move through the same
+// stack, in-app, with no reload and no network.
+//
+// Two things it deliberately does NOT do:
+//  - it never touches the URL. Hash routing would make a refresh land deep inside a game
+//    and would offer links to screens that make no sense alone; the pack asks a refresh to
+//    behave exactly as today, and today that is the hub.
+//  - it never puts `params` INSIDE the history entry. The results screen carries a live
+//    `replay` callback and a function cannot survive history's structured clone. The
+//    history entry holds a depth; this stack, in memory, holds the rest. A reload therefore
+//    starts a fresh stack at the hub — the same screen it opens today.
+const navStack = [];
+let navDepth = -1;
+let navOnce = null;          // 'replace' for the ONE go() a popstate causes
+const NAV_MAX = 60;          // a session's stack, bounded; a child cannot out-tap this
+
+function recordNav(name, params) {
+  const mode = navOnce; navOnce = null;
+  try {
+    if (mode === 'replace' && navStack[navDepth]) {
+      navStack[navDepth] = { name, params };
+      history.replaceState({ boo: navDepth }, '');
+      return;
+    }
+    navStack.length = navDepth + 1;              // a new branch drops anything forward of here
+    navStack.push({ name, params });
+    // Bound the memory a long session can hold WITHOUT renumbering: a history entry stores
+    // an absolute depth, so shifting the array would repoint old entries at the wrong
+    // screens. Entries that age out are emptied in place and simply become unreachable.
+    for (let i = 0; i < navStack.length - NAV_MAX; i++) navStack[i] = null;
+    navDepth = navStack.length - 1;
+    history.pushState({ boo: navDepth }, '');
+  } catch (e) { console.warn('[main] history unavailable', e); }
+}
+function syncHistory() { try { history.pushState({ boo: navDepth }, ''); } catch {} }
+
+function setupHistory() {
+  try { history.replaceState({ boo: -1 }, ''); } catch (e) { console.warn('[main] history guard unavailable', e); }
+  window.addEventListener('popstate', (e) => {
+    const to = (e.state && typeof e.state.boo === 'number') ? e.state.boo : -1;
+    if (to === navDepth) return;
+    // A dialog is awaiting an answer: back must never stack a second one on top of it.
+    if (document.querySelector('.overlay')) { syncHistory(); return; }
+    // Off the bottom of the stack — the entry behind the app itself. Put ours back: back at
+    // the hub does nothing, and back NEVER leaves the page (RUN4 C1, kept).
+    if (to < 0 || to >= navStack.length || !navStack[to]) { syncHistory(); return; }
+    // Going back INTO a round in play: the screen's own guarded control asks first. History
+    // is restored before the question, so "Keep playing" costs her nothing — she is still on
+    // the screen her history says she is on.
+    if (to < navDepth && backActionGuarded()) {
+      syncHistory();
+      const act = getBackAction();
+      if (act) { try { act(); } catch (err) { console.warn(err); } }
+      return;
+    }
+    const target = navStack[to];
+    navDepth = to;
+    navOnce = 'replace';       // we are already AT this entry; do not push another
+    go(target.name, target.params);
+  });
+}
 
 export function applyAudioSettings() {
   const s = State.getState();
@@ -132,29 +197,9 @@ export function applyAudioSettings() {
   try { if (s.settings.voiceName) tts.setVoiceByName(s.settings.voiceName); } catch {}   // RUN9 C6b
 }
 
-// Android hardware/gesture back (RUN4 C1): keep one sentinel entry behind the app
-// so back always pops to it, and the popstate handler immediately re-pushes the
-// guard and runs the current screen's back action instead. Back therefore
-// navigates in-app one level (same handler as the on-screen control), does
-// nothing at the hub (no action registered), and never leaves the page. The
-// entries live in session history, so the behaviour survives reloads and the
-// installed-app context. While a modal overlay is open, back is ignored so the
-// leave-round confirm can never stack.
-function setupHardwareBack() {
-  try {
-    if (!history.state || history.state.boo !== 1) {
-      history.replaceState({ boo: 0 }, '');
-      history.pushState({ boo: 1 }, '');
-    }
-    window.addEventListener('popstate', () => {
-      if (history.state && history.state.boo === 1) return; // forward nav back onto the guard
-      history.pushState({ boo: 1 }, '');
-      if (document.querySelector('.overlay')) return;       // a dialog is awaiting an answer
-      const act = getBackAction();
-      if (act) { try { act(); } catch (e) { console.warn(e); } }
-    });
-  } catch (e) { console.warn('[main] history guard unavailable', e); }
-}
+// (RUN4 C1's single-sentinel hardware-back guard was replaced by the real in-app history
+// stack above in RUN18B Y11. Its guarantees are kept: back moves one level in-app, does
+// nothing at the hub, asks before leaving a round, and never leaves the page.)
 
 // Calm grown-ups restore screen (RUN8 v2 C1.3). Shown only when a save could not be
 // opened AND no on-device snapshot could stand in. No blame, no child-facing wording;
@@ -218,7 +263,7 @@ async function boot() {
   installOopsNet();
   installSaveGuard();
   starField(document.getElementById('starfield'), 60);
-  setupHardwareBack();
+  setupHistory();
   // Fail-safe loader (RUN8 v2 C1.3): never silent-fresh over recoverable data.
   const result = await State.loadOrRescue();
   const save = result.state;
@@ -286,6 +331,9 @@ async function boot() {
 // expose for debugging / tests. qaHoldOrganic/qaReleaseOrganic (RUN14 U-0) let a QA
 // reachability walk hold the app's organic timers still — same lever an intro overlay
 // uses — so long multi-screen walks are deterministic instead of probabilistic.
-window.BooTown = { go, State, qaHoldOrganic: qaSuspendRound, qaReleaseOrganic: qaResumeRound };
+window.BooTown = { go, State, qaHoldOrganic: qaSuspendRound, qaReleaseOrganic: qaResumeRound,
+  // RUN18B Y11 QA: the in-app history stack, so a suite can prove back/forward routed
+  // rather than reloaded.
+  nav: () => ({ depth: navDepth, stack: navStack.map(e => e && e.name), guarded: backActionGuarded() }) };
 
 boot();
