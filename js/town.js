@@ -407,10 +407,11 @@ export function mount(container, params, ctx) {
   if (AREA.key === 'meadow' && !((getState().seen || {}).wishWellSeeded)) {
     mutate(st => {
       st.seen = st.seen || {};
-      st.seen.wishWellSeeded = true;
       const items = areaItems(st);
       // A gift landmark must not silently push an already-full legacy Meadow over
       // its capacity. It remains available from Build → Landscape in that case.
+      // (RUN18A H3: the seeded flag moved BELOW the push for the same reason as the Joke
+      // Boo stage below — set here, a full Meadow burned it and the well never arrived.)
       if (items.length >= AREA_CAP) return;
       const candidates = [.12, .24, .36, .48, .60, .72, .84, .92];
       const rows = [1, 0, 2];
@@ -422,6 +423,7 @@ export function mount(container, params, ctx) {
       }
       position ||= { x:.92, row:0 };
       items.push({ zone:'meadow', ...position, item:'deco_wishwell', scale:1.1 });
+      st.seen.wishWellSeeded = true;
     });
   }
   // RUN17 X1: the Joke Boo's stage, on the same terms as the well above — a gift landmark
@@ -429,7 +431,13 @@ export function mount(container, params, ctx) {
   if (AREA.key === 'meadow' && !((getState().seen || {}).jokeStageSeeded)) {
     mutate(st => {
       st.seen = st.seen || {};
-      st.seen.jokeStageSeeded = true;
+      // THE FLAG IS SET ONLY ONCE THE STAGE IS ACTUALLY PLACED (RUN18A H3). It used to be
+      // set here, at the top — so a Meadow that was full, or that had no free spot on any
+      // row, took both early returns below with the flag already burned and NEVER seeded
+      // the stage again, on any later visit. Reproduced: a 24-item Meadow (AREA_CAP) ends
+      // with `jokeStageSeeded: true` and no stage, permanently. Putting it away herself is
+      // a different thing and still ends the seeding, as intended — that is a placement
+      // that happened.
       const items = areaItems(st);
       if (items.length >= AREA_CAP) return;
       const candidates = [.20, .32, .44, .56, .68, .80, .88, .10];
@@ -442,6 +450,7 @@ export function mount(container, params, ctx) {
       }
       if (!position) return;   // a full Meadow keeps it in the Build drawer instead
       items.push({ zone:'meadow', ...position, item:'deco_jokestage', scale:1.05 });
+      st.seen.jokeStageSeeded = true;
     });
   }
 
@@ -2086,11 +2095,18 @@ export function mount(container, params, ctx) {
       // A drawer chip is pure artwork, so without a label a screen reader announces a bare
       // "button". Name it after the item (its nickname when she has given one). (Audit.)
       const chipName = getDisplayName(id) || (item && item.name) || 'item';
+      // Landscape and wish items are UNLIMITED by design (LANDSCAPE_STOCK, a sentinel).
+      // The count badge was printing that sentinel at a child: every tree, rock and
+      // flowerbed wore "x999", and the Joke Boo's stage wore "x998". She does not own 999
+      // oak trees. An unlimited item simply shows no count. (RUN18A H3, Craftsman's
+      // Mandate — found while proving the drawer's LABEL, which turned out to be correct.)
+      const unlimited = item && (item.kind === 'landscape' || item.kind === 'wish');
+      const showCount = !unlimited && free[id] > 1;
       const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
-        'aria-label': free[id] > 1 ? `${chipName} (${free[id]})` : chipName,
+        'aria-label': showCount ? `${chipName} (${free[id]})` : chipName,
         onclick: () => selectHold(id) }, [
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
-        free[id] > 1 ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
+        showCount ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
       ]);
       // drag-to-lift is delegated to the strip's own pointer handler (attachStripMomentum,
       // RUN10 P2) — it decides scroll-vs-lift by gesture direction since chips tile edge-to-edge

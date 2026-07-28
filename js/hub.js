@@ -54,7 +54,13 @@ const GAMES = [
   { id: 'dash',      name: 'Boo Dash',     tag: 'Fluency run',   accent: 'var(--pop)',  icon: dashIcon, group: 'Play' },
   { id: 'boopop',    name: 'Boo Pop',      tag: 'Match & pop',   accent: 'var(--zing)', icon: popIcon, group: 'Play' },
   { id: 'booroll',   name: 'Boo Roll',     tag: 'Tilt & roll',   accent: 'var(--star)', icon: rollIcon, group: 'Play' },
-  { id: 'echoboos',  name: 'Echo Boos',    tag: 'Musical memory', accent: 'var(--pop)', icon: echoIcon, group: 'Play' }
+  { id: 'echoboos',  name: 'Echo Boos',    tag: 'Musical memory', accent: 'var(--pop)', icon: echoIcon, group: 'Play' },
+  // RUN18A H3: the Joke Boo's permanent front door. The stage in the Meadow is still the
+  // in-world way in, but a landmark she has to find in a four-screen-wide town is not a
+  // door — it is a secret. The icon is the stage's OWN authored art (js/art.js
+  // 'jokestage'), not a new drawing, so the card and the landmark are visibly the same
+  // thing.
+  { id: 'jokeboo',   name: 'Joke Boos',    tag: 'Knock, knock!', accent: 'var(--zing)', icon: () => renderItem(BY_ID['deco_jokestage'], { size: 56 }), group: 'Play' }
 ];
 
 export function mount(container, params, ctx) {
