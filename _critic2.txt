@@ -1,0 +1,26 @@
+D4 creator species chips: [{"label":"Giraffe","w":119,"h":52,"hasSvg":true,"svgW":29,"svgH":29,"paths":43},{"label":"Puppy","w":115,"h":52,"hasSvg":true,"svgW":29,"svgH":25,"paths":42},{"label":"Kitten","w":111,"h":52,"hasSvg":true,"svgW":29,"svgH":27,"paths":43},{"label":"Penguin","w":129,"h":52,"hasSvg":true,"svgW":29,"svgH":25,"paths":35},{"label":"Bunny","w":115,"h":52,"hasSvg":true,"svgW":29,"svgH":29,"paths":43}]
+D4 creator emoji scan (.creator): {"hits":[{"text":"🎲 Surprise me","parent":"btn soft"},{"text":"Save ✨","parent":"btn big"}]}
+errors(creator): none
+D4 studio emoji scan (.studio-grid): {"hits":[]}
+D4 studio tile art: [{"w":56,"h":56,"marks":4},{"w":56,"h":56,"marks":3},{"w":56,"h":56,"marks":7},{"w":56,"h":56,"marks":4}]
+errors(studio): none
+D4 teachme list emoji scan: {"missing":true}
+D4 teachme lesson badges: [{"title":"Hundreds, tens and ones","svg":true,"w":44,"h":44,"marks":3},{"title":"Jumping over ten","svg":true,"w":44,"h":44,"marks":5},{"title":"Taking away by counting up","svg":true,"w":44,"h":44,"marks":6},{"title":"What a fraction really is","svg":true,"w":44,"h":44,"marks":4},{"title":"Times tables are quick adding","svg":true,"w":44,"h":44,"marks":6},{"title":"Telling the time","svg":true,"w":44,"h":44,"marks":5},{"title":"Sounds in words","svg":true,"w":44,"h":44,"marks":4},{"title":"Words that sound the same","svg":true,"w":44,"h":44,"marks":8},{"title":"How a story works","svg":true,"w":44,"h":44,"marks":3}]
+D4 teachme scene tag: {"cls":"tm-stage","text":"2 · Two ways to see itBig numbers are just small numbers standing in towers. Let me show you.Next ➜","anim":"none","tr":"all","transform":"none"}
+D4 teachme stage emoji scan: {"hits":[{"text":"Next ➜","parent":"btn big tm-next"}]}
+errors(teachme): none
+D4 picnic emoji scan (#screen): {"hits":[{"text":"🍓","parent":"tp-ic"},{"text":"🍅","parent":"tp-ic"},{"text":"🍬","parent":"tp-ic"},{"text":"🌶️","parent":"tp-ic"},{"text":"🍇","parent":"tp-ic"},{"text":"🥬","parent":"tp-ic"},{"text":"🍏","parent":"tp-ic"},{"text":"🥒","parent":"tp-ic"}]}
+D4 picnic svgs: [{"w":44,"h":44,"cls":"exp-rule-guide","marks":45},{"w":54,"h":54,"cls":"pp-grump","marks":5},{"w":26,"h":26,"cls":"icon-btn back-btn screen-back","marks":1}]
+errors(picnic): none
+D1 shop 1024: {"shelf":{"x":167,"w":690},"boxes":[{"cls":"shop-shelf screen-content","w":690,"mid":512},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0}],"hScroll":0}
+D1 trophies 1024: [{"cls":"coll-header screen-content","w":720,"mid":512},{"cls":"coll-tabs screen-content","w":720,"mid":512},{"cls":"coll-scroll trophy-view screen-content","w":720,"mid":512}]
+D1 results 1024: {"card":{"x":282,"w":460,"y":32,"h":705},"btns":[{"t":"Back","y":10,"b":66,"onScreen":true},{"t":"Open your box! 🎁","y":576,"b":644,"onScreen":true},{"t":"Play again","y":660,"b":716,"onScreen":true},{"t":"Back to Boo Town","y":660,"b":716,"onScreen":true}],"vh":768}
+errors(1024): none
+D1 shop 1456: {"shelf":{"x":383,"w":690},"boxes":[{"cls":"shop-shelf screen-content","w":690,"mid":728},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0}],"hScroll":0}
+D1 trophies 1456: [{"cls":"coll-header screen-content","w":720,"mid":728},{"cls":"coll-tabs screen-content","w":720,"mid":728},{"cls":"coll-scroll trophy-view screen-content","w":720,"mid":728}]
+D1 results 1456: {"card":{"x":498,"w":460,"y":63,"h":705},"btns":[{"t":"Back","y":10,"b":66,"onScreen":true},{"t":"Open your box! 🎁","y":608,"b":676,"onScreen":true},{"t":"Play again","y":692,"b":748,"onScreen":true},{"t":"Back to Boo Town","y":692,"b":748,"onScreen":true}],"vh":831}
+errors(1456): none
+D1 shop 390: {"shelf":{"x":15,"w":360},"boxes":[{"cls":"shop-shelf screen-content","w":360,"mid":195},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0},{"cls":"shop-shelf screen-content","w":0,"mid":0}],"hScroll":0}
+D1 trophies 390: [{"cls":"coll-header screen-content","w":362,"mid":195},{"cls":"coll-tabs screen-content","w":362,"mid":195},{"cls":"coll-scroll trophy-view screen-content","w":362,"mid":195}]
+D1 results 390: {"card":{"x":20,"w":350,"y":93,"h":660},"btns":[{"t":"Back","y":10,"b":66,"onScreen":true},{"t":"Open your box! 🎁","y":617,"b":679,"onScreen":true},{"t":"Play again","y":695,"b":739,"onScreen":true},{"t":"Back to Boo Town","y":695,"b":739,"onScreen":true}],"vh":844}
+errors(390): none

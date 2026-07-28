@@ -66,11 +66,16 @@
 .ss-card.nudge { animation: ssNudge 1.1s ease-in-out 2; border-color: var(--star, #FFC93C); }
 .ss-card:focus-visible { outline: 4px solid var(--star, #FFC93C); outline-offset: 3px; }
 
+/* RUN18D D8 — RUN16's own self-critique, honoured: an 8px rise over six seconds is a
+   drift nobody notices, so the cards were "floating" only in the source. The shape of the
+   path is unchanged; the amplitude is now a named variable the game sets from
+   DRIFT_AMPLITUDE_PX, and each row carries a horizontal parallax so the rows visibly slide
+   against one another instead of the whole grid breathing as one block. */
 @keyframes ssDrift {
   0%, 100% { transform: translate3d(0, 0, 0); }
-  25% { transform: translate3d(3px, -5px, 0); }
-  50% { transform: translate3d(0, -8px, 0); }
-  75% { transform: translate3d(-3px, -4px, 0); }
+  25% { transform: translate3d(calc(var(--ssamp, 22px) * 0.17 + var(--ssrow, 0px)), calc(var(--ssamp, 22px) * -0.6), 0); }
+  50% { transform: translate3d(calc(var(--ssrow, 0px) * 0.4), calc(var(--ssamp, 22px) * -1), 0); }
+  75% { transform: translate3d(calc(var(--ssamp, 22px) * -0.17 - var(--ssrow, 0px)), calc(var(--ssamp, 22px) * -0.5), 0); }
 }
 @keyframes ssNamed { 0% { transform: scale(1); } 45% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @keyframes ssNudge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }

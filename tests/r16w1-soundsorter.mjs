@@ -351,6 +351,76 @@ console.log('== 7. already-answered tiles, and the celebration window, cost noth
 
 console.log(errors.length ? '\nPAGE ERRORS: ' + errors.slice(0, 5).join(' | ') : '\nno page errors');
 if (errors.length) failed = true;
+
+// ---- RUN18D D8: drift worth noticing -------------------------------------------------
+// RUN16 W1 shipped an 8px rise over a fixed 5.2-6.1s and said so itself in its own
+// self-critique: a drift a child never sees is not a drift. The numbers are authored now,
+// and this measures the board rather than grepping the source, because the amplitude is a
+// CSS variable and only the rendered card knows whether it arrived.
+console.log('== the cards drift 22px, on per-card periods, with the rows sliding apart ==');
+{
+  const { DRIFT_AMPLITUDE_PX, DRIFT_PERIOD_MS, ROW_PARALLAX_PX } = await import('../js/games/soundsorter.js');
+  assert(DRIFT_AMPLITUDE_PX === 22, `DRIFT_AMPLITUDE_PX is 22 (${DRIFT_AMPLITUDE_PX})`);
+  assert(DRIFT_PERIOD_MS[0] === 4000 && DRIFT_PERIOD_MS[1] === 7000, `periods are randomised 4-7s (${DRIFT_PERIOD_MS})`);
+  assert(ROW_PARALLAX_PX === 6, `row parallax is 6px (${ROW_PARALLAX_PX})`);
+
+  const { ctx, page } = await open('soundsorter');
+  await page.waitForSelector('.level-btn', { timeout: 15000 });
+  await page.click('.level-btn');
+  await page.waitForSelector('.ss-card', { timeout: 15000 });
+  await page.waitForTimeout(400);
+
+  const vars = await page.evaluate(() => [...document.querySelectorAll('.ss-card')].map((n, i) => {
+    const cs = getComputedStyle(n);
+    return { i, amp: n.style.getPropertyValue('--ssamp').trim(), row: n.style.getPropertyValue('--ssrow').trim(),
+             dur: parseFloat(cs.animationDuration) };
+  }));
+  assert(vars.length >= 6, `${vars.length} cards on the board`);
+  assert(vars.every(v => v.amp === '22px'), `every card carries the authored amplitude (${vars.map(v => v.amp).join(',')})`);
+  assert(vars.every(v => v.dur >= 4 && v.dur <= 7), `every period is inside 4-7s (${vars.map(v => v.dur.toFixed(2)).join(',')})`);
+  assert(new Set(vars.map(v => v.dur.toFixed(2))).size >= 4,
+    `and they are picked per CARD, not shared (${new Set(vars.map(v => v.dur.toFixed(2))).size} distinct)`);
+  const rows = new Set(vars.map(v => v.row));
+  assert(rows.has('6px') && rows.has('-6px'), `rows carry opposite parallax (${[...rows].join(',')})`);
+
+  // 8 frames over 4s: every card must genuinely be somewhere else, and the SPREAD of where
+  // it goes has to be worth the 22px it is asking for.
+  const frames = [];
+  for (let f = 0; f < 8; f++) {
+    frames.push(await page.evaluate(() => [...document.querySelectorAll('.ss-card')]
+      .map(n => { const r = n.getBoundingClientRect(); return [Math.round(r.top * 10) / 10, Math.round(r.left * 10) / 10]; })));
+    await page.waitForTimeout(500);
+  }
+  const spans = frames[0].map((_, c) => {
+    const ys = frames.map(fr => fr[c][0]), xs = frames.map(fr => fr[c][1]);
+    return { y: Math.max(...ys) - Math.min(...ys), x: Math.max(...xs) - Math.min(...xs) };
+  });
+  const distinctFrames = new Set(frames.map(fr => JSON.stringify(fr))).size;
+  assert(distinctFrames === 8, `all 8 frames over 4s are distinct (${distinctFrames})`);
+  assert(spans.every(sp => sp.y >= 10), `every card really travels (worst vertical span ${Math.min(...spans.map(sp => sp.y)).toFixed(1)}px over 4s)`);
+  assert(Math.max(...spans.map(sp => sp.y)) >= 16,
+    `and the board reaches most of its 22px (best ${Math.max(...spans.map(sp => sp.y)).toFixed(1)}px)`);
+  await page.screenshot({ path: `${SHOTS}/d8-drift.png` });
+  await ctx.close();
+
+  // reduced motion: static, and still tappable
+  const rctx = await browser.newContext({ viewport: { width: 1024, height: 768 }, reducedMotion: 'reduce' });
+  const rpage = await rctx.newPage();
+  await rpage.addInitScript(s2 => localStorage.setItem('bootown.save.v1', s2), save());
+  await rpage.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 40000 });
+  await rpage.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 40000 });
+  await rpage.evaluate(() => window.BooTown.go('soundsorter'));
+  await rpage.waitForSelector('.level-btn', { timeout: 15000 });
+  await rpage.click('.level-btn');
+  await rpage.waitForSelector('.ss-card', { timeout: 15000 });
+  await rpage.waitForTimeout(300);
+  const a = await rpage.evaluate(() => [...document.querySelectorAll('.ss-card')].map(n => n.getBoundingClientRect().top));
+  await rpage.waitForTimeout(1400);
+  const b = await rpage.evaluate(() => [...document.querySelectorAll('.ss-card')].map(n => n.getBoundingClientRect().top));
+  assert(a.every((v, i) => Math.abs(v - b[i]) < 0.6), 'reduced motion holds every card still');
+  await rctx.close();
+}
+
 await browser.close();
 console.log(failed ? '\nRESULT: FAIL' : '\nRESULT: PASS');
 process.exit(failed ? 1 : 0);

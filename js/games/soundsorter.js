@@ -35,6 +35,14 @@ import {
 
 // The three picker cards. Twelve phonemes as twelve cards would break the eight-primary-
 // buttons rule at phone width, so they group into three fours the way they are taught.
+// ---- RUN18D D8: drift worth noticing -------------------------------------------------
+// 8px over a fixed 5.2-6.1s was RUN16's own self-critique: a drift a child never sees is
+// not a drift. Exported so tests/r16w1-soundsorter.mjs can measure the board against the
+// authored numbers rather than against a source grep.
+export const DRIFT_AMPLITUDE_PX = 22;          // was 8
+export const DRIFT_PERIOD_MS = [4000, 7000];   // per CARD, randomised in this window
+export const ROW_PARALLAX_PX = 6;              // rows slide +/- this against each other
+
 export const SOUND_GROUPS = [
   { key: 'pairs', name: 'Sound Pairs', sub: 'sh · ch · th · ng', sounds: ['sh', 'ch', 'th', 'ng'] },
   { key: 'teams', name: 'Vowel Teams', sub: 'ai · ee · oa · oo', sounds: ['ai', 'ee', 'oa', 'oo'] },
@@ -226,9 +234,20 @@ export function mount(container, params, ctx) {
         el('div', { class: 'ss-card-tip', text: whereLabel(t.position) })
       );
       cardNodes = t.cards.map((w, i) => {
+        // RUN18D D8: amplitude, a period picked per CARD in the authored 4-7s window, and a
+        // per-ROW horizontal parallax so the three rows slide against each other. Every one
+        // of them is a transform on a CSS keyframe, so the reduced-motion rule below (and
+        // RUN18B Y15's calm-motion blanket) still switch the whole thing off at once.
+        const row = Math.floor(i / 3);
+        const period = DRIFT_PERIOD_MS[0] + Math.random() * (DRIFT_PERIOD_MS[1] - DRIFT_PERIOD_MS[0]);
         const btn = el('button', {
           class: 'ss-card', 'aria-label': w, dataset: { word: w },
-          style: REDUCED ? {} : { '--dly': (i * 0.37).toFixed(2) + 's', '--dur': (5.2 + (i % 3) * 0.9).toFixed(2) + 's' },
+          style: REDUCED ? {} : {
+            '--dly': (i * 0.37).toFixed(2) + 's',
+            '--dur': (period / 1000).toFixed(2) + 's',
+            '--ssamp': DRIFT_AMPLITUDE_PX + 'px',
+            '--ssrow': (row % 2 ? -ROW_PARALLAX_PX : ROW_PARALLAX_PX) + 'px'
+          },
           onclick: () => tapCard(t, w, btn)
         }, [el('span', { class: 'ss-pic', html: renderWordArt(w, { size: 92, label: w }) })]);
         field.appendChild(btn);
