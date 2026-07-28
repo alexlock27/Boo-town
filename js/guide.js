@@ -72,7 +72,9 @@ function owningScreen() {
 }
 
 // Speak a line if voice is on; duck the music while speaking.
-// `opts.interrupt` is for the Interrupting Boo alone: it pre-empts what is speaking now.
+// `opts.interrupt` is for the Interrupting Boo alone: `true` cuts whatever is speaking,
+// or pass the ID RETURNED BY AN EARLIER speakMaybe to cut that specific line whether it
+// has started yet or not (screen and voice do not share a clock).
 export function speakMaybe(text, voice = true, opts = {}) {
   const s = getState();
   const voiceOn = voice && s && s.settings && s.settings.voice;
