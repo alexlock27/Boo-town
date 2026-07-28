@@ -344,7 +344,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
    true at every width instead of true at the two we happened to look at. The backdrop
    stays pointer-transparent — only the card itself takes the dismissing tap, so the shop
    underneath is never held hostage. */
-.shop-bought { inset: 0 0 var(--sb-bottom, 90px) 0; opacity: 0; transition: opacity .2s ease; }
+.shop-bought { inset: var(--sb-top, 0px) 0 var(--sb-bottom, 90px) 0; opacity: 0; transition: opacity .2s ease; }
 .shop-bought.show { opacity: 1; }
 .shop-bought .sb-card {
   pointer-events: auto; cursor: pointer;
@@ -357,7 +357,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .sw-amount { font: 700 26px var(--font-display); color: var(--ink); margin: 0; }
 .sw-note { color: #574B86; margin: 0; }
 @media (max-width: 600px) {
-  .shop-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+  /* RUN18D (critic): 112px missed a third column by two pixels — 3x112 + 2x8 = 352 against
+     the 350 a 390px phone leaves — so the shelf showed two fat cards per row and four items
+     above the fold. 102px fits three and doubles what she can see without scrolling. */
+  .shop-grid { grid-template-columns: repeat(auto-fill, minmax(102px, 1fr)); gap: 8px; }
   .shop-title { font-size: 19px; } .shop-sub { font-size: 12px; }
   .sc-art { height: 64px; }
 }
@@ -6239,3 +6242,21 @@ html.bigger-text { --vz: 1.125; }
 .det-kb.abc .det-kb-actions { gap: 16px; }
 .det-kb.abc .det-kb-actions .det-key { max-width: 160px; min-width: 56px; }
 @media (min-width: 600px) { .det-kb.abc .det-key { min-width: 56px; } }
+
+/* RUN18D (playtest critic, D1 pass) — the Boo Shop's drawer.
+   The shared drawer caps its tray at 48vh because Paint and Collage have a canvas above
+   theirs that must stay visible. The shop has nothing above it but a header and a purse, so
+   48vh meant a 399px shelf on an 831px tablet with 370px of empty sky over it — one and a
+   half rows of five. The shop's tray takes the room it actually has. */
+.shop-drawer .bd-tray { max-height: calc(74vh / var(--vz)); }
+@media (max-width: 600px) { .shop-drawer .bd-tray { max-height: calc(72vh / var(--vz)); } }
+/* …and the collapsed bar says which shelf is open and which star it likes, instead of
+   being a grey skeleton pill with a chevron. */
+.bd-cur-label small { display: block; font-size: 12px; font-weight: 600; opacity: 0.75; }
+
+/* RUN18D (playtest critic, D4 pass) — the toppings are drawings now, so their boxes have to
+   size an <svg> rather than a glyph. The slot art shrinks with the slot on a phone. */
+.tp-ic { font-size: 0; display: grid; place-items: center; }
+.tp-ic svg { display: block; }
+.pp-slot { font-size: 0; }
+.pp-slot svg { display: block; width: 100%; height: 100%; }

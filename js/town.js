@@ -1175,7 +1175,9 @@ export function mount(container, params, ctx) {
     const view = funfairView();
     // fair scenery (bunting, string lights, ticket booth, popcorn cart) in the ground
     // layer so it lines up with the rides; night makes the string lights glow (C1b)
-    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour())) });
+    // RUN18D D10: the visible width matters. Without it the fair's furniture is laid out
+    // across all four viewports and none of it lands on the screen she arrives at.
+    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour()), viewW) });
     sc.style.left = (zi * zoneW) + 'px'; sc.style.top = '0'; sc.style.width = zoneW + 'px'; sc.style.height = viewH + 'px'; sc.style.zIndex = '1';
     ground.insertBefore(sc, ground.firstChild);
     for (const ride of view.built) {
@@ -3276,6 +3278,10 @@ export function mount(container, params, ctx) {
       geometry: () => ({ viewW, zoneW, worldW, zones: ZONES.length, ratio: zoneW / viewW }),
       scrollX: () => scrollX,
       scrollMax: () => Math.max(0, worldW - viewW),
+      // RUN18D D10 QA: walk the area a screen at a time, the way the child's swipe does,
+      // so a suite can ask "is there any part of this place that is bare?"
+      scrollTo: (x) => { scrollX = x; clampScroll(); applyScroll(); return scrollX; },
+      scrollScreens: () => Math.max(1, Math.round(worldW / viewW)),
       actorCount: () => actors.length,
       drift: (target) => actors.forEach(a => { if (!a.role && !a.dancing) { a.depthTarget = target; a.depthLock = true; a.state = 'pause'; a.vx = 0; } }),
       // vertical (depth) offsets of free wanderers, read from their live transforms

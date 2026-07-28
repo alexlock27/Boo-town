@@ -38,7 +38,10 @@ async function openShop() {
   await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
   await page.evaluate(() => window.BooTown.go('shop'));
   await page.waitForFunction(() => !!window.__shop, null, { timeout: 20000 });
-  await page.click('.bd-collapsed').catch(() => {});   // the shelves live in the shared drawer
+  // RUN18D (critic fix): the shop's drawer OPENS on arrival now — the shelves ARE the
+  // screen — so an unconditional tap on the handle CLOSES it and every card goes behind the
+  // collapsed bar. Open it only if it is shut.
+  await page.evaluate(() => { const d = document.querySelector('.boo-drawer'); if (d && !d.classList.contains('open')) d.querySelector('.bd-collapsed').click(); });
   await sleep(300);
   await page.evaluate(() => window.__shop.showTab('house'));
   await sleep(300);

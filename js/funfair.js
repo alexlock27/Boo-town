@@ -250,42 +250,73 @@ export function stepRide(box, ride, now) {
 // ---- fair scenery (ticket booth, bunting, string lights, popcorn cart) ----
 // Returns an SVG string sized to the zone (drawn behind the rides). `night`
 // makes the string lights glow.
-export function fairSceneryFor(zoneW, viewH, night) {
+// RUN18D D10 — THE DIAGNOSIS. The audit saw "an umbrella and bunting" and was reporting
+// exactly what is on screen. Nothing was unwired and nothing was under a layer: the fixed
+// scenery is laid out as fractions of the WHOLE AREA, and a town area is FOUR viewports
+// wide. The ticket booth sat at 0.28 of 4032px = 1129px and the popcorn cart at 0.50 =
+// 2016px — one and two screens to the RIGHT of where a child arrives — while the 18 bulbs
+// and 16 flags were spread across all 4032px, so the entry screen got four of each and read
+// as a washing line. The "umbrella" was the carousel's canopy.
+//
+// The fix is per-SCREEN layout. A fair is a fair everywhere in the fair: the bunting, the
+// string lights and the far wheel repeat once per viewport, and the booth and the cart are
+// placed within the first one, so they are visibly present on entry with zero placements.
+// `viewW` is the visible width; it defaults to the whole area, which is the old behaviour.
+export function fairSceneryFor(zoneW, viewH, night, viewW) {
   const w = zoneW, h = viewH;
-  const bulbs = Array.from({ length: 18 }, (_, i) => {
-    const x = 26 + i * (w - 52) / 17, y = h * 0.31 + Math.sin(i / 17 * Math.PI) * 30;
+  const screenW = Math.max(240, Math.min(viewW || w, w));
+  const screens = Math.max(1, Math.round(w / screenW));
+  // per screen: a full swag, not four flags stranded on a wire
+  const BULBS_PER_SCREEN = 9, FLAGS_PER_SCREEN = 8;
+  const bulbs = Array.from({ length: BULBS_PER_SCREEN * screens }, (_, i) => {
+    const k = i % BULBS_PER_SCREEN, sc = Math.floor(i / BULBS_PER_SCREEN);
+    const x = sc * screenW + 26 + k * (screenW - 52) / (BULBS_PER_SCREEN - 1);
+    const y = h * 0.31 + Math.sin(k / (BULBS_PER_SCREEN - 1) * Math.PI) * 30;
     return `<circle class="ff-bulb" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="7" fill="${['#FFC93C', '#FF7AC6', '#35D0BA'][i % 3]}"/>`;
   }).join('');
-  const flags = Array.from({ length: 16 }, (_, i) => {
-    const x = 16 + i * (w - 32) / 15, y = h * 0.19 + Math.sin(i / 15 * Math.PI) * 18;
+  const flags = Array.from({ length: FLAGS_PER_SCREEN * screens }, (_, i) => {
+    const k = i % FLAGS_PER_SCREEN, sc = Math.floor(i / FLAGS_PER_SCREEN);
+    const x = sc * screenW + 16 + k * (screenW - 32) / (FLAGS_PER_SCREEN - 1);
+    const y = h * 0.19 + Math.sin(k / (FLAGS_PER_SCREEN - 1) * Math.PI) * 18;
     return `<path d="M${x.toFixed(0)} ${y.toFixed(0)} l22 0 l-11 26 z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`;
   }).join('');
-  const boothX = w * 0.28, boothY = h * 0.40;
-  const booth = `<g transform="translate(${boothX.toFixed(0)},${boothY.toFixed(0)})">
+  // The booth stands on every OTHER screen and the cart on every one, each nudged along a
+  // little, so walking the fair keeps meeting the fair instead of four flags on a wire.
+  const boothY = h * 0.40;
+  const boothAt = (sc) => (sc * screenW + screenW * (0.06 + (sc % 2) * 0.05));
+  const boothOne = (bx) => `<g class="ff-booth" transform="translate(${bx.toFixed(0)},${boothY.toFixed(0)})">
     <rect x="0" y="30" width="96" height="70" rx="8" fill="#FFF3E0" stroke="#2A1B4E" stroke-width="3"/>
     <path d="M-6 30 h108 l-10 -22 h-88 z" fill="#FF7AC6" stroke="#2A1B4E" stroke-width="3"/>
     <path d="M-6 30 h108" stroke="#FFF8F0" stroke-width="0"/>
     ${Array.from({ length: 6 }, (_, i) => `<rect x="${-6 + i * 18}" y="8" width="9" height="22" fill="${i % 2 ? '#FFF8F0' : '#FF7AC6'}"/>`).join('')}
     <rect x="16" y="52" width="64" height="30" rx="5" fill="#8FC7FF" stroke="#2A1B4E" stroke-width="2.5"/>
-    <text x="48" y="24" font-family="Fredoka,sans-serif" font-size="15" font-weight="700" fill="#FFF8F0" text-anchor="middle">TICKETS</text></g>`;
-  const cartX = w * 0.50, cartY = h * 0.50;
-  const popcorn = `<g transform="translate(${cartX.toFixed(0)},${cartY.toFixed(0)})">
+    <text x="48" y="24" font-family="Fredoka,sans-serif" font-size="15" font-weight="700" fill="#2A1B4E" text-anchor="middle">TICKETS</text></g>`;
+  const booth = Array.from({ length: Math.ceil(screens / 2) }, (_, k) => boothOne(boothAt(k * 2))).join('');
+  const cartY = h * 0.50;
+  const cartAt = (sc) => (sc * screenW + screenW * (0.44 + (sc % 3) * 0.07));
+  const cartOne = (cx) => `<g class="ff-cart" transform="translate(${cx.toFixed(0)},${cartY.toFixed(0)})">
     <rect x="0" y="16" width="70" height="52" rx="6" fill="#FF5C8A" stroke="#2A1B4E" stroke-width="3"/>
     ${Array.from({ length: 6 }, (_, i) => `<rect x="${4 + i * 11}" y="16" width="6" height="52" fill="${i % 2 ? '#FFF8F0' : '#FF5C8A'}" opacity="0.9"/>`).join('')}
     <rect x="6" y="2" width="58" height="20" rx="5" fill="#FFF3E0" stroke="#2A1B4E" stroke-width="2.5"/>
     <circle cx="18" cy="6" r="6" fill="#FFF8F0"/><circle cx="30" cy="3" r="6" fill="#FFEEA6"/><circle cx="44" cy="6" r="6" fill="#FFF8F0"/><circle cx="54" cy="4" r="5" fill="#FFEEA6"/>
     <circle cx="14" cy="72" r="8" fill="#2A1B4E"/><circle cx="56" cy="72" r="8" fill="#2A1B4E"/></g>`;
+  const popcorn = Array.from({ length: screens }, (_, k) => cartOne(cartAt(k))).join('');
   // RUN13B T8: a second, higher bunting swag (topped up per the dressing brief) and a
   // distant ferris-wheel silhouette turning very slowly beyond the fair — the skyline
   // saying the fair goes on further than you can walk.
-  const flags2 = Array.from({ length: 12 }, (_, i) => {
-    const x = 40 + i * (w - 80) / 11, y = h * 0.095 + Math.sin(i / 11 * Math.PI) * 12;
+  const FLAGS2_PER_SCREEN = 6;
+  const flags2 = Array.from({ length: FLAGS2_PER_SCREEN * screens }, (_, i) => {
+    const k = i % FLAGS2_PER_SCREEN, sc = Math.floor(i / FLAGS2_PER_SCREEN);
+    const x = sc * screenW + 40 + k * (screenW - 80) / (FLAGS2_PER_SCREEN - 1);
+    const y = h * 0.095 + Math.sin(k / (FLAGS2_PER_SCREEN - 1) * Math.PI) * 12;
     return `<path d="M${x.toFixed(0)} ${y.toFixed(0)} l16 0 l-8 19 z" fill="${['#FFC93C', '#8FC7FF', '#FF7AC6', '#35D0BA'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`;
   }).join('');
-  const bunting2 = `<path d="M30 ${(h * 0.095).toFixed(0)} Q${(w / 2).toFixed(0)} ${(h * 0.06).toFixed(0)} ${w - 30} ${(h * 0.095).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2" opacity="0.55"/>${flags2}`;
-  const fwx = w * 0.86, fwy = h * 0.22, fwr = 54;
+  const bunting2 = Array.from({ length: screens }, (_, sc) =>
+    `<path d="M${(sc * screenW + 30).toFixed(0)} ${(h * 0.095).toFixed(0)} Q${(sc * screenW + screenW / 2).toFixed(0)} ${(h * 0.06).toFixed(0)} ${(sc * screenW + screenW - 30).toFixed(0)} ${(h * 0.095).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2" opacity="0.55"/>`
+  ).join('') + flags2;
+  const fwy = h * 0.22, fwr = 54;
   const sil = night ? '#4A4276' : '#8B7FB8';
-  const farWheel = `<g class="ff-far" opacity="0.75">
+  const farWheelOne = (fwx) => `<g class="ff-far" opacity="0.75">
     <line x1="${(fwx - 26).toFixed(0)}" y1="${(fwy + fwr + 34).toFixed(0)}" x2="${fwx.toFixed(0)}" y2="${fwy.toFixed(0)}" stroke="${sil}" stroke-width="5" stroke-linecap="round"/>
     <line x1="${(fwx + 26).toFixed(0)}" y1="${(fwy + fwr + 34).toFixed(0)}" x2="${fwx.toFixed(0)}" y2="${fwy.toFixed(0)}" stroke="${sil}" stroke-width="5" stroke-linecap="round"/>
     <g class="ff-far-wheel">
@@ -293,10 +324,14 @@ export function fairSceneryFor(zoneW, viewH, night) {
       ${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return `<line x1="${fwx.toFixed(0)}" y1="${fwy.toFixed(0)}" x2="${(fwx + fwr * Math.cos(a)).toFixed(0)}" y2="${(fwy + fwr * Math.sin(a)).toFixed(0)}" stroke="${sil}" stroke-width="2.5"/><circle cx="${(fwx + fwr * Math.cos(a)).toFixed(0)}" cy="${(fwy + fwr * Math.sin(a)).toFixed(0)}" r="6" fill="none" stroke="${sil}" stroke-width="2.5"/>`; }).join('')}
       <circle cx="${fwx.toFixed(0)}" cy="${fwy.toFixed(0)}" r="5" fill="${sil}"/>
     </g></g>`;
+  const farWheel = Array.from({ length: screens }, (_, k) => farWheelOne(k * screenW + screenW * 0.80)).join('');
+  const swag = (frac, dip, opacity) => Array.from({ length: screens }, (_, sc) =>
+    `<path d="M${(sc * screenW + 8).toFixed(0)} ${(h * frac).toFixed(0)} Q${(sc * screenW + screenW / 2).toFixed(0)} ${(h * dip).toFixed(0)} ${(sc * screenW + screenW - 8).toFixed(0)} ${(h * frac).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2"${opacity ? ` opacity="${opacity}"` : ''}/>`
+  ).join('');
   return `<svg class="ff-scenery${night ? ' night' : ''}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
     ${farWheel}${bunting2}
-    <path d="M8 ${(h * 0.20).toFixed(0)} Q${(w / 2).toFixed(0)} ${(h * 0.14).toFixed(0)} ${w - 8} ${(h * 0.20).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2"/>${flags}
-    <path d="M8 ${(h * 0.30).toFixed(0)} Q${(w / 2).toFixed(0)} ${(h * 0.24).toFixed(0)} ${w - 8} ${(h * 0.30).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2" opacity="0.6"/>${bulbs}
+    ${swag(0.20, 0.14, null)}${flags}
+    ${swag(0.30, 0.24, '0.6')}${bulbs}
     ${booth}${popcorn}</svg>`;
 }
 

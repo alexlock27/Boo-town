@@ -21,6 +21,7 @@ import { stampJournal } from './quests.js';
 // RUN18A H4. The confirmation card is held long enough to actually read — the old toast
 // was gone in 1.8s including its fade — and it sits this far clear of the shelf tab row.
 export const SHOP_BOUGHT_MS = 2500;
+const SHOP_BOUGHT_MIN_BAND = 250;   // the card is ~213px tall; never centre it in less
 const SHOP_BOUGHT_CLEAR = 14;
 
 // ---- RUN18B Y2: the handoff ------------------------------------------------------------
@@ -146,8 +147,28 @@ export function mount(container, params, ctx) {
     shelfNodes[shelf.id] = node;
     return { id: shelf.id, label: shelf.label, node };
   });
-  const drawerApi = createDrawer({ tabs, initial: 0, ariaLabel: 'Shop shelves' });
+  // RUN18D (playtest critic, D1 pass): the shop arrived as a blank purple screen with one
+  // unlabelled grey pill at the bottom. Three things were wrong and all three were here.
+  //  1. The drawer starts CLOSED. Paint and Collage have a canvas above theirs; the shop
+  //     has nothing at all — the shelves ARE the screen, so it opens on arrival.
+  //  2. `setCurrent()` was never called, so the collapsed bar was a skeleton pill and a ▲.
+  //     Paint and Collage both call it; the shop simply never did. It says which shelf is
+  //     open and which star it likes, and it is kept in step by onTab.
+  //  3. The tray was capped at 48vh — 399px of an 831px tablet with 370px of purple above
+  //     it — so one and a half rows of a five-row shelf were visible. See the CSS.
+  const shelfCurrent = (id) => {
+    const sh = SHELVES.find(x => x.id === id) || SHELVES[0];
+    const t = STAR_TYPES.find(x => x.key === sh.currency);
+    return `<span class="bd-cur-ic">${t ? t.icon : '⭐'}</span>` +
+      `<span class="bd-cur-label">${sh.label} shelf<small> · ${t ? t.name : 'stars'}</small></span>`;
+  };
+  const drawerApi = createDrawer({
+    tabs, initial: 0, ariaLabel: 'Shop shelves',
+    onTab: (id) => drawerApi.setCurrent(shelfCurrent(id))
+  });
+  drawerApi.setCurrent(shelfCurrent(SHELVES[0].id));
   drawerApi.root.classList.add('shop-drawer');
+  drawerApi.open();
   root.append(header, purse, drawerApi.root, backControl(() => ctx.go('hub'), { floating: true }));
 
   function renderPurse() {
@@ -281,10 +302,21 @@ export function mount(container, params, ctx) {
     // Measure the tab row rather than guessing a constant: the tabs are 52px at desktop
     // and 102px at phone width, so any single hard-coded gap is wrong somewhere.
     const tabs = drawerApi.root.querySelector('.bd-tabs');
-    const clearance = tabs
-      ? Math.round(Math.max(0, window.innerHeight - tabs.getBoundingClientRect().top)) + SHOP_BOUGHT_CLEAR
-      : 90;
-    wrap.style.setProperty('--sb-bottom', clearance + 'px');
+    // RUN18D (critic fix follow-on): the drawer OPENS on arrival now, so the tab row sits
+    // near the TOP of the screen rather than near the bottom. The old measurement — "how far
+    // up the screen are the tabs" — then swallowed the whole band the card is centred in and
+    // the card hung 37px off the top of the screen.
+    // The authored intent is unchanged and now stated directly: the card is centred in the
+    // band BELOW the tab row and ABOVE the collapsed handle, so the shelf tabs stay visible
+    // and untouched whether the drawer is open or shut.
+    const bar = drawerApi.root.querySelector('.bd-collapsed');
+    const top = tabs ? Math.round(Math.max(0, tabs.getBoundingClientRect().bottom)) + SHOP_BOUGHT_CLEAR : 0;
+    const bottom = bar ? Math.round(Math.max(0, window.innerHeight - bar.getBoundingClientRect().top)) : 90;
+    // …unless that band is too thin to hold the card, in which case the card wins: a
+    // celebration she cannot read is worse than a tab row she cannot see for two seconds.
+    const room = window.innerHeight - top - bottom;
+    wrap.style.setProperty('--sb-top', (room >= SHOP_BOUGHT_MIN_BAND ? top : 0) + 'px');
+    wrap.style.setProperty('--sb-bottom', (room >= SHOP_BOUGHT_MIN_BAND ? bottom : Math.max(0, Math.min(bottom, window.innerHeight - SHOP_BOUGHT_MIN_BAND))) + 'px');
     requestAnimationFrame(() => wrap.classList.add('show'));
     speakMaybe(`${item.name} is yours!`);
     let gone = false;
