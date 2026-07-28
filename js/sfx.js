@@ -113,6 +113,12 @@ export const sfx = {
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
       o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.32);
     }); },
+  // RUN18B Y5: the bite itself — a soft low snap, not a crunch. Logged so the suite can
+  // prove a chomp happened on every correct feed without listening to the speakers.
+  chomp() { play(t => {
+    pitchDrum(t, 180, 70, 0.09, 0.5);
+    envTone(150, t + 0.05, 0.10, 'triangle', 0.28, sfxGain, 'chomp');   // envTone logs it
+  }); },
   star()  { play(t => { [784, 1047, 1319].forEach((f, i) => envTone(f, t + i * 0.09, 0.18, 'triangle', 0.34)); }); },
   fanfare() { play(t => {
       [523, 659, 784, 1047].forEach((f, i) => envTone(f, t + i * 0.11, 0.3, 'triangle', 0.4));

@@ -100,7 +100,15 @@ function eyes(lx, rx, cy, r, kind = 'round') {
   return white(lx) + white(rx) + pupil(lx) + pupil(rx);
 }
 
-function mouth(species) {
+function mouth(species, state) {
+  // RUN18B Y5 — the open mouth Feed the Boos swaps in as the food arrives. One drawing,
+  // in the art layer, so a Boo that opens its mouth looks the same wherever it does it.
+  if (state === 'open') {
+    return ell(60, 97, 14, 12, '#6E2440', `stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"`) +
+           ell(60, 104, 8, 5, COLORS.blush, `opacity="0.95"`) +
+           `<path d="M50 91 L54 96 L58 91 Z" fill="${COLORS.toothW}" stroke="${INK}" stroke-width="1.2"/>` +
+           `<path d="M62 91 L66 96 L70 91 Z" fill="${COLORS.toothW}" stroke="${INK}" stroke-width="1.2"/>`;
+  }
   if (species === 'munch') {
     // wide happy grin + one big tooth
     return path('M42 93 Q60 114 78 93 Q60 101 42 93 Z', INK, `stroke="${INK}" stroke-width="2" stroke-linejoin="round"`) +
@@ -308,7 +316,7 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
 
   const face = eyes(45, 75, 80, 14, eyeKind) +
                cheeks(40, 80, 90) +
-               mouth(item.species) + wave;
+               mouth(item.species, item.mouth) + wave;
 
   // a couple of item-specific trinkets
   let trinket = '';

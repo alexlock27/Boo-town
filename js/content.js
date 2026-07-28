@@ -56,7 +56,7 @@ export function filterArcadeCategories(cats) { return cats.filter(c => tierAllow
 // Full: every template. Groups map each template id to a friendly topic.
 // `sample` is display-only picker copy (RUN4 C2): one example per topic card.
 export const FEED_GROUPS = [
-  { key: 'numbers', name: 'Numbers', sample: '47 — odd or even?', ids: ['oddEven', 'tableMember1', 'tableMember2', 'tableMember3', 'tableMemberY4', 'romanNumerals'] },
+  { key: 'numbers', name: 'Numbers', sample: '47 — odd or even?', ids: ['oddEven', 'tableMember1', 'tableMember2', 'tableMember3', 'tableMemberY4', 'romanNumerals', 'twoRule'] },
   { key: 'rounding', name: 'Rounding & comparing', sample: '86 rounds to…?', ids: ['compare50', 'compare500', 'compare5000', 'round10', 'round100'] },
   { key: 'fractions', name: 'Fractions', sample: 'Is 2/4 a half?', ids: ['halfEquivalent', 'fractionSize', 'fractionFamilies', 'tenths'] },
   { key: 'timemoney', name: 'Time & money', sample: '60 minutes = ?', ids: ['timeUnits', 'timeHour', 'monthsDays', 'moneyPound'] },
