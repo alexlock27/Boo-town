@@ -152,7 +152,9 @@ console.log('== the half-past rejection now explains itself ==');
   });
   assert(!r.skipped, 'a half-past order could be reached');
   if (!r.skipped) {
-    assert(r.bubble === 'At half past, the hour hand sits BETWEEN the numbers.',
+    // RUN18D's Explanation Standard replaces RUN12 S10's line with the pack's own, which
+    // says the same thing and says where the hand IS: HALFWAY between h and h+1.
+    assert(/^At half past, the little hand sits HALFWAY between \d{1,2} and \d{1,2} — it's on its way!$/.test(r.bubble),
       `the authored explanation appears verbatim ("${r.bubble}")`);
     assert(r.stillWrong, 'and the pedagogically-correct rejection still stands — it is not simply accepted');
     await page.screenshot({ path: `${SHOTS}/half-past-explanation.png` });
@@ -171,7 +173,10 @@ console.log('== an ordinary wrong answer keeps the ordinary line ==');
     await new Promise(r => setTimeout(r, 400));
     return document.querySelector('.peek-bubble')?.textContent || '';
   });
-  assert(r === 'Not quite — try again!', `a plain miss still says "Not quite — try again!" (got "${r}")`);
+  // RUN18D: "Not quite — try again!" taught nothing, on the one screen whose whole subject
+  // is which number the little hand points at. The pack's line names it.
+  assert(/^Nearly! The little hand points at \d{1,2} for \d{1,2} o'clock\.$/.test(r),
+    `a plain miss now says where the little hand should point (got "${r}")`);
   await ctx.close();
 }
 

@@ -121,10 +121,15 @@ export function buildRound(sounds, level, n = ROUND_TARGETS) {
 
 // The guide's line when a wrong card is tapped: name the word, and name the sound it
 // really has. "that's chip — ch, not sh!" — the Odd Boo Out explanation standard.
+// RUN18D, the EXPLANATION STANDARD. The pack authors ONE line for a wrong card:
+//   "«word» hasn't got «sound» in it — listen: «word»."
+// …and asks for the word to be spoken. RUN16's own line named the sound the word DOES have,
+// which is a second, different teaching move; it is kept as a following sentence rather
+// than thrown away, because "chip — ch, not sh" is the thing that makes the answer click.
 export function missLine(word, target) {
+  const base = `${word} hasn't got ${target} in it — listen: ${word}.`;
   const others = soundsIn(word).filter(s => s !== target);
-  if (!others.length) return `That's ${word} — no ${target} in that one!`;
-  return `That's ${word} — ${others[0]}, not ${target}!`;
+  return others.length ? `${base} ${others[0]}, not ${target}!` : base;
 }
 
 export function mount(container, params, ctx) {
@@ -302,7 +307,9 @@ export function mount(container, params, ctx) {
         recordResult('soundsorter:' + t.sound, false);
         collector.addAttempted(phonemeMiss(t));
         const line = missLine(word, t.sound);
-        shell.react(line, { voice: false, hold: 2600 });
+        shell.react(line, { voice: false, hold: 3000 });
+        // the pack asks for the WORD to be spoken, so she hears the thing being talked
+        // about rather than only reading about it.
         speakMaybe(line);
       }
     }

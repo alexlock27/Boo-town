@@ -83,6 +83,7 @@ const LEVELS = {
   twin: {
     key: 'twin', name: 'Twin Pop', rank: 0, tier: 'light',
     rule: 'Pop the twins — two of the same!',
+    wrong: "Those two aren't twins — keep looking!",   // RUN18D: the pack's shape, this level's noun
     intro: 'Put two of the SAME gem side by side — POP! Swap gems to make it happen!',
     // Identical number = identical gem (trivially readable): appearance is a pure
     // function of the number, so twins always look exactly alike.
@@ -92,6 +93,7 @@ const LEVELS = {
   make10: {
     key: 'make10', name: 'Make 10', rank: 1, tier: 'light',
     rule: 'Pop the friends that make 10!',
+    wrong: "Those two don't make 10 — keep looking!",   // RUN18D, verbatim
     intro: 'Matching colours are friends that make 10 — like 7 and 3. Put them side by side — POP!',
     // Complement families: {1,9}{2,8}{3,7}{4,6}{5}. The two friends that make 10
     // share a colour AND a shape, so colour teaches the bond.
@@ -101,6 +103,7 @@ const LEVELS = {
   make20: {
     key: 'make20', name: 'Make 20', rank: 2, tier: 'medium',
     rule: 'Pop the friends that make 20!',
+    wrong: "Those two don't make 20 — keep looking!",   // RUN18D, verbatim
     intro: 'Matching colours are friends that make 20 — like 12 and 8. Put them side by side — POP!',
     // Complement to 20 families: {1,19}…{10,10}. Family colouring by complement.
     gen: () => { const v = 1 + rand(19); const fam = Math.min(v, 20 - v); return { v, label: String(v), hue: famHue(fam), shape: famShape(fam) }; },
@@ -109,6 +112,7 @@ const LEVELS = {
   fractions: {
     key: 'fractions', name: 'Fraction Friends', rank: 3, tier: 'full',
     rule: 'Pop fractions worth the same!',
+    wrong: "Those two aren't worth the same — keep looking!",   // RUN18D: the pack's shape
     intro: 'Matching colours are worth the same — like 1/2 and 2/4. Pop them side by side!',
     // Colour by EQUIVALENCE family (C2): equal fractions now share a colour + shape.
     gen: () => {
@@ -375,6 +379,10 @@ export function mount(container, params, ctx) {
         await animateSwap(na, nb, b, a);
         na.classList.add('bounce'); nb.classList.add('bounce');
         wobble(na); wobble(nb); sfx.oops();
+        // RUN18D, the EXPLANATION STANDARD. The swap bounced back in silence, which reads
+        // as "the game did not notice" rather than "those two do not add up". Line
+        // verbatim from the pack; «total» is the level's own target.
+        shell.react(rule.wrong, { voice: false, hold: 2400 });
         setTimeout(() => { na.classList.remove('bounce'); nb.classList.remove('bounce'); }, 420);
         busy = false; restartIdle();
         return;

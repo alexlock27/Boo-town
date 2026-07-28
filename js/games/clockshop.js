@@ -37,6 +37,10 @@ function timeLabel(h12, m) {
 }
 function digital(h12, m) { return `${h12}:${String(m).padStart(2, '0')}`; }
 
+// The pack's two lines, verbatim. «h+1» wraps 12 → 1, because a clock does.
+export const clockHourLine = (h) => `Nearly! The little hand points at ${h} for ${h} o'clock.`;
+export const clockHalfPastLine = (h) => `At half past, the little hand sits HALFWAY between ${h} and ${h === 12 ? 1 : h + 1} — it's on its way!`;
+
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen clockshop' });
   container.appendChild(root);
@@ -190,10 +194,13 @@ export function mount(container, params, ctx) {
       // past, the hour hand has moved on and no longer points at its own number.
       // she has the hour right but has left the big hand at the top: the clock reads
       // "7 o'clock" while the order asked for half past 7
+      // RUN18D, the EXPLANATION STANDARD. Both lines verbatim from the pack. The famous
+      // strictness — half past REQUIRES the hour hand to have moved on — is explained
+      // rather than merely enforced, and an on-the-hour miss now says where the little
+      // hand should point instead of "Not quite — try again!", which teaches nothing.
       const parkedOnTheHour = order.m === 30 && sm === 0 && sh12 === order.h12;
-      shell.react(parkedOnTheHour
-        ? 'At half past, the hour hand sits BETWEEN the numbers.'
-        : 'Not quite — try again!', { voice: false, hold: parkedOnTheHour ? 2600 : 1600 });
+      shell.react(parkedOnTheHour ? clockHalfPastLine(order.h12) : clockHourLine(order.h12),
+        { voice: false, hold: 2800 });
     }
     function onCorrect() {
       locked = true; sfx.correct();
