@@ -738,7 +738,10 @@ export function mount(container, params, ctx) {
     // gives one giggle and one sparkle, and never anything else.
     const visitor = duskVisitor(AREA.key, currentHour());
     if (visitor && visitor.area === AREA.key && BY_ID[visitor.id]) {
-      const visitorNode = el('button', { class: 'dusk-visitor', html: renderItem(BY_ID[visitor.id], { size: 58 }), onclick: () => {
+      // The visitor is a BUTTON with nothing but art inside it, so a screen reader announced
+      // it as "button" and nothing else. It only exists between dusk and dark, which is why
+      // it took until a run that happened to gate at dusk to surface (RUN18C, on sight).
+      const visitorNode = el('button', { class: 'dusk-visitor', 'aria-label': `${BY_ID[visitor.id].name} is visiting — say hello!`, html: renderItem(BY_ID[visitor.id], { size: 58 }), onclick: () => {
         if (tapDuskVisitor()) { sfx.pop(); const spark = el('span', { text: '✨' }); visitorNode.appendChild(spark); setTimeout(() => spark.remove(), 700); }
       } });
       visitorNode.style.left = (zoneW * .9) + 'px'; visitorNode.style.top = (groundY - 82) + 'px';

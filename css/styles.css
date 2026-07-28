@@ -5204,9 +5204,11 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    under each one. It is a screen now: a header that says where she is, cream cards on
    the sky, and Boos big enough to recognise from across a table. */
 .screen.expedition { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.exp-picker { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px;
-  padding: 8px 14px 12px; max-width: 860px; width: 100%; margin: 0 auto; overflow-y: auto; }
-.exp-head { display: grid; justify-items: center; gap: 6px; padding: 4px 62px 0; }
+.exp-picker { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 14px 10px; max-width: 860px; width: 100%; margin: 0 auto; overflow: hidden; }
+/* only the middle scrolls — see the note in js/expedition/trail.js */
+.exp-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.exp-head { flex: none; display: grid; justify-items: center; gap: 5px; padding: 4px 62px 2px; }
 .exp-title { margin: 0; font-size: 26px; color: var(--card); font-family: var(--font-display); }
 .exp-sub { margin: 0; color: rgba(255,248,240,.88); font-size: 15px; text-align: center; }
 /* the counter chip: a label and a progress bar in one, filling left-to-right */
@@ -5225,7 +5227,8 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    stands beside an empty bubble for the whole selection. */
 .exp-guide[hidden] { display: none; }
 .exp-guests { margin: 0; text-align: center; color: var(--star); font-family: var(--font-display);
-  font-weight: 700; font-size: 15px; min-height: 1px; }
+  font-weight: 700; font-size: 15px; }
+.exp-guests:empty { display: none; }
 /* the under-eight state: warm, and holding the one door that helps */
 .exp-need.card { display: grid; justify-items: center; gap: 12px; padding: 16px 18px; text-align: center;
   max-width: 520px; margin: 0 auto; }
@@ -5254,7 +5257,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .exp-visitor-flag { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: .06em;
   color: #6B4E9B; font-style: normal; }
 /* "Off we go!" waits below the fold and slides up on the eighth Boo */
-.exp-go-wrap { display: flex; justify-content: center; padding: 2px 0 4px;
+.exp-go-wrap { flex: none; display: flex; justify-content: center; padding: 6px 0 2px;
   transform: translateY(96px); opacity: 0; pointer-events: none;
   transition: transform 300ms cubic-bezier(.2,.9,.3,1.2), opacity 300ms ease-out; }
 .exp-go-wrap.up { transform: translateY(0); opacity: 1; pointer-events: auto; }
@@ -5322,7 +5325,10 @@ html.calm-motion .exp-go-wrap { transform: none; }
 .exp-node-star { display: flex; justify-content: center; min-height: 15px; }
 .exp-node-star .star-ic.off path { stroke: rgba(42,27,78,.42); }
 .exp-node.current { border-color: var(--pop); box-shadow: 0 0 0 4px var(--pop), 0 0 0 6px var(--ink), 0 5px 0 rgba(42,27,78,.35); z-index: 6; }
-.exp-node.done { border-color: var(--ink); }
+/* A finished node sits ABOVE the party. Its gold star is the pack's whole reward for the
+   node, and on a phone the cluster standing at the next node was covering it; a signpost a
+   Boo walks behind reads as depth, a star a Boo hides reads as a missing reward. */
+.exp-node.done { border-color: var(--ink); z-index: 6; }
 .exp-node.done::after { content: ''; position: absolute; top: -13px; right: -13px; width: 30px; height: 30px;
   background: var(--star); border: 3px solid var(--ink); border-radius: 50%;
   clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }

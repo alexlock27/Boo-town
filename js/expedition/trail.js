@@ -34,7 +34,7 @@ export function mount(container, params, ctx) {
 
   function picker() {
     clear(root);
-    let departing = false;
+    let departing = false, justPicked = null, wasReady = false;
     const grid = el('div', { class: 'exp-party-grid' });
     // "Explorers: n of 8" — the boots fill left-to-right as she picks, so the chip is a
     // progress bar and a label at once.
@@ -86,14 +86,23 @@ export function mount(container, params, ctx) {
         const guest = autoGuests.has(boo.id), on = selected.has(boo.id);
         const tile = el('button', {
           class: 'exp-chip exp-tile' + (on ? ' sel' : '') + (guest ? ' visitor' : ''),
+          dataset: { id: boo.id },
           disabled: guest ? '' : undefined,
           'aria-pressed': guest ? undefined : (on ? 'true' : 'false'),
           'aria-label': guest ? `${boo.name}, a visitor joining the trail` : `${boo.name}${on ? ', chosen' : ''}`,
           onclick: event => {
             if (departing) return;
             if (on) selected.delete(boo.id);
-            else if (selected.size >= PARTY_SIZE) { banner.textContent = 'That is eight already — tap one to swap it out!'; return; }
-            else { selected.add(boo.id); event.currentTarget.classList.add('hop'); }
+            // A ninth tap used to do NOTHING — it set a line in a strip that had scrolled
+            // out of sight, then returned BEFORE the sfx. It is a real answer now, and it
+            // happens at her finger: the tile shakes, the counter says eight, sound plays.
+            else if (selected.size >= PARTY_SIZE) {
+              banner.textContent = 'That is eight already — tap one to swap it out!';
+              wobble(event.currentTarget); sfx.tap();
+              count.classList.remove('pulse'); void count.offsetWidth; count.classList.add('pulse');
+              return;
+            }
+            else { selected.add(boo.id); justPicked = boo.id; }
             sfx.tap();
             draw();
           }
@@ -105,6 +114,14 @@ export function mount(container, params, ctx) {
         ]);
         grid.appendChild(tile);
       }
+      // THE HOP GOES ON THE TILE THAT SURVIVES. Adding it to the tapped node and then
+      // rebuilding the grid in the same tick put the class on a node already out of the
+      // DOM — the 250ms hop the pack authors never rendered a single frame.
+      if (justPicked) {
+        const fresh = grid.querySelector(`[data-id="${justPicked}"]`);
+        if (fresh) { fresh.classList.remove('hop'); void fresh.offsetWidth; fresh.classList.add('hop'); }
+        justPicked = null;
+      }
       const n = selected.size;
       countText.textContent = `Explorers: ${n} of ${PARTY_SIZE}`;
       countFill.style.width = `${Math.round((Math.min(n, PARTY_SIZE) / PARTY_SIZE) * 100)}%`;
@@ -115,18 +132,28 @@ export function mount(container, params, ctx) {
       empty.hidden = !short;
       banner.textContent = short ? '' : (needsFriends ? guideLine('L_EXP_GUESTS') : '');
       start.disabled = n < PARTY_SIZE;
-      goWrap.classList.toggle('up', n >= PARTY_SIZE);
+      const ready = n >= PARTY_SIZE;
+      goWrap.classList.toggle('up', ready);
+      wasReady = ready;
     };
 
+    // THE GRID SCROLLS; THE HEADER AND THE BUTTON DO NOT. A child with a full collection
+    // scrolls this screen, and both the counter she is filling and the button that appears
+    // at eight used to leave the screen at the exact moment they mattered. Only the middle
+    // moves now, so the count, the reason she cannot pick a ninth, and "Off we go!" are
+    // always where she left them. (Sticky was tried first: an auto-margined flex child in
+    // its own scroller does not stick, and it made the fix depend on a subtlety.)
     root.append(
       el('div', { class: 'exp-picker' }, [
         el('div', { class: 'exp-head' }, [
           el('h2', { class: 'exp-title', text: 'Boo Expedition' }),
           el('p', { class: 'exp-sub', text: 'Choose eight brave Boos for the trail.' }),
-          count
+          count, banner
         ]),
-        guide.root, empty, banner,
-        el('div', { class: 'exp-party-card card' }, [grid]),
+        el('div', { class: 'exp-scroll' }, [
+          guide.root, empty,
+          el('div', { class: 'exp-party-card card' }, [grid])
+        ]),
         goWrap
       ]),
       backControl(() => ctx.go('hub'), { floating: true })
@@ -251,16 +278,28 @@ export function mount(container, params, ctx) {
     // marker's own name — spread wide and shallow so they read as walking in a line.
     const JITTER = [[-64, 2], [-38, 12], [-14, -6], [10, 8], [34, -4], [58, 10], [-52, 18], [-24, 22], [22, 22], [48, 20], [-6, 30], [72, 4]];
     const CLUSTER_DROP = 20;
-    const cluster = explorers.slice(0, 12).map((boo, index) => {
-      const j = JITTER[index % JITTER.length];
+    const cluster = explorers.slice(0, 12).map(boo => {
       const dot = el('div', { class: 'exp-walker', title: boo.name, html: renderItem(boo, { size: 48 }) });
-      dot.dataset.jx = String(j[0] + (index % 3) * 3 - 3);
-      dot.dataset.jy = String(j[1] + (index % 2) * 4 - 2 + CLUSTER_DROP);
-      dot.style.setProperty('--jx', `${dot.dataset.jx}px`);
-      dot.style.setProperty('--jy', `${dot.dataset.jy}px`);
       walkers.appendChild(dot);
       return dot;
     });
+    // The jitter is authored for a full-width map. The SAME pixel spread on a phone put
+    // three of eight Boos on top of the very signpost they stand under, and buried the
+    // gold star the pack promises. Scale the spread with the map, and drop the cluster
+    // further below the point as it tightens, so they always stand clear of the marker.
+    const spreadCluster = () => {
+      const width = map.getBoundingClientRect().width || 900;
+      const k = Math.max(0.34, Math.min(1, width / 900));
+      const drop = CLUSTER_DROP + (1 - k) * 10;
+      cluster.forEach((dot, index) => {
+        const j = JITTER[index % JITTER.length];
+        const jx = (j[0] + (index % 3) * 3 - 3) * k;
+        const jy = Math.max(-4 * k, (j[1] + (index % 2) * 4 - 2) * k) + drop;
+        dot.style.setProperty('--jx', `${Math.round(jx)}px`);
+        dot.style.setProperty('--jy', `${Math.round(jy)}px`);
+      });
+    };
+    spreadCluster();
     const standAt = fraction => { const p = at(fraction); cluster.forEach(dot => { place(dot, p); dot.style.transform = ''; }); };
 
     // ---- the walk: 3000ms along the path curve, with 2000ms of cocoa in the middle -----
@@ -268,7 +307,10 @@ export function mount(container, params, ctx) {
     const canWalk = fromIndex >= 0 && fromIndex < NODES.length - 1 && doneOf(NODES[fromIndex]) > 0 && cluster.length;
     standAt(nodeAt[canWalk ? fromIndex : currentIndex]);
     if (canWalk && !REDUCED) walkTo(fromIndex);
-    else if (canWalk) { standAt(nodeAt[fromIndex + 1]); popStar(markers[fromIndex]); }
+    // Reduced motion calms the WALK; it does not delete the cocoa. The camp is a beat in
+    // the story, not a flourish — the party still stops for it, they simply do not travel
+    // there in front of her. (CLAUDE.md: every animation has a reduced-motion PATH.)
+    else if (canWalk) restAtCamp(fromIndex);
     else if (opts.from && fromIndex === NODES.length - 1) popStar(markers[fromIndex]);
 
     function walkTo(index) {
@@ -307,6 +349,17 @@ export function mount(container, params, ctx) {
           popStar(markers[index]);
         });
     }
+    function restAtCamp(index) {
+      walking = true;
+      place(camp, at((nodeAt[index] + nodeAt[index + 1]) / 2));
+      camp.classList.add('show'); walkers.classList.add('at-camp');
+      setTimeout(() => {
+        camp.classList.remove('show'); walkers.classList.remove('at-camp');
+        standAt(nodeAt[index + 1]);
+        walking = false;
+        popStar(markers[index]);
+      }, 2000);
+    }
     function popStar(marker) {
       if (!marker) return;
       marker.classList.add('star-pop');
@@ -327,6 +380,7 @@ export function mount(container, params, ctx) {
         len = path ? path.getTotalLength() : 0;
       }
       layOut();
+      spreadCluster();
       standAt(nodeAt[currentIndex]);
     };
     window.addEventListener('resize', onResize);
