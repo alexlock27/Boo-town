@@ -83,9 +83,11 @@ async function open(introSeen) {
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(String(e)));
   await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), save(introSeen));
-  await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
-  await page.waitForFunction(() => window.BooTown, null, { timeout: 20000 });
-  await page.waitForSelector('.hub', { timeout: 20000 });
+  await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 40000 });
+  await page.waitForFunction(() => window.BooTown, null, { timeout: 40000 });
+  // 40s, not 20: this suite boots 25 separate contexts, and after a full affected-set
+  // board the first paint can genuinely take that long. A boot timeout is a flake.
+  await page.waitForSelector('.hub', { timeout: 40000 });
   return { ctx, page };
 }
 

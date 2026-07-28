@@ -1,3 +1,5 @@
+// @serial — frame evidence: the Celebration Standard's beat 1 is a 220ms pop sampled per
+// rAF, and under parallel load a starved rAF and a missing animation look identical.
 // tests/r18d-standards.mjs — RUN18D: the Celebration and Explanation Standards.
 //
 // The Standards are defined once in js/celebrate.js and applied everywhere. This suite

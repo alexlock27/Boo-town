@@ -147,7 +147,7 @@ console.log('== RUN18D D12: migrate backfills `created` from evidence, not from 
     const m = await import('./js/state.js');
     const fromJournal = m.migrate({ journal: { firstUltra: '2026-07-17', star3_x: '2026-08-02' } });
     const twice = m.migrate(JSON.parse(JSON.stringify(fromJournal)));
-    const fromLastPlayed = m.migrate({ lastPlayed: 1780344252542 });
+    const fromLastPlayed = m.migrate({ lastPlayed: 1780344252542 });   // no journal: no birthday to infer
     const nothing = m.migrate({});
     const kept = m.migrate({ created: 12345, lastPlayed: 999999 });
     const d = new Date(fromJournal.created);
@@ -155,12 +155,15 @@ console.log('== RUN18D D12: migrate backfills `created` from evidence, not from 
     return {
       journalDay: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
       idempotent: fromJournal.created === twice.created,
-      lastPlayed: fromLastPlayed.created, nothing: nothing.created || 0, kept: kept.created
+      lastPlayed: fromLastPlayed.created || 0, nothing: nothing.created || 0, kept: kept.created
     };
   });
   assert(r.journalDay === '2026-07-17', `a restored save is dated by its EARLIEST stamp (${r.journalDay})`);
   assert(r.idempotent, 'migrating twice gives the identical value — no clock reads');
-  assert(r.lastPlayed === 1780344252542, 'a save with no journal falls back to lastPlayed');
+  // NOT lastPlayed: it moves on every commit, so inferring a birthday from it made the
+  // grown-ups' backup code stop round-tripping (r4p3-rewards). Nothing to check against is
+  // an honest answer; a birthday that changes when you back up is not.
+  assert(r.lastPlayed === 0, `a save with no journal keeps 0 rather than reading a field that moves (${r.lastPlayed})`);
   assert(r.nothing === 0, 'a save with neither keeps 0 rather than inventing a birthday');
   assert(r.kept === 12345, 'and a save that already knows its birthday is never overwritten');
 }
