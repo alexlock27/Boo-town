@@ -100,11 +100,42 @@ export const JOURNAL_CATALOG = [
   { key: 'expedition_postcard', label: 'Postcard from the trail', icon: '🥾' }   // RUN18C C4
 ];
 
+// ---- RUN18D D12: dates a child can read, and dates that cannot lie -------------------
+// The Journal showed raw ISO ("2026-07-17"), which is a filename, not a date. It shows
+// "17 July" now. The stored value stays ISO — it sorts, it is what every other part of the
+// save speaks, and a display format has no business in the data.
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+export function friendlyDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return '';
+  const month = MONTHS[Number(m[2]) - 1];
+  if (!month) return '';
+  return `${Number(m[3])} ${month}`;
+}
+// The local-day key of `save.created`. A stamp can never honestly pre-date the save that
+// holds it, and the audit found one that did ("First Ultra Boo · 2026-07-17" on a save that
+// had just been made). Nothing in the tree writes a journal date except stampJournal, which
+// writes TODAY — so the cause is outside the code (a device clock moved, or a save adopted
+// through migrate() with no `created` at all, which reads as 1970 and makes the rule
+// vacuous). Both ends are closed instead: nothing is written before `created`, and nothing
+// is displayed before it either, so the lie cannot survive whatever produced it.
+export function createdDayKey(s = getState()) {
+  const ms = Number((s && s.created) || 0);
+  if (!ms) return '';
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 // Record a stamp with today's date if not already present. Returns true if newly stamped.
 export function stampJournal(key) {
   const s = getState();
   if (s.journal && s.journal[key]) return false;
-  mutate(st => { st.journal = st.journal || {}; st.journal[key] = todayKey(); });
+  const created = createdDayKey(s);
+  const today = todayKey();
+  const when = created && today < created ? created : today;
+  mutate(st => { st.journal = st.journal || {}; st.journal[key] = when; });
   return true;
 }
 export function hasStamp(key) { const s = getState(); return !!(s.journal && s.journal[key]); }
@@ -138,5 +169,12 @@ export function stampMeta(key) {
 export function journalEntries() {
   const s = getState();
   const j = (s && s.journal) || {};
-  return Object.keys(j).map(key => ({ key, date: j[key], ...stampMeta(key) })).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const created = createdDayKey(s);
+  return Object.keys(j).map(key => {
+    const raw = j[key];
+    // clamped on the way OUT too: whatever put an impossible date in there, a child is
+    // never shown a day her Boo Town did not exist on.
+    const date = created && String(raw) < created ? created : raw;
+    return { key, date, when: friendlyDate(date), clamped: date !== raw, ...stampMeta(key) };
+  }).sort((a, b) => (a.date < b.date ? -1 : 1));
 }
