@@ -83,6 +83,10 @@ export async function go(name, params = {}) {
   // birthday route must 404 to the hub, never a broken screen).
   if (!registry[name]) { console.warn('[main] unknown route', name, '→ hub'); name = 'hub'; params = {}; }
   const token = ++navToken;
+  // RUN18B Y1: a screen's speech leaves with the screen. Cancelled BEFORE unmount so a
+  // line cannot start in the gap, and by owner rather than wholesale so an utterance
+  // another screen legitimately owns is untouched. Navigation never leaks speech.
+  if (current && current.name) { try { tts.cancelOwner(current.name); } catch (e) { console.warn(e); } }
   if (current && current.api && typeof current.api.unmount === 'function') {
     try { current.api.unmount(); } catch (e) { console.warn(e); }
   }
@@ -104,6 +108,10 @@ export async function go(name, params = {}) {
     return;
   }
   if (token !== navToken) return;     // a newer navigation owns the screen now
+  // RUN18B Y1: whatever this screen says while it is BUILDING belongs to it. dataset.screen
+  // is only written after mount() returns, so tagging from the DOM would credit the screen
+  // she just left — and the cancel that just ran would eat the new screen's first line.
+  tts.setOwnerScreen(name);
   const api = await mod.mount(screenEl, params, ctx);
   if (token !== navToken) {           // mount itself can await; if we lost, clean up after us
     try { if (api && typeof api.unmount === 'function') api.unmount(); } catch {}
