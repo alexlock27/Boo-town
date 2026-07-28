@@ -16,7 +16,7 @@ import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { runIntro, introSeen } from '../intro.js';
 import { LISTS } from '../../data/detective.js';
-import { keyRows, readAloudButton, nameWithValue } from '../a11y.js';
+import { keyRows, readAloudButton, nameWithValue, detectiveKeyRows, detectiveAbcOn, setDetectiveAbc, ALPHA_ROWS } from '../a11y.js';
 
 const GUESSES = 5;
 // RUN12 S13.1 — the layout is a setting now, A-Z by default below age 8.
@@ -125,16 +125,55 @@ export function mount(container, params, ctx) {
       grid.appendChild(rowEl); tileEls.push(rowEls);
     }
     const kb = el('div', { class: 'det-kb' });
-    const keyEls = {};
+    let keyEls = {};
     let goKey = null, goTaught = false;   // RUN10 P9: the big GO key + its once-per-round taught line
-    keyRows().forEach((krow, ri) => {
-      const rowEl = el('div', { class: 'det-kb-row' });
-      if (ri === 2) { goKey = el('button', { class: 'det-key wide det-go', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }); rowEl.appendChild(goKey); }
-      for (const ch of krow) { const k = el('button', { class: 'det-key', text: ch.toUpperCase(), dataset: { key: ch }, onclick: () => typeCh(ch) }); rowEl.appendChild(k); keyEls[ch] = k; }
-      if (ri === 2) rowEl.appendChild(el('button', { class: 'det-key wide', text: '⌫', 'aria-label': 'Backspace', onclick: () => backspace() }));
-      kb.appendChild(rowEl);
-    });
-    shell.area.appendChild(el('div', { class: 'det-wrap' }, [grid, kb]));
+
+    // RUN18D D6 — two keyboards, one set of colours.
+    // QWERTY is untouched: three rows, GO and ⌫ tucked on the third, exactly as it shipped.
+    // ABC is the pack's layout — A-I / J-R / S-Z, then ⌫ and GO alone on a FOURTH row, so
+    // the two controls that undo and commit a guess are never squeezed in beside letters.
+    // Rebuilt in place when she flips the switch, so a round in progress keeps its colours.
+    function buildKeyboard() {
+      const abc = detectiveAbcOn();
+      const rows = detectiveKeyRows();
+      kb.classList.toggle('abc', abc);
+      kb.innerHTML = '';
+      keyEls = {};
+      rows.forEach((krow, ri) => {
+        const rowEl = el('div', { class: 'det-kb-row' });
+        if (!abc && ri === 2) { goKey = el('button', { class: 'det-key wide det-go', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() }); rowEl.appendChild(goKey); }
+        for (const ch of krow) { const k = el('button', { class: 'det-key', text: ch.toUpperCase(), dataset: { key: ch }, onclick: () => typeCh(ch) }); rowEl.appendChild(k); keyEls[ch] = k; }
+        if (!abc && ri === 2) rowEl.appendChild(el('button', { class: 'det-key wide', text: '⌫', 'aria-label': 'Backspace', onclick: () => backspace() }));
+        kb.appendChild(rowEl);
+      });
+      if (abc) {
+        goKey = el('button', { class: 'det-key wide det-go', text: '⏎', 'aria-label': 'Enter', onclick: () => submit() });
+        kb.appendChild(el('div', { class: 'det-kb-row det-kb-actions' }, [
+          el('button', { class: 'det-key wide', text: '⌫', 'aria-label': 'Backspace', onclick: () => backspace() }),
+          goKey
+        ]));
+      }
+      // colour feedback is identical because it is the SAME state, repainted onto whichever
+      // keys are on screen — the two layouts cannot drift.
+      for (const ch of Object.keys(keyState)) if (keyEls[ch]) keyEls[ch].className = 'det-key ' + keyState[ch];
+    }
+    buildKeyboard();
+
+    // the game's own options row: one switch, where a child who is stuck on QWERTY is.
+    const abcToggle = el('button', {
+      class: 'det-opt-toggle', 'aria-pressed': String(detectiveAbcOn()),
+      onclick: () => {
+        sfx.tap();
+        setDetectiveAbc(!detectiveAbcOn());
+        abcToggle.setAttribute('aria-pressed', String(detectiveAbcOn()));
+        abcToggle.classList.toggle('on', detectiveAbcOn());
+        buildKeyboard();
+      }
+    }, [el('span', { class: 'dot-sw' }), el('span', { text: 'ABC keys' })]);
+    abcToggle.classList.toggle('on', detectiveAbcOn());
+    const options = el('div', { class: 'det-options' }, [abcToggle]);
+
+    shell.area.appendChild(el('div', { class: 'det-wrap' }, [grid, options, kb]));
 
     if (cleanupKeydown) { cleanupKeydown(); cleanupKeydown = null; }
     const onKeyDown = (e) => {
@@ -160,7 +199,13 @@ export function mount(container, params, ctx) {
       stars: () => starsFor(solved, guessesUsed, hinted),
       goReady: () => !!(goKey && goKey.classList.contains('go-ready')),   // RUN10 P9 QA hooks
       goText: () => goKey ? goKey.textContent : '',
-      goTaught: () => goTaught
+      goTaught: () => goTaught,
+      // RUN18D D6 QA
+      abc: () => detectiveAbcOn(),
+      setAbc: (on) => { setDetectiveAbc(on); buildKeyboard(); abcToggle.classList.toggle('on', detectiveAbcOn()); abcToggle.setAttribute('aria-pressed', String(detectiveAbcOn())); },
+      toggleAbc: () => abcToggle.click(),
+      keyRects: () => [...kb.querySelectorAll('.det-key')].map(k => { const r = k.getBoundingClientRect(); return { label: k.textContent, w: r.width, h: r.height }; }),
+      letterRows: () => [...kb.querySelectorAll('.det-kb-row')].map(r => [...r.querySelectorAll('.det-key')].map(k => k.textContent).join(''))
     };
 
     function typeCh(ch) {

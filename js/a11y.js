@@ -26,6 +26,19 @@ export function alphaKeysOn() {
 export function setAlphaKeys(on) { mutate(s => { s.settings.alphaKeys = !!on; }); }
 export function keyRows() { return alphaKeysOn() ? ALPHA_ROWS : QWERTY_ROWS; }
 
+// RUN18D D6 — Word Detective's own switch, on the game's options row, because the child who
+// needs it is the one staring at QWERTY right now, not a grown-up three screens away.
+// THREE-STATE on purpose: null means she has never answered, and the game then follows the
+// age-based global above exactly as it did before D6 existed. Once she presses the toggle,
+// her answer wins for this game for good.
+export function detectiveAbcOn() {
+  const s = getState();
+  const v = s && s.settings ? s.settings.detectiveAbc : null;
+  return v == null ? alphaKeysOn() : !!v;
+}
+export function setDetectiveAbc(on) { mutate(s => { s.settings.detectiveAbc = !!on; }); }
+export function detectiveKeyRows() { return detectiveAbcOn() ? ALPHA_ROWS : QWERTY_ROWS; }
+
 // Read-aloud: remembered per device, off by default (it is a control, not autoplay).
 export function readAloudOn() {
   const s = getState();

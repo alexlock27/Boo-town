@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 18;  // v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 19;  // v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -98,7 +98,7 @@ function freshSave() {
     chest: { anchor: 0, opened: 0, welcome: false },  // Star Chest boundaries (RUN4 C8)
     delights: {},               // daily-delight flags: hide-and-seek / Boo of the Day (RUN4 C9)
     seen: {},                   // one-time flags (game intros, town first, etc.)
-    settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light', haptics: true, voiceName: null, rollSensitivity: 1, rollInvert: false, calmMotion: false, biggerText: false }, // content: Light/Medium/Full picker filter (C9); haptics + chosen voice (RUN9 C7/C6b); Boo Roll input tuning (RUN10 P7)
+    settings: { sound: true, music: true, voice: true, mic: true, requests: true, content: 'light', haptics: true, voiceName: null, rollSensitivity: 1, rollInvert: false, calmMotion: false, biggerText: false, detectiveAbc: null }, // content: Light/Medium/Full picker filter (C9); haptics + chosen voice (RUN9 C7/C6b); Boo Roll input tuning (RUN10 P7)
     created: 0,
     lastPlayed: 0,
     lastBackupAt: 0             // v12 (RUN8 v2 C2): epoch ms of the last exported backup, either path
@@ -409,6 +409,15 @@ export function migrate(obj) {
     merged.settings = merged.settings || {};
     if (merged.settings.calmMotion === undefined) merged.settings.calmMotion = false;
     if (merged.settings.biggerText === undefined) merged.settings.biggerText = false;
+  }
+  // v19 (RUN18D D6): Word Detective's own "ABC keys" switch, on the game's options row.
+  // NULL, not false — null means "no answer yet", and the game then follows the existing
+  // age-based global (js/a11y.js alphaKeysOn, RUN12 S13.1). So a pre-v19 save migrates to
+  // EXACTLY the keyboard it had, and the new switch only ever means something once a child
+  // has actually pressed it. Lossless, and idempotent because null is written once.
+  if ((o.version || 0) < 19) {
+    merged.settings = merged.settings || {};
+    if (merged.settings.detectiveAbc === undefined) merged.settings.detectiveAbc = null;
   }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);
