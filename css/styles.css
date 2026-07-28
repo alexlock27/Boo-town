@@ -180,7 +180,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .text-input {
   font-family: var(--font-display); font-size: 26px; text-align: center;
   padding: 14px 18px; border-radius: 18px; border: 3px solid var(--ink);
-  background: var(--card); color: var(--ink); width: min(360px, 80vw);
+  background: var(--card); color: var(--ink); width: min(360px, calc(80vw / var(--vz)));
   outline: none;
 }
 .text-input:focus { border-color: var(--pop); box-shadow: 0 0 0 4px rgba(255,122,198,0.3); }
@@ -195,7 +195,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* ---- guide creator ---- */
 .creator { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 620px; overflow-y: auto; padding: 6px 0 12px; }
 .creator-preview { min-height: 190px; display: flex; align-items: center; }
-.creator-preview svg { max-height: 26vh; }
+.creator-preview svg { max-height: calc(26vh / var(--vz)); }
 .creator-controls { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 460px; }
 .cc-group { display: flex; align-items: center; gap: 12px; }
 .cc-label { color: var(--card); font-family: var(--font-display); font-size: 17px; width: 92px; text-align: right; flex-shrink: 0; }
@@ -216,7 +216,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .creator-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 /* denser layout for the fuller 7-option creator */
 .creator-preview { min-height: 150px; }
-.creator-preview svg { max-height: 22vh; }
+.creator-preview svg { max-height: calc(22vh / var(--vz)); }
 .cc-group { align-items: flex-start; }
 .cc-label { padding-top: 8px; }
 .chip-row { flex: 1; }
@@ -232,7 +232,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   }
   .creator > h2 { grid-area: title; margin: 2px 0; }
   .creator-preview { grid-area: preview; align-self: center; justify-self: center; min-height: 0; }
-  .creator-preview svg { max-height: 44vh; }
+  .creator-preview svg { max-height: calc(44vh / var(--vz)); }
   .creator-controls { grid-area: controls; max-width: none; overflow-y: auto; max-height: 100%; align-self: stretch; padding-right: 6px; }
   .creator-btns { grid-area: btns; justify-content: flex-start; padding-top: 4px; }
   .cc-label { width: 108px; }
@@ -350,7 +350,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   pointer-events: auto; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   background: var(--card); border-radius: var(--radius); box-shadow: var(--card-shadow);
-  padding: 14px 20px; max-width: min(320px, 86vw); text-align: center;
+  padding: 14px 20px; max-width: min(320px, calc(86vw / var(--vz))); text-align: center;
 }
 .shop-bought .sb-line { font: 700 17px var(--font-display); color: var(--ink); margin: 0; }
 .sw-panel { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 320px; }
@@ -416,7 +416,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 
 .hub-guide { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
 .guide-block { display: flex; align-items: flex-start; gap: 4px; max-width: 640px; }
-.guide-art svg { max-height: 22vh; }
+.guide-art svg { max-height: calc(22vh / var(--vz)); }
 .speech-bubble {
   background: var(--card); color: var(--ink); border-radius: 20px; border: 3px solid var(--ink);
   padding: 14px 18px; font-size: 20px; font-family: var(--font-body); font-weight: 600;
@@ -574,7 +574,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .blk-board {
   position: relative;
   display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
-  gap: 2px; width: min(58vh, 52vw); aspect-ratio: 1; background: rgba(20,12,48,0.5);
+  gap: 2px; width: min(calc(58vh / var(--vz)), calc(52vw / var(--vz))); aspect-ratio: 1; background: rgba(20,12,48,0.5);
   border-radius: 14px; padding: 6px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none;
 }
 .blk-cell { background: rgba(255,255,255,0.06); border-radius: 4px; transition: background 100ms; }
@@ -603,7 +603,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .blk-ghost { position: fixed; transform: translate(-50%,-50%); pointer-events: none; z-index: 9500; opacity: 0.85; }
 @media (orientation: portrait) {
   .blk-play { flex-direction: column; gap: 8px; }
-  .blk-board { width: min(90vw, 46vh); }
+  .blk-board { width: min(calc(90vw / var(--vz)), calc(46vh / var(--vz))); }
   .blk-side { flex-direction: row; max-width: none; width: 100%; align-items: center; }
   .blk-question { flex: 1; min-height: 0; }
   .blk-tray { flex-direction: column; }
@@ -986,7 +986,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   place-items: center;
   background: rgba(20,12,48,.65);
 }
-.roll2-finish-card { text-align: center; min-width: min(86vw, 340px); }
+.roll2-finish-card { text-align: center; min-width: min(calc(86vw / var(--vz)), 340px); }
 .roll2-ribbon { font-size: 44px; }
 .roll2-finish-time { display: block; color: var(--pop); font: 800 44px/1 var(--font-display); margin: 8px; }
 @media (max-width: 600px) {
@@ -1181,7 +1181,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .d2-gate {
   position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform;
   border: none; background: transparent; padding: 0; cursor: pointer; pointer-events: auto;
-  display: flex; flex-direction: column; align-items: center; width: min(132px, 24vw);
+  display: flex; flex-direction: column; align-items: center; width: min(132px, calc(24vw / var(--vz)));
 }
 .g-frame { position: relative; width: 100%; height: 92px; }
 .g-post { position: absolute; bottom: 0; width: 11px; height: 78px; background: #B9793F; border: 3px solid var(--ink); border-radius: 5px; }
@@ -1367,7 +1367,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   transition: transform 150ms ease-out, background 150ms; flex: 1; min-width: 120px; max-width: 240px;
 }
 .feeder.valid-glow { background: rgba(53,208,186,0.18); box-shadow: 0 0 0 3px var(--zing); transform: scale(1.03); }
-.feeder-boo svg { max-height: 15vh; }
+.feeder-boo svg { max-height: calc(15vh / var(--vz)); }
 .feeder.nom .feeder-boo { animation: nom 0.5s ease-out; }
 @keyframes nom { 0%,100% { transform: scale(1); } 40% { transform: scale(1.15, 0.9) translateY(6px); } }
 .feeder.raspberry .feeder-boo { animation: rasp 0.5s ease-in-out; }
@@ -1407,7 +1407,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media (max-width: 600px) {
   .feeders { gap: 6px; padding: 4px 2px 0; }
   .feeder { min-width: 92px; padding: 4px; gap: 2px; }
-  .feeder-boo svg { max-height: 13vh; }
+  .feeder-boo svg { max-height: calc(13vh / var(--vz)); }
   .signpost { font-size: 13px; padding: 4px 8px; }
   .feed-rule { font-size: 15px; padding: 5px 12px; }
 }
@@ -1614,7 +1614,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* Paint */
 .paint-templates, .paint-swatches, .paint-tools, .paint-sizes, .paint-actions, .paint-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .paint-stage { display: flex; justify-content: center; }
-.paint-canvas { width: min(70vh, 420px); max-width: 92vw; aspect-ratio: 1; background: #FFF8F0; border-radius: 18px; border: 3px solid var(--ink); touch-action: none; }
+.paint-canvas { width: min(calc(70vh / var(--vz)), 420px); max-width: calc(92vw / var(--vz)); aspect-ratio: 1; background: #FFF8F0; border-radius: 18px; border: 3px solid var(--ink); touch-action: none; }
 .paint-swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink); }
 .paint-swatch.sel { transform: scale(1.2); box-shadow: 0 0 0 3px var(--star); }
 .paint-swatch.rainbow { background: conic-gradient(#FF7AC6,#FFC93C,#35D0BA,#8FC7FF,#C6A9F0,#FF7AC6); }
@@ -1644,7 +1644,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 
 /* Collage */
 .collage-stage { display: flex; justify-content: center; }
-.collage-svg { width: min(80vw, 560px); aspect-ratio: 4/3; border-radius: 16px; border: 3px solid var(--ink); touch-action: none; background: var(--card); }
+.collage-svg { width: min(calc(80vw / var(--vz)), 560px); aspect-ratio: 4/3; border-radius: 16px; border: 3px solid var(--ink); touch-action: none; background: var(--card); }
 .collage-svg .sel { outline: 2px dashed var(--pop); }
 .collage-handles, .collage-bgs, .collage-stickers, .collage-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
 .collage-hint { color: var(--card); font-size: 14px; }
@@ -1713,7 +1713,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .boo-drawer.open .bd-chevron { transform: rotate(180deg); }
 .bd-tray { position: absolute; left: 0; right: 0; bottom: 100%; background: var(--card);
   border: 3px solid var(--ink); border-bottom: none; border-radius: 22px 22px 0 0;
-  box-shadow: 0 -8px 24px rgba(42,27,78,0.28); max-height: 48vh; overflow-y: auto;
+  box-shadow: 0 -8px 24px rgba(42,27,78,0.28); max-height: calc(48vh / var(--vz)); overflow-y: auto;
   padding: 10px 12px 14px; transform: translateY(100%); opacity: 0; pointer-events: none;
   transition: transform .22s ease-out, opacity .22s ease-out; }
 .boo-drawer.open .bd-tray { transform: translateY(0); opacity: 1; pointer-events: auto; }
@@ -1781,7 +1781,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .td-letter-target .td-lower { font-size: 58px; color: #6b5ca0; }
 .td-anchor-hint { font-size: 40px; }
 .td-letter-tiles { display: flex; gap: 18px; justify-content: center; align-items: center; flex: 1; width: 100%; flex-wrap: wrap; }
-.td-letter-tile { width: min(150px, 26vw); aspect-ratio: 1; background: var(--card); border-radius: 24px;
+.td-letter-tile { width: min(150px, calc(26vw / var(--vz))); aspect-ratio: 1; background: var(--card); border-radius: 24px;
   font-family: var(--font-display); font-weight: 700; font-size: 64px; color: var(--ink);
   box-shadow: 0 6px 0 rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; gap: 6px; }
 .td-letter-tile .td-lower { font-size: 44px; color: #6b5ca0; }
@@ -1834,9 +1834,9 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gallery-empty { text-align: center; color: var(--card); margin: 40px auto; }
 .ge-big { font-size: 60px; }
 .gallery-view { position: fixed; inset: 0; background: rgba(30,21,80,0.85); display: flex; align-items: center; justify-content: center; z-index: 60; }
-.gv-inner { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 90vw; }
-.gv-img { max-width: 88vw; max-height: 74vh; border-radius: 16px; border: 4px solid var(--card); }
-.easel-choose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; max-height: 50vh; overflow-y: auto; }
+.gv-inner { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: calc(90vw / var(--vz)); }
+.gv-img { max-width: calc(88vw / var(--vz)); max-height: calc(74vh / var(--vz)); border-radius: 16px; border: 4px solid var(--card); }
+.easel-choose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; max-height: calc(50vh / var(--vz)); overflow-y: auto; }
 .easel-choose-tile { border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; padding: 0; }
 .easel-choose-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .rar-custom { border-color: var(--pop) !important; }
@@ -1915,7 +1915,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .shop-say { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .shop-bubble { background: var(--card); border-radius: 18px; box-shadow: var(--card-shadow); padding: 12px 18px; font-family: var(--font-display); font-weight: 500; font-size: 24px; color: var(--ink); }
 .shop-digital { font-family: var(--font-display); font-weight: 700; font-size: 30px; color: var(--star); background: var(--ink); border-radius: 12px; padding: 4px 16px; letter-spacing: 2px; }
-.clock-wrap { width: min(64vh, 340px); max-width: 88vw; margin: 6px auto; }
+.clock-wrap { width: min(calc(64vh / var(--vz)), 340px); max-width: calc(88vw / var(--vz)); margin: 6px auto; }
 .clock-face { width: 100%; height: auto; touch-action: none; cursor: grab; }
 .clock-face:active { cursor: grabbing; }
 .hour-hand, .minute-hand { transition: transform 60ms linear; }
@@ -2120,7 +2120,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 
 /* Shared toast (RUN5 C0b): update prompt + guarded-save notice */
 .boo-toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 140%); z-index: 9000;
-  display: flex; align-items: center; gap: 10px; max-width: min(92vw, 520px);
+  display: flex; align-items: center; gap: 10px; max-width: min(calc(92vw / var(--vz)), 520px);
   background: var(--card); color: var(--ink); border-radius: 16px; padding: 12px 14px 12px 16px;
   box-shadow: 0 8px 26px rgba(0,0,0,0.32); font-family: var(--font-body); transition: transform 260ms ease-out; }
 .boo-toast.in { transform: translate(-50%, 0); }
@@ -2230,7 +2230,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .firstpick-name { font-family: var(--font-display); font-weight: 700; font-size: 20px; color: var(--ink); }
 
 /* ---- accessory equip / dress-up / rename overlays ---- */
-.acc-chooser { max-width: 560px; width: min(560px, 92vw); max-height: 84vh; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow: hidden; }
+.acc-chooser { max-width: 560px; width: min(560px, calc(92vw / var(--vz))); max-height: calc(84vh / var(--vz)); display: flex; flex-direction: column; align-items: center; gap: 8px; overflow: hidden; }
 .acc-chooser h2 { margin: 0; color: var(--ink); font-size: 24px; }
 .acc-sub { margin: 0; color: var(--pop); font-weight: 700; font-size: 17px; }
 .acc-note { margin: 0; color: #6B5E93; font-size: 15px; min-height: 18px; text-align: center; }
@@ -2244,7 +2244,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .acc-target-art { height: 78px; display: flex; align-items: center; justify-content: center; }
 .acc-target-name { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--ink); text-align: center; }
 .rename-card { gap: 14px; }
-.acc-dress-card { width: min(620px, 96vw); height: min(88vh, 720px); overflow: visible; padding-bottom: 8px; }
+.acc-dress-card { width: min(620px, calc(96vw / var(--vz))); height: min(calc(88vh / var(--vz)), 720px); overflow: visible; padding-bottom: 8px; }
 .acc-fit-preview { min-height: 220px; display: grid; place-items: center; }
 .acc-fit-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; min-height: 42px; }
 .acc-fit-chip { border: 2px solid #C7BEDD; border-radius: 13px; background: #F1ECF8; color: #786C95; padding: 7px 9px; font: 700 12px var(--font-display); }
@@ -2269,7 +2269,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .wellie-drop { position: absolute; left: 50%; bottom: 4px; width: 7px; height: 7px; border-radius: 50%; background: #8FC7FF; pointer-events: none; animation: wellieSplash .5s ease-out both; }
 @keyframes wellieSplash { to { transform: translate(var(--wx), -24px) scale(.5); opacity: 0; } }
 @media (max-width: 600px) {
-  .acc-dress-card { height: 94vh; }
+  .acc-dress-card { height: calc(94vh / var(--vz)); }
   .acc-fit-preview { min-height: 185px; transform: scale(.86); margin-block: -12px; }
   .acc-dress-card .bd-tray { max-height: 350px; }
 }
@@ -2574,7 +2574,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 
 .pop-heart { position: absolute; top: -4px; left: 50%; color: var(--pop); font-size: 22px; animation: popheart 0.9s ease-out forwards; pointer-events: none; z-index: 10; }
 @keyframes popheart { 0% { transform: translate(-50%,0) scale(0.4); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(-50%,-40px) scale(1.1); opacity: 0; } }
-.plot-menu { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; z-index: 20; background: rgba(20,12,48,0.94); padding: 7px; border-radius: 16px; max-width: min(92vw, 430px); }
+.plot-menu { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; z-index: 20; background: rgba(20,12,48,0.94); padding: 7px; border-radius: 16px; max-width: min(calc(92vw / var(--vz)), 430px); }
 .plot-menu .btn { padding: 8px 14px; font-size: 16px; min-height: 44px; white-space: nowrap; }
 .plot-menu .size-reset { min-width: 62px; background: var(--star); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .t-firefly, .t-butterfly, .t-star { animation: none !important; } }
@@ -2592,7 +2592,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   0% { transform: translate(0, -10%) rotate(0deg); opacity: 0; }
   10% { opacity: 0.95; }
   90% { opacity: 0.95; }
-  100% { transform: translate(var(--drift,0px), 115vh) rotate(320deg); opacity: 0; }
+  100% { transform: translate(var(--drift,0px), calc(115vh / var(--vz))) rotate(320deg); opacity: 0; }
 }
 .t-sunrays { position: absolute; top: -40%; left: 8%; width: 60%; height: 130%;
   background: conic-gradient(from 200deg at 20% 0%, rgba(255,236,150,0) 0deg, rgba(255,236,150,0.22) 14deg, rgba(255,236,150,0) 28deg, rgba(255,236,150,0.18) 44deg, rgba(255,236,150,0) 60deg);
@@ -2695,7 +2695,7 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .t-sandcastle { transition: none; transform: scaleY(1); }
 }
 /* "Who's riding?" picker */
-.ride-picker .rp-card { padding: 18px; max-width: 560px; width: min(92vw, 560px); max-height: 84vh; overflow-y: auto; }
+.ride-picker .rp-card { padding: 18px; max-width: 560px; width: min(calc(92vw / var(--vz)), 560px); max-height: calc(84vh / var(--vz)); overflow-y: auto; }
 .rp-card h3 { margin: 0 0 4px; color: var(--ink); }
 .rp-count { color: #5a4d84; font-size: 15px; margin: 0 0 12px; }
 .rp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
@@ -3326,8 +3326,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .care-overlay.open { opacity: 1; }
 .care-panel {
   position: relative;
-  width: min(96vw, 720px);
-  max-height: 95vh;
+  width: min(calc(96vw / var(--vz)), 720px);
+  max-height: calc(95vh / var(--vz));
   overflow-y: auto;
   border: 4px solid var(--ink);
   border-radius: 28px;
@@ -3790,7 +3790,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 
 @media (max-width: 600px) {
   .care-overlay { padding: 6px; }
-  .care-panel { width: 98vw; max-height: 98vh; padding: 10px; border-radius: 22px; }
+  .care-panel { width: calc(98vw / var(--vz)); max-height: calc(98vh / var(--vz)); padding: 10px; border-radius: 22px; }
   .care-panel h2 { font-size: 21px; }
   .care-stage { min-height: 360px; }
   .care-action-bar { gap: 5px; }
@@ -4229,7 +4229,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 
 /* landscape: compact guide */
 @media (orientation: landscape) and (max-height: 620px) {
-  .guide-art svg { max-height: 34vh; }
+  .guide-art svg { max-height: calc(34vh / var(--vz)); }
   .ob-title { font-size: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4259,7 +4259,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   /* hero: never shrinks, never clips — the guide fills it properly */
   .hub .hub-guide { flex: 0 0 auto; min-height: auto; overflow: visible; padding: 2px 0; }
   .hub .guide-block { align-items: center; gap: 6px; max-width: 100%; }
-  .hub .hub-guide .guide-art svg { max-height: 24vh; }
+  .hub .hub-guide .guide-art svg { max-height: calc(24vh / var(--vz)); }
   /* the bubble always fits beside the guide, fully inside the viewport */
   .hub .speech-bubble { max-width: calc(100vw - 196px); font-size: 17px; padding: 10px 12px; margin-top: 0; }
   /* content below shifts down naturally; the card grid takes the scroll */
@@ -4324,7 +4324,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .trophy-count { text-align: center; color: #F7E3C8; font-size: 13px; margin: 2px 0 0; }
 
 /* the earning ceremony */
-.trophy-ceremony .tc-panel { max-width: 560px; max-height: 86vh; overflow-y: auto; text-align: center; }
+.trophy-ceremony .tc-panel { max-width: 560px; max-height: calc(86vh / var(--vz)); overflow-y: auto; text-align: center; }
 .trophy-ceremony .tc-title { font-family: var(--font-display); color: var(--ink); margin: 2px 0 4px; }
 .trophy-ceremony .tc-sub { color: #6B5E93; margin: 0 0 6px; }
 .tc-cards { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 8px 0 14px; }
@@ -4406,7 +4406,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .bp-hud .bp-pops { color: var(--star); }
 .bp-board {
   display: grid; grid-template-columns: repeat(var(--n, 6), 1fr);   /* C2: 6x6 std, 5x5 twin */
-  gap: 8px; width: min(90vw, 58vh, 500px); margin: 0 auto; touch-action: none;
+  gap: 8px; width: min(calc(90vw / var(--vz)), calc(58vh / var(--vz)), 500px); margin: 0 auto; touch-action: none;
 }
 /* Gem = a family silhouette + a little Boo face + its numeral, drawn as SVG (C2). */
 .bp-gem {
@@ -4501,7 +4501,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 
 /* ---- funfair grand opening (RUN7 C1): two gates swing open ---- */
 .funfair-grand .fg-panel { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 460px; width: 100%; }
-.fg-gates { position: relative; width: 300px; max-width: 84vw; height: 240px; perspective: 900px; }
+.fg-gates { position: relative; width: 300px; max-width: calc(84vw / var(--vz)); height: 240px; perspective: 900px; }
 .fg-behind {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   border-radius: 18px; background: radial-gradient(120% 100% at 50% 0%, #3A2E6E 0%, #221646 70%);
@@ -4681,7 +4681,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    ============================================================ */
 @media (max-width: 600px) {
   /* dvh stops browser-bar scroll creep on phones */
-  html, body { height: 100dvh; }
+  html, body { height: calc(100dvh / var(--vz)); }
 
   .map-stage { margin-inline: 7px; border-radius: 18px; }
   .map-badge { width: 72px; height: 72px; border-width: 3px; }
@@ -4737,7 +4737,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .town-hint { font-size: 12px; }
 
   /* Boo Pop board breathes on a narrow screen */
-  .bp-board { width: min(94vw, 56vh, 500px); gap: 5px; }
+  .bp-board { width: min(calc(94vw / var(--vz)), calc(56vh / var(--vz)), 500px); gap: 5px; }
   .bp-hud { font-size: 15px; gap: 14px; }
 }
 
@@ -4749,7 +4749,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .hub .hub-top { flex: 0 0 auto; min-height: 44px; }
   .hub .hub-guide { flex: 0 0 auto; overflow: visible; min-height: 0; padding: 0; }
   .hub .guide-block { align-items: center; }
-  .hub .hub-guide .guide-art svg { max-height: 21vh; width: auto; }
+  .hub .hub-guide .guide-art svg { max-height: calc(21vh / var(--vz)); width: auto; }
   .hub .speech-bubble { max-width: min(52vw, 420px); font-size: 15px; padding: 8px 12px; }
   .hub .booday { display: none; }
   .hub .hub-specials { padding: 0 2px; }
@@ -4783,14 +4783,14 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   }
   .teachme-list .lesson-grid { max-width: 100%; }
   .build-rows, .studio-grid { max-width: 100%; }
-  .build-preview svg { max-width: 42vw; height: auto; }
+  .build-preview svg { max-width: calc(42vw / var(--vz)); height: auto; }
   /* the character creator's labelled swatch rows wrap instead of spilling off-screen */
   .cc-group { flex-wrap: wrap; }
   .cc-label { width: auto; min-width: 0; text-align: left; }
   .swatch-row { flex-wrap: wrap; }
   .swatch { width: 42px; height: 42px; }
   /* the town item menu wraps to fit narrow screens (openMenu clamps it on-screen) */
-  .plot-menu { flex-wrap: wrap; justify-content: center; max-width: 94vw; width: max-content; }
+  .plot-menu { flex-wrap: wrap; justify-content: center; max-width: calc(94vw / var(--vz)); width: max-content; }
   /* RUN5 C4: flex-CENTERED screens clip their top above the scrollport when content
      overflows (justify-content:center overflow spills BOTH ways; the top half can
      never be scrolled to). Safe-centre instead: auto margins give the same centring
@@ -4806,7 +4806,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 
 /* Short screens (landscape phones): the ceremony gift fits fully on-screen */
 @media (max-height: 500px) {
-  .gift-box svg { width: min(200px, 52vh); height: min(200px, 52vh); }
+  .gift-box svg { width: min(200px, calc(52vh / var(--vz))); height: min(200px, calc(52vh / var(--vz))); }
 }
 
 /* Boo Pop rule chip: BIG and above the board (C2). Colour embodies the rule, so the
@@ -4909,7 +4909,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 
 /* RUN10 P20 — Wish Well */
 .wish-overlay { z-index:1500; padding:12px; background:rgba(25,12,55,.78); }
-.wish-panel { position:relative; width:min(760px,100%); height:min(820px,96vh); margin:auto; padding:14px 14px 0; border:5px solid #825DAB; border-radius:30px; display:flex; flex-direction:column; overflow:hidden; background:radial-gradient(circle at 50% 35%,#FFF7C9 0 7%,transparent 26%),linear-gradient(#D6F1FF 0 58%,#A9DC82 58%); box-shadow:0 14px 0 rgba(22,10,52,.35),inset 0 0 0 4px #fff; }
+.wish-panel { position:relative; width:min(760px,100%); height:min(820px,calc(96vh / var(--vz))); margin:auto; padding:14px 14px 0; border:5px solid #825DAB; border-radius:30px; display:flex; flex-direction:column; overflow:hidden; background:radial-gradient(circle at 50% 35%,#FFF7C9 0 7%,transparent 26%),linear-gradient(#D6F1FF 0 58%,#A9DC82 58%); box-shadow:0 14px 0 rgba(22,10,52,.35),inset 0 0 0 4px #fff; }
 .wish-head { min-height:88px; display:grid; grid-template-columns:82px 1fr 46px; align-items:center; gap:10px; color:var(--ink); }
 .wish-head h2 { margin:0; font-size:28px; }
 .wish-line { margin:2px 0 0; color:#55409A; font:700 17px var(--font-display); }
@@ -4958,7 +4958,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @keyframes wishFishPlop { 35% { transform:translate(18px,-38px) rotate(18deg); } 70% { transform:translate(40px,5px) rotate(45deg); } to { transform:translate(40px,15px) scale(.7); } }
 @media(max-width:600px) {
   .wish-overlay { padding:0; }
-  .wish-panel { height:100vh; max-height:none; border-radius:0; border-width:0; padding:8px 8px 0; }
+  .wish-panel { height:calc(100vh / var(--vz)); max-height:none; border-radius:0; border-width:0; padding:8px 8px 0; }
   .wish-head { min-height:78px; grid-template-columns:68px 1fr 42px; }
   .wish-guide svg { width:68px; height:auto; }
   .wish-head h2 { font-size:23px; }
@@ -5050,7 +5050,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    Boo Roll 2.0 Stage & Overview Controls CSS
    ============================================================ */
 .screen.booroll2 {
-  position: relative; width: 100%; height: 100dvh; overflow: hidden;
+  position: relative; width: 100%; height: calc(100dvh / var(--vz)); overflow: hidden;
   background: #14082F; display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .roll2-stage {
@@ -5085,7 +5085,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 .roll2-progress {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 50;
-  width: min(320px, 45vw); height: 16px; background: rgba(20,12,48,0.6);
+  width: min(320px, calc(45vw / var(--vz))); height: 16px; background: rgba(20,12,48,0.6);
   border: 2px solid #FFF; border-radius: 10px; overflow: visible;
 }
 .roll2-progress-fill { display: block; height: 100%; background: var(--star); border-radius: 8px; transition: width 0.1s linear; }
@@ -5216,13 +5216,13 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   filter: drop-shadow(0 3px 4px rgba(20,8,50,.35)); animation: mapStroll 38s linear infinite; }
 .map-wanderer svg { display: block; }
 @keyframes mapStroll {
-  0%   { transform: translateX(6vw) scaleX(1); }
-  48%  { transform: translateX(72vw) scaleX(1); }
-  50%  { transform: translateX(72vw) scaleX(-1); }
-  98%  { transform: translateX(6vw) scaleX(-1); }
-  100% { transform: translateX(6vw) scaleX(1); }
+  0%   { transform: translateX(calc(6vw / var(--vz))) scaleX(1); }
+  48%  { transform: translateX(calc(72vw / var(--vz))) scaleX(1); }
+  50%  { transform: translateX(calc(72vw / var(--vz))) scaleX(-1); }
+  98%  { transform: translateX(calc(6vw / var(--vz))) scaleX(-1); }
+  100% { transform: translateX(calc(6vw / var(--vz))) scaleX(1); }
 }
-@media (prefers-reduced-motion: reduce) { .map-wanderer { animation: none; transform: translateX(30vw); } }
+@media (prefers-reduced-motion: reduce) { .map-wanderer { animation: none; transform: translateX(calc(30vw / var(--vz))); } }
 
 
 /* RUN12 S9 — "hear it again". One control, the same in every toddler game with a spoken
@@ -5537,7 +5537,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .wn-card.open { flex-direction: column; padding: 10px 12px 12px; }
 .wn-head { display: flex; align-items: center; gap: 8px; }
 .wn-head .wn-title { flex: 1; }
-.wn-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 46vh; overflow-y: auto; }
+.wn-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: calc(46vh / var(--vz)); overflow-y: auto; }
 .wn-item {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px; border-radius: 14px; background: rgba(255, 255, 255, 0.55);
@@ -5558,7 +5558,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @media (max-width: 600px) {
   .wn-item { flex-wrap: wrap; }
   .wn-go { width: 100%; margin-top: 4px; }
-  .wn-list { max-height: 52vh; }
+  .wn-list { max-height: calc(52vh / var(--vz)); }
 }
 
 /* RUN18B Y2: the confirmation card's two buttons. The offer first, the way out second —
@@ -5642,3 +5642,13 @@ html.calm-motion *::after {
    It is on body, not #screen, so dialogs, the first-play intro and toasts (all appended to
    body) grow with the screen behind them instead of shrinking beside it. */
 html.bigger-text body { zoom: 1.125; }
+
+/* RUN18B Y15 (playtest critic): `zoom` scales every length EXCEPT viewport units, so while
+   "Bigger text" is on a 100vh panel resolves to 112.5% of the real screen and hangs off the
+   bottom. --vz is the zoom in force; every full-viewport length above divides by it, which
+   makes `100vh` mean "the screen" again at either setting. Typography that scales with the
+   viewport (clamp/font-size) is deliberately left alone — that SHOULD grow with the zoom.
+   Found the hard way: at 390x844 the Wish Well's keyboard lost ten keys off the bottom,
+   including backspace, with no way to scroll to them. */
+:root { --vz: 1; }
+html.bigger-text { --vz: 1.125; }

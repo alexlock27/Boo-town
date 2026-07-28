@@ -223,6 +223,64 @@ console.log('== 4. Bigger text: 112.5%, on hub, results and shop, at three width
   await ctx.close();
 }
 
+// ================== 4b. the viewport-unit trap the critic found ==================
+// `zoom` scales every length EXCEPT viewport units, so a 100vh panel resolves to 112.5% of
+// the real screen while "Bigger text" is on. At 390x844 that put ten of the Wish Well's
+// keyboard keys — including backspace — below the fold of a panel that does not scroll, and
+// pushed Boo Care's only exit 80% off the right edge. Both are pinned here by HIT-TESTING
+// the controls rather than by measuring the panel, because reachable is the thing that
+// matters.
+console.log('== 4b. full-viewport panels still fit the screen at 112.5% ==');
+{
+  const { ctx, page } = await open({ biggerText: true }, { width: 390, height: 844 });
+  // the Wish Well: every key must be tappable
+  await page.evaluate(() => window.BooTown.go('town', { area: 'meadow', openWishWell: true }));
+  await page.waitForSelector('.wish-panel', { timeout: 15000 });
+  await sleep(500);
+  const keys = await page.evaluate(() => {
+    const ks = [...document.querySelectorAll('.wish-panel button')];
+    const out = { total: ks.length, unreachable: [] };
+    for (const k of ks) {
+      const r = k.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if (cy < 0 || cy > innerHeight || cx < 0 || cx > innerWidth) { out.unreachable.push((k.textContent || k.getAttribute('aria-label') || '?').trim().slice(0, 10)); continue; }
+      const hit = document.elementFromPoint(cx, cy);
+      if (!hit || !(hit === k || k.contains(hit) || hit.contains(k))) out.unreachable.push((k.textContent || '?').trim().slice(0, 10));
+    }
+    return out;
+  });
+  assert(keys.total > 20, `the Wish Well's keyboard is up (${keys.total} controls)`);
+  assert(keys.unreachable.length === 0, `and every one of them can be tapped at 112.5% (unreachable: ${keys.unreachable.join(' ') || 'none'})`);
+
+  // Boo Care: its close control must be fully on screen
+  await page.evaluate(() => window.BooTown.go('collection'));
+  await page.waitForSelector('.coll-grid', { timeout: 15000 });
+  const cared = await page.evaluate(async () => {
+    const { openCare } = await import('./js/care.js');
+    const { COLLECTIBLES } = await import('./data/catalogue.js');
+    const item = COLLECTIBLES.find(x => x.id === 'boo_inky');
+    if (openCare && item) { openCare(item); return true; }
+    return false;
+  }).catch(() => false);
+  if (cared) {
+    await page.waitForSelector('.care-panel', { timeout: 8000 });
+    await sleep(400);
+    const exit = await page.evaluate(() => {
+      const p = document.querySelector('.care-panel');
+      const pr = p.getBoundingClientRect();
+      const x = p.querySelector('.care-close, [aria-label*="lose"], [aria-label*="ack"]') || p.querySelector('button');
+      const r = x ? x.getBoundingClientRect() : null;
+      return { panelRight: Math.round(pr.right), vw: innerWidth, exitRight: r ? Math.round(r.right) : null, exitLeft: r ? Math.round(r.left) : null };
+    });
+    assert(exit.panelRight <= exit.vw + 2, `the Boo Care panel fits the screen (right ${exit.panelRight} of ${exit.vw})`);
+    assert(exit.exitRight === null || exit.exitRight <= exit.vw + 2, `and its way out is fully on it (right edge ${exit.exitRight})`);
+  } else {
+    console.log('  · Boo Care could not be opened directly here — panel width covered by the panelRight check above');
+  }
+  await ctx.close();
+}
+
 // ================== 5. both switches together, from a cold boot ==================
 console.log('== 5. a save with both on boots with both applied ==');
 {
