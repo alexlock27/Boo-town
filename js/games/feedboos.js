@@ -20,14 +20,21 @@ const starsFor = (wrong, hints) => (hints === 0 && wrong <= 1) ? 3 : (wrong <= 3
 // Juice pass (RUN6 C5)
 const NOM_STREAK = 4;          // a run of this many happy noms sets both Boos drumming the table
 const NOM_ARC_MS = 380;        // a fed item arcs into the mouth over this long
-const WRONG_REACTIONS = ['raspberry', 'headshake', 'sigh'];  // varied, all friendly
+// RUN18B Y5 — the Boo EATS it. Every number below is the pack's.
+const CHOMP_FLY_PX = 80;       // the last stretch into the mouth...
+const CHOMP_FLY_MS = 180;      // ...takes this long, whatever the arc before it did
+const CHOMP_GULP_MS = 160;     // the item scales to nothing INSIDE the mouth
+const CHEEK_PUFF_MS = 200;
+const HAPPY_BOUNCE_MS = 250;   // translateY -8px, in css
+const RULE_SHIFT_AT = [5, 9];  // the 5th and 9th items: the rule moves under her
+const RULE_PULSE_MS = 400;
 
 // English templates (EXPANSION_1 §3.2) are "Words"; everything else is "Maths".
 const WORD_TEMPLATE_IDS = new Set(['nounVerbAdjective', 'pluralRules', 'theirThereTheyre', 'toTooTwo']);
 const ALL_TEMPLATES = [...TEMPLATES, ...TEMPLATES_EXTRA];
 function subjectOf(t) { return WORD_TEMPLATE_IDS.has(t.id) ? 'words' : 'maths'; }
 // A friendly display name for a template id (Full tier lists every template).
-const FEED_NAME_OVERRIDES = { oddEven: 'Odd & even', compare50: 'More or less than 50', compare500: 'More or less than 500', compare5000: 'More or less than 5000', round10: 'Round to 10', round100: 'Round to 100', halfEquivalent: 'Equal to a half?', fractionSize: 'Fraction sizes', shapeSides: 'Shape sides', units1: 'Measure units', units2: 'Measure units 2', nounVerbAdjective: 'Nouns, verbs, adjectives', pluralRules: 'Plural rules', theirThereTheyre: 'their / there / they\'re', toTooTwo: 'to / too / two', tableMemberY4: 'Times tables (Y4)' };
+const FEED_NAME_OVERRIDES = { oddEven: 'Odd & even', compare50: 'More or less than 50', compare500: 'More or less than 500', compare5000: 'More or less than 5000', round10: 'Round to 10', round100: 'Round to 100', halfEquivalent: 'Equal to a half?', fractionSize: 'Fraction sizes', shapeSides: 'Shape sides', units1: 'Measure units', units2: 'Measure units 2', nounVerbAdjective: 'Nouns, verbs, adjectives', pluralRules: 'Plural rules', theirThereTheyre: 'their / there / they\'re', toTooTwo: 'to / too / two', tableMemberY4: 'Times tables (Y4)', twoRule: 'Two rules at once' };
 function prettyTemplateName(id) { if (FEED_NAME_OVERRIDES[id]) return FEED_NAME_OVERRIDES[id]; return id.replace(/([a-z])([A-Z0-9])/g, '$1 $2').replace(/^./, c => c.toUpperCase()); }
 function levelsForSubject(subject) {
   const set = new Set(ALL_TEMPLATES.filter(t => subjectOf(t) === subject).map(t => t.level));
@@ -141,25 +148,67 @@ export function mount(container, params, ctx) {
 
     // feeders row
     const feedersWrap = el('div', { class: 'feeders' });
-    const feederEls = buckets.map((label, i) => {
+    let bucketLabels = buckets.slice();
+    const feederEls = bucketLabels.map((label, i) => {
       const look = FEEDERS[i % FEEDERS.length];
-      const boo = el('div', { class: 'feeder-boo feed-chew', html: renderBoo({ ...look, name: label }, { size: 120, cls: 'art-idle' }) });
+      const boo = el('div', { class: 'feeder-boo feed-chew', html: booArt(look, label, 'closed') });
       const sign = el('div', { class: 'signpost', text: label });
       const zone = el('div', { class: 'feeder', dataset: { bucket: String(i) } }, [boo, sign]);
+      zone._look = look;
       return zone;
     });
     feederEls.forEach(f => feedersWrap.appendChild(f));
+    // The mouth is drawn by art.js, so an open mouth is a re-render of that Boo, not a
+    // second sprite that could drift from it.
+    function booArt(look, label, mouthState) {
+      return renderBoo({ ...look, name: label, mouth: mouthState }, { size: 120, cls: 'art-idle' });
+    }
+    function setMouth(fz, mouthState) {
+      const boo = fz.querySelector('.feeder-boo');
+      boo.innerHTML = booArt(fz._look, bucketLabels[Number(fz.dataset.bucket)], mouthState);
+      fz.dataset.mouth = mouthState;
+    }
+
+    // The rule card: a round whose rule can MOVE (compare) or has two halves (twoRule) says
+    // so out loud, in one place, and that place is what pulses when the rule changes.
+    const ruleCard = el('div', { class: 'feed-rule', role: 'status' });
+    if (roundData.rule) ruleCard.textContent = roundData.rule; else ruleCard.hidden = true;
 
     const tray = el('div', { class: 'food-tray' });
     const queueTag = el('div', { class: 'queue-tag' });
 
-    shell.area.append(feedersWrap, tray, queueTag);
+    let shiftsDone = 0;
+    shell.area.append(ruleCard, feedersWrap, tray, queueTag);
+    if (roundData.predicates && roundData.predicates.length === 2) {
+      // level 3: the two-part rule is spoken as written before the first item
+      shell.react(roundData.rule, { hold: 3200 });
+    }
     showItem();
+
+    function maybeShiftRule() {
+      const plan = roundData.shifts;
+      if (!plan || shiftsDone >= plan.length) return;
+      if (!RULE_SHIFT_AT.includes(idx + 1)) return;
+      const shift = plan[shiftsDone++];
+      bucketLabels = shift.buckets.slice();
+      feederEls.forEach((f, i) => {
+        f.querySelector('.signpost').textContent = bucketLabels[i];
+        setMouth(f, 'closed');
+      });
+      for (let i = idx; i < items.length; i++) items[i].bucket = shift.rebucket(items[i]);
+      if (shift.hintFor) roundData.hintFor = shift.hintFor;
+      ruleCard.hidden = false;
+      ruleCard.textContent = shift.rule;
+      ruleCard.classList.remove('pulse'); void ruleCard.offsetWidth; ruleCard.classList.add('pulse');
+      shell.timeout(() => ruleCard.classList.remove('pulse'), RULE_PULSE_MS);
+      shell.react(shift.rule, { hold: 3000 });   // spoken and shown
+    }
 
     function showItem() {
       clear(tray);
       missesThisItem = 0;
       if (idx >= items.length) return finish();
+      maybeShiftRule();
       queueTag.textContent = `${items.length - idx} to go`;
       const item = items[idx];
       // RUN12 S13.4: the draggable says what it is, not just that it is food
@@ -232,25 +281,52 @@ export function mount(container, params, ctx) {
       sfx.correct();
       recordResult(ledgerId, true);
       const fz = feederEls[bucket];
-      arcToMouth(food, fz, () => {
-        fz.classList.add('nom');
-        let flips = 0;
-        const chew = setInterval(() => { fz.classList.toggle('chew'); if (++flips > 5) { clearInterval(chew); fz.classList.remove('nom', 'chew'); } }, 90);
-        if (nomStreak >= NOM_STREAK) drumTable();   // a happy nom-streak → both Boos drum the table (C5)
-        shell.timeout(() => { idx++; shell.advance(); locked = false; showItem(); }, 280);
-      });
+      // The whole point of Y5: the food does not vanish into a shrinking sprite beside a
+      // Boo that never reacted. It flies in, the mouth OPENS, it is bitten, swallowed,
+      // and the Boo is visibly pleased about it.
+      flyToMouth(food, fz, () => chomp(food, fz));
     }
-    // A fed item arcs through the air into the Boo's mouth (C5).
-    function arcToMouth(food, feeder, done) {
+    // The last CHOMP_FLY_PX into the mouth take CHOMP_FLY_MS; whatever distance came
+    // before that is covered first, at the arc's own speed.
+    function flyToMouth(food, feeder, done) {
       const fr = food.getBoundingClientRect(), tr = feeder.getBoundingClientRect();
       const dx = (tr.left + tr.width / 2) - (fr.left + fr.width / 2);
       const dy = (tr.top + tr.height * 0.42) - (fr.top + fr.height / 2);
       food.style.transform = '';
-      if (REDUCED) { food.classList.add('eaten'); done(); return; }
-      food.style.setProperty('--tx', dx.toFixed(0) + 'px'); food.style.setProperty('--ty', dy.toFixed(0) + 'px');
-      food.classList.add('arc');
-      shell.timeout(done, NOM_ARC_MS);
+      if (REDUCED) { done(); return; }                       // reduced: mouth swap + sfx only
+      const d = Math.hypot(dx, dy) || 1;
+      const k = Math.max(0, (d - CHOMP_FLY_PX) / d);         // where the final stretch begins
+      food.style.setProperty('--x1', (dx * k).toFixed(0) + 'px');
+      food.style.setProperty('--y1', (dy * k).toFixed(0) + 'px');
+      food.style.setProperty('--x2', dx.toFixed(0) + 'px');
+      food.style.setProperty('--y2', dy.toFixed(0) + 'px');
+      const t1 = Math.round(NOM_ARC_MS * k);
+      food.style.setProperty('--t1', t1 + 'ms');
+      food.classList.add('fly-1');
+      shell.timeout(() => { food.classList.add('fly-2'); shell.timeout(done, CHOMP_FLY_MS); }, Math.max(16, t1));
     }
+    function chomp(food, fz) {
+      setMouth(fz, 'open');                                  // mouth opens as it arrives
+      sfx.chomp();                                           // CHOMP
+      if (REDUCED) {
+        food.remove();
+        shell.timeout(() => { setMouth(fz, 'closed'); nextItem(); }, CHOMP_GULP_MS);
+        return;
+      }
+      food.classList.add('gulped');                          // scales to 0 INSIDE the mouth
+      shell.timeout(() => {
+        food.remove();
+        setMouth(fz, 'closed');
+        fz.classList.add('puff');                            // cheeks puff
+        shell.timeout(() => {
+          fz.classList.remove('puff');
+          fz.classList.add('yum');                           // a happy bounce
+          if (nomStreak >= NOM_STREAK) drumTable();
+          shell.timeout(() => { fz.classList.remove('yum'); nextItem(); }, HAPPY_BOUNCE_MS);
+        }, CHEEK_PUFF_MS);
+      }, CHOMP_GULP_MS);
+    }
+    function nextItem() { idx++; shell.advance(); locked = false; showItem(); }
     function drumTable() {
       feederEls.forEach(f => { f.classList.remove('drum'); void f.offsetWidth; f.classList.add('drum'); setTimeout(() => f.classList.remove('drum'), 1200); });
       shell.react('Drum roll! 🥁', { voice: false, hold: 1200 });
@@ -262,11 +338,11 @@ export function mount(container, params, ctx) {
       recordResult(ledgerId, false);
       if (missesThisItem === 1) collector.addAttempted(choiceMiss({ id: ledgerId + ':' + idx, game: 'feedboos', prompt: `Where does ${itemLabel(item)} go?`, options: buckets, answer: buckets[item.bucket] }));
       const fz = feederEls[bucket];
-      const react = WRONG_REACTIONS[rand(WRONG_REACTIONS.length)];   // varied friendly reactions (C5)
-      fz.classList.add(react);
-      if (react === 'sigh') { const s = el('div', { class: 'feed-sigh', text: '😮‍💨' }); fz.appendChild(s); setTimeout(() => s.remove(), 800); }
-      fz._lastReact = react;
-      setTimeout(() => fz.classList.remove(react), 600);
+      // Y5 authors ONE wrong reaction: the Boo turns its head away. (It replaces the three
+      // random ones — and with them a raw 😮‍💨 glyph used as art in a game scene.)
+      fz.classList.add('turn-away');
+      fz._lastReact = 'turn-away';
+      setTimeout(() => fz.classList.remove('turn-away'), 600);
       wobble(food);
       snapBack(food);
       shell.dimHeart();
@@ -289,7 +365,15 @@ export function mount(container, params, ctx) {
       state: () => ({ idx, wrongDrops, nomStreak, locked, hearts: shell.heartsLeft() }),
       feedCorrect: () => { const item = items[idx]; const food = tray.querySelector('.food-item'); if (food && !locked) onCorrect(food, item, item.bucket); },
       feedWrong: () => { const item = items[idx]; const food = tray.querySelector('.food-item'); if (food && !locked) onWrong(food, item, (item.bucket + 1) % buckets.length); },
-      arcing: () => !!tray.querySelector('.food-item.arc'),
+      arcing: () => !!tray.querySelector('.food-item.fly-1,.food-item.fly-2'),
+      mouths: () => feederEls.map(f => f.dataset.mouth || 'closed'),
+      rule: () => ruleCard.hidden ? null : ruleCard.textContent,
+      rulePulsing: () => ruleCard.classList.contains('pulse'),
+      shifts: () => shiftsDone,
+      buckets: () => bucketLabels.slice(),
+      itemBuckets: () => items.map(i => i.bucket),
+      puffing: () => feederEls.some(f => f.classList.contains('puff')),
+      bouncing: () => feederEls.some(f => f.classList.contains('yum')),
       drumming: () => feederEls.some(f => f.classList.contains('drum')),
       lastReaction: () => { for (const f of feederEls) if (f._lastReact) return f._lastReact; return null; },
       chewing: () => document.querySelectorAll('.feeder-boo.feed-chew').length

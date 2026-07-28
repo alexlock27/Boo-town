@@ -55,8 +55,19 @@ export const TEMPLATES = [
       const buckets = [`Less than ${T}`, `More than ${T}`];
       const less = range(lo, T - 1).map(n => numItem(n, 0));
       const more = range(T + 1, hi).map(n => numItem(n, 1));
-      return round(buckets, assemble(buckets, [sampleN(less, 40), sampleN(more, 40)]),
+      const r = round(buckets, assemble(buckets, [sampleN(less, 40), sampleN(more, 40)]),
         it => `Is ${it.value} less than ${T} or more than ${T}?`);
+      // RUN18B Y5: the threshold MOVES partway through the round (feedboos.js
+      // RULE_SHIFT_AT). Sorting the same numbers against a line that has moved is the
+      // whole skill; a round where the answer never changes is a round she can sleepwalk.
+      r.rule = `More or less than ${T}?`;
+      r.shifts = [T + T * 0.4, T - T * 0.4].map(T2 => ({
+        buckets: [`Less than ${T2}`, `More than ${T2}`],
+        rule: `Now: more or less than ${T2}?`,
+        hintFor: it => `Is ${it.value} less than ${T2} or more than ${T2}?`,
+        rebucket(it) { if (it.value === T2) it.value = T2 + 1; return it.value < T2 ? 0 : 1; }
+      }));
+      return r;
     }
   })),
 
@@ -123,6 +134,27 @@ export const TEMPLATES = [
     return round(buckets, assemble(buckets, [cm, kg, ml]),
       it => `Would you measure ${it.caption} in centimetres, kilograms or millilitres?`);
   }})),
+
+  // 10. twoRule (L3) — RUN18B Y5. Two predicates at once, from the authored set; the rule
+  // is spoken and shown exactly as written. Both halves have to be true to feed the left Boo.
+  { id: 'twoRule', level: 3, make() {
+    const RULES = [
+      { text: 'less than 50 AND even',            test: n => n < 50 && n % 2 === 0 },
+      { text: 'more than 30 AND ends in 0 or 5',  test: n => n > 30 && (n % 10 === 0 || n % 10 === 5) },
+      { text: 'even AND more than 40',            test: n => n % 2 === 0 && n > 40 },
+      { text: 'odd AND less than 60',             test: n => n % 2 === 1 && n < 60 }
+    ];
+    const rule = RULES[rnd(RULES.length)];
+    const buckets = [rule.text, 'Not this one'];
+    const all = range(1, 99);
+    const yes = all.filter(rule.test).map(n => numItem(n, 0));
+    const no = all.filter(n => !rule.test(n)).map(n => numItem(n, 1));
+    const r = round(buckets, assemble(buckets, [sampleN(yes, 40), sampleN(no, 40)]),
+      it => `Is ${it.value} ${rule.text}? BOTH parts have to be true.`);
+    r.rule = rule.text;
+    r.predicates = rule.text.split(' AND ');
+    return r;
+  }},
 
   // 9. shapeSides (L1)
   { id: 'shapeSides', level: 1, make() {
