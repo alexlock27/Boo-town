@@ -65,10 +65,17 @@ const FIXTURES = {
     ["Boo House Lounge", "({ area: 'boohouse', room: 'lounge' })"],
     ["Boo House Kitchen", "({ area: 'boohouse', room: 'kitchen' })"],
     ["Boo House Bedroom", "({ area: 'boohouse', room: 'bedroom' })"],
-    ["Boo House with no room named (defaults to the Lounge)", "({ area: 'boohouse' })"]
+    ["Boo House with no room named (defaults to the Lounge)", "({ area: 'boohouse' })"],
+    // RUN18B Y2: the shop's handoff lands her in build mode with the item selected
+    ["shop handoff, outdoors", "({ area: 'meadow', build: true, place: 'deco_bench' })"],
+    ["shop handoff, indoors", "({ area: 'boohouse', room: 'lounge', build: true, place: 'deco_armchair' })"]
   ],
   ceremony: [["Star Chest", "({ chest: true })"]],
-  collection: [["open an item from the museum", "({ openItem: 'boo_inky', from: 'gallerymuseum' })"]],
+  collection: [
+    ["open an item from the museum", "({ openItem: 'boo_inky', from: 'gallerymuseum' })"],
+    // RUN18B Y2: "Who's wearing it?" — in from the shop with a wearable just bought
+    ["dress a Boo in the thing she just bought", "({ from: 'shop', dressWith: 'acc_sunhat' })"]
+  ],
   editguide: [["from hub", "({ from: 'hub' })"], ["from collection", "({ from: 'collection' })"]],
   hub: [["species-change greeting", "({ greeting: 'speciesChange' })"]],
   paint: [["continue a draft", "({ draft: true })"]],
@@ -81,6 +88,9 @@ const FIXTURES = {
     ["a stale/unknown game key falls back instead of throwing", "({ game: 'popping' })"]
   ],
   expedition: [["open the trail", "({ trail: true })"]],
+  // RUN18B Y2: the shop's handoff. It remembers the area she came in from, and sends her
+  // back to it in build mode with the bought item already selected in its own drawer tab.
+  shop: [["entered from an area", "({ fromArea: 'hilltop' })"]],
   // RUN18A H3: the Joke Boo has two doors, and Back must return her to the one she used.
   // The in-world stage says so; the hub card and What's New send nothing and get the hub.
   jokeboo: [

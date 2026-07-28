@@ -5510,3 +5510,9 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .wn-go { width: 100%; margin-top: 4px; }
   .wn-list { max-height: 52vh; }
 }
+
+/* RUN18B Y2: the confirmation card's two buttons. The offer first, the way out second —
+   [Not now] is always second so the way out is never what her thumb lands on. */
+.sb-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+.sb-actions .btn { min-height: 44px; padding: 8px 16px; font-size: 15px; }
+.sb-later { font-weight: 600; }

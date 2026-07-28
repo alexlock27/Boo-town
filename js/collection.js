@@ -248,6 +248,14 @@ export function mount(container, params, ctx) {
     import('./state.js').then(m => m.mutate(st => { st.seen = st.seen || {}; st.seen.careAnyHint = true; }));
   }
 
+  // RUN18B Y2: arriving from the shop having just bought something wearable — "Who's
+  // wearing it?" — opens the dress-up flow on the first Boo she owns, with the new thing
+  // already in the wardrobe. The Boos ARE the wardrobe here, so this is the accessory
+  // screen: there is nowhere else a hat can be put on.
+  if (params && params.dressWith) {
+    const firstBoo = COLLECTIBLES.find(it => it.kind === 'boo' && (owned[it.id] || 0) > 0);
+    if (firstBoo) setTimeout(() => openDressUp(firstBoo, { onDone: () => ctx.go('collection') }), 60);
+  }
   // Arriving from a specific figure (RUN10 P4: the Gallery) opens straight to its card.
   if (params && params.openItem) {
     const wanted = params.openItem;
