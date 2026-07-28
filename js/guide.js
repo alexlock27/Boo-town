@@ -60,15 +60,32 @@ export function createGuideBubble({ view = 'head', size = 120, side = 'left' } =
   };
 }
 
+// The screen that is asking. Every utterance is tagged with it (RUN18B Y1) so leaving a
+// screen takes that screen's speech with it — the router calls tts.cancelOwner() on the
+// way out, and no individual screen has to remember to hush itself. Read at speak time
+// from the router's own marker, which is the only thing that always knows.
+function owningScreen() {
+  // The router's own answer first (it knows during mount, when the DOM does not yet);
+  // the screen marker is the fallback for anything speaking outside a navigation.
+  try { return tts.currentOwnerScreen() || (document.getElementById('screen') || {}).dataset?.screen || null; }
+  catch { return null; }
+}
+
 // Speak a line if voice is on; duck the music while speaking.
-export function speakMaybe(text, voice = true) {
+// `opts.interrupt` is for the Interrupting Boo alone: it pre-empts what is speaking now.
+export function speakMaybe(text, voice = true, opts = {}) {
   const s = getState();
   const voiceOn = voice && s && s.settings && s.settings.voice;
-  if (!voiceOn) return;
+  if (!voiceOn) return 0;
   music.duck(true);
-  const ok = tts.speak(text, {
+  const id = tts.speak(text, {
+    ownerScreen: owningScreen(),
+    interrupt: !!opts.interrupt,
     onstart: () => music.duck(true),
-    onend: () => music.duck(false)
+    // Unduck only when nothing is left to say — otherwise the music swells between two
+    // queued lines and dips again, which is worse than not ducking at all.
+    onend: () => { if (!tts.queueState().length) music.duck(false); }
   });
-  if (!ok) music.duck(false);
+  if (!id) music.duck(false);
+  return id;
 }

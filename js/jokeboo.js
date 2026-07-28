@@ -117,6 +117,7 @@ export function mount(container, params, ctx) {
   // type's pool has cycled. Nothing about which jokes she heard is ever saved.
   const bags = {};
   let type = null, joke = null, script = [], beat = 0, timer = null, ended = false;
+  let interruptNext = false;   // RUN18B Y1: the next line cuts the current one off
 
   for (const t of JOKE_TYPES) {
     const pool = poolFor(t.key, tier);
@@ -201,7 +202,12 @@ export function mount(container, params, ctx) {
     bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop');
     booWrap.dataset.pose = b.pose;
     brow.style.display = b.pose === 'beat' ? '' : 'none';
-    speakMaybe(b.text);
+    // RUN18B Y1: every other line in the app now QUEUES and plays to its end. This is the
+    // one sanctioned pre-emption in Boo Town: the punchline of an Interrupting Boo lands
+    // ON TOP of the line it interrupts, because that is the joke. `b.interrupted` marks
+    // the line being cut off, so the NEXT line is the one that does the cutting.
+    speakMaybe(b.text, true, { interrupt: !!interruptNext });
+    interruptNext = !!b.interrupted;
 
     if (b.punch) {
       rimshot();

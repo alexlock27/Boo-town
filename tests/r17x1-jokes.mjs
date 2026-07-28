@@ -134,7 +134,16 @@ async function open(saveJson = save(), viewport = { width: 1024, height: 768 }) 
     window.__spoken = [];
     const install = () => {
       if (!window.speechSynthesis) return false;
-      window.speechSynthesis.speak = (u) => { window.__spoken.push(u && u.text); };
+      // RUN18B Y1: speech is a QUEUE now — an utterance plays to its end and the next
+      // follows. A stub that swallows an utterance without ever ending it therefore
+      // wedges the queue after the first line, and "every line is spoken" fails for a
+      // reason that has nothing to do with the jokes. So this stub does what a real
+      // engine does: it takes the utterance, then finishes it. The assertion is
+      // unchanged and still means what it always meant.
+      window.speechSynthesis.speak = (u) => {
+        window.__spoken.push(u && u.text);
+        setTimeout(() => { try { u && u.onend && u.onend(); } catch {} }, 0);
+      };
       return true;
     };
     if (!install()) document.addEventListener('DOMContentLoaded', install, { once: true });
@@ -159,13 +168,24 @@ console.log('== the stage: four type cards ==');
 console.log('== knock knock advances line by line with taps ==');
 {
   const { ctx, page } = await open();
-  const walk = await page.evaluate(() => {
+  const walk = await page.evaluate(async () => {
     window.__jokeboo.pick('knock');
     // draw until we get a non-interrupting one, so the tap rhythm is the plain case
     let guard = 0;
     while (window.__jokeboo.current().interrupt && guard++ < 20) window.__jokeboo.another();
     const seen = [{ who: window.__jokeboo.who(), said: window.__jokeboo.said() }];
-    for (let i = 0; i < 4; i++) { window.__jokeboo.tap(); seen.push({ who: window.__jokeboo.who(), said: window.__jokeboo.said() }); }
+    for (let i = 0; i < 4; i++) {
+      // RUN18B Y1: a beat between taps. Speech is a queue now, and this walk used to fire
+      // all five beats in ONE synchronous turn — so no utterance could ever reach its end
+      // and everything after the first simply queued behind a line that was still
+      // "playing". A child taps with hundreds of milliseconds between beats; 30 is enough
+      // to let the engine finish one and start the next, and it is still a condition-free
+      // rhythm, not a race.
+      await new Promise(r => setTimeout(r, 30));
+      window.__jokeboo.tap();
+      seen.push({ who: window.__jokeboo.who(), said: window.__jokeboo.said() });
+    }
+    await new Promise(r => setTimeout(r, 40));
     return { seen, beats: window.__jokeboo.beats(), ended: window.__jokeboo.ended(), spoken: window.__spoken.slice() };
   });
   assert(walk.beats.length === 5, `the knock knock exchange is five beats (${walk.beats.length})`);
@@ -208,13 +228,18 @@ console.log('== the Interrupting Boo fires its punchline EARLY ==');
 console.log('== a setup joke runs setup -> eyebrow beat -> punchline ==');
 {
   const { ctx, page } = await open();
-  const r = await page.evaluate(() => {
+  const r = await page.evaluate(async () => {
     window.__jokeboo.pick('animal');
     const first = { said: window.__jokeboo.said(), pose: window.__jokeboo.pose() };
+    // a beat between taps, for the same reason as the knock-knock walk above: speech is a
+    // queue, and a synchronous double-tap gives the first line no chance to finish.
+    await new Promise(r2 => setTimeout(r2, 30));
     window.__jokeboo.tap();
     const beat = { said: window.__jokeboo.said(), pose: window.__jokeboo.pose() };
+    await new Promise(r2 => setTimeout(r2, 30));
     window.__jokeboo.tap();
     const punch = { said: window.__jokeboo.said(), pose: window.__jokeboo.pose(), ended: window.__jokeboo.ended() };
+    await new Promise(r2 => setTimeout(r2, 40));   // let the punchline reach the engine
     return { first, beat, punch, spoken: window.__spoken.slice() };
   });
   assert(r.first.pose === 'tell', 'the setup is told plainly');
