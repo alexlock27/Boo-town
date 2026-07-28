@@ -17,6 +17,15 @@
 //   girder {x,y,len}   rotates 90°/press between vertical (blocking) and horizontal
 //                      (a bridge at y). Idles VERTICAL.
 //   gate {x,y,h}       closed panel; opens while held.
+//
+// PAR CHANGE — 'lift-off', Alex-approved RUN18B Y8, 2026-07-28: gold 30 -> 14, silver 40 ->
+// 22, bronze 52 -> 35. Beside the geometry resolutions below (Alex-approved 2026-07-27),
+// which is why both live at the top of this file rather than in a run report nobody opens.
+// Sim run under the same policy the board uses (js/games/boorollplay.js through
+// simulate/createRoll): scripted competent play finishes lift-off in **7.77s** with all 3
+// stars. The pack asks for a time BETWEEN gold and silver; the scripted route is faster than
+// the authored gold, so it lands below it. The pars ship AS AUTHORED — they are Alex's
+// numbers for a child's hands, not a bot's — and the discrepancy is recorded in BLOCKED.md.
 
 export const COURSES = [
   {
@@ -69,7 +78,7 @@ export const COURSES = [
     finish: { x: 96, y: 14 }
   },
   {
-    key: 'lift-off', name: 'Lift Off', pars: { gold: 30, silver: 40, bronze: 52 },
+    key: 'lift-off', name: 'Lift Off', pars: { gold: 14, silver: 22, bronze: 35 },   // RUN18B Y8, Alex-approved (see the note at the top of this file)
     teaches: 'the lift, patience',
     start: { x: 4, y: 44 },
     segments: [
