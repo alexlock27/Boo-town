@@ -293,9 +293,22 @@ export function renderBoo(item, { size = 120, cls = '', equipArt = null } = {}) 
   const shapes = [...g.back, g.body];
   const { halo, color } = silhouette(shapes);
 
-  const face = eyes(45, 75, 80, 14, g.eyeKind) +
+  // RUN18B Y4: two one-off variations a Flash Boos scene can pose a Boo with. They live
+  // here rather than in the game because they are drawing, and because "a Boo with its
+  // eyes shut" should look the same wherever it is ever drawn again.
+  const eyeKind = item.eyes === 'closed' ? 'sleepy' : g.eyeKind;
+  const wave = item.pose === 'wave'
+    ? `<g class="boo-wave">` +
+      `<path d="M90 82 Q104 70 105 52" fill="none" stroke="${INK}" stroke-width="21" stroke-linecap="round"/>` +
+      `<path d="M90 82 Q104 70 105 52" fill="none" stroke="${bodyFill}" stroke-width="14" stroke-linecap="round"/>` +
+      `<circle cx="105" cy="46" r="12" fill="${bodyFill}" stroke="${INK}" stroke-width="3.4"/>` +
+      `<path d="M116 34 Q120 29 121 23 M104 28 Q105 22 103 16" fill="none" stroke="${INK}" ` +
+      `stroke-width="3.4" stroke-linecap="round" opacity="0.8"/></g>`
+    : '';
+
+  const face = eyes(45, 75, 80, 14, eyeKind) +
                cheeks(40, 80, 90) +
-               mouth(item.species);
+               mouth(item.species) + wave;
 
   // a couple of item-specific trinkets
   let trinket = '';
@@ -1147,6 +1160,35 @@ export function renderDeco(item, opts = {}) {
         `<g class="sw-seat"><path d="M52 44 L52 88 M68 44 L68 88" stroke="${INK}" stroke-width="2.6"/>` +
         rrect(46, 88, 28, 8, 4, COLORS.star, ink) + `</g>`;
       break;
+    // ---- Flash Boos props (RUN18B Y4) -------------------------------------------------
+    // Hand props, not scenery: they are drawn at 0.55x a Boo and have to read as the thing
+    // at arm's length on a tablet, so both are big simple silhouettes with one highlight.
+    // These two are drawn with a HEAVIER outline than the scenery above: a hand prop is
+    // rendered at ~56-70px against scenery's 120-160, and the house's 4-unit ink line
+    // thins to under 2 real pixels there. Bold lines are what let a ball still read as a
+    // ball at arm's length.
+    case 'ball': {
+      const bold = `stroke="${INK}" stroke-width="7" stroke-linejoin="round"`;
+      inner =
+        ell(60, 78, 34, 34, COLORS.cream, `stroke="${HALO}" stroke-width="12"`) +
+        ell(60, 78, 34, 34, COLORS.cream, bold) +
+        path('M60 44 Q40 78 60 112 Q80 78 60 44 Z', COLORS.bubblegum, '') +               // panels: endpoints on the rim
+        path('M26 78 Q60 58 94 78 Q60 98 26 78 Z', COLORS.teal, '') +
+        ell(60, 78, 34, 34, 'none', bold) +
+        `<circle cx="46" cy="64" r="8" fill="#fff" opacity="0.65"/>`;
+      break;
+    }
+    case 'balloon': {
+      const bold = `stroke="${INK}" stroke-width="7" stroke-linejoin="round"`;
+      inner =
+        `<path d="M60 74 Q74 98 56 118" fill="none" stroke="${HALO}" stroke-width="11" stroke-linecap="round"/>` +
+        `<path d="M60 74 Q74 98 56 118" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>` +
+        ell(60, 42, 30, 34, COLORS.bubblegum, `stroke="${HALO}" stroke-width="12"`) +     // string ends at hand height
+        ell(60, 42, 30, 34, COLORS.bubblegum, bold) +
+        path('M52 72 L68 72 L60 84 Z', COLORS.bubblegum, bold) +                          // knot
+        `<ellipse cx="47" cy="30" rx="8" ry="12" fill="#fff" opacity="0.6" transform="rotate(-18 47 30)"/>`;
+      break;
+    }
     case 'seesaw':
       inner =
         path('M52 106 L60 88 L68 106 Z', COLORS.cocoa, halo) +
