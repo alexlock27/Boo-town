@@ -6,6 +6,15 @@ export const REDUCED = (() => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 })();
 
+// Dev = served from a local machine. The guard below is loud here and silent in
+// production: a developer wants the stack trace, a child must never see the word
+// "undefined" on her screen because of it. `app.localhost` is the host the test board
+// maps to 127.0.0.1, so suites get the strict behaviour too. (RUN18A H6)
+export const IS_DEV = (() => {
+  try { return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || /\.localhost$/.test(location.hostname); }
+  catch { return false; }
+})();
+
 // ---- DOM helper ----------------------------------------------------------
 export function el(tag, props = {}, children = []) {
   const n = document.createElement(tag);
@@ -30,6 +39,17 @@ export function el(tag, props = {}, children = []) {
   }
   for (const c of [].concat(children)) {
     if (c == null) continue;
+    // RUN18A H6 — THE TEMPLATE-LEAKAGE GUARD. `null` and `undefined` reaching a child as
+    // the literal STRING is the shape of every leak this programme found: a template that
+    // interpolated a missing value, or a ternary handed to the DOM's own append(), which
+    // coerces null to the word "null" (el() skips it, append() prints it — that is exactly
+    // how "null" ended up under the Expedition's campfire). In dev this throws, loudly, at
+    // the moment of the mistake; in production it renders nothing, because a child must
+    // never be shown the word "undefined" no matter what went wrong upstream.
+    if (c === 'null' || c === 'undefined' || c === '[object Object]' || c === 'NaN') {
+      if (IS_DEV) throw new Error(`el(): refusing to render the literal string "${c}" as a text child of <${tag}> — a value did not survive its template`);
+      continue;
+    }
     n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
   }
   return n;
