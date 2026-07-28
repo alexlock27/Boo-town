@@ -102,6 +102,55 @@ console.log('== 1. the hub card is contained, and says so ==');
   await page.screenshot({ path: SHOTS + '/hub-contained.png' });
 }
 
+// ---- 1b. EVERY door is shut, at EVERY width ------------------------------------------
+// Both of these were found by the playtest critic against the first cut of this packet,
+// and both are the same mistake: containing the front door and calling it done.
+console.log('== 1b. the side door, and the phone ==');
+{
+  // (a) What's New walked her straight in. Taps only — no go() — from a save that has
+  //     never seen the list, which is every fresh install.
+  await go('hub', {}, '.hub');
+  const news = await page.evaluate(() => {
+    if (!window.__whatsnew || !window.__whatsnew.shown()) return { noCard: true };
+    window.__whatsnew.expand();
+    const rows = [...document.querySelectorAll('.wn-item')];
+    const i = rows.findIndex(r => /Boo Expedition/.test(r.textContent));
+    if (i < 0) return { noEntry: true };
+    const row = rows[i];
+    return {
+      i, hasGo: !!row.querySelector('.wn-go'), shut: (row.querySelector('.wn-shut') || {}).textContent,
+      clicked: window.__whatsnew.go(i)
+    };
+  });
+  if (news.noCard || news.noEntry) {
+    assert(false, 'could not reach the What\'s New entry for the Expedition — check the fixture, this assertion is load-bearing');
+  } else {
+    await page.waitForTimeout(600);
+    const landed = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+    assert(news.hasGo === false, 'What\'s New offers NO "Show me!" for the contained Expedition');
+    assert(news.shut === 'Being polished — back soon! 🚧', `it wears the reason instead: "${news.shut}"`);
+    assert(news.clicked === false && landed === 'hub', `and there is no door to walk through — still on "${landed}"`);
+  }
+
+  // (b) at phone width the contained card must still carry its reason. The generic phone
+  //     rule hides every card's .gc-tag; on this card the tag IS the message.
+  for (const [w, h] of [[390, 844], [768, 1024], [1024, 768]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await go('hub', {}, '.hub');
+    const seen = await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.game-card')].find(x => /Boo Expedition/.test(x.textContent));
+      const tag = b && b.querySelector('.gc-tag');
+      if (!tag) return { missing: true };
+      const cs = getComputedStyle(tag), r = tag.getBoundingClientRect();
+      return { text: tag.textContent, display: cs.display, visible: r.width > 0 && r.height > 0 };
+    });
+    assert(!seen.missing && seen.display !== 'none' && seen.visible && seen.text === 'Being polished — back soon! 🚧',
+      `${w}px: the card still says why it is shut (display:${seen.display}, "${seen.text}")`);
+  }
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.screenshot({ path: SHOTS + '/hub-contained-1024.png' });
+}
+
 // ---- 2. no expedition screen renders a leaked token --------------------------------
 console.log('== 2. no rendered text node is a placeholder or a leaked null ==');
 {

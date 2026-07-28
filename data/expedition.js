@@ -6,6 +6,12 @@
 // the truth repairs in js/expedition/ land either way, because 18C builds on them.
 export const CONTAINED = 'Being polished — back soon! 🚧';
 
+// Every route that is behind that notice, so a door cannot be missed. The hub card was
+// shut first and What's New still walked her straight in through the side — "does not
+// open" has to mean every door, so both read this one map. RUN18C empties CONTAINED and
+// every door reopens at once.
+export const CONTAINED_ROUTES = CONTAINED ? { expedition: CONTAINED, expeditionpuzzle: CONTAINED } : {};
+
 export const BUDGETS = { bridges: { sneezes: [6, 6, 8, 8] }, picnic: { huffs: [5, 6, 7, 8] }, raft: { failedSails: [3, 4, 4, 5] }, hotel: { wrongRooms: [6, 8, 10, 10] } };
 export const NODES = [{ key: 'bridges', name: 'Sneezy Bridges', icon: '🌉' }, { key: 'picnic', name: "Picky Grumps' Picnic", icon: '🧺' }, { key: 'raft', name: 'Ferry Raft', icon: '⛵' }, { key: 'hotel', name: 'Boo Hotel', icon: '🏨' }];
 export const GUESTS = [
