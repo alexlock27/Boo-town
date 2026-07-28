@@ -206,6 +206,64 @@ console.log('== 4. no feeder is more than 40% of the viewport from the food ==')
     + (far.length ? ': ' + JSON.stringify(far) : ''));
 }
 
+// ---- 4b. a REAL drag, which is the only way a child can play ---------------------------
+// The gap that let two defects ship: every assertion above drives feedCorrect(), and the
+// hook never touches the drag transform. Under a real pointer the card used to leap ~185px
+// above the finger (off the top edge at 768x1024) and the food then flew to a fixed point on
+// the empty floor — the same pixel whichever Boo had opened its mouth. Both were invisible
+// to a hook-driven suite, and both are measured here instead.
+console.log('== 4b. dragged by a real pointer: the card stays under the finger, the food reaches the mouth ==');
+{
+  const offFinger = [], missedMouth = [];
+  for (const [w, h] of [[390, 844], [768, 1024], [1024, 768]]) {
+    const { ctx, page } = await open('oddEven', { width: w, height: h });
+    const geo = await page.evaluate(() => {
+      const item = window.__feedboos.state();
+      const food = document.querySelector('.food-item').getBoundingClientRect();
+      const bucket = [...document.querySelectorAll('.feeder')].find(f => Number(f.dataset.bucket) === window.__feedboos.itemBuckets()[item.idx]);
+      const boo = bucket.querySelector('.feeder-boo').getBoundingClientRect();
+      return { fx: food.left + food.width / 2, fy: food.top + food.height / 2,
+               bx: boo.left + boo.width / 2, by: boo.top + boo.height * (96 / 130) };
+    });
+    await page.mouse.move(geo.fx, geo.fy);
+    await page.mouse.down();
+    // step toward the Boo, checking after every step that the card is still under the finger
+    for (let i = 1; i <= 6; i++) {
+      const mx = geo.fx + (geo.bx - geo.fx) * i / 6, my = geo.fy + (geo.by - geo.fy) * i / 6;
+      await page.mouse.move(mx, my);
+      const off = await page.evaluate(([x, y]) => {
+        const r = document.querySelector('.food-item').getBoundingClientRect();
+        return Math.round(Math.hypot(r.left + r.width / 2 - x, r.top + r.height / 2 - y));
+      }, [mx, my]);
+      if (off > 40) offFinger.push({ w, step: i, off });
+    }
+    await page.mouse.up();
+    // where does it actually END UP? sample while it is still on screen, before it is removed
+    let landed = null;
+    for (let i = 0; i < 14 && !landed; i++) {
+      landed = await page.evaluate(() => {
+        const n = document.querySelector('.food-item');
+        if (!n) return null;
+        const r = n.getBoundingClientRect();
+        return getComputedStyle(n).transform !== 'none' && r.width > 0
+          ? { x: r.left + r.width / 2, y: r.top + r.height / 2, gulped: n.classList.contains('gulped') } : null;
+      });
+      if (landed && !landed.gulped) landed = null;   // wait for the last leg
+      await page.waitForTimeout(40);
+    }
+    if (landed) {
+      const miss = Math.round(Math.hypot(landed.x - geo.bx, landed.y - geo.by));
+      if (miss > 60) missedMouth.push({ w, miss });
+    } else missedMouth.push({ w, miss: 'never sampled mid-gulp' });
+    await page.screenshot({ path: `${SHOTS}/dragged-${w}x${h}.png` });
+    await ctx.close();
+  }
+  assert(offFinger.length === 0, 'the dragged card stays under the finger at every width'
+    + (offFinger.length ? ': ' + JSON.stringify(offFinger.slice(0, 3)) : ''));
+  assert(missedMouth.length === 0, 'a dragged item is swallowed AT the mouth, not in empty space'
+    + (missedMouth.length ? ': ' + JSON.stringify(missedMouth) : ''));
+}
+
 // ---- 5. reduced motion, and the wrong feed ----------------------------------------------
 console.log('== 5. reduced motion is the mouth and the sound only; a wrong feed turns a head ==');
 {
