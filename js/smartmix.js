@@ -39,7 +39,11 @@ export function buildSmartMix(pool, n = 8, opts = {}) {
   const chosen = [], used = new Set();
   // weak weighted by boost (double weight for twins / th words while weak)
   drawWeighted(weak, wWeak, (it) => (it.boost || 1), chosen, used);
-  drawWeighted(shuffle(middle.slice()), wMiddle, () => 1, chosen, used);
+  // RUN18B Y9: the middle bucket honours `boost` too. It did not, and that quietly gutted the
+  // Tricky Pile's whole point — an item she missed but has not yet missed MORE than she has
+  // got right is 'middle', which is where most pile items sit, and there the boost was thrown
+  // away. Within-bucket weighting only; the 40/40/20 split is untouched.
+  drawWeighted(shuffle(middle.slice()), wMiddle, (it) => (it.boost || 1), chosen, used);
   drawWeighted(mastered, wMastered, () => 1, chosen, used);
   // backfill shortfalls (small pools / empty buckets): prefer middle -> weak -> mastered
   const rest = [...shuffle(middle.slice()), ...weak, ...mastered];

@@ -7,7 +7,7 @@
 //     to the Tricky Pile (Puzzled Boo) and are offered back on the results screen.
 
 import { el, clear, starsRow, wobble, sparkleAt, backControl } from '../ui.js';
-import { getState, mutate, recordResult } from '../state.js';
+import { getState, mutate, recordResult, spellId } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { guideLine, speakMaybe } from '../guide.js';
@@ -19,7 +19,7 @@ import { TWIN_SETS, TWIN_EXPLAIN, TWIN_LEVELS, twinItemsForLevel } from '../../d
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { buildSmartMix } from '../smartmix.js';
-import { createTrickyCollector, wordMiss } from '../trickypile.js';
+import { createTrickyCollector, wordMiss, pileBoost } from '../trickypile.js';
 import { makeSpeller, typeInto } from '../speller.js';
 import { filterSpellSets, filterLevels, contentTier } from '../content.js';
 
@@ -124,13 +124,17 @@ export function mount(container, params, ctx) {
 
   // ---- Smart Mix pool: every word + every twin set from ALL installed content ----
   // (never tier-filtered — light UI, full brain). Twins and th words boost 2 while weak.
+  // RUN18B Y9: and anything sitting in the persisted Tricky Pile boosts ×3 on top, so the
+  // word she missed last time and did not rescue is the word she is most likely to meet next
+  // time — the promise `persistUnrescued` has been making since RUN3.
   function buildMixItems() {
     const pool = [];
     for (const set of SETS) for (const wo of set.words) {
       if (pool.some(p => p.kind === 'word' && p.word === wo.w)) continue; // dedupe shared words
-      pool.push({ id: wo.w, kind: 'word', word: wo.w, clue: wo.clue || null, boost: TH_WORDS.has(wo.w) ? 2 : 1 });
+      const id = spellId(wo.w);
+      pool.push({ id, kind: 'word', word: wo.w, clue: wo.clue || null, boost: pileBoost(id, TH_WORDS.has(wo.w) ? 2 : 1) });
     }
-    for (const set of TWIN_SETS) pool.push({ id: 'twin:' + set.id, kind: 'twin', setId: set.id, boost: 2 });
+    for (const set of TWIN_SETS) { const id = spellId('twin:' + set.id); pool.push({ id, kind: 'twin', setId: set.id, boost: pileBoost(id, 2) }); }
     const picked = buildSmartMix(pool, ROUND_WORDS);
     // expand a twin pool item into a concrete sentence item
     return picked.map(p => p.kind === 'twin' ? twinItemFromSet(p.setId) : p);
@@ -138,7 +142,7 @@ export function mount(container, params, ctx) {
   function twinItemFromSet(setId) {
     const set = TWIN_SETS.find(s => s.id === setId);
     const it = set.items[rand(set.items.length)];
-    return { id: 'twin:' + setId, kind: 'twin', setId, options: set.options, sentence: it.s, answer: it.a };
+    return { id: spellId('twin:' + setId), kind: 'twin', setId, options: set.options, sentence: it.s, answer: it.a };
   }
 
   // ---- one round engine (shared by normal, twins and mix) ---------------------
@@ -221,8 +225,8 @@ export function mount(container, params, ctx) {
       stage.append(promptCard, peekWord, clueEl, area);
 
       const speller = makeSpeller(area, word, {
-        onCorrect: () => { onHitLedger(word); mutate(s => { s.spellingMastery[word] = (s.spellingMastery[word] || 0) + 1; }); showWordCard(word); shell.react('Spelled it! 🌟', { voice: false, hold: 1500 }); speakMaybe(`${word}. Brilliant!`); shell.timeout(itemDone, 1300); },
-        onWrongCheck: () => onMiss(word, wordMiss(word))
+        onCorrect: () => { onHitLedger(spellId(word)); mutate(s => { s.spellingMastery[word] = (s.spellingMastery[word] || 0) + 1; }); showWordCard(word); shell.react('Spelled it! 🌟', { voice: false, hold: 1500 }); speakMaybe(`${word}. Brilliant!`); shell.timeout(itemDone, 1300); },
+        onWrongCheck: () => onMiss(spellId(word), wordMiss(word))
       });
 
       curHint = () => { if (canHint() && speller.hintNextLetter()) { spendHint(); shell.react(guideLine('hintSpell')); if (!canHint()) peekBtn.disabled = true; } };
@@ -256,10 +260,10 @@ export function mount(container, params, ctx) {
 
       function pick(opt) {
         if (phase !== 'pick') return;
-        if (opt === item.answer) { sfx.correct(); recordResult('twin:' + item.setId, true); toSpell(false); return; }
+        if (opt === item.answer) { sfx.correct(); recordResult(spellId('twin:' + item.setId), true); toSpell(false); return; }
         // wrong pick: onMiss counts one wrong, dims a heart, records the twin ledger miss and collects it
         sfx.oops();
-        onMiss('twin:' + item.setId, twinMissItem(item));
+        onMiss(spellId('twin:' + item.setId), twinMissItem(item));
         explainEl.textContent = TWIN_EXPLAIN[item.answer] || ''; explainEl.style.display = '';
         speakMaybe(TWIN_EXPLAIN[item.answer] || '');
         [...btnRow.querySelectorAll('.twin-opt')].forEach(b => { b.disabled = true; b.classList.toggle('right', b.textContent === item.answer); });
@@ -330,7 +334,7 @@ export function mount(container, params, ctx) {
 
 function twinMissItem(item) {
   // re-askable recognition: the same sentence + twin options.
-  return { id: 'twin:' + item.setId, game: 'spellboo', prompt: item.sentence.replace(/_+/g, '____'), options: item.options.slice(0, 3), answer: item.answer };
+  return { id: spellId('twin:' + item.setId), game: 'spellboo', prompt: item.sentence.replace(/_+/g, '____'), options: item.options.slice(0, 3), answer: item.answer };
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function speakerIcon() { return `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="var(--ink)"/><path d="M16 8c1.5 1.5 1.5 6.5 0 8" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`; }

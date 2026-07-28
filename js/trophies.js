@@ -4,7 +4,7 @@
 // Earning anything plays a fanfare, an unmissable card, and stamps the Journal.
 
 import { el, clear, confetti } from './ui.js';
-import { getState, mutate, isMastered, todayKey } from './state.js';
+import { getState, mutate, isMastered, todayKey, spellId } from './state.js';
 import { COLLECTIBLES, ACCESSORIES } from '../data/catalogue.js';
 import { BANKS } from '../data/spellingBanks.js';
 import { WORDS } from '../data/spelling.js';
@@ -52,7 +52,9 @@ const cb = (s, k) => (s.catBest && s.catBest[k]) || 0;
 const tableMastered = (t) => { for (let f = 1; f <= FACTORS; f++) if (!isMastered(`tmul${t}:${f}`)) return false; return true; };
 const bondsMastered = (total, step) => { for (let a = step; a < total; a += step) if (!isMastered(`b${a}:${total}`)) return false; return true; };
 const setWords = (id) => id === 'big' ? WORDS : ((BANKS.find(b => b.id === id) || { words: [] }).words);
-const spellSetMastered = (id) => { const ws = setWords(id); return ws.length > 0 && ws.every(w => isMastered(w.w)); };
+// RUN18B Y9: Spell Boo's ledger ids are game-prefixed now. `isMastered` reads the old bare
+// word when there is no prefixed entry, so a certificate already earned stays earned.
+const spellSetMastered = (id) => { const ws = setWords(id); return ws.length > 0 && ws.every(w => isMastered(spellId(w.w))); };
 const uniqueBoos = (s) => COLLECTIBLES.filter(it => it.kind === 'boo' && (s.inventory[it.id] || 0) > 0).length
                         + ((s.customs || []).filter(c => c.won).length);
 const shinyCount = (s) => Object.values(s.shinies || {}).reduce((a, b) => a + b, 0);
@@ -104,7 +106,7 @@ export function buildCatalog() {
   for (const set of TWIN_SETS) items.push({
     key: `cert_twin_${set.id}`, type: 'certificate', group: 'words',
     label: `Sound Twins: ${twinLabel(set)}`, hint: `Master ${twinLabel(set)}…`, icon: '📜',
-    earned: () => isMastered('twin:' + set.id)
+    earned: () => isMastered(spellId('twin:' + set.id))
   });
   // Medals — per game by lifetime 3-star rounds (counters start at this update)
   for (const g of Object.keys(GAME_NAMES)) for (const [tier, need, icon] of MEDAL_TIERS) items.push({

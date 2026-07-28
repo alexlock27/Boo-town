@@ -31,10 +31,13 @@ async function pickerNames(game) {
 
 // ---- D19: Bubble Pop categories per tier ----
 console.log('== D19: Bubble Pop categories ==');
+// RUN18B Y9 moved three gates: bonds and doubles/halves are Light work, more-or-less Medium.
+// The assertions move WITH the law, not around it — Light must now SEE bonds and doubles.
 await setTier('light'); let n = await pickerNames('bubblepop');
-assert(n.includes('Pick for me!') && n.includes('Times tables') && !n.includes('Number bonds') && !n.includes('Doubles & halves'), 'Light: Pick for me + Times tables only (' + n.join(',') + ')');
+assert(n.includes('Pick for me!') && n.includes('Times tables') && n.includes('Number bonds') && n.includes('Doubles & halves'), 'Light: Pick for me + Times tables + Number bonds + Doubles & halves (' + n.join(',') + ')');
+assert(!n.includes('Add & subtract') && !n.includes('More or less'), 'Light: still no Add & subtract, no More or less (' + n.join(',') + ')');
 await setTier('medium'); n = await pickerNames('bubblepop');
-assert(n.includes('Number bonds') && n.includes('Add & subtract') && !n.includes('Doubles & halves') && !n.includes('More or less'), 'Medium: adds Number bonds + Add & subtract');
+assert(n.includes('Number bonds') && n.includes('Add & subtract') && n.includes('Doubles & halves') && n.includes('More or less'), 'Medium: adds Add & subtract + More or less');
 await setTier('full'); n = await pickerNames('bubblepop');
 assert(n.includes('Doubles & halves') && n.includes('More or less'), 'Full: adds Doubles & halves + More or less');
 // levels: Light hides Level 3 on Times tables
