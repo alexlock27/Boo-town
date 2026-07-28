@@ -385,3 +385,11 @@
 .tm-tile-word { display: block; font-size: 13px; font-weight: 700; color: var(--ink, #2A1B4E); text-align: center; }
 .tm-order { justify-content: center; }
 @media (prefers-reduced-motion: reduce) { .tm-hook-board.fix { animation: none; } }
+
+/* RUN18D D4: the scene tag is a drawing now, not a 26px emoji — it needs a box, and it
+   sits on a cream disc so a line drawing reads against whatever the scene is doing. */
+.tm-hook-scene-tag {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 2px 6px rgba(20,12,48,0.3);
+  display: grid; place-items: center; font-size: 0;
+}

@@ -26,6 +26,7 @@ import { getState } from './state.js';
 import { sfx } from './sfx.js';
 import { renderWordArt } from './wordart.js';
 import { renderStoryArt } from './storyart.js';
+import { renderLessonGlyph } from './art.js';   // RUN18D D4
 import { makeDraggable, makeDropTargets, clearLift } from './dragdrop.js';
 
 export const HOOK_MS = 10000;   // the ten-second scene the brief asks for
@@ -106,12 +107,16 @@ function hookPanels() {
 function booSVG(scene) {
   const g = (getState() || {}).guide;
   // the guide's own face fronts the scene, so the Boo in trouble is someone she knows
+  // RUN18D D4: the tag beside the Boo's face is drawn, not ⛵❓🔁🔢🦘🛍️🍰📜🕒. This is the
+  // HOOK — the ten seconds that pose the lesson's problem — so it is a scene, and the law
+  // covers it. The glyphs are Teach Me's own set, so a lesson's badge and its hook tag are
+  // visibly the same object.
   return renderGuide(g, { view: 'head', size: 74 }) +
-    `<span class="tm-hook-scene-tag" aria-hidden="true">${SCENE_TAG[scene] || ''}</span>`;
+    `<span class="tm-hook-scene-tag" aria-hidden="true">${SCENE_TAG[scene] ? renderLessonGlyph(SCENE_TAG[scene], { size: 34 }) : ''}</span>`;
 }
 const SCENE_TAG = {
-  boat: '⛵', confused: '❓', backwards: '🔁', muddle: '🔢', hop: '🦘',
-  shop: '🛍️', share: '🍰', long: '📜', clock: '🕒'
+  boat: 'boat', confused: 'confused', backwards: 'backwards', muddle: 'muddle', hop: 'hop',
+  shop: 'shop', share: 'share', long: 'long', clock: 'clock'
 };
 
 // ---------------------------------------------------------------------------------------

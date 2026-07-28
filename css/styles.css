@@ -6187,3 +6187,17 @@ html.bigger-text { --vz: 1.125; }
 .bubble.bp-sink { animation: bpSink 300ms linear forwards; }
 @keyframes bpSink { from { opacity: 1; } to { opacity: 0.08; } }
 @media (prefers-reduced-motion: reduce) { .bubble.bp-sink { animation: none; opacity: 0.35; } }
+
+/* RUN18D D4 — the drawn replacements need boxes that fit a drawing rather than a glyph.
+   Every one of these used to be sized with `font-size`, which does nothing to an <svg>. */
+.acc-chip.chip-art { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; }
+.acc-chip.chip-art .chip-art-ic { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; }
+.acc-chip.chip-art .chip-art-ic svg { display: block; }
+.sc-emoji.sc-glyph { font-size: 0; display: grid; place-items: center; min-height: 56px; }
+/* …and the Studio menu itself stops sitting at the top of 500px of sky (the D1 fix, applied
+   where the same defect lives). `margin: auto` centres it while there is room and collapses
+   to 0 when there is not, so the top stays reachable on a short screen. */
+.studio-grid { margin: auto; }
+.lesson-ic { display: grid; place-items: center; min-height: 44px; }
+.lc-badge { display: grid; place-items: center; min-height: 64px; }
+.tm-hook-scene-tag { font-size: 0; display: grid; place-items: center; }

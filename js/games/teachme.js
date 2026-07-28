@@ -32,12 +32,13 @@ import { bestStars, recordBest, saveLastPick } from '../picker.js';
 import { stampJournal } from '../quests.js';
 import { confetti } from '../ui.js';
 import { mountHook, mountTryStep } from '../lessonstages.js';
+import { renderLessonGlyph } from '../art.js';   // RUN18D D4
 
-const LESSON_ICON = {
-  tower: '🗼', spring: '🌀', footsteps: '👣', cakeslice: '🍰', dotsgrid: '⚄', clock: '🕒',
-  // RUN16 W5: the three literacy lessons
-  mouth: '👄', twins: '👯', hill: '⛰️'
-};
+// RUN18D D4: the nine lesson badges are drawn now — a tower of place-value blocks, a
+// coil, two footprints, a cake slice, a die face, the Clock Shop's own clock, an open
+// mouth, two matching faces and a flagged hill. `renderLessonGlyph` is shared with the
+// HOOK stage's scene tags (js/lessonstages.js), which had the same problem.
+const LESSON_ART = (icon, size) => renderLessonGlyph(icon || 'dotsgrid', { size });
 export const LESSON_CEREMONY_MS = 2200;   // the beat a finished lesson gets, matching a game's
 const STUCK_AT = 2;                       // wrong tries on ONE step before the variant is offered
 
@@ -50,7 +51,7 @@ function lessonCeremony(lesson, stars, isRecap, onDone) {
   const stamp = (lesson.win && lesson.win.stamp) || null;
   const wrap = el('div', { class: 'lesson-ceremony', role: 'dialog', 'aria-label': 'Lesson complete' });
   const panel = el('div', { class: 'card lc-panel' }, [
-    el('div', { class: 'lc-badge', text: LESSON_ICON[lesson.icon] || '📘' }),
+    el('div', { class: 'lc-badge', html: LESSON_ART(lesson.icon, 64) }),
     el('h2', { class: 'lc-title', text: isRecap ? 'Nice recap!' : 'Lesson learned!' }),
     el('p', { class: 'lc-name', text: lesson.name }),
     el('div', { class: 'lc-stars', html: starsRow(stars, { size: 30 }) }),
@@ -137,7 +138,7 @@ export function mount(container, params, ctx) {
     for (const lesson of LESSONS) {
       const best = bestStars('teachme', lesson.id);
       grid.appendChild(el('button', { class: 'lesson-card', onclick: () => { sfx.tap(); saveLastPick('teachme', lesson.id, 1); playLesson(lesson); } }, [
-        el('div', { class: 'lesson-ic', text: LESSON_ICON[lesson.icon] || '📘' }),
+        el('div', { class: 'lesson-ic', html: LESSON_ART(lesson.icon, 44) }),
         el('div', { class: 'lesson-name', text: lesson.name }),
         best > 0 ? el('div', { class: 'lesson-badge', html: starsRow(best, { size: 15 }) }) : null
       ]));

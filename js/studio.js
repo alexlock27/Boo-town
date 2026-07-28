@@ -7,6 +7,7 @@ import { getState, mutate } from './state.js';
 import { sfx, music } from './sfx.js';
 import { idbGetAll, idbPut, idbDelete, idbCount } from './idb.js';
 import { noteRequest } from './requests.js';
+import { renderStudioGlyph } from './art.js';   // RUN18D D4
 
 export const GALLERY_CAP = 20;
 export const ART_MAX_PX = 640;
@@ -41,15 +42,17 @@ export function mount(container, params, ctx) {
     backControl(() => ctx.go('hub')),
     el('h2', { text: '🎨 Boo Studio' })
   ]);
+  // RUN18D D4: drawn tiles, not 🖌️🖼️🧩🌟. The four things she can make, in the house
+  // sticker style, on the screen that introduces making things.
   const acts = [
-    { id: 'paint', name: 'Paint a Boo', tag: 'Colour it in!', emoji: '🖌️' },
-    { id: 'collage', name: 'Collage', tag: 'Make a scene', emoji: '🖼️' },
-    { id: 'buildaboo', name: 'Build a Boo', tag: 'Invent your own!', emoji: '🧩' },
-    { id: 'gallery', name: 'My Gallery', tag: 'See your art', emoji: '🌟' }
+    { id: 'paint', name: 'Paint a Boo', tag: 'Colour it in!', glyph: 'paint' },
+    { id: 'collage', name: 'Collage', tag: 'Make a scene', glyph: 'collage' },
+    { id: 'buildaboo', name: 'Build a Boo', tag: 'Invent your own!', glyph: 'buildaboo' },
+    { id: 'gallery', name: 'My Gallery', tag: 'See your art', glyph: 'gallery' }
   ];
   const grid = el('div', { class: 'studio-grid' });
   acts.forEach(a => grid.appendChild(el('button', { class: 'studio-card', onclick: () => { sfx.tap(); ctx.go(a.id); } }, [
-    el('div', { class: 'sc-emoji', text: a.emoji }),
+    el('div', { class: 'sc-emoji sc-glyph', html: renderStudioGlyph(a.glyph, { size: 56 }) }),
     el('div', { class: 'sc-title', text: a.name }),
     el('div', { class: 'sc-tag', text: a.tag })
   ])));

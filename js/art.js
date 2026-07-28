@@ -1916,6 +1916,134 @@ export const TRAIL_VIEW = TRAIL_VIEWS.land;
 export const TRAIL_PATH_D = TRAIL_PATHS.land;
 export const TRAIL_NODE_AT = TRAIL_NODE_ATS.land;
 
+// ---- RUN18D D4: the last emoji out of the scenes ----------------------------------
+// CLAUDE.md: no emoji-as-art in game scenes. Emoji stay ALLOWED in UI chrome — What's New
+// icons, button glyphs, journal stamps — because there they are typography. Inside a scene
+// they are somebody else's drawings sitting in the middle of ours, and they change shape
+// depending on whose tablet it is.
+//
+// Two sets, both 24x24 on the house palette with the house ink line:
+//   renderLessonGlyph — Teach Me's nine lesson badges AND the nine scene tags its HOOK
+//     stage wears. One map, because `clock` and the cake slice were in both.
+//   renderStudioGlyph — the four Boo Studio tiles.
+export function renderLessonGlyph(key, { size = 40, cls = '' } = {}) {
+  const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"`;
+  const thin = `stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
+  const G = {
+    // place value: three blocks stacked into a tower, biggest at the bottom
+    tower: `<g><rect x="4.4" y="15.2" width="15.2" height="5.6" rx="1.2" fill="${COLORS.bubblegum}" ${ink}/>
+      <rect x="6.6" y="9.6" width="10.8" height="5.6" rx="1.2" fill="${COLORS.teal}" ${ink}/>
+      <rect x="8.8" y="4" width="6.4" height="5.6" rx="1.2" fill="${COLORS.gold}" ${ink}/></g>`,
+    // bridging through ten: a coil under a ball. Drawn as four stacked loops rather than
+    // one continuous squiggle, which at 44px read as a scribble and named nothing.
+    spring: `<g><path d="M4.6 20.4 L19.4 20.4" ${ink}/>
+      <ellipse cx="12" cy="18" rx="6" ry="1.9" fill="none" ${ink}/>
+      <ellipse cx="12" cy="14.6" rx="6" ry="1.9" fill="none" ${ink}/>
+      <ellipse cx="12" cy="11.2" rx="6" ry="1.9" fill="none" ${ink}/>
+      <circle cx="12" cy="6" r="3.8" fill="${COLORS.bubblegum}" ${ink}/></g>`,
+    // counting in steps: two footprints, sole and toes, walking away from the viewer
+    footsteps: `<g><path d="M5.6 4.4 Q9.4 4.4 9.4 7.6 Q9.4 9.8 8.8 11 Q8.2 12.4 7 12.4 Q5 12.4 4.6 10.4 Q4.2 7.6 4.6 6.2 Q5 4.4 5.6 4.4 Z" fill="${COLORS.teal}" ${ink}/>
+      <circle cx="4.6" cy="2.6" r="1.1" fill="${COLORS.teal}" ${thin}/><circle cx="7.4" cy="2.2" r="1" fill="${COLORS.teal}" ${thin}/>
+      <path d="M14.6 11.6 Q18.4 11.6 18.4 14.8 Q18.4 17 17.8 18.2 Q17.2 19.6 16 19.6 Q14 19.6 13.6 17.6 Q13.2 14.8 13.6 13.4 Q14 11.6 14.6 11.6 Z" fill="${COLORS.bubblegum}" ${ink}/>
+      <circle cx="13.6" cy="9.8" r="1.1" fill="${COLORS.bubblegum}" ${thin}/><circle cx="16.4" cy="9.4" r="1" fill="${COLORS.bubblegum}" ${thin}/></g>`,
+    // fractions AND sharing: a round cake cut in quarters with ONE quarter lifted out.
+    // The side-on slice it replaced read as a party hat at 44px, and a whole cut into
+    // parts is what the lesson is actually about.
+    cakeslice: `<g><path d="M11 12.4 L11 3.4 A9 9 0 0 0 2.4 12.4 Z" fill="${COLORS.cream}" ${ink}/>
+      <path d="M11 13.4 L11 21.4 A9 9 0 0 1 2.4 13.4 Z" fill="${COLORS.cream}" ${ink}/>
+      <path d="M12 13.4 L20.6 13.4 A9 9 0 0 1 12 21.4 Z" fill="${COLORS.cream}" ${ink}/>
+      <path d="M14.6 9.4 L14.6 1.8 A9 9 0 0 1 22.8 9.4 Z" fill="${COLORS.bubblegum}" ${ink}/></g>`,
+    // arrays: five dots, die-style
+    dotsgrid: `<g><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="3.4" fill="${COLORS.cream}" ${ink}/>
+      <circle cx="8" cy="8" r="1.8" fill="${INK}"/><circle cx="16" cy="8" r="1.8" fill="${INK}"/>
+      <circle cx="12" cy="12" r="1.8" fill="${INK}"/>
+      <circle cx="8" cy="16" r="1.8" fill="${INK}"/><circle cx="16" cy="16" r="1.8" fill="${INK}"/></g>`,
+    // telling the time: the Clock Shop's own clock
+    clock: `<g><circle cx="12" cy="12" r="8.8" fill="${COLORS.cream}" ${ink}/>
+      <path d="M12 4.6 L12 6 M19.4 12 L18 12 M12 19.4 L12 18 M4.6 12 L6 12" ${thin}/>
+      <path d="M12 12 L12 7.2" ${ink}/>
+      <path d="M12 12 L15.6 13.8" stroke="${COLORS.bubblegum}" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="12" cy="12" r="1.1" fill="${INK}"/></g>`,
+    // sounds in words: an open mouth mid-sound — upper teeth, dark throat, tongue
+    mouth: `<g><path d="M2.6 11.6 Q12 3.6 21.4 11.6 Q12 20.4 2.6 11.6 Z" fill="#5B2540" ${ink}/>
+      <path d="M4.6 10.6 Q12 5.4 19.4 10.6 Z" fill="${COLORS.cream}" ${ink}/>
+      <path d="M8.4 6.8 L8.4 9.6 M12 5.8 L12 9 M15.6 6.8 L15.6 9.6" ${thin}/>
+      <path d="M8 15.6 Q12 12.6 16 15.6 Q12 18.6 8 15.6 Z" fill="${COLORS.bubblegum}" ${thin}/></g>`,
+    // sound twins: two of the same little face
+    twins: `<g><circle cx="8" cy="12" r="6" fill="${COLORS.gold}" ${ink}/>
+      <circle cx="6.2" cy="11" r="1" fill="${INK}"/><circle cx="9.6" cy="11" r="1" fill="${INK}"/>
+      <path d="M6.2 14.2 q1.8 1.4 3.6 0" fill="none" ${thin}/>
+      <circle cx="16" cy="12" r="6" fill="${COLORS.teal}" ${ink}/>
+      <circle cx="14.2" cy="11" r="1" fill="${INK}"/><circle cx="17.6" cy="11" r="1" fill="${INK}"/>
+      <path d="M14.2 14.2 q1.8 1.4 3.6 0" fill="none" ${thin}/></g>`,
+    // syllable hills: a hill with a little flag on top
+    hill: `<g><path d="M1.8 19.6 Q7.6 8.6 12 8.6 Q16.4 8.6 22.2 19.6 Z" fill="#7FC85F" ${ink}/>
+      <path d="M12 8.6 L12 3" ${ink}/>
+      <path d="M12 3.4 L17.4 5.2 L12 7 Z" fill="${COLORS.bubblegum}" ${ink}/></g>`,
+    // a little boat on the water
+    boat: `<g><path d="M2.4 15.6 L21.6 15.6 L18.6 19.8 L5.4 19.8 Z" fill="${COLORS.cocoa}" ${ink}/>
+      <path d="M12 14.8 L12 3.4" ${ink}/>
+      <path d="M12.9 4.2 Q19.4 8 12.9 13.4 Z" fill="${COLORS.cream}" ${ink}/>
+      <path d="M2 18 q2.4 -1.4 4.6 0 M17.4 18 q2.4 -1.4 4.6 0" fill="none" stroke="#7FC7E8" stroke-width="1.2" stroke-linecap="round"/></g>`,
+    // a Boo who does not follow: a question on a disc
+    confused: `<g><circle cx="12" cy="12" r="8.8" fill="${COLORS.lilac}" ${ink}/>
+      <path d="M9.2 9.4 Q9.6 6.6 12.2 6.6 Q15 6.6 15 9.2 Q15 11.4 12.4 12.2 L12.4 14" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="12.4" cy="17" r="1.4" fill="${INK}"/></g>`,
+    // the story told backwards: a loop that turns the other way
+    backwards: `<g><path d="M19 12 A7 7 0 1 0 12 19" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M15.4 19.6 L11.4 19 L13.4 15.6 Z" fill="${COLORS.gold}" ${ink}/></g>`,
+    // numbers in a muddle: three tiles at three angles
+    muddle: `<g><rect x="2.6" y="9" width="7.6" height="7.6" rx="1.4" fill="${COLORS.gold}" ${ink} transform="rotate(-14 6.4 12.8)"/>
+      <rect x="8.6" y="4.6" width="7.6" height="7.6" rx="1.4" fill="${COLORS.teal}" ${ink} transform="rotate(11 12.4 8.4)"/>
+      <rect x="13" y="11.4" width="7.6" height="7.6" rx="1.4" fill="${COLORS.bubblegum}" ${ink} transform="rotate(-8 16.8 15.2)"/></g>`,
+    // hopping along: three arcs and a footprint
+    hop: `<g><path d="M2.6 18 Q5.6 10.6 8.6 18 Q11.6 10.6 14.6 18 Q17.6 10.6 20.6 18" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 3.2"/>
+      <ellipse cx="20" cy="19.4" rx="2.4" ry="1.6" fill="${COLORS.teal}" ${thin}/>
+      <ellipse cx="4" cy="19.4" rx="2.4" ry="1.6" fill="${COLORS.bubblegum}" ${thin}/></g>`,
+    // the shop: an awning over a door
+    shop: `<g><rect x="4" y="9.4" width="16" height="11" rx="1.4" fill="${COLORS.cream}" ${ink}/>
+      <path d="M2.6 9.4 L5.4 4.6 L18.6 4.6 L21.4 9.4 Z" fill="${COLORS.bubblegum}" ${ink}/>
+      <path d="M7.8 4.6 L6.6 9.4 M12 4.6 L12 9.4 M16.2 4.6 L17.4 9.4" ${thin}/>
+      <rect x="9.6" y="13" width="4.8" height="7.4" rx="0.8" fill="${COLORS.cocoa}" ${ink}/></g>`,
+    // a very long word: an unrolled scroll
+    long: `<g><path d="M4.6 5.6 h14.8 v12.8 h-14.8 z" fill="${COLORS.sand}" ${ink}/>
+      <path d="M4.6 5.6 q-2 3 0 6 M19.4 12.8 q2 3 0 5.6" fill="none" ${ink}/>
+      <path d="M7.6 9 L16.4 9 M7.6 12 L16.4 12 M7.6 15 L13.4 15" ${thin}/></g>`
+  };
+  G.share = G.cakeslice;   // the sharing hook and the fractions lesson are the same cake
+  const inner = G[key] || G.dotsgrid;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
+export function renderStudioGlyph(key, { size = 48, cls = '' } = {}) {
+  const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"`;
+  const thin = `stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
+  const G = {
+    // Paint a Boo: the Studio's own easel, with a brush
+    paint: `<g><path d="M6.4 20.6 L9.6 14 M17.6 20.6 L14.4 14 M12 15 L12 20.6" ${ink}/>
+      <rect x="3.6" y="3" width="16.8" height="11.6" rx="1.4" fill="${COLORS.cream}" ${ink}/>
+      <path d="M5.6 12.4 Q9 7 12.6 10.4 Q15.4 13 18.4 9.6" fill="none" stroke="${COLORS.teal}" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="8.4" cy="6.4" r="1.8" fill="${COLORS.gold}" ${thin}/></g>`,
+    // Collage: torn paper shapes, overlapping
+    collage: `<g><path d="M2.8 8.6 L10.4 5 L13.4 12.4 L5 15.6 Z" fill="${COLORS.gold}" ${ink}/>
+      <circle cx="16.4" cy="8.6" r="5" fill="${COLORS.teal}" ${ink}/>
+      <path d="M8 14 L18.6 12.6 L16.4 20.8 L6.6 19.6 Z" fill="${COLORS.bubblegum}" ${ink}/></g>`,
+    // Build a Boo: a Boo face whose head is made of two puzzle parts
+    buildaboo: `<g><path d="M4.4 11.6 Q4.4 3.6 12 3.6 Q19.6 3.6 19.6 11.6 L19.6 17.4 Q19.6 20.6 16.6 20.6 Q14.6 20.6 14 19 Q13.2 20.6 12 20.6 Q10.8 20.6 10 19 Q9.4 20.6 7.4 20.6 Q4.4 20.6 4.4 17.4 Z" fill="${COLORS.lilac}" ${ink}/>
+      <path d="M12 3.8 L12 20.4" stroke="${INK}" stroke-width="1.2" stroke-dasharray="2 2"/>
+      <path d="M12 10.4 q2.2 0 2.2 1.6 q0 1.6 -2.2 1.6" fill="none" ${thin}/>
+      <circle cx="8.8" cy="10.8" r="1.7" fill="${COLORS.cream}" ${thin}/><circle cx="8.8" cy="11.1" r="0.9" fill="${INK}"/>
+      <circle cx="15.6" cy="10.8" r="1.7" fill="${COLORS.cream}" ${thin}/><circle cx="15.6" cy="11.1" r="0.9" fill="${INK}"/></g>`,
+    // My Gallery: a framed picture with a star on the frame
+    gallery: `<g><rect x="3" y="4.6" width="18" height="14.4" rx="1.6" fill="${COLORS.sand}" ${ink}/>
+      <rect x="5.6" y="7" width="12.8" height="9.6" rx="0.8" fill="${COLORS.cream}" ${ink}/>
+      <path d="M6.4 15.4 Q9.4 10 12.4 13.2 Q14.6 15.4 17.6 12.2" fill="none" stroke="${COLORS.teal}" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M18.6 2 l1.1 2.3 2.5 .3 -1.8 1.8 .4 2.5 -2.2 -1.2 -2.2 1.2 .4 -2.5 -1.8 -1.8 2.5 -.3 z" fill="${COLORS.gold}" ${thin}/></g>`
+  };
+  const inner = G[key] || G.paint;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
 export function renderTrailScene(mode = 'land') {
   const port = mode === 'port';
   const { w, h } = TRAIL_VIEWS[port ? 'port' : 'land'];
