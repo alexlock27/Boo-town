@@ -41,7 +41,7 @@ const GAMES = [
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
   { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'soundsorter', name: 'Sound Sorter', tag: 'Hear the sound', accent: 'var(--pop)', icon: soundIcon, group: 'Learn' },   // RUN16 W1
-  { id: 'blendit',   name: 'Blend It',     tag: 'Slide sounds together', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2
+  { id: 'blendit',   name: 'Blend It',     tag: 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2
   { id: 'rhymetime', name: 'Rhyme Time',   tag: 'Words that chime', accent: 'var(--star)', icon: rhymeIcon, group: 'Learn' },   // RUN16 W3
   { id: 'storyorder', name: 'Story Order', tag: 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },

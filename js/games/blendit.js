@@ -31,7 +31,7 @@ import { BLEND_LEVELS, BLEND_LEVEL_NUMBERS, blendLevel, blendEntry, ALL_BLEND_WO
 
 const ROUND_WORDS = 8;
 const MAX_HINTS = 2;
-const START_GAP = 30;          // px between tiles before she pulls them together
+const START_GAP = 30;          // px between tiles before the Blend button closes them
 const PART_MS = 760;           // how long each part is sounded and slid in
 const VOWELS = new Set(['a', 'e', 'i', 'o', 'u', 'ai', 'ee', 'oa', 'oo', 'ar', 'or', 'igh', 'ow', 'air', 'ea']);
 const rand = (n) => (Math.random() * n) | 0;
@@ -69,7 +69,7 @@ export function mount(container, params, ctx) {
     const card = el('div', { class: 'start-card card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 96 }) }),
       el('h2', { text: 'Blend It' }),
-      el('p', { class: 'sc-intro', text: 'Slide the sounds together and hear the word appear!' })
+      el('p', { class: 'sc-intro', text: 'Tap Blend and watch the sounds slide together!' })
     ]);
     card.appendChild(buildPicker({
       game: 'blendit',
@@ -148,16 +148,18 @@ export function mount(container, params, ctx) {
       const word = el('div', { class: 'bl-word', 'aria-live': 'polite' });
       const blendBtn = el('button', {
         class: 'btn big bl-blend-btn', text: '👐 Blend',
-        'aria-label': 'Slide the sounds together', onclick: () => runBlend()
+        'aria-label': 'Blend the sounds into a word', onclick: () => runBlend()
       });
       const picks = el('div', { class: 'bl-picks', style: { display: 'none' } });
-      stage.append(el('p', { class: 'tm-try-instruction', text: 'Pull the sounds together!' }), tiles, word, blendBtn, picks);
+      stage.append(el('p', { class: 'tm-try-instruction', text: 'Tap Blend and watch the sounds slide together!' }), tiles, word, blendBtn, picks);
 
-      // drag-them-together: pulling any tile toward the others closes the gaps live, so
-      // the join is something she DOES rather than something she watches.
+      // RUN18B Y13: the pinch STAYS — dragging the tiles together still closes the gaps and
+      // fires the same blend — but nothing tells her to any more. Every instruction now names
+      // the Blend button, because a drag she was TOLD to make and could not land read as a
+      // game that would not respond. Found by hand, it is a delight; required, it was a wall.
       wirePinch(tiles);
       shell.setProgress(idx);
-      speakMaybe('Pull the sounds together.');
+      speakMaybe('Tap Blend and watch the sounds slide together!');
 
       function wirePinch(tilesEl) {
         let down = false, sx = 0, startGap = START_GAP;
