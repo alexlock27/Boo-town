@@ -6201,3 +6201,41 @@ html.bigger-text { --vz: 1.125; }
 .lesson-ic { display: grid; place-items: center; min-height: 44px; }
 .lc-badge { display: grid; place-items: center; min-height: 64px; }
 .tm-hook-scene-tag { font-size: 0; display: grid; place-items: center; }
+
+/* ============================================================
+   RUN18D D6 — Word Detective's "ABC keys"
+   The switch lives on the GAME's options row, because the child who needs it is the one
+   staring at QWERTY right now, not a grown-up three screens away. QWERTY is untouched.
+   ============================================================ */
+.det-options { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.det-opt-toggle {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: var(--tap); padding: 8px 18px 8px 10px; border-radius: 30px;
+  border: 3px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12);
+  color: var(--card); font-family: var(--font-display); font-weight: 600; font-size: 17px; cursor: pointer;
+}
+.det-opt-toggle .dot-sw {
+  width: 44px; height: 26px; border-radius: 14px; background: rgba(255,255,255,0.25);
+  border: 2px solid rgba(255,255,255,0.5); position: relative; flex: 0 0 auto; transition: background 140ms;
+}
+.det-opt-toggle .dot-sw::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--card); transition: transform 140ms;
+}
+/* ON is not colour alone: the knob moves, and the whole chip goes ink-on-star, which the
+   contrast law can measure. */
+.det-opt-toggle.on { background: var(--star); border-color: var(--ink); color: var(--ink); }
+.det-opt-toggle.on .dot-sw { background: var(--ink); border-color: var(--ink); }
+.det-opt-toggle.on .dot-sw::after { transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) { .det-opt-toggle .dot-sw, .det-opt-toggle .dot-sw::after { transition: none; } }
+
+/* The ABC board: A-I / J-R / S-Z, then backspace and GO alone on a fourth row so the two
+   controls that undo and commit a guess are never squeezed in beside letters.
+   HEIGHT is the authored 56px at every width. WIDTH cannot also be 56 on a phone: nine keys
+   plus their gaps need 544px and a 390px screen has 374 — see BLOCKED.md. From 600px up
+   every key is 56x56 or bigger. */
+.det-kb.abc { max-width: 620px; gap: 8px; }
+.det-kb.abc .det-key { min-height: 56px; height: 56px; max-width: none; flex: 1 1 0; border-radius: 12px; font-size: 22px; }
+.det-kb.abc .det-kb-actions { gap: 16px; }
+.det-kb.abc .det-kb-actions .det-key { max-width: 160px; min-width: 56px; }
+@media (min-width: 600px) { .det-kb.abc .det-key { min-width: 56px; } }
