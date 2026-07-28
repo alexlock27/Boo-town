@@ -5431,8 +5431,19 @@ html.calm-motion .exp-go-wrap { transform: none; }
 .epb-name { font-family: var(--font-display); font-weight: 700; font-size: 13px; line-height: 1.1;
   text-align: center; color: var(--ink); }
 .exp-puzzle-boo.selected { border-color: var(--ink); box-shadow: 0 0 0 4px var(--zing), 0 0 0 6px var(--ink); }
-.exp-puzzle-boo[disabled] { opacity: .42; cursor: default; }
+/* A Boo who is already across is SPENT, not unreadable. Fading the whole button took its
+   name from 14.6:1 to 3.50:1 — under AA — and every puzzle enters that state on her first
+   correct move. The art dims; the name keeps its ink on a lighter card. */
+.exp-puzzle-boo[disabled] { cursor: default; background: #EFE7DC; border-color: rgba(42,27,78,.22); }
+.exp-puzzle-boo[disabled] .epb-art { opacity: .42; }
+.exp-puzzle-boo[disabled] .epb-name { color: var(--ink); opacity: 1; }
 .exp-puzzle-boo.exp-hint { box-shadow: 0 0 0 4px var(--star), 0 0 0 6px var(--ink); }
+/* the pack's 360ms wrong-guess wobble (C6). The shared .wobble runs 450ms. */
+.exp-wobble { animation: expWobble var(--exp-wobble-ms, 360ms) ease-in-out; }
+@keyframes expWobble {
+  0%, 100% { transform: rotate(0); } 20% { transform: rotate(-7deg); }
+  40% { transform: rotate(6deg); } 60% { transform: rotate(-4deg); } 80% { transform: rotate(3deg); }
+}
 
 /* Sneezy Bridges */
 .bridge-row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
@@ -5529,11 +5540,15 @@ html.calm-motion .exp-go-wrap { transform: none; }
   82% { transform: translate3d(calc(var(--dx) * .82), calc(var(--dy) * .82 - 18px), 0); }
   100% { transform: translate3d(var(--dx), var(--dy), 0); }
 }
-.exp-puzzle-boo.gone { opacity: .42; }
+/* Same rule as [disabled] above, and the one that was actually painting: `.gone` is added
+   the moment a Boo sets off across the bridge, so fading the whole button took the name to
+   3.50:1 against the composite behind it. The art dims; the name stays ink on cream. */
+.exp-puzzle-boo.gone .epb-art { opacity: .42; }
+.exp-puzzle-boo.gone { background: #EFE7DC; border-color: rgba(42,27,78,.22); }
 
 @media (max-width: 600px), (max-height: 500px) {
   .exp-puzzle-wrap { padding: 4px 8px 8px; gap: 6px; }
-  .exp-rule-line { font-size: 16px; }
+  .exp-puzzle .exp-rule .exp-rule-line { font-size: 16px; }
   .exp-rule.card { padding: 6px 10px; gap: 8px; }
   .exp-rule-guide { width: 36px; height: 36px; }
   .exp-puzzle-boo { width: 76px; }
@@ -5544,6 +5559,54 @@ html.calm-motion .exp-go-wrap { transform: none; }
   .topping { width: 72px; }
   .tp-ic { font-size: 22px; }
   .hotel-floor > strong { width: 52px; font-size: 12px; }
+}
+/* A LANDSCAPE PHONE IS 390px TALL, and this screen was spending 300 of them on chrome:
+   the board came out at 89px of visible height and every card was sliced through its own
+   label — the cut-off text then read against the night sky at 1.07:1. Everything that can
+   lie down, lies down: the cards go art-beside-name like the hub's do at phone width, and
+   the title, banner and meters give back the rest. */
+@media (max-height: 500px) {
+  .exp-puzzle-wrap { padding: 2px 8px 4px; gap: 3px; }
+  .exp-puzzle-wrap > h2 { font-size: 15px; margin: 0; padding: 0 62px; line-height: 1.15; }
+  .exp-rule.card { padding: 3px 8px; gap: 6px; border-radius: 12px; }
+  .exp-rule-guide { width: 26px; height: 26px; }
+  .exp-puzzle .exp-rule .exp-rule-line { font-size: 13px; line-height: 1.15; }
+  .exp-progress, .exp-budget { min-height: 24px; padding: 2px 10px; font-size: 11px; }
+  .exp-puzzle .exp-live { font-size: 13px; min-height: 16px; }
+  /* ...and the board itself lies down: a landscape phone has 844px of width and 215 of
+     height, so the pieces and the dock go SIDE BY SIDE instead of stacking into a scroll. */
+  .exp-puzzle-board { flex-direction: row; flex-wrap: wrap; align-items: flex-start;
+    justify-content: center; gap: 8px; padding: 0; }
+  .exp-puzzle-board > * { flex: 0 1 auto; }
+  .exp-dock { max-width: 62%; align-content: flex-start; }
+  .raft-seats { max-width: 264px; }
+  /* the hotel is the tallest board of the four — three floors plus a dock of eight — so it
+     gets an explicit split rather than being left to wrap into a scroll */
+  .exp-hotel .hotel-floors { max-width: 392px; gap: 4px; }
+  .exp-hotel .exp-dock { max-width: 396px; }
+  .exp-hotel .hotel-floor { padding: 2px 5px; }
+  .picnic-plates, .picnic-tray { max-width: 46%; }
+  /* NOT the app-wide 44px phone .btn height: the pack holds this feature to 56px tap
+     targets on every screen, and it is the historic worst offender. The room comes back
+     out of the chrome above, not out of the one control she needs. */
+  .exp-hint-btn { min-height: var(--tap); padding: 0 16px; }
+  .exp-puzzle-foot { padding-bottom: 2px; }
+  /* cards lie down */
+  .exp-puzzle-boo, .bridge-guardian, .picnic-plate {
+    flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px;
+    width: auto; min-width: 104px; min-height: 56px; padding: 4px 10px 4px 4px; }
+  .epb-art { width: 42px; height: 42px; }
+  .bg-art { width: 44px; height: 44px; }
+  .pp-grump { width: 38px; height: 38px; }
+  .picnic-plate { flex-wrap: wrap; max-width: 190px; }
+  .pp-slot { width: 24px; height: 24px; font-size: 15px; }
+  .topping { flex-direction: row; align-items: center; width: auto; min-width: 104px; min-height: 56px; gap: 6px; padding: 4px 10px; }
+  .raft-seats { max-width: 300px; gap: 4px; padding: 6px; }
+  .rs-art { width: 32px; height: 32px; }
+  .hotel-floors { max-width: 100%; }
+  .hotel-floor { padding: 3px 6px; gap: 4px; }
+  .hr-art { width: 30px; height: 30px; }
+  .exp-cross { width: 44px; height: 44px; }
 }
 
 
