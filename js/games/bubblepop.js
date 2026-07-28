@@ -15,6 +15,7 @@ import { filterCategories, filterLevels } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { nameWithValue, readAloudButton, readAloudOn } from '../a11y.js';
 import { addMeterPoints } from '../rewards.js';
+import { explainWrong } from '../celebrate.js';   // RUN18D: the Explanation Standard
 
 const ROUNDS = 10;
 const BUBBLE_COUNT = 6;
@@ -93,6 +94,7 @@ export function mount(container, params, ctx) {
     let hintsUsed = 0;
     let locked = false;
     let streak = 0, goldenCount = 0, goldenThisRound = false;   // juice + golden-bubble delight (C5)
+    let toldThisQuestion = false;   // RUN18D: the timed-out line, once per question
     const fmt = () => (target.fmt || String);
     const skyFor = () => 'bp-sky-' + Math.max(1, Math.min(3, mix ? (solved < 4 ? 1 : solved < 7 ? 2 : 3) : (level || 1)));
     const updateSky = () => { field.classList.remove('bp-sky-1', 'bp-sky-2', 'bp-sky-3'); field.classList.add(skyFor()); };
@@ -310,6 +312,14 @@ export function mount(container, params, ctx) {
             // the HUD's band in 10 of 12 samples, worst overlap 164px, and one bubble was
             // genuinely untappable.
             if (b.y + b.size >= H - FIELD_PAD) {
+              // RUN18D, the Explanation Standard: the CORRECT bubble leaving the top
+              // unanswered is the pack's "times out unanswered" case. It is said once per
+              // question, so a slow reader is told the answer rather than watching it go by
+              // in silence over and over.
+              if (b.correct && !toldThisQuestion) {
+                toldThisQuestion = true;
+                shell.react(timeoutLine(), { voice: false, hold: 2800 });
+              }
               b.y = Math.max(FIELD_PAD, H - b.size - FIELD_PAD);
               b.fadingSince = now;
               b.node.classList.remove('bp-fresh');
@@ -347,6 +357,15 @@ export function mount(container, params, ctx) {
       paint(b);
     }
 
+    // The pack's two lines, verbatim. «a» × «b» is the QUESTION she is looking at: for the
+    // times-tables category that is literally "7 × 8", and for the other four (bonds,
+    // add & subtract, doubles, more or less) it is that category's own written question,
+    // because there is no a and b to name. Noted for Alex.
+    const asked = () => String(target.display || '').replace(/\s*=\s*\?\s*$/, '').trim();
+    const wrongLine = (tapped) => `Not ${tapped} — we're after ${asked()}!`;
+    const timeoutLine = () => `It was ${fmt()(target.answer)} — ${asked()} = ${fmt()(target.answer)}.`;
+    if (typeof window !== 'undefined') window.__bubblepopLines = { wrongLine, timeoutLine, asked };
+
     function onPop(b) {
       if (locked || b.hidden) return;
       if (b.correct) {
@@ -366,6 +385,7 @@ export function mount(container, params, ctx) {
         shell.timeout(() => {
           if (solved >= ROUNDS) return finish();
           target = nextTarget(solved);
+          toldThisQuestion = false;
           prevKey = target.key;
           targetCard.innerHTML = targetHTML(target);
           layoutValues();
@@ -375,14 +395,15 @@ export function mount(container, params, ctx) {
       } else {
         wrongPops++;
         streak = 0;
-        sfx.oops();
         recordResult(target.key, false);
         collector.addAttempted(missFor(target));
-        wobble(b.node);
+        // RUN18D, the EXPLANATION STANDARD: a wrong answer always teaches. It used to
+        // wobble in silence and say "oops" only on the SECOND one — so the first wrong tap
+        // of a round taught nothing at all. Line verbatim from the pack.
+        explainWrong(b.node, wrongLine(fmt()(b.value)), { say: (t) => shell.react(t, { voice: false, hold: 2600 }), speak: false });
         b.node.classList.add('dim');
         setTimeout(() => b.node.classList.remove('dim'), 420);
-        const left = shell.dimHeart();
-        if (wrongPops === 2 || left === 0) shell.react(guideLine('oops'), { voice: false, hold: 2200 });
+        shell.dimHeart();
       }
     }
 

@@ -208,7 +208,11 @@ console.log('== 4. a wrong tap names the word AND its real sound ==');
     }
     return { chip, wrongNamed };
   });
-  assert(r.chip === "That's chip — ch, not sh!", `the brief's own example reads "${r.chip}"`);
+  // RUN18D's Explanation Standard puts the pack's sentence first — "«word» hasn't got
+  // «sound» in it — listen: «word»." — and KEEPS RUN16's own "ch, not sh", because naming
+  // the sound the word really has is the thing that makes the answer click.
+  assert(r.chip === "chip hasn't got sh in it — listen: chip. ch, not sh!",
+    `the brief's own example reads "${r.chip}"`);
   assert(r.wrongNamed.length === 0, 'every wrong-tap line names the word and the sound it really has');
   // and it actually reaches the screen
   const live = await page.evaluate(() => {

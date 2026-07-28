@@ -81,6 +81,10 @@ export function mount(container, params, ctx) {
     root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
   }
 
+  // The pack's line, verbatim. «n» is the gate she hit; «answer» is the one she wanted.
+  const dashWrongLine = (n, answerValue) => `That gate said ${n} — the answer was ${answerValue}!`;
+  if (typeof window !== 'undefined') window.__dashLines = { dashWrongLine };
+
   function play(catKey, level, steadyOpt) {
     clear(root);
     mutate(st => { st.seen.dashSteady = !!steadyOpt; });
@@ -215,7 +219,10 @@ export function mount(container, params, ctx) {
         g.node.classList.remove('bonked'); void g.node.offsetWidth; g.node.classList.add('bonked');
         booInner.classList.remove('bonk'); void booInner.offsetWidth; booInner.classList.add('bonk');
         shell.dimHeart();
-        shell.react(guideLine('oops'), { voice: false, hold: 1400 });
+        // RUN18D, the EXPLANATION STANDARD. Line verbatim from the pack: the gate she ran
+        // into is named, and so is the answer — a generic "oops" told her neither, on a
+        // screen where the two numbers are the entire question.
+        shell.react(dashWrongLine((g.node.querySelector('.g-label') || {}).textContent, fmt(question.options[question.correct].v != null ? question.options[question.correct].v : question.options[question.correct])), { voice: false, hold: 2400 });
         setTimeout(() => booInner.classList.remove('bonk'), 450);
       }
     }

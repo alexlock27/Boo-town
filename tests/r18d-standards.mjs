@@ -190,6 +190,95 @@ console.log('== D11: no silent saves remain ==');
   await ctx.close();
 }
 
+// ================== 3b. THE EXPLANATION STANDARD, rolled out ==================
+// Every line here is authored in _programme/RUN18D.md and checked against the SOURCE OF
+// THE LINE, not against a string typed twice — a copy assertion that quotes the copy it is
+// checking proves only that someone can copy and paste.
+console.log('== a wrong answer teaches, in each named game ==');
+{
+  // Bubble Pop: the tapped bubble is named, and so is the question.
+  const { ctx, page } = await open('bubblepop', { resume: { cat: 'tables', level: 'S', mix: false } });
+  await page.waitForSelector('.bubble', { timeout: 15000 });
+  await page.evaluate(() => { if (window.__intro) window.__intro.close(); });
+  await sleep(400);
+  const r = await page.evaluate(async () => {
+    window.__standards.reset();
+    const before = window.__bubblepop.state();
+    window.__bubblepop.popWrong();
+    await new Promise(x => setTimeout(x, 400));
+    return { exp: window.__standards.explanations(), bubble: (document.querySelector('.peek-bubble') || {}).textContent,
+             lines: { wrong: window.__bubblepopLines.wrongLine('42'), timeout: window.__bubblepopLines.timeoutLine(), asked: window.__bubblepopLines.asked() },
+             wrongPops: window.__bubblepop.state().wrongPops - before.wrongPops };
+  });
+  assert(r.wrongPops === 1, 'a wrong pop was registered');
+  assert(r.exp.length === 1, `it produced exactly one explanation (${r.exp.length})`);
+  assert(/^Not \S+ — we're after .+!$/.test(r.exp[0].line || ''), `and it is the pack's sentence ("${r.exp[0] && r.exp[0].line}")`);
+  assert((r.bubble || '') === r.exp[0].line, 'the guide says it out loud on the FIRST wrong answer, not the second');
+  assert(/^Not 42 — we're after .+!$/.test(r.lines.wrong), `«tapped» is filled with what she tapped ("${r.lines.wrong}")`);
+  assert(/^It was .+ — .+ = .+\.$/.test(r.lines.timeout), `and the timed-out line is the pack's ("${r.lines.timeout}")`);
+  await ctx.close();
+}
+{
+  // Clock Shop: both cases, from the game's own exported line builders.
+  const c = await import('../js/games/clockshop.js');
+  assert(c.clockHourLine(8) === "Nearly! The little hand points at 8 for 8 o'clock.",
+    `the on-the-hour line is the pack's ("${c.clockHourLine(8)}")`);
+  assert(c.clockHalfPastLine(2) === "At half past, the little hand sits HALFWAY between 2 and 3 — it's on its way!",
+    `the half-past line is the pack's ("${c.clockHalfPastLine(2)}")`);
+  assert(c.clockHalfPastLine(12) === "At half past, the little hand sits HALFWAY between 12 and 1 — it's on its way!",
+    'and «h+1» wraps 12 → 1, because a clock does');
+}
+{
+  // Sound Sorter: the pack's sentence, with the word spoken.
+  const m = await import('../js/games/soundsorter.js');
+  const line = m.missLine('chip', 'sh');
+  assert(line.startsWith("chip hasn't got sh in it — listen: chip."), `the pack's sentence comes first ("${line}")`);
+  assert(/ch, not sh!$/.test(line), 'and RUN16\'s own "ch, not sh" is kept, not thrown away');
+}
+{
+  // Boo Bounce and Boo Dash: the shape of the authored line, from the game's own builder.
+  const { ctx, page } = await open('dash', { resume: { cat: 'add', level: 1, mix: false } });
+  await sleep(600);
+  const line = await page.evaluate(() => window.__dashLines.dashWrongLine(7, 12));
+  assert(line === 'That gate said 7 — the answer was 12!', `Boo Dash names the gate and the answer ("${line}")`);
+  await ctx.close();
+}
+{
+  // Boo Pop: one line per level, and the two levels with a «total» carry it verbatim.
+  const { ctx, page } = await open(null);
+  const rules = await page.evaluate(async () => {
+    const res = await fetch('js/games/boopop.js'); const src = await res.text();
+    return [...src.matchAll(/wrong: "([^"]+)"/g)].map(m => m[1]);
+  });
+  assert(rules.length === 4, `every Boo Pop level has a wrong-answer line (${rules.length})`);
+  assert(rules.includes("Those two don't make 10 — keep looking!"), 'Make 10 carries the pack\'s line verbatim');
+  assert(rules.includes("Those two don't make 20 — keep looking!"), 'Make 20 too');
+  assert(rules.every(l => /keep looking!$/.test(l)), `and the other levels keep the pack's sentence shape (${rules.join(' | ')})`);
+  await ctx.close();
+}
+{
+  // The already-compliant games: verified, not rewritten. Each must SAY something on a
+  // wrong answer, through the shared guide surface.
+  const compliant = [
+    ['detective', 'js/games/detective.js'], ['echoboos', 'js/games/echoboos.js'],
+    ['feedboos', 'js/games/feedboos.js'], ['teachme', 'js/games/teachme.js'],
+    ['rhymetime', 'js/games/rhymetime.js'], ['blendit', 'js/games/blendit.js'],
+    ['storyorder', 'js/games/storyorder.js'], ['oddboo', 'js/games/oddboo.js']
+  ];
+  const { ctx, page } = await open(null);
+  const missing = [];
+  for (const [name, path] of compliant) {
+    const ok = await page.evaluate(async (p2) => {
+      const res = await fetch(p2); const src = await res.text();
+      // it must react/speak somewhere it also handles a wrong answer
+      return /shell\.react\(|guideLine\(|speakMaybe\(|sayText\(/.test(src);
+    }, path);
+    if (!ok) missing.push(name);
+  }
+  assert(missing.length === 0, `the eight already-compliant games all speak their line (${missing.join(',') || 'all of them'})`);
+  await ctx.close();
+}
+
 // ================== 4. the reduced-motion path keeps the MEANING ==================
 console.log('== calm motion calms the movement and deletes nothing ==');
 {

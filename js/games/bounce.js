@@ -27,6 +27,7 @@ import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
 import { pickForMeButton } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
+import { explainWrong } from '../celebrate.js';   // RUN18D: the Explanation Standard
 
 const AUTO = '__auto__';   // Light-tier arcade: no picker, Smart-Mix-driven (C9)
 
@@ -293,7 +294,10 @@ export function mount(container, params, ctx) {
         wrongBricks++; sfx.oops();
         recordResult(question.key, false);
         collector.addAttempted(choiceMiss({ id: question.key, game: 'bounce', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
-        shell.react('Hmm!', { voice: false, hold: 1200 });
+        // RUN18D, the Explanation Standard: "Hmm!" named neither what she hit nor what was
+        // wanted. The brick is a canvas rect, so the wobble half of the Standard has nowhere
+        // to live — the LINE is the half that teaches, and it arrives verbatim.
+        explainWrongBrick(null, b.label, question.options[question.correct]);
       }
       destroyBrick(b);                                    // re-homes its label (if any) + keeps invariants
       if (bricks.every(x => !x.alive)) onWallCleared();
@@ -384,6 +388,14 @@ export function mount(container, params, ctx) {
       ballLosses++; shell.dimHeart(); sfx.oops();
       shell.react(guideLine('oops'), { voice: false, hold: 1600 });
       resetBall(); // hearts never end the round
+    }
+    // RUN18D, the EXPLANATION STANDARD. Line verbatim from the pack: breaking the wrong
+    // brick used to be a wobble and a generic "oops", which names neither what she hit nor
+    // what was wanted.
+    function explainWrongBrick(node, n, answerValue) {
+      const line = `Not ${n} — we need ${answerValue}!`;
+      explainWrong(node, line, { say: (t) => shell.react(t, { voice: false, hold: 2400 }), speak: false, sound: null });
+      return line;
     }
 
     function drawBrick(b) {
