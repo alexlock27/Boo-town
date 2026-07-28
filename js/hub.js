@@ -9,7 +9,7 @@ import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
 import { tierForAge, AGE_CHOICES, contentTier } from './content.js';
-import { renderGuide } from './art.js';
+import { renderGuide, renderIslandMap } from './art.js';   // RUN18D D5: the Town banner's island
 import { AREAS, AREA_UNLOCK_STARS, flattenTownItems } from './areas.js';
 import { retroAwardOnce } from './trophies.js';
 import { tickGrowth } from './growth.js';
@@ -257,6 +257,23 @@ export function mount(container, params, ctx) {
     cards.append(el('div', { class: 'group-label', text: groupName }), row);
   }
 
+  // ---- RUN18D D5: ONE Town banner, at the end of the hub's own flow -----------------
+  // The pack's section order is Today · Learn · Play · a single Town banner. The bar's Town
+  // button is a NAVIGATION slot; this is the hub saying where her town is, in the flow, with
+  // the island drawn on it. It counts as one primary button — the hub has five (this plus
+  // the four in the bar), against the eight-button law.
+  const townBanner = el('button', {
+    class: 'hub-town-banner screen-content', 'aria-label': 'Go to Boo Town',
+    onclick: () => { sfx.tap(); ctx.go('worldmap'); }
+  }, [
+    el('span', { class: 'htb-art', html: renderIslandMap({ w: 84, h: 84 }) }),
+    el('span', { class: 'htb-txt' }, [
+      el('strong', { class: 'htb-title', text: 'Your Boo Town' }),
+      el('span', { class: 'htb-sub', text: 'Visit your Boos, build and decorate' })
+    ]),
+    el('span', { class: 'htb-go', 'aria-hidden': 'true', text: '›' })
+  ]);
+
   // ---- bottom bar ----
   const townBtn = el('button', { class: 'bar-btn', onclick: () => ctx.go('worldmap') }, [
     el('span', { class: 'bar-ic', html: '🏡' }), el('span', { text: 'Town' })
@@ -417,8 +434,13 @@ export function mount(container, params, ctx) {
     }
   }
 
-  // hero → Today rail → games grid (the grid is the dominant content again, C3).
-  root.append(top, guideSection, specials, todayRail, cards, bar);
+  // RUN18D D5: hero → Today → Learn → Play → the Town banner, then the bar. ONE scroll
+  // context — the hub itself scrolls and nothing inside it has a scrollbar of its own, so
+  // the grids render as full wrapped grids and every card is reachable by scrolling the
+  // page. (The nested scroller was not just untidy: Playwright could not click a game card
+  // through it, because scrolling it into view put the card under the Today rail or the
+  // bottom bar. tests/m1.mjs has been failing on exactly that.)
+  root.append(top, guideSection, specials, todayRail, cards, townBanner, bar);
 
   if (typeof window !== 'undefined') window.__hub = {
     railChips: () => [...todayRail.querySelectorAll('.trail-chip')].map(c => [...c.classList].find(k => k !== 'trail-chip')),

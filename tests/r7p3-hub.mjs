@@ -89,9 +89,12 @@ console.log('== the rail scrolls horizontally (frame evidence) ==');
   const over = await page.evaluate(() => { const r = window.__hub.railScrollWidth(); return r.scroll > r.client + 20; });
   assert(over, 'the rail content overflows the screen edge (horizontally scrollable)');
   // sample the last chip's on-screen X as we scroll the rail across frames
+  // RUN18D D5: the rail snaps to card starts now (85%-width cards, the peek is the
+  // affordance), so 70px nudges snap straight back — a swipe moves a CARD at a time.
+  const step = await page.evaluate(() => document.querySelector('.trail-chip').getBoundingClientRect().width + 10);
   const xs = [];
   for (let i = 0; i < 6; i++) {
-    await page.evaluate(v => { document.querySelector('.trail-inner').scrollLeft = v; }, i * 70);
+    await page.evaluate(v => { document.querySelector('.trail-inner').scrollLeft = v; }, i * step);
     const x = await page.evaluate(() => { const cs = document.querySelectorAll('.trail-chip'); const last = cs[cs.length - 1]; return Math.round(last.getBoundingClientRect().left); });
     xs.push(x); await sleep(120);
   }

@@ -163,7 +163,12 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
   await reach('.bottom-bar .cog-btn', 'hub: the cog (last control)');
 
   // quests overlay
-  await page.click('.trail-chip.quests', { force: true });
+  // RUN18D D5: the Today rail is a carousel of 85%-width cards and the hub is one scroll
+  // context, so by the time this walk has reached the cog at the bottom the Quests chip is
+  // both off the right-hand edge and off the top — a coordinate click cannot land on it.
+  // This step is about the OVERLAY's reachability, not the chip's hit-testing (r7p3 owns
+  // that), so it activates the chip directly, the way a keyboard or a screen reader does.
+  await page.evaluate(() => { const c = document.querySelector('.trail-chip.quests'); if (c) { c.scrollIntoView({ inline: 'start', block: 'center' }); c.click(); } });
   await page.waitForSelector('.quests-panel');
   await reach('.quests-panel .btn', 'quests overlay: Close');
   await page.click('.quests-panel .btn');
