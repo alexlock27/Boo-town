@@ -1863,10 +1863,14 @@ export function renderExpGlyph(key, { size = 24, cls = '' } = {}) {
       <path d="M7.4 10 L10.6 10 M13.4 10 L16.6 10" ${ink}/>
       <circle cx="9.4" cy="12.8" r="1.3" fill="${INK}"/><circle cx="14.6" cy="12.8" r="1.3" fill="${INK}"/>
       <path d="M9.4 16.6 L14.6 16.6" ${ink}/></g>`,
+    // RUN18D (critic): grump3 was SMILING. The control point sat BELOW the endpoints, which
+    // draws a U — on the face of a character whose whole job is to be hard to please, and
+    // whose success state is a delighted one. It is a sceptical sideways mouth now; grump1
+    // frowns and grump2 is flat, and the three moods stay distinct.
     grump3: `<g><circle cx="12" cy="12" r="8.6" fill="${COLORS.lilac}" ${ink}/>
       <path d="M7.2 9.2 Q9.2 7.6 11 9.2 M13 9.2 Q14.8 7.6 16.8 9.2" fill="none" ${ink}/>
       <circle cx="9.4" cy="11.6" r="1.3" fill="${INK}"/><circle cx="14.6" cy="11.6" r="1.3" fill="${INK}"/>
-      <path d="M9.6 16.8 Q12 18.6 14.4 16.8" fill="none" ${ink}/></g>`,
+      <path d="M9.4 17.4 Q12 15.4 14.6 16.4" fill="none" ${ink}/></g>`,
     // the trail in miniature — the Expedition's hub card (RUN18C C5). A little map, not a
     // compass emoji: it is the same hillside, path and four markers the trail screen draws.
     trailmap: `<g><rect x="1.6" y="2.6" width="20.8" height="18.8" rx="3" fill="#BFE6F5" ${ink}/>
@@ -1926,6 +1930,68 @@ export const TRAIL_NODE_AT = TRAIL_NODE_ATS.land;
 //   renderLessonGlyph — Teach Me's nine lesson badges AND the nine scene tags its HOOK
 //     stage wears. One map, because `clock` and the cake slice were in both.
 //   renderStudioGlyph — the four Boo Studio tiles.
+// ---- RUN18D (playtest critic, D4 pass): the Picky Grumps' eight toppings ---------------
+// Two faults in one. They were emoji — the puzzle's primary tappable objects, sitting 40px
+// under a Grump that D4 had just drawn — and FOUR of the eight contradicted the very
+// attribute the puzzle grades on: 🍇 is declared `colour:'green'` and renders PURPLE, 🍏 is
+// declared `shape:'long'` and is a whole round apple, 🍬 is declared `'long'` and is a round
+// sweet, 🥬 is declared `'round'` and is a leafy bundle. A child told "that Grump only wants
+// green ones", who then avoids the purple grapes, is playing the picture and being marked
+// wrong by the data.
+// data/expedition.js is untouched — it is authored content. Every drawing here is built to
+// match its OWN row: red or green, round or long, and its name says sweet or savoury.
+export function renderTopping(id, { size = 40, cls = '' } = {}) {
+  const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"`;
+  const thin = `stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
+  const RED = '#E8484A', GREEN = '#7FC85F', LEAF = '#3E8B50';
+  const G = {
+    // red · round · sweet
+    strawberry: `<g><path d="M12 21.4 Q4.2 16.6 4.6 11.2 Q5 6.6 12 7 Q19 6.6 19.4 11.2 Q19.8 16.6 12 21.4 Z" fill="${RED}" ${ink}/>
+      <circle cx="9" cy="11.4" r="0.9" fill="#FFF3E0"/><circle cx="14.6" cy="11" r="0.9" fill="#FFF3E0"/>
+      <circle cx="11.8" cy="15" r="0.9" fill="#FFF3E0"/><circle cx="15.6" cy="15.4" r="0.9" fill="#FFF3E0"/>
+      <circle cx="8" cy="15.6" r="0.9" fill="#FFF3E0"/>
+      <path d="M7.6 6.6 L12 4 L16.4 6.6 Q12 8.4 7.6 6.6 Z" fill="${LEAF}" ${thin}/>
+      <path d="M12 4 L12 1.8" ${thin}/></g>`,
+    // red · round · savoury
+    tomato: `<g><circle cx="12" cy="13.4" r="7.8" fill="${RED}" ${ink}/>
+      <path d="M12 6 q-1 -2.6 -3.6 -3 M12 6 q1 -2.6 3.6 -3 M12 6 l0 -3.4" fill="none" stroke="${LEAF}" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="9.2" cy="11" rx="1.8" ry="1.2" fill="#FFF3E0" opacity="0.6"/></g>`,
+    // red · LONG · sweet — a twisted lace, and it really is long
+    'raspberry-lace': `<g><path d="M3.4 6.6 Q7 12 3.4 17.4" fill="none" stroke="${RED}" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M9 6.6 Q12.6 12 9 17.4" fill="none" stroke="${RED}" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M14.6 6.6 Q18.2 12 14.6 17.4" fill="none" stroke="${RED}" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M20.2 6.6 Q22.6 12 20.2 17.4" fill="none" stroke="${RED}" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M2.6 12 L21.4 12" ${thin} opacity="0.45"/></g>`,
+    // red · LONG · savoury
+    'pepper-stick': `<g><path d="M3.4 8.6 Q8 6.6 13.4 8.4 Q19.4 10.4 21.6 15 Q22.6 17.6 20.4 18.6 Q18 19.6 16.6 17.4 Q14.4 13.6 9.4 12.6 Q4.6 11.8 3.2 11.4 Q1.4 10.8 1.6 9.8 Q1.8 8.8 3.4 8.6 Z" fill="${RED}" ${ink}/>
+      <path d="M3.2 9 q-1.6 -2.4 0.6 -3.8" fill="none" stroke="${LEAF}" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M6.4 10.2 Q12.6 11.6 17.4 15.6" fill="none" stroke="#FFF3E0" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/></g>`,
+    // GREEN · round · sweet — a green grape, because the row says green
+    grape: `<g><circle cx="12" cy="13.6" r="7.6" fill="${GREEN}" ${ink}/>
+      <circle cx="9.6" cy="11.4" r="2" fill="#B8E39A" opacity="0.85"/>
+      <path d="M12 6 L12 2.6" stroke="${COLORS.cocoa}" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12.2 4 Q16 2.2 17.4 4.8 Q15 6.4 12.2 4 Z" fill="${LEAF}" ${thin}/></g>`,
+    // green · round · savoury
+    sprout: `<g><circle cx="12" cy="13.4" r="7.6" fill="${GREEN}" ${ink}/>
+      <path d="M12 5.8 L12 21" ${thin}/>
+      <path d="M4.6 13.4 Q12 10.6 19.4 13.4" fill="none" ${thin}/>
+      <path d="M6 17.6 Q12 15.4 18 17.6" fill="none" ${thin}/>
+      <path d="M12 5.8 q-2.4 -1.6 -1.2 -3.6 q2.4 0.4 2.4 3.6" fill="${LEAF}" ${thin}/></g>`,
+    // GREEN · LONG · sweet — a SLICE, a crescent wedge, not a whole apple
+    'apple-slice': `<g><path d="M2.2 9.6 Q12 4.4 21.8 9.6 Q12 12.6 2.2 9.6 Z" fill="#EAF7DC" ${ink}/>
+      <path d="M2.2 9.6 Q12 4.4 21.8 9.6" fill="none" stroke="${GREEN}" stroke-width="3" stroke-linecap="round"/>
+      <path d="M2.6 10.6 Q12 15.4 21.4 10.6" fill="none" ${thin} opacity="0.5"/>
+      <ellipse cx="9.4" cy="9.2" rx="0.9" ry="1.5" fill="${COLORS.cocoa}"/>
+      <ellipse cx="14.4" cy="9.2" rx="0.9" ry="1.5" fill="${COLORS.cocoa}"/></g>`,
+    // green · LONG · savoury
+    cucumber: `<g><rect x="3" y="8.6" width="18" height="7" rx="3.5" fill="${GREEN}" ${ink} transform="rotate(-18 12 12)"/>
+      <path d="M6.4 12.6 L8.2 11.4 M10.4 11.2 L12.2 10 M14.4 9.8 L16.2 8.6" ${thin} transform="rotate(-18 12 12)"/>
+      <path d="M4.6 10.4 Q12 8.4 19.4 10.4" fill="none" stroke="#B8E39A" stroke-width="1.2" stroke-linecap="round" transform="rotate(-18 12 12)" opacity="0.8"/></g>`
+  };
+  const inner = G[id] || G.strawberry;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
 export function renderLessonGlyph(key, { size = 40, cls = '' } = {}) {
   const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"`;
   const thin = `stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;

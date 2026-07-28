@@ -141,10 +141,109 @@ console.log('== the Picky Grumps have drawn faces, and keep them ==');
   await page.evaluate(() => window.BooTown.go('expeditionpuzzle', { node: 'picnic' }));
   await page.waitForSelector('.picnic-plates', { timeout: 15000 });
   await sleep(400);
-  const bad = await scan(page, '.picnic-plates', EMOJI_SCAN);
-  assert(bad.length === 0, `no emoji on the plates (${bad.slice(0, 2).join(' | ')})`);
+  // THE WHOLE SCREEN, not `.picnic-plates`. The first cut of this assertion scanned the
+  // plates only — and the eight toppings live in the sibling `.picnic-tray`, so it passed
+  // while the puzzle's primary tappable objects were still emoji sitting 40px under a
+  // freshly drawn Grump. A scoped scan that misses the offender is worse than no scan: it
+  // says the law is kept. (Found by the playtest critic.)
+  const bad = await scan(page, '#screen', EMOJI_SCAN);
+  assert(bad.length === 0, `no emoji anywhere on the picnic (${bad.slice(0, 3).join(' | ')})`);
   assert(await svgCount(page, '.pp-grump svg') >= 1, 'each Grump is a drawing');
+  assert(await svgCount(page, '.topping .tp-ic svg') === 8, 'all eight toppings are drawings');
   await page.screenshot({ path: 'screenshots/run18d/d4/picnic-1024.png' });
+
+  // …and once she has put three on a plate, the SLOTS are drawings too — that is the state
+  // the earlier scan never reached, because it only ever looked at an empty plate.
+  await page.evaluate(() => { const t = document.querySelectorAll('.topping'); t[0].click(); t[3].click(); t[5].click(); });
+  await sleep(250);
+  const filled = await scan(page, '#screen', EMOJI_SCAN);
+  assert(filled.length === 0, `no emoji with a plate filled (${filled.slice(0, 3).join(' | ')})`);
+  assert(await svgCount(page, '.pp-slot.full svg') === 3, 'the three filled slots are drawings');
+  await page.screenshot({ path: 'screenshots/run18d/d4/picnic-filled-1024.png' });
+  await ctx.close();
+}
+
+// ============ the drawing must match the attribute the puzzle GRADES on ============
+// Four of the eight emoji contradicted their own row: grape is declared colour:'green' and
+// renders purple, apple-slice is declared shape:'long' and is a whole round apple,
+// raspberry-lace is declared 'long' and is a round sweet, sprout is declared 'round' and is
+// a leafy bundle. A child told "that Grump only wants green ones", who avoids the purple
+// grapes, is playing the picture and being marked wrong by the data. (Playtest critic.)
+console.log('== every topping LOOKS like the row that grades it ==');
+{
+  const art = await import('../js/art.js');
+  const { TOPPINGS } = await import('../data/expedition.js');
+  assert(TOPPINGS.length === 8, `eight toppings (${TOPPINGS.length})`);
+  const RED = '#E8484A', GREEN = '#7FC85F';
+  const seen = new Map();
+  for (const t of TOPPINGS) {
+    const svg = art.renderTopping(t.id, { size: 24 });
+    assert(/^<svg /.test(svg) && svg.length > 150, `renderTopping('${t.id}') draws something`);
+    seen.set(svg, (seen.get(svg) || 0) + 1);
+    // colour: the row's own colour must be the ink the drawing is actually made of
+    const wantHue = t.colour === 'red' ? RED : GREEN;
+    const otherHue = t.colour === 'red' ? GREEN : RED;
+    assert(svg.includes(wantHue), `${t.id} is drawn ${t.colour}`);
+    assert(!svg.includes(otherHue), `${t.id} carries no ${t.colour === 'red' ? 'green' : 'red'} at all`);
+  }
+  // …and no two toppings share a drawing, which would mean one silently fell through to the
+  // default and two different answers would look identical.
+  assert([...seen.values()].every(v => v === 1), 'all eight drawings are distinct');
+  // shape: a LONG one must be visibly longer than it is tall in its own artwork, and a
+  // ROUND one must not be. Measured on the rendered geometry, not asserted by eye.
+  const { ctx, page } = await open();
+  const shapes = await page.evaluate(async (list) => {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-9999px;top:0;width:200px;height:200px';
+    document.body.appendChild(host);
+    const out = {};
+    for (const [id, svg] of list) {
+      host.innerHTML = svg;
+      const el = host.querySelector('svg');
+      el.setAttribute('width', '200'); el.setAttribute('height', '200');
+      const b = el.querySelector('g').getBBox();
+      out[id] = +(b.width / b.height).toFixed(2);
+    }
+    host.remove();
+    return out;
+  }, TOPPINGS.map(t => [t.id, art.renderTopping(t.id, { size: 24 })]));
+  for (const t of TOPPINGS) {
+    const r = shapes[t.id];
+    if (t.shape === 'long') assert(r >= 1.25, `${t.id} is drawn LONG (w/h ${r})`);
+    else assert(r <= 1.2, `${t.id} is drawn ROUND (w/h ${r})`);
+  }
+  await ctx.close();
+}
+
+// ============ and the third Grump is not delighted to see her ============
+console.log('== the Picky Grumps are all, in fact, grumpy ==');
+{
+  const art = await import('../js/art.js');
+  const { ctx, page } = await open();
+  const moods = await page.evaluate(async (list) => {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-9999px;top:0;width:240px;height:240px';
+    document.body.appendChild(host);
+    const out = {};
+    for (const [name, svg] of list) {
+      host.innerHTML = svg;
+      const el = host.querySelector('svg');
+      el.setAttribute('width', '240'); el.setAttribute('height', '240');
+      // the mouth is the last <path> in the face group
+      const paths = [...el.querySelectorAll('path')];
+      const mouth = paths[paths.length - 1];
+      const len = mouth.getTotalLength();
+      const a = mouth.getPointAtLength(0), m = mouth.getPointAtLength(len / 2), b = mouth.getPointAtLength(len);
+      // y grows downward: a mouth whose middle hangs BELOW its corners is a smile
+      out[name] = +(m.y - (a.y + b.y) / 2).toFixed(2);
+    }
+    host.remove();
+    return out;
+  }, ['grump1', 'grump2', 'grump3'].map(k => [k, art.renderExpGlyph(k, { size: 24 })]));
+  for (const k of ['grump1', 'grump2', 'grump3']) {
+    assert(moods[k] <= 0.9, `${k} is not smiling (mouth sag ${moods[k]}px; positive = a smile)`);
+  }
+  assert(new Set(Object.values(moods)).size >= 2, `and the three moods are not all the same (${JSON.stringify(moods)})`);
   await ctx.close();
 }
 

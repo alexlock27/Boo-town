@@ -71,7 +71,10 @@ export function mountHook(container, lesson, { onDone, say, after = null, cancel
   const timers = [];
   const schedule = after ? ((ms, fn) => after(ms, fn)) : ((ms, fn) => setTimeout(fn, ms));
   const unschedule = cancel || clearTimeout;
+  // `at` calms MOTION: an animated beat lands sooner rather than being dwelt on.
+  // `atExact` is for anything that is not motion — above all the stage's own terminator.
   const at = (ms, fn) => timers.push(schedule(REDUCED ? Math.min(ms, 400) : ms, fn));
+  const atExact = (ms, fn) => timers.push(schedule(ms, fn));
 
   // beat 1: the muddle sits there. beat 2: it fixes itself and the guide names the idea.
   at(REDUCED ? 200 : 2600, () => {
@@ -85,7 +88,13 @@ export function mountHook(container, lesson, { onDone, say, after = null, cancel
     bubble.classList.add('pop');
     say(hook.line);
   });
-  at(HOOK_MS, () => finish());
+  // RUN18D (playtest critic): this used `at`, so under reduced motion HOOK_MS collapsed to
+  // 400ms and the ENTIRE hook stage — the drawn scene, its tag, the guide's line and the
+  // "Show me ➜" button — was gone 432ms after it appeared. Every child whose grown-up turned
+  // on "Calm motion" (RUN18B Y15 makes that switch set REDUCED) lost the hook from every
+  // lesson. That is deletion, not a reduced-motion path: the same content for the same time,
+  // with less movement in it.
+  atExact(HOOK_MS, () => finish());
 
   function finish() {
     if (ended) return;

@@ -7,7 +7,7 @@ import { BY_ID } from '../../data/catalogue.js';
 import { genRule, genExclusiveRules, informativeNext, featuresOf } from '../attrengine.js';
 import { freshCaper } from '../caper/state.js';
 import { saveExpeditionPostcard, composePostcard } from './postcard.js';
-import { renderItem, renderExpGlyph, renderGuide } from '../art.js';
+import { renderItem, renderExpGlyph, renderGuide, renderTopping } from '../art.js';   // RUN18D: drawn toppings
 import { speakMaybe, createGuideBubble } from '../guide.js';
 import { addBond } from '../care.js';
 import { POINTS } from '../../data/care.js';
@@ -407,7 +407,7 @@ export function mount(container, params, ctx) {
       selected.forEach((plate, index) => {
         const ready = plate.length === 3;
         const slots = el('span', { class: 'pp-slots' });
-        for (let i = 0; i < 3; i++) slots.appendChild(el('span', { class: 'pp-slot' + (plate[i] ? ' full' : ''), text: plate[i] ? plate[i].icon : '' }));
+        for (let i = 0; i < 3; i++) slots.appendChild(el('span', { class: 'pp-slot' + (plate[i] ? ' full' : ''), html: plate[i] ? renderTopping(plate[i].id, { size: 30 }) : '' }));
         plates.appendChild(el('button', {
           class: `picnic-plate${active === index ? ' selected' : ''}${ready ? ' ready' : ''}`,
           'aria-label': `Grump ${index + 1}'s plate, ${plate.length} of 3 toppings`,
@@ -436,7 +436,7 @@ export function mount(container, params, ctx) {
     TOPPINGS.forEach(item => tray.appendChild(el('button', { class: 'topping', dataset: { id: item.id }, onclick: () => {
       if (selected[active].length >= 3) { status.textContent = 'That plate is full — serve it!'; shake(plates.children[active]); return; }
       selected[active].push(item); sfx.tap(); draw();
-    } }, [el('span', { class: 'tp-ic', text: item.icon }), el('b', { class: 'tp-name', text: item.name })])));
+    } }, [el('span', { class: 'tp-ic', html: renderTopping(item.id, { size: 40 }) }), el('b', { class: 'tp-name', text: item.name })])));
     board.append(plates, tray, el('button', { class: 'btn big exp-serve', text: 'Serve this plate', onclick: serve })); draw();
     // Same rule, same restraint. With ONE Grump there is no "which" to discover, so naming
     // the value would BE the answer — that plate keeps the authored ladder rung.

@@ -97,6 +97,38 @@ console.log('== 1. menu and text screens sit in a centred 720px column at >=900p
   await ctx.close();
 }
 
+// ============ the Boo Shop is not a blank purple screen (playtest critic, D1) ============
+// It arrived with the shelves inside a CLOSED drawer whose collapsed bar was an unlabelled
+// grey skeleton pill — 594px of empty purple on a 768px tablet and one control that said
+// nothing. Opened, the tray was capped at 48vh: 399px of an 831px screen, one and a half
+// rows of a five-row shelf, with 370px of sky above it.
+console.log('== the shop opens ON its shelves, and they get the room ==');
+for (const [w, h] of [[1024, 768], [1456, 831], [390, 844]]) {
+  const { ctx, page } = await open(w, h);
+  await goTo(page, 'shop', '.shop-shelf');
+  await sleep(400);
+  const r = await page.evaluate(() => {
+    const d = document.querySelector('.boo-drawer');
+    const tray = document.querySelector('.bd-tray');
+    const cur = document.querySelector('.bd-current');
+    const cards = [...document.querySelectorAll('.bd-panel:not([hidden]) .shop-card')];
+    const vis = cards.filter(c => { const b = c.getBoundingClientRect(); const t = tray.getBoundingClientRect();
+      return b.top >= t.top - 1 && b.bottom <= t.bottom + 1; }).length;
+    const c0 = cards[0] ? cards[0].getBoundingClientRect() : null;
+    return { open: d.classList.contains('open'), current: (cur.textContent || '').trim(),
+             trayH: tray.getBoundingClientRect().height, cards: cards.length, visible: vis,
+             cardH: c0 ? Math.round(c0.height) : 0, cardW: c0 ? Math.round(c0.width) : 0,
+             viewH: window.innerHeight };
+  });
+  assert(r.open, `${w}: the drawer is open on arrival — the shelves ARE the screen`);
+  assert(r.current.length > 3, `${w}: the collapsed bar says what is open ("${r.current}")`);
+  assert(r.trayH > r.viewH * 0.5, `${w}: the shelf gets real room (${Math.round(r.trayH)} of ${r.viewH}px)`);
+  const want = w >= 600 ? 8 : 6;
+  assert(r.visible >= want, `${w}: at least ${want} things to buy are visible without scrolling (${r.visible} of ${r.cards}; cards ${r.cardW}x${r.cardH}, tray ${Math.round(r.trayH)})`);
+  await page.screenshot({ path: `screenshots/run18d/d1/shop-${w}.png` });
+  await ctx.close();
+}
+
 // ================== 2. below 900px the shell is inert ==================
 console.log('== 2. below 900px nothing is narrowed — a phone uses all of its glass ==');
 {
