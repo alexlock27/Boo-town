@@ -4,7 +4,7 @@
 import * as State from './state.js';
 import { initAudio, music, setSoundEnabled, setMusicEnabled } from './sfx.js';
 import * as tts from './tts.js';
-import { starField, clearConfetti, setBackAction, getBackAction, backActionGuarded, el, clear } from './ui.js';
+import { starField, clearConfetti, setBackAction, getBackAction, backActionGuarded, setCalmMotion, setBiggerText, el, clear } from './ui.js';
 import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker, showToast, listSnapshots, restoreSnapshot } from './resilience.js';
 import { setHapticsEnabled } from './haptics.js';
 import { qaSuspendRound, qaResumeRound } from './intro.js';
@@ -217,6 +217,15 @@ function setupHistory() {
   });
 }
 
+// RUN18B Y15: the Comfort & access switches, applied at boot and again whenever they change,
+// so the first painted frame already honours them.
+export function applyComfortSettings() {
+  const s = State.getState();
+  if (!s || !s.settings) return;
+  setCalmMotion(s.settings.calmMotion === true);
+  setBiggerText(s.settings.biggerText === true);
+}
+
 export function applyAudioSettings() {
   const s = State.getState();
   if (!s) return;
@@ -298,6 +307,7 @@ async function boot() {
   const result = await State.loadOrRescue();
   const save = result.state;
   applyAudioSettings();
+  applyComfortSettings();
   // Rolling save snapshot, at most once per day of play (RUN5 C0b).
   if (save && save.name) { maybeRollingBackup().catch(() => {}); }
 

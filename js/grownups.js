@@ -1,7 +1,7 @@
 // js/grownups.js — the grown-ups corner (spec §5.7). Plain adult styling.
 
-import { el, backControl } from './ui.js';
-import { getState, mutate, exportCode, importCode, resetAll } from './state.js';
+import { el, backControl, setCalmMotion, setBiggerText } from './ui.js';
+import { getState, mutate, commit, exportCode, importCode, resetAll } from './state.js';
 import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
 import { deleteAllVoices, voiceCount } from './voices.js';
@@ -61,6 +61,29 @@ export function mount(container, params, ctx) {
       : 'Letters in alphabet order rather than QWERTY. Off by default at this age.' }),
     toggle('Read questions aloud (a speaker button)', readAloudOn(), v => setReadAloud(v)),
     el('p', { class: 'gu-note', text: 'Adds a small speaker beside each question. It only speaks when she presses it — never on its own.' })
+  ]);
+
+  // ---- comfort & access (RUN18B Y15) ---------------------------------------------------
+  // Two switches that change how the app FEELS rather than what it teaches, applied live —
+  // she does not have to leave the screen, and she certainly does not have to restart — and
+  // remembered on the device like every other setting here.
+  const comfortCard = el('div', { class: 'gu-card' }, [
+    el('h3', { text: 'Comfort & access' }),
+    el('p', { class: 'gu-note', text: 'Small comforts for small eyes and busy screens.' }),
+    toggle('Calm motion', s.settings.calmMotion === true, v => {
+      mutate(st => st.settings.calmMotion = v);
+      // Written NOW, not on the usual two-second debounce: a grown-up sets a comfort and puts
+      // the tablet down, and the next thing that happens is often the tab closing.
+      commit();
+      setCalmMotion(v);
+    }),
+    el('p', { class: 'gu-note', text: 'Everything that moves takes the gentle path — no confetti storms, no long slides. On even if the tablet is not set that way.' }),
+    toggle('Bigger text', s.settings.biggerText === true, v => {
+      mutate(st => st.settings.biggerText = v);
+      commit();
+      setBiggerText(v);
+    }),
+    el('p', { class: 'gu-note', text: 'One step larger everywhere. Nothing is hidden or cut off — every screen grows with it.' })
   ]);
 
   // ---- voice picker (RUN9 C6b): choose from the device's installed English voices ----
@@ -348,7 +371,7 @@ export function mount(container, params, ctx) {
 
   // ---- tabs (RUN6 C0.2): Settings first, so no setting hides behind the editors ----
   const TABS = [
-    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, contentCard, micCard, requestsCard, feelingsCard, buildLine] },
+    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, comfortCard, contentCard, micCard, requestsCard, feelingsCard, buildLine] },
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },
