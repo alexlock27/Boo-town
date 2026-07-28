@@ -88,9 +88,9 @@ export const VENUE_SOCKETS = {
   band: { route: 'band', boos: '.band-room-bopper', freeFloating: true,
     note: 'A decorative trio bopping in the header strip. They are UI garnish beside the instrument buttons, not Boos standing in a room, and there is no floor to stand on.' },
   expedition: { route: 'expedition', boos: '.exp-camp-boo', freeFloating: true,
-    note: 'The camp mugs are a 40px ROSTER of who came along, laid out in a row like a team sheet. They are portraits, not a scene.' },
+    note: 'The camp mugs are a 34px ROSTER of who came along, laid out in a row like a team sheet inside the cocoa card, and only while the party is at camp. The party that stands on the TRAIL (.exp-walker, RUN18C C2) does stand on something — but its surface is an SVG path sampled with getPointAtLength, not a box a socket can measure, so it seats itself from the same geometry the path is drawn from.' },
   caper: { route: 'caper', boos: '.caper-suspect .caper-art', freeFloating: true,
     note: 'Suspects are pinned cards on a corkboard. A card hangs; it does not stand.' },
   expeditionpuzzle: { route: 'expeditionpuzzle', boos: '.exp-puzzle-boo', freeFloating: true,
-    note: 'The dock is a row of pickable name buttons, not a place Boos stand.' }
+    note: 'The dock is a rack of pickable portrait cards (RUN18C C3 gave them real art), not a place Boos stand — a card is held, it does not stand on a floor.' }
 };

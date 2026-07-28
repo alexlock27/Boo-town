@@ -6,9 +6,12 @@ import { NODES, BUDGETS, GUESTS, TOPPINGS } from '../../data/expedition.js';
 import { BY_ID } from '../../data/catalogue.js';
 import { genRule, genExclusiveRules, informativeNext, featuresOf } from '../attrengine.js';
 import { freshCaper } from '../caper/state.js';
-import { saveExpeditionPostcard } from './postcard.js';
+import { saveExpeditionPostcard, composePostcard } from './postcard.js';
 import { renderItem, renderExpGlyph, renderGuide } from '../art.js';
-import { speakMaybe } from '../guide.js';
+import { speakMaybe, createGuideBubble } from '../guide.js';
+import { addBond } from '../care.js';
+import { POINTS } from '../../data/care.js';
+import { stampJournal, hasStamp } from '../quests.js';
 import { sfx } from '../sfx.js';
 
 // RUN18C C3 — the puzzles in house style. The RULES ARE NOT TOUCHED: the engine, the
@@ -156,10 +159,66 @@ export function mount(container, params, ctx) {
     if (firstFullTrail) saveExpeditionPostcard(people, node).catch(() => {});
     status.textContent = `Everyone made it! ${'★'.repeat(stars)}`;
     if (!REDUCED) confetti({ count: 32, power: .55 });
+    // RUN18C C4 — THE ENDING SHE NEVER SAW. The postcard has been composed since RUN10 P21
+    // and went straight into the Gallery: the child finished a four-node trail and was
+    // returned to a list of buttons. It is a ceremony now, and the friendship the party
+    // earned on the way is announced instead of banked silently.
+    if (firstFullTrail) { endingCeremony(); return; }
     // `from` is what tells the trail which segment the party has just earned the right to
     // walk (RUN18C C2) — without it the trail can only ever show them standing still.
     setTimeout(() => ctx.go('expedition', { trail: true, from: node }), 850);
   };
+  // ---- RUN18C C4: the postcard, full screen, as a ceremony ---------------------------
+  const BOND_LINE = 'Everyone\'s friendship grew!';
+  const TWIGGY_LINE = 'What an adventure! The Boos sent you a postcard.';
+  function endingCeremony() {
+    // The bond the party earned. +6 each (data/care.js POINTS.expedition, untouched),
+    // announced ONCE as a line about all of them rather than eight toasts. Guests are not
+    // hers to befriend, so only the Boos she actually owns bank it.
+    const mine = people.filter(boo => BY_ID[boo.id]);
+    mine.forEach(boo => addBond(boo.id, 'expedition'));
+
+    const card = el('div', { class: 'exp-postcard-card' });
+    const overlay = el('div', { class: 'overlay exp-postcard-overlay', role: 'dialog', 'aria-label': 'The Boos sent you a postcard' }, [card]);
+    const guide = createGuideBubble({ view: 'head', size: 64, side: 'left' });
+    guide.root.classList.add('exp-postcard-guide');
+    const shot = el('div', { class: 'exp-postcard-shot' }, [el('div', { class: 'exp-postcard-sparkle' })]);
+    const bond = el('p', { class: 'exp-postcard-bond', text: `${BOND_LINE} +${POINTS.expedition} each` });
+    const kept = hasStamp('expedition_postcard');
+    const keep = el('button', { class: 'btn exp-postcard-keep', text: kept ? 'Kept in your Journal' : 'Keep it in the Journal', disabled: kept ? '' : undefined, onclick: () => {
+      stampJournal('expedition_postcard');
+      keep.textContent = 'Kept in your Journal'; keep.disabled = true;
+      sfx.star(); if (!REDUCED) confetti({ count: 22, power: .5 });
+    } });
+    const done = el('button', { class: 'btn soft exp-postcard-done', text: 'Done', onclick: () => {
+      overlay.remove();
+      ctx.go('expedition', { trail: true, from: node });
+    } });
+    card.append(
+      el('h2', { class: 'exp-postcard-title', text: 'A postcard from the trail!' }),
+      shot, guide.root, bond,
+      el('div', { class: 'exp-postcard-btns' }, [keep, done])
+    );
+    document.body.appendChild(overlay);
+    // `.show` is what the shared .overlay base fades in (it ships at opacity 0); `.up` is
+    // this card's own slide. Without the first, the whole ceremony is invisible.
+    requestAnimationFrame(() => overlay.classList.add('show', 'up'));
+    guide.sayText(TWIGGY_LINE);
+    sfx.fanfare();
+    setTimeout(() => { if (!REDUCED) confetti({ count: 36, power: .6 }); }, REDUCED ? 0 : 380);
+    // The picture itself is composed on a canvas, so it arrives a beat after the card. The
+    // card is complete without it — a failed compose must never hold the ending hostage.
+    composePostcard(people, node)
+      .then(({ png }) => { shot.prepend(el('img', { class: 'exp-postcard-img', src: png, alt: 'A postcard of your Boos on the trail' })); })
+      .catch(() => { shot.prepend(el('p', { class: 'exp-postcard-fallback', text: 'The Boos waved from every corner of the trail!' })); });
+    if (typeof window !== 'undefined') window.__expeditionEnding = {
+      shown: () => document.body.contains(overlay),
+      keep: () => keep.click(), done: () => done.click(),
+      bondLine: () => bond.textContent, guideLine: () => guide.bubble.textContent,
+      bonds: () => mine.map(boo => boo.id)
+    };
+  }
+
   // RUN18A H2: the hint used to say 'Hmm… try THAT one!' — it named neither the Boo it was
   // pointing at nor the rule it had spotted, so the highlight was the entire message and a
   // child who missed the four-second glow got nothing at all. Each puzzle now supplies the

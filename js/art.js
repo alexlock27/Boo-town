@@ -47,11 +47,20 @@ function c(name) { return COLORS[name] || name; }
 function ell(cx, cy, rx, ry, fill, extra = '') {
   return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" ${extra}/>`;
 }
+// RUN18C C4 — XML HAS NO TOLERANCE FOR A REPEATED ATTRIBUTE, and a data: URI is parsed as
+// XML, not as HTML. Around thirty call sites below pass 'none' as `fill` AND repeat
+// `fill="none"` inside `extra`; the DOM shrugs and paints it, but `new Image()` on the same
+// markup fails to load ENTIRELY. That is why six of the eight Boos were missing from the
+// Expedition postcard (js/expedition/postcard.js draws each Boo through an <img>) — every
+// Boo whose mouth or brow used the doubled form silently never arrived. `extra` wins.
+const DECLARES = (attr, extra) => new RegExp(`(^|\\s)${attr}\\s*=`).test(extra);
 function path(d, fill, extra = '') {
-  return `<path d="${d}" fill="${fill}" ${extra}/>`;
+  const own = DECLARES('fill', extra) ? '' : ` fill="${fill}"`;
+  return `<path d="${d}"${own} ${extra}/>`;
 }
 function rrect(x, y, w, h, r, fill, extra = '') {
-  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="${fill}" ${extra}/>`;
+  const own = DECLARES('fill', extra) ? '' : ` fill="${fill}"`;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}"${own} ${extra}/>`;
 }
 // 5-point star path centred at (cx,cy)
 function starPath(cx, cy, rOuter, rInner = rOuter * 0.45, rot = -90) {
@@ -215,7 +224,13 @@ function speciesGeom(species, bodyFill, bellyFill, extra = {}) {
   } else if (species === 'twirl') {
     // single curly antenna + small ears
     back.push({ fill: bodyFill, svg: (f, s) =>
-      path('M60 44 C60 26 74 26 74 16 C74 8 66 8 66 14', 'none', `stroke="${f === HALO ? HALO : bodyFill}" stroke-width="${f===HALO?10:6}" fill="none" ${f===HALO ? '' : `stroke="${INK}"`}`) });
+      // ...and Twirl's antenna repeats `stroke` inside its own `extra`, which the helper
+      // above cannot see. Pick it once — and pick the one the BROWSER has been drawing
+      // since RUN2: HTML keeps the FIRST of two duplicate attributes, so the trailing
+      // `stroke="INK"` the author wrote has never once been painted. The antenna is body-
+      // coloured on every screen in the app and stays that way; this repairs the XML, it
+      // does not restyle a Boo. (Same rule; same invisible-inside-an-<img> failure.)
+      path('M60 44 C60 26 74 26 74 16 C74 8 66 8 66 14', 'none', `stroke="${f === HALO ? HALO : bodyFill}" stroke-width="${f === HALO ? 10 : 6}" fill="none"`) });
     // draw antenna explicitly (stroke-based) — override: use a dedicated builder
     back.length = 0;
     back.push({ fill: 'none', svg: (f, s) => {
@@ -601,8 +616,8 @@ function characterGeom(species, bodyFill) {
   // ---- giraffe (default) ----
   const outline = [
     // ossicones
-    { fill: bodyFill, svg: (f, s) => `<line x1="49" y1="42" x2="47" y2="22" ${f===HALO?`stroke="${HALO}" stroke-width="10"`:ink(5)} stroke-linecap="round"/>` },
-    { fill: bodyFill, svg: (f, s) => `<line x1="71" y1="42" x2="73" y2="22" ${f===HALO?`stroke="${HALO}" stroke-width="10"`:ink(5)} stroke-linecap="round"/>` },
+    { fill: bodyFill, svg: (f, s) => `<line x1="49" y1="42" x2="47" y2="22" ${f===HALO?`stroke="${HALO}" stroke-width="10" stroke-linecap="round"`:ink(5)}/>` },
+    { fill: bodyFill, svg: (f, s) => `<line x1="71" y1="42" x2="73" y2="22" ${f===HALO?`stroke="${HALO}" stroke-width="10" stroke-linecap="round"`:ink(5)}/>` },
     S((f, s) => path('M46 122 Q42 84 50 60 L70 60 Q78 84 74 122 Z', f, s)),  // neck
     S((f, s) => ell(60, 120, 34, 19, f, s)),                                 // body
     S((f, s) => ell(60, 44, 27, 24, f, s))                                   // head
