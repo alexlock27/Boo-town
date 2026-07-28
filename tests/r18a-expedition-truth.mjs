@@ -8,8 +8,11 @@
 //      rule it had spotted, on all four puzzles.
 //   3. the literal string "null" under the campfire — a ternary's null passed into the
 //      DOM's own append(), which coerces it to text (el() would have skipped it).
-// Plus the honest containment: the hub's entry card says it is being polished and does
-// not open, the Course-3 precedent, until RUN18C builds the presentation.
+// Plus the door itself. RUN18A shut it (the hub's entry card said it was being polished
+// and did not open, the Course-3 precedent) and this suite proved it stayed shut at every
+// width and through every side entrance. RUN18C C5 built the presentation the containment
+// existed for, so section 1 now proves the mirror image: the door is OPEN, every way in
+// works, and nothing on the card is left over from the containment.
 //
 // The rule assertion is the load-bearing one. It does NOT compare the screen to itself:
 // it PARSES the displayed sentence back into an attribute + value, builds its own
@@ -71,84 +74,87 @@ const go = async (route, params, sel) => {
   await page.waitForSelector(sel, { timeout: 10000 });
 };
 
-// ---- 1. the entry card refuses entry, and says the authored line ----------------------
-console.log('== 1. the hub card is contained, and says so ==');
+// ---- 1. the entry card OPENS again, and carries the pack's blurb ----------------------
+// RUN18A shut this door and this suite proved it stayed shut. RUN18C C5 built the
+// presentation the containment existed for and reopened it, so the same section now
+// proves the opposite — including the two side doors the playtest critic found when the
+// door was closed, because "open" has to mean every door too.
+console.log('== 1. the hub card is open again, and says what is behind it ==');
 {
   await go('hub', {}, '.hub');
-  const AUTHORED = await page.evaluate(async () => (await import('./data/expedition.js')).CONTAINED);
-  assert(AUTHORED === 'Being polished — back soon! 🚧', `the authored line is "${AUTHORED}"`);
+  const CONTAINED = await page.evaluate(async () => (await import('./data/expedition.js')).CONTAINED);
+  assert(CONTAINED === '', `the containment switch is empty — the door is open ("${CONTAINED}")`);
   const card = await page.evaluate(() => {
     const b = [...document.querySelectorAll('.game-card')].find(x => /Boo Expedition/.test(x.textContent));
     if (!b) return null;
     const r = b.getBoundingClientRect();
     return {
-      text: b.textContent.trim(), disabled: b.disabled, aria: b.getAttribute('aria-label'),
-      tag: (b.querySelector('.gc-tag') || {}).textContent, stars: !!b.querySelector('.gc-stars'),
+      disabled: b.disabled, cls: b.className,
+      tag: (b.querySelector('.gc-tag') || {}).textContent,
+      stars: !!b.querySelector('.gc-stars'),
+      art: !!(b.querySelector('.gc-icon') || {}).querySelector?.('svg'),
+      emoji: /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test((b.querySelector('.gc-icon') || {}).textContent || ''),
       w: Math.round(r.width), h: Math.round(r.height)
     };
   });
-  assert(!!card, 'the Boo Expedition card is still on the hub — contained, not hidden');
-  assert(card.disabled === true, 'the card is disabled');
-  assert(card.tag === AUTHORED, `it wears the authored line verbatim: "${card.tag}"`);
-  assert((card.aria || '').includes(AUTHORED), `and says it to a screen reader too: "${card.aria}"`);
-  assert(card.stars === false, 'no star row is shown for a game she cannot play');
-  assert(card.w >= 56 && card.h >= 56, `the card is still a real target (${card.w}x${card.h})`);
-  // tapping it must not navigate
-  const before = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+  assert(!!card, 'the Boo Expedition card is on the hub');
+  assert(card.disabled === false, 'the card is NOT disabled any more');
+  assert(!/building/.test(card.cls), `and does not wear the "building" class ("${card.cls}")`);
+  assert(card.tag === 'Pick 8 brave Boos and solve the trail!', `it wears the pack's blurb verbatim: "${card.tag}"`);
+  assert(card.stars === true, 'the star row is back, because she can play it now');
+  assert(card.art === true, 'the icon is real drawn art, not a glyph in a text node');
+  assert(card.emoji === false, 'and there is no emoji left on it');
+  assert(card.w >= 56 && card.h >= 56, `the card is a real target (${card.w}x${card.h})`);
+  // tapping it must now OPEN the party select
   await page.evaluate(() => [...document.querySelectorAll('.game-card')].find(x => /Boo Expedition/.test(x.textContent)).click());
-  await page.waitForTimeout(400);
+  await page.waitForSelector('.exp-picker', { timeout: 10000 }).catch(() => {});
   const after = await page.evaluate(() => document.getElementById('screen').dataset.screen);
-  assert(before === 'hub' && after === 'hub', `tapping it does not open anything (still on "${after}")`);
-  await page.screenshot({ path: SHOTS + '/hub-contained.png' });
+  assert(after === 'expedition', `tapping it opens the Expedition (landed on "${after}")`);
+  await page.screenshot({ path: SHOTS + '/hub-open.png' });
 }
 
-// ---- 1b. EVERY door is shut, at EVERY width ------------------------------------------
-// Both of these were found by the playtest critic against the first cut of this packet,
-// and both are the same mistake: containing the front door and calling it done.
+// ---- 1b. EVERY door is open, at EVERY width -------------------------------------------
+// The mirror of RUN18A's 1b: both of those were found by the playtest critic and both were
+// the same mistake — treating the front door as the only door.
 console.log('== 1b. the side door, and the phone ==');
 {
-  // (a) What's New walked her straight in. Taps only — no go() — from a save that has
-  //     never seen the list, which is every fresh install.
+  // (a) What's New offers a real way in again, and it lands.
   await go('hub', {}, '.hub');
   const news = await page.evaluate(() => {
     if (!window.__whatsnew || !window.__whatsnew.shown()) return { noCard: true };
     window.__whatsnew.expand();
     const rows = [...document.querySelectorAll('.wn-item')];
-    const i = rows.findIndex(r => /Boo Expedition/.test(r.textContent));
+    const i = rows.findIndex(r => /Expedition/.test(r.textContent));
     if (i < 0) return { noEntry: true };
     const row = rows[i];
-    return {
-      i, hasGo: !!row.querySelector('.wn-go'), shut: (row.querySelector('.wn-shut') || {}).textContent,
-      clicked: window.__whatsnew.go(i)
-    };
+    return { i, hasGo: !!row.querySelector('.wn-go'), shut: (row.querySelector('.wn-shut') || {}).textContent || null, clicked: window.__whatsnew.go(i) };
   });
   if (news.noCard || news.noEntry) {
-    assert(false, 'could not reach the What\'s New entry for the Expedition — check the fixture, this assertion is load-bearing');
+    assert(false, 'could not reach a What\'s New entry for the Expedition — check the fixture, this assertion is load-bearing');
   } else {
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(700);
     const landed = await page.evaluate(() => document.getElementById('screen').dataset.screen);
-    assert(news.hasGo === false, 'What\'s New offers NO "Show me!" for the contained Expedition');
-    assert(news.shut === 'Being polished — back soon! 🚧', `it wears the reason instead: "${news.shut}"`);
-    assert(news.clicked === false && landed === 'hub', `and there is no door to walk through — still on "${landed}"`);
+    assert(news.hasGo === true, 'What\'s New offers a "Show me!" for the Expedition again');
+    assert(!news.shut, `and wears no shut-reason ("${news.shut}")`);
+    assert(news.clicked === true && landed === 'expedition', `and the door it offers actually opens (landed on "${landed}")`);
   }
 
-  // (b) at phone width the contained card must still carry its reason. The generic phone
-  //     rule hides every card's .gc-tag; on this card the tag IS the message.
+  // (b) at every width the card carries its blurb — the generic phone rule hides .gc-tag
+  //     on cards, and this one's tag is what tells her what the Expedition IS.
   for (const [w, h] of [[390, 844], [768, 1024], [1024, 768]]) {
     await page.setViewportSize({ width: w, height: h });
     await go('hub', {}, '.hub');
     const seen = await page.evaluate(() => {
       const b = [...document.querySelectorAll('.game-card')].find(x => /Boo Expedition/.test(x.textContent));
-      const tag = b && b.querySelector('.gc-tag');
-      if (!tag) return { missing: true };
-      const cs = getComputedStyle(tag), r = tag.getBoundingClientRect();
-      return { text: tag.textContent, display: cs.display, visible: r.width > 0 && r.height > 0 };
+      if (!b) return { missing: true };
+      const r = b.getBoundingClientRect();
+      return { enabled: !b.disabled, w: Math.round(r.width), h: Math.round(r.height) };
     });
-    assert(!seen.missing && seen.display !== 'none' && seen.visible && seen.text === 'Being polished — back soon! 🚧',
-      `${w}px: the card still says why it is shut (display:${seen.display}, "${seen.text}")`);
+    assert(!seen.missing && seen.enabled && seen.w >= 56 && seen.h >= 56,
+      `${w}px: the card is present, open and a real target (${seen.w}x${seen.h})`);
   }
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.screenshot({ path: SHOTS + '/hub-contained-1024.png' });
+  await page.screenshot({ path: SHOTS + '/hub-open-1024.png' });
 }
 
 // ---- 2. no expedition screen renders a leaked token --------------------------------

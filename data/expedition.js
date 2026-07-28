@@ -1,10 +1,12 @@
-// RUN18A H2 — HONEST CONTAINMENT, the exact Course-3 precedent (data/courses.js UNPLAYABLE).
-// The Expedition's logic is finished and its presentation was never built: the audit found
-// it rendering "as a tiny card in a void". So its front door says so plainly and does not
-// open, rather than handing a child a feature that looks broken. RUN18C builds the
-// presentation and DELETES this constant (set it to '' and the card returns to normal) —
-// the truth repairs in js/expedition/ land either way, because 18C builds on them.
-export const CONTAINED = 'Being polished — back soon! 🚧';
+// RUN18A H2 — HONEST CONTAINMENT, now LIFTED (RUN18C C5). The Expedition's logic was
+// finished and its presentation was never built: the audit found it rendering "as a tiny
+// card in a void", so its front door said so plainly and did not open, on the Course-3
+// precedent (data/courses.js UNPLAYABLE). RUN18C built that presentation — the party
+// select (C1), the trail map (C2), the four puzzles (C3) and the postcard ending (C4) —
+// and this is the line that reopens every door at once. The constant STAYS at '' rather
+// than being deleted: it is the switch, and a future run that has to shut a door again
+// should find the mechanism here rather than reinvent it.
+export const CONTAINED = '';
 
 // Every route that is behind that notice, so a door cannot be missed. The hub card was
 // shut first and What's New still walked her straight in through the side — "does not
