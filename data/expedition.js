@@ -13,7 +13,15 @@ export const CONTAINED = 'Being polished — back soon! 🚧';
 export const CONTAINED_ROUTES = CONTAINED ? { expedition: CONTAINED, expeditionpuzzle: CONTAINED } : {};
 
 export const BUDGETS = { bridges: { sneezes: [6, 6, 8, 8] }, picnic: { huffs: [5, 6, 7, 8] }, raft: { failedSails: [3, 4, 4, 5] }, hotel: { wrongRooms: [6, 8, 10, 10] } };
-export const NODES = [{ key: 'bridges', name: 'Sneezy Bridges', icon: '🌉' }, { key: 'picnic', name: "Picky Grumps' Picnic", icon: '🧺' }, { key: 'raft', name: 'Ferry Raft', icon: '⛵' }, { key: 'hotel', name: 'Boo Hotel', icon: '🏨' }];
+// `short` is how a locked node names the one BEFORE it — "Finish the bridge first!" is the
+// pack's own wording, so every node carries the phrase that sentence needs (RUN18C C2).
+// `icon` stays for What's New / chrome; the trail markers themselves are art.js drawings now.
+export const NODES = [
+  { key: 'bridges', name: 'Sneezy Bridges', icon: '🌉', short: 'the bridge' },
+  { key: 'picnic', name: "Picky Grumps' Picnic", icon: '🧺', short: 'the picnic' },
+  { key: 'raft', name: 'Ferry Raft', icon: '⛵', short: 'the raft' },
+  { key: 'hotel', name: 'Boo Hotel', icon: '🏨', short: 'the hotel' }
+];
 export const GUESTS = [
   { id:'guest_pip_teal', name:'Fig', species:'pip', colors:{body:'teal'}, acc:'cap' }, { id:'guest_nova_lilac', name:'Biscuit', species:'nova', colors:{body:'lilac'} },
   { id:'guest_munch_gold', name:'Nutmeg', species:'munch', colors:{body:'gold'}, shiny:true }, { id:'guest_bloop_cream', name:'Pickle', species:'bloop', colors:{body:'cream'} },

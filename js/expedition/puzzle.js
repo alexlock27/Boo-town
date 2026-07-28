@@ -92,7 +92,9 @@ export function mount(container, params, ctx) {
     if (firstFullTrail) saveExpeditionPostcard(people, node).catch(() => {});
     status.textContent = `Everyone made it! ${'★'.repeat(stars)}`;
     if (!REDUCED) confetti({ count: 32, power: .55 });
-    setTimeout(() => ctx.go('expedition', { trail: true }), 850);
+    // `from` is what tells the trail which segment the party has just earned the right to
+    // walk (RUN18C C2) — without it the trail can only ever show them standing still.
+    setTimeout(() => ctx.go('expedition', { trail: true, from: node }), 850);
   };
   // RUN18A H2: the hint used to say 'Hmm… try THAT one!' — it named neither the Boo it was
   // pointing at nor the rule it had spotted, so the highlight was the entire message and a
