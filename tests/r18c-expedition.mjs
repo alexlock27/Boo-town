@@ -44,16 +44,29 @@ const save = (inv, extra = {}) => ({
 });
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
 const errors = [];
-page.on('pageerror', e => errors.push(String(e)));
-page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+let context = null, page = null, viewport = { width: 1024, height: 768 };
 
+// CLAUDE.md's oldest test pitfall, and it only bites over the network: a running app's
+// debounced autosave can land BETWEEN the seed being written and the reload that would
+// have picked it up, quietly replacing the fixture with whatever the last section left
+// behind. Locally that window is a few milliseconds and it never fires; against the live
+// URL it is long enough to lose a party of eight. The remedy the repo already knows is
+// the one used here — seed in a FRESH CONTEXT, so there is no app running to overwrite it.
 const seed = async (data) => {
+  if (context) await context.close();
+  context = await browser.newContext({ viewport });
+  page = await context.newPage();
+  page.on('pageerror', e => errors.push(String(e)));
+  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(BASE + '/index.html');
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), data);
   await page.reload();
   await page.waitForSelector('.hub');
+};
+const setViewport = async (width, height) => {
+  viewport = { width, height };
+  if (page) await page.setViewportSize(viewport);
 };
 const go = async (route, params, sel) => {
   await page.evaluate(([r, p]) => window.BooTown.go(r, p || {}), [route, params]);
@@ -253,7 +266,7 @@ console.log('== 5. every screen, every viewport: nothing escapes, nothing is und
 {
   const VIEWS = [[1024, 768], [768, 1024], [390, 844], [844, 390]];
   for (const [w, h] of VIEWS) {
-    await page.setViewportSize({ width: w, height: h });
+    await setViewport(w, h);
     await seed(save(SIXTEEN, { expedition: { party: PARTY, tiers: { picnic: 4, hotel: 4 }, progress: { bridges: 2 } } }));
     const screens = [['expedition', {}, '.exp-picker'], ['expedition', { trail: true }, '.exp-trail'],
       ['expeditionpuzzle', { node: 'bridges' }, '.exp-puzzle'], ['expeditionpuzzle', { node: 'picnic' }, '.exp-puzzle'],
@@ -282,7 +295,7 @@ console.log('== 5. every screen, every viewport: nothing escapes, nothing is und
       assert(!r.hscroll, `${tag}: the page does not scroll sideways`);
     }
   }
-  await page.setViewportSize({ width: 1024, height: 768 });
+  await setViewport(1024, 768);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -339,6 +352,7 @@ console.log('== 7. the front door, and the offline law ==');
 }
 
 assert(errors.length === 0, `zero console errors across the whole run${errors.length ? ' — ' + errors.slice(0, 3).join(' | ') : ''}`);
+if (context) await context.close();
 await browser.close();
 console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS'));
 process.exit(failed ? 1 : 0);
