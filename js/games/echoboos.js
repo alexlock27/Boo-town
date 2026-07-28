@@ -45,6 +45,7 @@ const ECHO_INTRO = [
 ];
 
 export function starsFor(bestLen) { return bestLen >= 8 ? 3 : bestLen >= 5 ? 2 : 1; }
+export const HEAR_AGAIN_STAR_CAP = 2;
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen echoboos' });
@@ -114,6 +115,10 @@ export function mount(container, params, ctx) {
     music.play('game');
     let sequence = [rand(4)];
     let pos = 0, bestLen = 0, mercyUsed = false, inputPhase = false, ended = false, awaiting = false;
+    // RUN18B Y6: a slip stops the music and OFFERS the tune again, once per round. Hearing
+    // it again costs the third star and nothing else — the round carries on at the same
+    // length, at the same tempo, because a tune played slower is a different tune.
+    let heardAgain = false, offered = false;
 
     const board = el('div', { class: 'echo-board' });
     const podiums = BOOS.map((b, i) => {
@@ -128,7 +133,8 @@ export function mount(container, params, ctx) {
 
     const status = el('div', { class: 'echo-status', text: 'Listen…' });
     const lenChip = el('div', { class: 'echo-len', text: 'Tune: 1' });
-    root.append(el('div', { class: 'echo-top' }, [lenChip, status]), board);
+    const againCard = el('div', { class: 'echo-again', hidden: true });
+    root.append(el('div', { class: 'echo-top' }, [lenChip, status]), board, againCard);
     root.appendChild(backControl(() => { clearTimers(); ctx.go('hub'); }, { floating: true }));
 
     startPlayback();
@@ -146,7 +152,11 @@ export function mount(container, params, ctx) {
       litHoldMs: () => LIT_HOLD_MS,
       anyLit: () => podiums.some(p => p.boo.classList.contains('lit')),
       gap: (len) => gapFor(len), minGap: () => (toddler ? TOD_MIN_GAP : (lightning ? LIGHTNING_MIN_GAP : MIN_GAP)),
-      stars: () => starsFor(bestLen),
+      stars: () => Math.min(starsFor(bestLen), heardAgain ? HEAR_AGAIN_STAR_CAP : 3),
+      offered: () => offered, heardAgain: () => heardAgain,
+      againUp: () => !againCard.hidden,
+      hearAgain: () => { const b = againCard.querySelector('.echo-hear'); if (b) b.click(); return !!b; },
+      keepGoing: () => { const b = againCard.querySelector('.echo-keep'); if (b) b.click(); return !!b; },
       setBestForTest: value => { bestLen = Math.max(0, Number(value) || 0); },
       finishForTest: () => finish('Lovely echoing! 🎵')
     };
@@ -196,15 +206,44 @@ export function mount(container, params, ctx) {
       } else {
         // a slip
         sfx.oops();
-        if (!mercyUsed) {
-          mercyUsed = true; inputPhase = false; awaiting = false;
-          status.textContent = 'Oops! Listen once more…';
-          after(900, () => startPlayback(true));   // replay the SAME sequence, slower (one mercy)
+        if (lightning) {
+          // Lightning is unchanged: it is a score chase, and it keeps its own one mercy.
+          if (!mercyUsed) {
+            mercyUsed = true; inputPhase = false; awaiting = false;
+            status.textContent = 'Oops! Listen once more…';
+            after(900, () => startPlayback(true));
+          } else finish('Lovely echoing! 🎵');
+        } else if (!offered) {
+          offerAgain();
         } else {
-          finish('Lovely echoing! 🎵');
+          finish("What a tune! Let's see your stars.");
         }
       }
     }
+    // The offer. The play STOPS: nothing is lit, nothing is counting, and the two ways on
+    // are both one tap. [Hear it again] is first because it is the one she came here for.
+    function offerAgain() {
+      offered = true; inputPhase = false; awaiting = false; clearTimers();
+      podiums.forEach(p => p.boo.classList.remove('lit', 'dimmed'));
+      status.textContent = 'Nearly!';
+      clear(againCard);
+      againCard.hidden = false;
+      againCard.append(
+        el('p', { class: 'echo-again-line', text: 'Nearly! Want to hear it once more?' }),
+        el('div', { class: 'echo-again-btns' }, [
+          el('button', { class: 'btn echo-hear', text: '🔊 Hear it again', onclick: () => {
+            sfx.tap(); heardAgain = true; againCard.hidden = true;
+            startPlayback();                       // SAME sequence, SAME tempo
+          } }),
+          el('button', { class: 'btn soft echo-keep', text: 'Keep going', onclick: () => {
+            sfx.tap(); againCard.hidden = true;
+            pos = 0; inputPhase = true; awaiting = true; status.textContent = 'Your turn! 🎤';
+          } })
+        ])
+      );
+      speakMaybe('Nearly! Want to hear it once more?');
+    }
+
     function risingFlourish() {
       if (REDUCED) return;
       [0, 1, 2, 3].forEach((i, k) => after(k * 90, () => { podiums[i].boo.classList.add('flourish'); after(300, () => podiums[i].boo.classList.remove('flourish')); }));
@@ -212,7 +251,9 @@ export function mount(container, params, ctx) {
     function finish(msg) {
       if (ended) return; ended = true; inputPhase = false; clearTimers();
       status.textContent = msg;
-      const stars = starsFor(bestLen);
+      // hearing the tune again caps the round at two stars — the round is not over, and
+      // she is not punished; the third star is simply what it costs
+      const stars = Math.min(starsFor(bestLen), heardAgain ? HEAR_AGAIN_STAR_CAP : 3);
       // Standard and Lightning keep entirely separate bests (RUN10 P11) — a Lightning run
       // never overwrites the Standard record, or the other way round. A new personal best
       // is committed straight away rather than waiting on the debounce, so closing the
