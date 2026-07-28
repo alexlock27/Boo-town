@@ -18,6 +18,11 @@ import { guideLine, speakMaybe } from './guide.js';
 import { maybeIntro, replayIntro, createRoundTimers } from './intro.js';
 import { stampJournal } from './quests.js';
 
+// RUN18A H4. The confirmation card is held long enough to actually read — the old toast
+// was gone in 1.8s including its fade — and it sits this far clear of the shelf tab row.
+export const SHOP_BOUGHT_MS = 2500;
+const SHOP_BOUGHT_CLEAR = 14;
+
 export const SHOP_INTRO = [
   { text: 'Welcome to my shop! Everything here is bought with stars.' },
   { text: 'Each shelf likes a different kind of star. Look for the little icon!' },
@@ -196,15 +201,35 @@ export function mount(container, params, ctx) {
     setGoal(currentGoal() === id ? null : id);
     renderShelves();
   }
+  // RUN18A H4: the confirmation is a CARD now, not a caption over the middle of the
+  // screen — same words (RUN18B Y2 replaces those wholesale; only the container is this
+  // packet's business), but on a real surface, sitting clear of the shelf tabs, held long
+  // enough to read, and dismissible by tapping it.
   function showBought(item) {
-    const wrap = el('div', { class: 'shop-bought', role: 'status' }, [
+    const card = el('div', { class: 'sb-card', role: 'status' }, [
       el('div', { class: 'sb-art', html: renderItem(item, { size: 96 }) }),
       el('p', { class: 'sb-line', text: `${item.name} is yours! Find it in Build.` })
     ]);
+    const wrap = el('div', { class: 'shop-bought' }, [card]);
     root.appendChild(wrap);
+    // Measure the tab row rather than guessing a constant: the tabs are 52px at desktop
+    // and 102px at phone width, so any single hard-coded gap is wrong somewhere.
+    const tabs = drawerApi.root.querySelector('.bd-tabs');
+    const clearance = tabs
+      ? Math.round(Math.max(0, window.innerHeight - tabs.getBoundingClientRect().top)) + SHOP_BOUGHT_CLEAR
+      : 90;
+    wrap.style.setProperty('--sb-bottom', clearance + 'px');
     requestAnimationFrame(() => wrap.classList.add('show'));
     speakMaybe(`${item.name} is yours!`);
-    timers.after(1800, () => { wrap.classList.remove('show'); timers.after(220, () => wrap.remove()); });
+    let gone = false;
+    const dismiss = () => {
+      if (gone) return;
+      gone = true;
+      wrap.classList.remove('show');
+      timers.after(220, () => wrap.remove());
+    };
+    card.addEventListener('click', () => { try { sfx.tap(); } catch {} dismiss(); });
+    timers.after(SHOP_BOUGHT_MS, dismiss);
   }
 
   // First visit: the Welcome purse, with a small ceremony, so day one is browsing with

@@ -81,6 +81,12 @@ const FIXTURES = {
     ["a stale/unknown game key falls back instead of throwing", "({ game: 'popping' })"]
   ],
   expedition: [["open the trail", "({ trail: true })"]],
+  // RUN18A H3: the Joke Boo has two doors, and Back must return her to the one she used.
+  // The in-world stage says so; the hub card and What's New send nothing and get the hub.
+  jokeboo: [
+    ["in from the stage in the Meadow", "({ from: 'town' })"],
+    ["in from the hub card (no params)", "({})"]
+  ],
   expeditionpuzzle: [
     ["bridges", "({ node: 'bridges' })"], ["picnic", "({ node: 'picnic' })"],
     ["raft", "({ node: 'raft' })"], ["hotel", "({ node: 'hotel' })"],

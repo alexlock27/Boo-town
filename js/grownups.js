@@ -9,7 +9,7 @@ import { setRequestsEnabled } from './requests.js';
 import { hapticsSupported, setHapticsEnabled, haptic } from './haptics.js';
 import { contentTier, setContentTier, TIERS } from './content.js';
 import { lastHiccup, listSnapshots, restoreSnapshot } from './resilience.js';
-import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected, needsBackupReminder, storageStatus, lastBackupInfo, isIOSStandalone } from './backup.js';
+import { keepCopy, sendCopy, canShareFiles, buildBackupFile, formatBytes, inspectText, inspectSnapshot, restoreInspected, needsBackupReminder, storageStatus, lastBackupInfo, isIOSStandalone, currentBuildStamp } from './backup.js';
 import { bloomStats } from '../data/bloom.js';
 import { alphaKeysOn, alphaKeysDefault, setAlphaKeys, readAloudOn, setReadAloud } from './a11y.js';
 // RUN17 X3: the Feelings Corner switch. The label and description are AUTHORED copy —
@@ -337,9 +337,18 @@ export function mount(container, params, ctx) {
     el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (4 and under → Toddler · 5–7 → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
   ]);
 
+  // ---- the build stamp, quietly (RUN18A H5) --------------------------------------------
+  // A QA gap, not a feature: when a grown-up says "it still does the old thing", the first
+  // question is which build they are actually running, and nothing on screen could answer
+  // it. Read from the SERVICE-WORKER CACHE NAME via currentBuildStamp() — the one source
+  // of truth — rather than from a constant duplicated into the UI, which is exactly how a
+  // version line starts lying. It is async (caches.keys()), so the line fills itself in.
+  const buildLine = el('p', { class: 'gu-note gu-build', text: 'Build: …' });
+  currentBuildStamp().then(stamp => { buildLine.textContent = `Build: ${stamp}`; }).catch(() => { buildLine.textContent = 'Build: unknown'; });
+
   // ---- tabs (RUN6 C0.2): Settings first, so no setting hides behind the editors ----
   const TABS = [
-    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, contentCard, micCard, requestsCard, feelingsCard] },
+    { id: 'settings', label: 'Settings',      cards: [toggles, accessCard, contentCard, micCard, requestsCard, feelingsCard, buildLine] },
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },

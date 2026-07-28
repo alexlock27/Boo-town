@@ -297,7 +297,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .t-shop-stall:focus-visible { outline: 4px solid var(--star); outline-offset: 3px; border-radius: 12px; }
 /* ---- RUN15 V4 — the Boo Shop ------------------------------------------------------ */
 .screen.shop { display: flex; flex-direction: column; height: 100%; gap: 6px; }
-.shop-header { display: flex; align-items: center; gap: 10px; padding: 6px 56px 0 12px; }
+/* RUN18A H4: the left padding clears the shared "‹" circle. The shopkeeper's 76px head
+   used to start at x:12 — directly UNDER the back control at (10,10,56,56) — so the
+   button's translucent white circle sat on a busy drawn face and read as invisible. That
+   is the audit's "back button invisible": the control was always there, it just had a
+   giraffe behind it. The avatar moves; the control is untouched, and no z-index is
+   invented for the shop (the pack's "no per-screen z-index fixes"). */
+.shop-header { display: flex; align-items: center; gap: 10px; padding: 6px 56px 0 76px; }
 /* G7: the header sits on the app's dark backdrop, not on a card — cream text, not ink. */
 .shop-title { margin: 0; font-size: 22px; color: var(--card); }
 .shop-sub { margin: 0; font-size: 13px; color: #D9CFF2; }
@@ -332,10 +338,21 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .shop-card.saving { background: #F6F1FB; }
 .shop-bought, .shop-welcome { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9500; pointer-events: none; }
 .shop-welcome { pointer-events: auto; background: rgba(20,12,48,.55); }
-.shop-bought { opacity: 0; transition: opacity .2s ease; }
+/* RUN18A H4: the purchase confirmation is a CARD, not a caption floating over the middle
+   of the screen. Its bottom edge is set from the measured tab row (--sb-bottom, written by
+   js/shop.js at show time) rather than from a guessed constant, so "clear of the tabs" is
+   true at every width instead of true at the two we happened to look at. The backdrop
+   stays pointer-transparent — only the card itself takes the dismissing tap, so the shop
+   underneath is never held hostage. */
+.shop-bought { inset: 0 0 var(--sb-bottom, 90px) 0; opacity: 0; transition: opacity .2s ease; }
 .shop-bought.show { opacity: 1; }
-.shop-bought .sb-line { font: 700 17px var(--font-display); color: var(--card); text-shadow: 0 2px 8px rgba(20,12,48,.9); }
-.shop-bought > * { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.shop-bought .sb-card {
+  pointer-events: auto; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--card-shadow);
+  padding: 14px 20px; max-width: min(320px, 86vw); text-align: center;
+}
+.shop-bought .sb-line { font: 700 17px var(--font-display); color: var(--ink); margin: 0; }
 .sw-panel { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 320px; }
 .sw-amount { font: 700 26px var(--font-display); color: var(--ink); margin: 0; }
 .sw-note { color: #574B86; margin: 0; }
