@@ -178,7 +178,17 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     // where a thing had been filed; the wish now ARRIVES IN THE WORLD, and the town's
     // onSpawn owns that moment. A toast is not a payoff (CLAUDE.md, announced moments).
     if (onSpawn) onSpawn(word, item, { wasNew });
-    resetTimer = setTimeout(resetWish, 1500);
+    // RUN18B Y3: THE WELL GETS OUT OF THE WAY. The pack's sequence ends "the item is a
+    // real placement she can drag NOW or leave" — she cannot drag anything through a
+    // full-screen z-1500 modal, and the critic found the overlay still up 15s after the
+    // wish, with the whole celebration happening behind it. So a granted wish closes the
+    // well and hands the moment to the town.
+    //
+    // Via `resetTimer` deliberately: `spellInstant` (the QA hook that spells with no
+    // ceremony, used to walk all 60 words in one go) calls resetWish() synchronously,
+    // which cancels this — so a scripted sweep keeps its open well and a child gets her
+    // town back.
+    resetTimer = setTimeout(close, 1500);
     return true;
   }
   function resetWish() {
