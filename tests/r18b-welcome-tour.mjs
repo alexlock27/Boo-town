@@ -107,14 +107,19 @@ console.log('== 1b. dots readable, skip a real target, the hub guide not squeeze
         ring: cs.boxShadow !== 'none',
         offBg: getComputedStyle(off).backgroundColor,
         gap: Math.round(parseFloat(getComputedStyle(document.querySelector('.tour-btns')).gap)),
-        guide: !!document.querySelector('.hub-guide')
+        guide: !!document.querySelector('.hub-guide'),
+        guideH: Math.round((document.querySelector('.hub-guide') || { clientHeight: 0 }).clientHeight),
+        bubble: !!document.querySelector('.hub .speech-bubble')
       };
     });
     assert(r.skipW >= 56 && r.skipH >= 56, `${w}px: skip is a real tap target (${r.skipW}x${r.skipH})`);
     assert(r.ring, `${w}px: the lit dot is marked by shape as well as colour`);
     assert(/0\.5[0-9]|0\.6/.test(r.offBg), `${w}px: the unlit dots are dark enough to see (${r.offBg})`);
     assert(r.gap >= 24, `${w}px: skip is not a fat finger from Next (${r.gap}px)`);
-    assert(r.guide === false, `${w}px: the hub's guide bubble stands down while the tour is up — it cannot be squeezed to a sliver`);
+    // The guide STAYS: .hub-guide holds the hub's only speech bubble, and the Star Chest and
+    // friends speak into it. What it must not do is get squeezed to a sliver by the tour.
+    assert(r.guide && r.bubble, `${w}px: the hub keeps its guide and its speech bubble while the tour is up`);
+    assert(w < 601 || r.guideH >= 90, `${w}px: and the tour cannot squeeze it to a sliver (${r.guideH}px)`);
   }
   // and it comes back the moment the tour is done
   await page.setViewportSize({ width: 1024, height: 768 });
@@ -123,7 +128,7 @@ console.log('== 1b. dots readable, skip a real target, the hub guide not squeeze
   await page.evaluate(() => window.BooTown.go('hub'));
   await page.waitForSelector('.hub', { timeout: 15000 });
   await sleep(250);
-  assert(await page.evaluate(() => !!document.querySelector('.hub-guide')), 'and the guide is back on the very next hub');
+  assert(await page.evaluate(() => !!document.querySelector('.hub .speech-bubble')), 'and the guide still speaks on the very next hub');
   await ctx.close();
 }
 
