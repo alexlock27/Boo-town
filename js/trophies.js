@@ -195,6 +195,24 @@ export function showTrophyCeremony(items, { retro = false } = {}) {
   ]);
   ov.appendChild(panel);
   document.body.appendChild(ov);
+  // A CEREMONY BELONGS TO THE SCREEN THAT RAISED IT (RUN18A H3). It is appended to <body>
+  // so that a transformed ancestor cannot break `position: fixed` — the town is full of
+  // transforms — but body-attached means nothing removes it when the screen changes, and
+  // it is z-index 8000 across the whole viewport. Reproduced: land on the hub, do not
+  // dismiss, tap Town, and the retro ceremony is still there over the Meadow, so NOTHING
+  // in the town can be tapped — not the Joke Boo's stage, not the Wish Well. That is the
+  // audit's "Joke Boo unreachable", and it is not a seeding bug at all: the seed fires
+  // correctly, the world is simply covered. So the overlay now watches the router's own
+  // screen marker and leaves when the screen it belongs to does.
+  const screenEl = document.getElementById('screen');
+  if (screenEl) {
+    const raisedOn = screenEl.dataset.screen;
+    const watch = new MutationObserver(() => {
+      if (!ov.isConnected) { watch.disconnect(); return; }
+      if (screenEl.dataset.screen !== raisedOn) { ov.remove(); watch.disconnect(); }
+    });
+    watch.observe(screenEl, { attributes: true, attributeFilter: ['data-screen'] });
+  }
   requestAnimationFrame(() => ov.classList.add('show'));
   try { sfx.fanfare(); } catch {}
   confetti({ count: retro ? 120 : 80, power: 1 });
