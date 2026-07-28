@@ -5289,6 +5289,97 @@ html.calm-motion .exp-go-wrap { transform: none; }
   .exp-go.btn.big { min-height: 64px; font-size: 19px; padding: 0 24px; }
 }
 
+/* ===== RUN18C C2 — the trail map ===========================================
+   Four buttons in a column became one drawn hillside with the party standing on it.
+   Every position is set from the real SVG path at runtime (js/expedition/trail.js);
+   this sheet only says what the pieces LOOK like. */
+.exp-trailwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 14px 14px; max-width: 960px; width: 100%; margin: 0 auto; overflow-y: auto; }
+.exp-trailwrap .exp-title { margin: 0; text-align: center; font-size: 24px; color: var(--card);
+  font-family: var(--font-display); padding: 2px 62px 0; }
+.exp-map { position: relative; width: 100%; aspect-ratio: 1000 / 560; margin: 0 auto;
+  border-radius: 26px; box-shadow: var(--card-shadow); }
+.exp-map.port { aspect-ratio: 620 / 1000; max-width: 100%; }
+.exp-map .exp-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.exp-clouds .exp-cloud { animation: expDrift 26s linear infinite; }
+.exp-clouds .exp-cloud.c2 { animation-duration: 38s; animation-delay: -12s; }
+@keyframes expDrift { from { transform: translateX(-90px); } to { transform: translateX(1060px); } }
+/* the four markers, pinned to their point on the path. The layer itself fills the map so
+   it has a box (a bare wrapper of absolute children measures 0x0 and reads as hidden). */
+.exp-trail { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.exp-trail .exp-node { pointer-events: auto; }
+.exp-node { position: absolute; transform: translate(-50%, -104%); display: flex; flex-direction: column;
+  align-items: center; gap: 1px; width: 128px; min-height: var(--tap); padding: 6px 6px 7px;
+  background: var(--card); border: 3px solid var(--ink); border-radius: 16px; cursor: pointer;
+  font: inherit; color: var(--ink); box-shadow: 0 5px 0 rgba(42,27,78,.35); z-index: 4; }
+.exp-node-art { display: flex; width: 72px; height: 72px; }
+.exp-node-art svg { width: 100%; height: 100%; }
+.exp-node-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; line-height: 1.1;
+  text-align: center; color: var(--ink); }
+.exp-node-tier { font-size: 11px; color: #4A3A72; text-align: center; line-height: 1.15; }
+/* starSVG's empty star is a translucent WHITE outline — designed for the dark sky, and
+   invisible on the marker's cream. Give the unfilled ones the ink the card needs. */
+.exp-node-star { display: flex; justify-content: center; min-height: 15px; }
+.exp-node-star .star-ic.off path { stroke: rgba(42,27,78,.42); }
+.exp-node.current { border-color: var(--pop); box-shadow: 0 0 0 4px var(--pop), 0 0 0 6px var(--ink), 0 5px 0 rgba(42,27,78,.35); z-index: 6; }
+.exp-node.done { border-color: var(--ink); }
+.exp-node.done::after { content: ''; position: absolute; top: -13px; right: -13px; width: 30px; height: 30px;
+  background: var(--star); border: 3px solid var(--ink); border-radius: 50%;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+.exp-node.locked { filter: grayscale(.5) brightness(.95); }
+.exp-node.walking { pointer-events: none; }
+/* The shared .wobble sets a bare `transform: rotate()`, which would REPLACE the marker's
+   own centring translate and snap it off its point on the path mid-shake. Same shake,
+   carrying the translate through every keyframe. */
+.exp-node.wobble { animation: expNodeWob 0.45s ease-in-out; }
+@keyframes expNodeWob {
+  0%,100% { transform: translate(-50%,-104%) rotate(0); }
+  20% { transform: translate(-50%,-104%) rotate(-7deg); }
+  40% { transform: translate(-50%,-104%) rotate(6deg); }
+  60% { transform: translate(-50%,-104%) rotate(-4deg); }
+  80% { transform: translate(-50%,-104%) rotate(3deg); }
+}
+.exp-node.star-pop::after { animation: expStarPop 300ms ease-out; }
+@keyframes expStarPop { 0% { transform: scale(.2) rotate(-40deg); } 60% { transform: scale(1.35) rotate(8deg); } 100% { transform: scale(1) rotate(0); } }
+/* the party, standing about on the hillside */
+.exp-walkers { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.exp-walkers .exp-walker { transition: opacity 220ms ease-out; }
+.exp-walkers.at-camp .exp-walker { opacity: 0; }
+.exp-walker { position: absolute; width: 48px; height: 48px;
+  margin: calc(-24px + var(--jy, 0px)) 0 0 calc(-24px + var(--jx, 0px)); will-change: transform;
+  filter: drop-shadow(0 3px 0 rgba(42,27,78,.28)); }
+.exp-walker svg { width: 100%; height: 100%; }
+/* the cocoa camp: the interstitial beat, shown only while the party is at it */
+/* The camp sits BELOW its point on the path: every marker stands above the path, so a camp
+   above it would land on top of the node the party has just left. */
+.exp-camp { position: absolute; transform: translate(-50%, 6%); display: none; z-index: 7;
+  background: var(--card); border: 3px solid var(--ink); border-radius: 16px; padding: 7px 12px 8px;
+  box-shadow: var(--card-shadow); }
+.exp-camp.show { display: grid; justify-items: center; gap: 3px; animation: expCampIn 260ms ease-out; }
+@keyframes expCampIn { from { opacity: 0; transform: translate(-50%, 22%) scale(.9); } to { opacity: 1; transform: translate(-50%, 6%) scale(1); } }
+.exp-camp-fire { position: relative; display: flex; align-items: flex-end; }
+.exp-camp-steam { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); opacity: .9; }
+.exp-camp-steam .wisp { animation: expWisp 2400ms ease-in-out infinite; transform-origin: 50% 100%; }
+.exp-camp-steam .wisp.w2 { animation-delay: -900ms; }
+@keyframes expWisp { 0% { opacity: 0; transform: translateY(4px) scale(.85); } 35% { opacity: .9; } 100% { opacity: 0; transform: translateY(-12px) scale(1.1); } }
+.exp-camp-mugs { display: flex; gap: 1px; }
+.exp-camp-boo { width: 34px; height: 34px; display: flex; }
+.exp-camp-boo svg { width: 100%; height: 100%; }
+.exp-camp-line { font-family: var(--font-display); font-weight: 700; font-size: 12px; color: var(--ink); }
+.exp-trailwrap .exp-guide { align-self: center; }
+.exp-trailwrap .exp-guide[hidden] { display: none; }
+@media (max-width: 600px), (max-height: 500px) {
+  .exp-trailwrap { padding: 6px 8px 10px; }
+  .exp-trailwrap .exp-title { font-size: 20px; padding: 2px 56px 0; }
+  .exp-node { width: 104px; padding: 5px 4px 6px; border-width: 2px; }
+  .exp-node-art { width: 48px; height: 48px; }
+  .exp-node-name { font-size: 12px; }
+  .exp-node-tier { font-size: 10px; }
+  .exp-node.done::after { width: 22px; height: 22px; top: -10px; right: -10px; border-width: 2px; }
+  .exp-walker { width: 34px; height: 34px; margin: calc(-17px + var(--jy, 0px)) 0 0 calc(-17px + var(--jx, 0px)); }
+  .exp-camp-boo { width: 22px; height: 22px; }
+}
+
 /* RUN10 P17 (RUN11 Q5): caper signposts + detective notebook */
 .caper-town-sign { position: absolute; transform: translateX(-50%); background: #FFF3D0; color: #5A3E20; border: 3px solid #8A5A2B; border-radius: 8px; padding: 4px 10px; font-family: var(--font-display); font-weight: 700; font-size: 13px; white-space: nowrap; box-shadow: 0 3px 0 #6B4420; z-index: 6; }
 .trail-chip.caper .tc-ic { font-size: 22px; }

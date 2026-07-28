@@ -1824,10 +1824,100 @@ export function renderExpGlyph(key, { size = 24, cls = '' } = {}) {
       <rect x="14.2" y="9" width="3.4" height="3.2" rx="0.6" fill="${COLORS.cream}" ${ink}/>
       <rect x="6.4" y="13.8" width="3.4" height="3.2" rx="0.6" fill="${COLORS.cream}" ${ink}/>
       <rect x="14.2" y="13.8" width="3.4" height="3.2" rx="0.6" fill="${COLORS.gold}" ${ink}/>
-      <rect x="10.2" y="16.2" width="3.6" height="4.2" rx="0.6" fill="${COLORS.cocoa}" ${ink}/></g>`
+      <rect x="10.2" y="16.2" width="3.6" height="4.2" rx="0.6" fill="${COLORS.cocoa}" ${ink}/></g>`,
+    // the cocoa camp between the nodes — a fire, not the 🔥 glyph it used to be
+    campfire: `<g><path d="M3.4 19.6 L20.6 19.6" ${ink}/>
+      <path d="M5.6 19.6 L12.4 15.2 M18.4 19.6 L11.6 15.2" stroke="${COLORS.cocoa}" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M12 4.2 Q16.4 8.6 15.4 12.4 Q14.6 16 12 16.6 Q9.4 16 8.6 12.4 Q7.6 8.6 12 4.2 Z" fill="${COLORS.gold}" ${ink}/>
+      <path d="M12 8.6 Q14 11 13.4 13 Q12.9 14.8 12 15.1 Q11.1 14.8 10.6 13 Q10 11 12 8.6 Z" fill="${COLORS.bubblegum}"/></g>`
   };
   const inner = G[key] || G.boots;
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
+// ---- the Expedition's hillside (RUN18C C2) ---------------------------------
+// The trail was four buttons in a column. It is a PLACE now: one drawn scene in the house
+// sticker style with a winding path across it, and the markers/portraits positioned along
+// the real path at runtime via getPointAtLength — so the geometry below is the single
+// source of truth for where a node sits and where a Boo walks.
+// TWO scenes, not one. A 1000x560 hillside on a phone held upright is 209px tall — the
+// markers were bigger than the country they stood in and three of the four escaped it. The
+// portrait scene is the same hillside walked upwards, so a phone gets a map the size of its
+// screen instead of a letterbox. Everything else (markers, walkers, camp) reads whichever
+// geometry is live, so there is still exactly one source of truth per orientation.
+export const TRAIL_VIEWS = {
+  land: { w: 1000, h: 560 },
+  port: { w: 620, h: 1000 }
+};
+// The path keeps clear of the top edge on purpose: every marker stands ABOVE its point,
+// so a path that climbed to the very top would post the Boo Hotel's sign off the map.
+export const TRAIL_PATHS = {
+  land: 'M 88 442 C 180 478 246 430 286 382 C 326 334 314 292 380 268 C 448 244 520 288 584 268 C 646 249 660 214 736 202 C 800 192 858 214 918 196',
+  port: 'M 96 926 C 206 956 288 896 302 812 C 316 728 214 692 236 604 C 258 516 386 520 408 446 C 428 378 330 320 356 244 C 378 178 452 168 520 146'
+};
+// where each node sits on that path, as a fraction of its length
+export const TRAIL_NODE_ATS = {
+  land: [0.055, 0.36, 0.655, 0.945],
+  port: [0.05, 0.355, 0.65, 0.945]
+};
+// Back-compat names for the landscape geometry (nothing outside the trail reads these).
+export const TRAIL_VIEW = TRAIL_VIEWS.land;
+export const TRAIL_PATH_D = TRAIL_PATHS.land;
+export const TRAIL_NODE_AT = TRAIL_NODE_ATS.land;
+
+export function renderTrailScene(mode = 'land') {
+  const port = mode === 'port';
+  const { w, h } = TRAIL_VIEWS[port ? 'port' : 'land'];
+  const d = TRAIL_PATHS[port ? 'port' : 'land'];
+  const ink = `stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
+  const tree = (x, y, s, dark) => `<g transform="translate(${x},${y}) scale(${s})">
+    <rect x="-5" y="14" width="10" height="18" rx="3" fill="${COLORS.cocoa}" ${ink}/>
+    <path d="M0 -34 Q26 6 0 6 Q-26 6 0 -34 Z" fill="${dark ? '#4F9A55' : '#6FBF77'}" ${ink}/>
+    <path d="M0 -14 Q22 20 0 20 Q-22 20 0 -14 Z" fill="${dark ? '#5AA664' : '#7FC85F'}" ${ink}/></g>`;
+  const bush = (x, y, s) => `<g transform="translate(${x},${y}) scale(${s})"><path d="M-22 8 Q-24 -12 -8 -12 Q-2 -24 10 -16 Q26 -18 24 2 Q26 10 12 10 Z" fill="#66B052" ${ink}/></g>`;
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" class="exp-scene" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="expSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8FC7FF"/><stop offset="0.55" stop-color="#BFE6F5"/><stop offset="1" stop-color="#FFE7AD"/>
+      </linearGradient>
+      <clipPath id="expClip"><rect x="0" y="0" width="${w}" height="${h}" rx="26"/></clipPath>
+    </defs>
+    <g clip-path="url(#expClip)">
+      <rect width="${w}" height="${h}" fill="url(#expSky)"/>
+      ${port ? `
+      <circle cx="122" cy="112" r="44" fill="${COLORS.gold}" ${ink}/>
+      <g class="exp-clouds">
+        <g class="exp-cloud c1"><ellipse cx="300" cy="96" rx="52" ry="23" fill="#FFFFFF"/><ellipse cx="344" cy="88" rx="36" ry="18" fill="#FFFFFF"/></g>
+        <g class="exp-cloud c2" opacity="0.85"><ellipse cx="180" cy="250" rx="42" ry="18" fill="#FFFFFF"/><ellipse cx="146" cy="256" rx="28" ry="13" fill="#FFFFFF"/></g>
+      </g>
+      <path d="M-20 330 Q 140 250 320 316 Q 480 374 640 306 L640 ${h} L-20 ${h} Z" fill="#8FCB9B" ${ink}/>
+      <path d="M-20 470 Q 160 392 330 470 Q 500 544 640 470 L640 ${h} L-20 ${h} Z" fill="#6FBF77" ${ink}/>
+      <path d="M-20 664 Q 170 592 340 668 Q 500 738 640 672 L640 ${h} L-20 ${h} Z" fill="#7FC85F" ${ink}/>
+      <path d="M470 480 Q 500 566 452 636 Q 410 700 448 ${h + 10}" fill="none" stroke="#7FC7E8" stroke-width="20" stroke-linecap="round"/>
+      ${tree(96, 648, 1.0, true)}${bush(196, 736, 1.0)}${tree(534, 636, 0.86)}
+      ${tree(150, 452, 0.82)}${bush(492, 508, 0.85)}${tree(560, 356, 0.9, true)}
+      ${tree(90, 852, 0.9)}${bush(300, 900, 0.95)}${tree(556, 812, 0.78, true)}
+      ` : `
+      <circle cx="176" cy="88" r="44" fill="${COLORS.gold}" ${ink}/>
+      <g class="exp-clouds">
+        <g class="exp-cloud c1"><ellipse cx="380" cy="76" rx="54" ry="24" fill="#FFFFFF"/><ellipse cx="428" cy="68" rx="38" ry="19" fill="#FFFFFF"/></g>
+        <g class="exp-cloud c2" opacity="0.85"><ellipse cx="600" cy="52" rx="44" ry="19" fill="#FFFFFF"/><ellipse cx="562" cy="58" rx="30" ry="14" fill="#FFFFFF"/></g>
+      </g>
+      <path d="M-20 250 Q 130 158 300 226 Q 470 292 640 206 Q 800 126 1020 214 L1020 ${h} L-20 ${h} Z" fill="#8FCB9B" ${ink}/>
+      <path d="M-20 320 Q 180 232 360 306 Q 560 386 760 288 Q 900 222 1020 288 L1020 ${h} L-20 ${h} Z" fill="#6FBF77" ${ink}/>
+      <path d="M-20 392 Q 200 336 420 400 Q 640 462 840 386 Q 940 348 1020 380 L1020 ${h} L-20 ${h} Z" fill="#7FC85F" ${ink}/>
+      <path d="M636 300 Q 618 372 664 428 Q 700 476 686 ${h + 10}" fill="none" stroke="#7FC7E8" stroke-width="20" stroke-linecap="round"/>
+      ${tree(118, 386, 1.05, true)}${tree(196, 414, 0.82)}${bush(300, 468, 1.1)}
+      ${tree(486, 352, 0.9, true)}${bush(548, 402, 0.85)}
+      ${tree(824, 300, 1.0)}${tree(892, 322, 0.76, true)}${bush(960, 366, 0.9)}
+      `}
+      <!-- THE PATH: a sand ribbon with an ink edge and a dashed centre stitch -->
+      <path d="${d}" fill="none" stroke="${INK}" stroke-width="40" stroke-linecap="round" opacity="0.22"/>
+      <path class="exp-path" d="${d}" fill="none" stroke="${COLORS.sand}" stroke-width="32" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="#FFF6DE" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 20" opacity="0.85"/>
+    </g>
+    <rect x="2" y="2" width="${w - 4}" height="${h - 4}" rx="26" fill="none" ${ink} stroke-width="6"/>
+  </svg>`;
 }
 
 // ---- Build-a-Boo custom renderer (RUN3 C6) ----

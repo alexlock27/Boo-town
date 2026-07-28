@@ -87,7 +87,14 @@ const FIXTURES = {
     ["bigsmall", "({ game: 'bigsmall' })"],
     ["a stale/unknown game key falls back instead of throwing", "({ game: 'popping' })"]
   ],
-  expedition: [["open the trail", "({ trail: true })"]],
+  // RUN18C C2: a finished puzzle sends `from` so the trail knows which segment the party
+  // has earned the right to walk. A stale/unknown key must leave them standing, not throw.
+  expedition: [
+    ["open the trail", "({ trail: true })"],
+    ["back from a finished node, walking on", "({ trail: true, from: 'bridges' })"],
+    ["back from the last node", "({ trail: true, from: 'hotel' })"],
+    ["a stale node key falls back instead of throwing", "({ trail: true, from: 'bridge' })"]
+  ],
   // RUN18B Y2: the shop's handoff. It remembers the area she came in from, and sends her
   // back to it in build mode with the bought item already selected in its own drawer tab.
   shop: [["entered from an area", "({ fromArea: 'hilltop' })"]],
