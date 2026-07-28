@@ -251,6 +251,19 @@ export async function loadOrRescue() {
 // re-run and robust to partial states. Old saves migrate losslessly.
 export function migrate(obj) {
   const o = obj || {};
+  // RUN18D D12: `created` is 0 on any save that reached the app WITHOUT initNew — an
+  // imported .boo, a restored snapshot, a rescue, a save from before the field existed.
+  // Zero reads as 1970, which makes "no journal stamp may pre-date the save" vacuously
+  // true and let the audit's impossible date through. Backfilled from evidence already in
+  // the save, never from the clock, so migrating twice is still byte-identical:
+  // the earliest journal stamp if there is one (a restored save really was created then),
+  // otherwise lastPlayed. A save with neither keeps 0 and simply has nothing to check
+  // against.
+  if (!o.created) {
+    const stamps = Object.values(o.journal || {}).filter(v => /^\d{4}-\d{2}-\d{2}$/.test(String(v))).sort();
+    if (stamps.length) o.created = Date.parse(stamps[0] + 'T00:00:00') || 0;
+    else if (o.lastPlayed) o.created = o.lastPlayed;
+  }
   // v1 giraffe guide { body, patch, acc, name } -> v3 guide object.
   if (o.guide && !o.guide.species) o.guide = migrateGuideShape(o.guide);
   // Town grid { plot, item } -> scrolling-world { zone, x, item } (Meadow, in order).

@@ -145,7 +145,7 @@ export function mount(container, params, ctx) {
     const page = el('div', { class: 'journal-page' }, slice.map(e => el('div', { class: 'journal-stamp' }, [
       el('div', { class: 'js-icon', text: e.icon }),
       el('div', { class: 'js-label', text: e.label }),
-      el('div', { class: 'js-date', text: e.date })
+      el('div', { class: 'js-date', text: e.when || e.date })   // RUN18D D12: "17 July", not "2026-07-17"
     ])));
     const nav = el('div', { class: 'journal-nav' }, [
       el('button', { class: 'btn soft', text: '‹', disabled: jpage === 0 ? '' : undefined, onclick: () => { if (jpage > 0) { jpage--; sfx.tap(); renderJournal(); } } }),

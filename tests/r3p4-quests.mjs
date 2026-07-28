@@ -101,6 +101,70 @@ await page.waitForSelector('.journal-view');
 const stickerCount = await page.$$eval('.journal-stamp', e => e.length);
 assert(stickerCount >= 2, 'the Journal tab shows the earned stickers (' + stickerCount + ')');
 
+// ---- RUN18D D12: dates a child can read, and dates that cannot lie ----
+console.log('== RUN18D D12: journal date honesty ==');
+{
+  const fmt = await page.evaluate(async () => {
+    const m = await import('./js/quests.js');
+    return ['2026-07-17', '2026-01-01', '2026-12-09', 'nonsense', ''].map(d => m.friendlyDate(d));
+  });
+  assert(JSON.stringify(fmt) === JSON.stringify(['17 July', '1 January', '9 December', '', '']),
+    `friendlyDate reads like a date, not a filename (${JSON.stringify(fmt)})`);
+
+  // what the child actually sees on the sticker
+  const shown = await page.$$eval('.journal-stamp .js-date', ns => ns.map(n => n.textContent.trim()));
+  assert(shown.length > 0 && shown.every(t => /^\d{1,2} [A-Z][a-z]+$/.test(t)),
+    `every sticker shows a friendly date (${shown.join(' | ')})`);
+  assert(shown.every(t => !/\d{4}-\d{2}-\d{2}/.test(t)), 'and none shows an ISO date');
+
+  // …and a stamp can never pre-date the save that holds it, at EITHER end.
+  const honesty = await page.evaluate(async () => {
+    const m = await import('./js/quests.js');
+    const S = window.BooTown.State;
+    S.mutate(st => { st.created = Date.parse('2026-07-10T09:00:00'); st.journal = { firstUltra: '2026-06-01' }; });
+    const displayed = m.journalEntries().find(e => e.key === 'firstUltra');
+    // and writing: a device clock that has slipped backwards must not stamp before created
+    window.__bootownDay = '2026-05-05';
+    m.stampJournal('firstSecret');
+    const written = S.getState().journal.firstSecret;
+    window.__bootownDay = '2026-07-11';
+    m.stampJournal('firstCustom');
+    const normal = S.getState().journal.firstCustom;
+    return { displayed, written, normal, created: m.createdDayKey() };
+  });
+  assert(honesty.created === '2026-07-10', `createdDayKey reads the save's own birthday (${honesty.created})`);
+  assert(honesty.displayed && honesty.displayed.date === '2026-07-10' && honesty.displayed.clamped === true,
+    `a stamp dated before the save existed is displayed as the save's first day (${JSON.stringify(honesty.displayed && honesty.displayed.date)})`);
+  assert(honesty.displayed.when === '10 July', `…and reads as "10 July" (${honesty.displayed.when})`);
+  assert(honesty.written === '2026-07-10', `a stamp cannot be WRITTEN before the save existed either (${honesty.written})`);
+  assert(honesty.normal === '2026-07-11', `an ordinary stamp is untouched (${honesty.normal})`);
+}
+
+// ---- RUN18D D12: `created` means something on every save that reaches the app ----
+console.log('== RUN18D D12: migrate backfills `created` from evidence, not from the clock ==');
+{
+  const r = await page.evaluate(async () => {
+    const m = await import('./js/state.js');
+    const fromJournal = m.migrate({ journal: { firstUltra: '2026-07-17', star3_x: '2026-08-02' } });
+    const twice = m.migrate(JSON.parse(JSON.stringify(fromJournal)));
+    const fromLastPlayed = m.migrate({ lastPlayed: 1780344252542 });
+    const nothing = m.migrate({});
+    const kept = m.migrate({ created: 12345, lastPlayed: 999999 });
+    const d = new Date(fromJournal.created);
+    const p = n => String(n).padStart(2, '0');
+    return {
+      journalDay: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+      idempotent: fromJournal.created === twice.created,
+      lastPlayed: fromLastPlayed.created, nothing: nothing.created || 0, kept: kept.created
+    };
+  });
+  assert(r.journalDay === '2026-07-17', `a restored save is dated by its EARLIEST stamp (${r.journalDay})`);
+  assert(r.idempotent, 'migrating twice gives the identical value — no clock reads');
+  assert(r.lastPlayed === 1780344252542, 'a save with no journal falls back to lastPlayed');
+  assert(r.nothing === 0, 'a save with neither keeps 0 rather than inventing a birthday');
+  assert(r.kept === 12345, 'and a save that already knows its birthday is never overwritten');
+}
+
 console.log('\n== errors ==');
 if (errors.length) console.log(errors.map(e => '  ! ' + e).join('\n'));
 assert(errors.length === 0, 'no JS console errors');
