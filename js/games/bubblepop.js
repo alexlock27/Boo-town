@@ -9,7 +9,7 @@ import { sfx, music } from '../sfx.js';
 import { LEVELS, LEVEL_LABELS } from '../../data/tablesConfig.js';
 import { BUBBLE_CATEGORIES, BUBBLE_BY_KEY, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
 import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
-import { mixPlan } from '../smartmix.js';
+import { mixPlan, timedGate } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss } from '../trickypile.js';
 import { filterCategories, filterLevels } from '../content.js';
 import { maybeIntro, replayIntro } from '../intro.js';
@@ -73,6 +73,10 @@ export function mount(container, params, ctx) {
     const mix = catKey === MIX_KEY;
     const plan = mix ? mixPlan(ROUNDS) : null;
     let prevKey = null;
+    // RUN18B Y10: Bubble Pop is timed, so it practises what she has already got right.
+    // The gate is measured ONCE per round against this round's own generator.
+    const genOne = () => mix ? genMixCandidate() : genQuestion(catKey, level, prevKey);
+    const gate = timedGate(genOne, ROUNDS);
     let target = nextTarget(0);
     prevKey = target.key;
     let solved = 0;
@@ -85,18 +89,16 @@ export function mount(container, params, ctx) {
     const updateSky = () => { field.classList.remove('bp-sky-1', 'bp-sky-2', 'bp-sky-3'); field.classList.add(skyFor()); };
 
     // In Smart Mix, generate a weak-weighted question from ALL categories for this slot.
+    function genMixCandidate() {
+      const cat = BUBBLE_CATEGORIES[rand(BUBBLE_CATEGORIES.length)];
+      return genQuestion(cat.key, cat.levels[rand(cat.levels.length)], prevKey);
+    }
+    // The class plan is now a PREFERENCE and Y10's eligibility is the filter: a slot that
+    // wanted a 'weak' item and cannot have an eligible one is served anyway, never skipped.
     function nextTarget(slot) {
-      if (!mix) return genQuestion(catKey, level, prevKey);
+      if (!mix) return gate.pick(() => genQuestion(catKey, level, prevKey));
       const cls = plan[slot] || 'middle';
-      let best = null;
-      for (let t = 0; t < 12; t++) {
-        const cat = BUBBLE_CATEGORIES[rand(BUBBLE_CATEGORIES.length)];
-        const lv = cat.levels[rand(cat.levels.length)];
-        const q = genQuestion(cat.key, lv, prevKey);
-        if (!best) best = q;
-        if (ledgerClass(q.key) === cls) return q;
-      }
-      return best;
+      return gate.pick(genMixCandidate, { prefer: (q) => ledgerClass(q.key) === cls });
     }
 
     shell = createGameShell({
@@ -342,6 +344,9 @@ export function mount(container, params, ctx) {
     // Test hook (invisible): drive + inspect the juice.
     if (typeof window !== 'undefined') window.__bubblepop = {
       state: () => ({ solved, streak, goldenCount, wrongPops, sky: skyFor() }),
+      // RUN18B Y10 QA: what she is being asked, and whether the eligible pool was big enough.
+      key: () => target.key,
+      gate: () => ({ on: gate.on, found: gate.found, want: gate.want }),
       forceGolden: () => { const b = bubbles.find(x => x.correct && !x.hidden); if (b && goldenCount < GOLDEN_CAP) { b.golden = true; goldenThisRound = true; b.node.classList.add('golden'); } return !!(b && b.golden); },
       popCorrect: () => { const b = bubbles.find(x => x.correct && !x.hidden); if (b) onPop(b); },
       popWrong: () => { const b = bubbles.find(x => !x.correct && !x.hidden); if (b) onPop(b); },
