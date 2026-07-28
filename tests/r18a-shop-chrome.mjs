@@ -12,7 +12,7 @@
 // (the tab row is 52px at desktop and 102px at phone — any single magic number is wrong
 // somewhere).
 //
-// Expected runtime: ~19s (measured 19.0s). Not @serial — the one timing assertion is a lifetime bound
+// Expected runtime: ~28s (measured 28.4s). Not @serial — the one timing assertion is a lifetime bound
 // measured with a condition-wait, not a frame sample.
 
 import { chromium } from 'playwright';
@@ -188,6 +188,29 @@ for (const [W, H] of [[1024, 768], [768, 1024], [390, 844]]) {
   });
   assert(dismissed.gone === true, 'tapping the card dismisses it early');
   assert(dismissed.stillShopping === 'shop', 'and she is still in the shop afterwards');
+
+  // ---- 4. two purchases in a row leave ONE card ----------------------------------------
+  // A child with a full purse buys twice quickly. Two live cards used to stack, and since
+  // the second is often a different size, the older one's rim showed around all four
+  // edges. (Found by the playtest critic; ordered small-then-large it happens to hide,
+  // which is why it survives a casual look.)
+  const rapid = await page.evaluate(async () => {
+    const pick = () => [...document.querySelectorAll('.shop-card .sc-buy')].filter(b => b.textContent === 'Buy');
+    const first = pick();
+    if (first.length < 2) return { tooFew: first.length };
+    first[0].click();
+    await new Promise(r => setTimeout(r, 350));
+    const afterOne = document.querySelectorAll('.shop-bought').length;
+    const again = pick();
+    if (!again.length) return { tooFew: 1 };
+    again[0].click();
+    await new Promise(r => setTimeout(r, 350));
+    const cards = [...document.querySelectorAll('.shop-bought')];
+    return { afterOne, afterTwo: cards.length, visible: cards.filter(c => c.getBoundingClientRect().width > 0).length };
+  });
+  assert(!rapid.tooFew, `two affordable things were bought in quick succession (${JSON.stringify(rapid)})`);
+  assert(rapid.afterOne === 1 && rapid.afterTwo === 1, `buying twice quickly leaves exactly ONE confirmation card (saw ${rapid.afterTwo})`);
+  await page.waitForFunction(() => !document.querySelector('.shop-bought'), null, { timeout: 6000 });
 
   await ctx.close();
 }

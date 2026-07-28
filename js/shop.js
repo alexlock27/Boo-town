@@ -211,6 +211,11 @@ export function mount(container, params, ctx) {
       el('p', { class: 'sb-line', text: `${item.name} is yours! Find it in Build.` })
     ]);
     const wrap = el('div', { class: 'shop-bought' }, [card]);
+    // ONE card at a time. Two purchases in quick succession used to leave two live cards
+    // stacked, and because the second is often a different size the older one's cream rim
+    // showed around all four edges like a shadow that did not fit. Buying twice quickly is
+    // exactly what a child with a full purse does.
+    root.querySelectorAll('.shop-bought').forEach(old => old.remove());
     root.appendChild(wrap);
     // Measure the tab row rather than guessing a constant: the tabs are 52px at desktop
     // and 102px at phone width, so any single hard-coded gap is wrong somewhere.
