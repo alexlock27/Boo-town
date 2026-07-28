@@ -117,7 +117,7 @@ export function mount(container, params, ctx) {
   // type's pool has cycled. Nothing about which jokes she heard is ever saved.
   const bags = {};
   let type = null, joke = null, script = [], beat = 0, timer = null, ended = false;
-  let interruptNext = false;   // RUN18B Y1: the next line cuts the current one off
+  let interruptTarget = 0;   // RUN18B Y1: id of the utterance the NEXT line must cut off
 
   for (const t of JOKE_TYPES) {
     const pool = poolFor(t.key, tier);
@@ -204,10 +204,16 @@ export function mount(container, params, ctx) {
     brow.style.display = b.pose === 'beat' ? '' : 'none';
     // RUN18B Y1: every other line in the app now QUEUES and plays to its end. This is the
     // one sanctioned pre-emption in Boo Town: the punchline of an Interrupting Boo lands
-    // ON TOP of the line it interrupts, because that is the joke. `b.interrupted` marks
-    // the line being cut off, so the NEXT line is the one that does the cutting.
-    speakMaybe(b.text, true, { interrupt: !!interruptNext });
-    interruptNext = !!b.interrupted;
+    // ON TOP of the line it interrupts, because that is the joke.
+    //
+    // It names its target by ID rather than saying "cut whatever is playing". The joke
+    // advances on a 520ms timer while a spoken line runs 2.4-2.9s, so the line to be cut
+    // is usually still QUEUED when the punchline arrives — "cut whatever is playing" cut
+    // the wrong one and then let the interrupted line speak in full AFTER the punchline.
+    // (Found by the playtest critic: BOO! at +36359ms, "Interrupting Boo wh—" at
+    // +36776ms. The joke told backwards.)
+    const said = speakMaybe(b.text, true, { interrupt: interruptTarget || false });
+    interruptTarget = b.interrupted ? said : 0;
 
     if (b.punch) {
       rimshot();

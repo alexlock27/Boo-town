@@ -9,6 +9,7 @@ import { getState, mutate } from './state.js';
 import { renderGuide } from './art.js';
 import { sfx } from './sfx.js';
 import { speakMaybe } from './guide.js';
+import * as tts from './tts.js';   // RUN18B Y1: an intro's speech leaves with the intro
 
 // ---- the scripts (RUN5 C5): three short steps per game, guide's voice, every
 // step under 12 words. Boo Blocks' script (with its demo line) lives in blocks.js.
@@ -230,6 +231,14 @@ export function runIntro(game, { steps = [], onDone = null, speak = true } = {})
   function finish() {
     if (closed) return; closed = true;
     if (demoCleanup) { try { demoCleanup(); } catch {} }
+    // RUN18B Y1: the intro's own lines leave with the intro. Three cards is 2.7-3.4s of
+    // speech EACH, so on a first visit the round began with the better part of ten seconds
+    // already queued — and the game's opening line, printed on screen the moment she
+    // closed the card, was pushed past QUEUE_MAX and never spoken at all. (Found by the
+    // playtest critic: "Knock knock!" shown at +46ms, dropped unspoken, while she heard a
+    // hint about the heart button instead.) An intro card she has dismissed has nothing
+    // left to say.
+    try { tts.cancel(); } catch {}
     resumeRound();      // and picks up exactly where it was, not where it would have been
     markIntroSeen(game);
     overlay.classList.remove('show');

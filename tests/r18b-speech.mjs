@@ -224,6 +224,82 @@ console.log('== 4. interrupt:true pre-empts, and only it does ==');
   await ctx.close();
 }
 
+// ---- 4b. the interruption names its target, so drift cannot reverse the joke ------------
+// The screen and the voice do not share a clock: the joke advances on a 520ms timer while
+// a spoken line runs 2.4-2.9s, so the line to be cut is routinely still QUEUED when the
+// punchline arrives. "Cancel whatever is playing" then cut the WRONG line and let the
+// interrupted one speak in full AFTER the punchline — the joke told backwards. (Found by
+// the playtest critic: BOO! at +36359ms, "Interrupting Boo wh—" at +36776ms.)
+console.log('== 4b. the interrupted line never speaks, whether or not it had started ==');
+{
+  const { ctx, page } = await open();
+  await reset(page);
+  // (a) the drifted case: the target is still QUEUED behind something else
+  const drifted = await page.evaluate(async () => {
+    const { speakMaybe } = await import('./js/guide.js');
+    speakMaybe('a long punchline still going on and on');   // occupies the engine
+    const target = speakMaybe('Interrupting Boo wh—');       // queued, not started
+    await new Promise(r => setTimeout(r, 30));
+    const startedBefore = window.__speech.__log.map(x => x.text);
+    speakMaybe('BOO!', true, { interrupt: target });
+    await new Promise(r => setTimeout(r, 60));
+    return {
+      startedBefore,
+      log: window.__speech.__log.map(x => ({ text: x.text, started: x.started, cancelled: x.cancelled, ended: x.ended })),
+      live: window.__speech.__live ? window.__speech.__live.text : null
+    };
+  });
+  assert(!drifted.startedBefore.includes('Interrupting Boo wh—'), 'the line to be cut had NOT started — it was still queued');
+  assert(drifted.live === 'BOO!', `the punchline is speaking (${drifted.live})`);
+  assert(!drifted.log.some(x => x.text === 'Interrupting Boo wh—' && x.started),
+    'and the interrupted line NEVER speaks — not before the punchline, and not after it');
+
+  // (b) the plain case: the target really is what is playing
+  await reset(page);
+  const playing = await page.evaluate(async () => {
+    const { speakMaybe } = await import('./js/guide.js');
+    const target = speakMaybe('Interrupting Boo wh—');
+    await new Promise(r => setTimeout(r, 30));
+    speakMaybe('BOO!', true, { interrupt: target });
+    await new Promise(r => setTimeout(r, 40));
+    return { log: window.__speech.__log.map(x => ({ text: x.text, cancelled: x.cancelled, ended: x.ended })), live: window.__speech.__live ? window.__speech.__live.text : null };
+  });
+  assert(playing.log[0].cancelled === true, 'when it HAD started, it is cut off mid-word');
+  assert(playing.live === 'BOO!', 'and the punchline lands on top of it — the joke still works');
+  await ctx.close();
+}
+
+// ---- 4c. an intro's speech leaves with the intro ----------------------------------------
+// Three intro cards are 2.7-3.4s of speech EACH, so a first visit began a round with the
+// better part of ten seconds already queued — and the game's opening line, printed the
+// moment she closed the card, was pushed past QUEUE_MAX and never spoken.
+console.log('== 4c. closing an intro does not leave a round talking to itself ==');
+{
+  const { ctx, page } = await open();
+  await page.evaluate(() => window.BooTown.go('soundsorter'));
+  await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'soundsorter', null, { timeout: 10000 });
+  await reset(page);
+  const r = await page.evaluate(async () => {
+    const { runIntro } = await import('./js/intro.js');
+    const { speakMaybe } = await import('./js/guide.js');
+    const intro = runIntro('__probe__', { steps: [{ text: 'intro one' }, { text: 'intro two' }, { text: 'intro three' }] });
+    speakMaybe('intro two');
+    speakMaybe('intro three');
+    const before = (await import('./js/tts.js')).queueState().length;
+    intro.close();
+    await new Promise(res => setTimeout(res, 40));
+    const after = (await import('./js/tts.js')).queueState().length;
+    // the game's own first line, spoken the instant the card closes
+    const id = speakMaybe('Find the sh sound!');
+    await new Promise(res => setTimeout(res, 40));
+    return { before, after, spokeFirst: window.__speech.__live ? window.__speech.__live.text : null, id };
+  });
+  assert(r.before > 0, `the intro really had speech queued (${r.before})`);
+  assert(r.after === 0, `closing it clears the queue (${r.after} left)`);
+  assert(r.spokeFirst === 'Find the sh sound!', `so the round's FIRST line is spoken immediately, not dropped behind the intro ("${r.spokeFirst}")`);
+  await ctx.close();
+}
+
 // ---- 5. voice off: text shows, nothing speaks --------------------------------------------
 console.log('== 5. with voice off, the words are shown and nothing is spoken ==');
 {

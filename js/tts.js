@@ -115,13 +115,28 @@ export function speak(text, { onstart, onend, ownerScreen = null, interrupt = fa
   if (!enabled || !available() || !text) { onend && onend('skipped'); return 0; }
   const entry = { id: nextId++, text: String(text), ownerScreen, onstart, onend, done: false };
 
-  // The ONE pre-emption: the Interrupting Boo. It kills what is speaking now and jumps the
-  // queue, because the punchline landing on top of the line is the joke.
+  // The ONE pre-emption: the Interrupting Boo. `interrupt` may be `true` (cut whatever is
+  // speaking) or the ID OF THE UTTERANCE TO CUT.
+  //
+  // The id form exists because the screen and the voice do not share a clock. The joke
+  // advances on a 520ms timer; a punchline takes 2.4-2.9s to say, so by the time the
+  // interruption fires, the line it means to cut is routinely still QUEUED rather than
+  // playing. Cancelling "whatever is playing" then cut the wrong line and let the
+  // interrupted one speak in full AFTER the punchline — the joke told backwards. Naming
+  // the target makes the pre-emption true whichever side the drift falls on.
   if (interrupt) {
+    const targetId = typeof interrupt === 'number' ? interrupt : null;
+    const target = targetId ? queue.find(e => e.id === targetId) : playing;
     const was = playing;
     queue.unshift(entry);
-    if (was) { try { synth() && synth().cancel(); } catch {} finish(was, 'interrupted'); }
-    else pump();
+    // the line being interrupted never speaks — whether it had started or was still waiting
+    if (target && target !== entry) {
+      if (target === was && available()) { try { synth().cancel(); } catch {} }
+      finish(target, 'interrupted');
+    }
+    // and if something else was mid-word, the punchline still lands on top of it
+    if (was && was !== target && !was.done) { if (available()) { try { synth().cancel(); } catch {} } finish(was, 'interrupted'); }
+    if (!playing) pump();
     return entry.id;
   }
 
