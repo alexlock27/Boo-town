@@ -90,6 +90,43 @@ console.log('== 1. three cards, the authored copy, page content not a layer ==')
   await ctx.close();
 }
 
+// ================== 1b. the critic's three ==================
+console.log('== 1b. dots readable, skip a real target, the hub guide not squeezed ==');
+{
+  const { ctx, page } = await open();
+  for (const [w, h] of [[390, 844], [768, 1024], [1024, 768]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await sleep(250);
+    const r = await page.evaluate(() => {
+      const skip = document.querySelector('.tour-skip').getBoundingClientRect();
+      const lit = document.querySelector('.tour-dot.on');
+      const off = document.querySelector('.tour-dot:not(.on)');
+      const cs = getComputedStyle(lit);
+      return {
+        skipW: Math.round(skip.width), skipH: Math.round(skip.height),
+        ring: cs.boxShadow !== 'none',
+        offBg: getComputedStyle(off).backgroundColor,
+        gap: Math.round(parseFloat(getComputedStyle(document.querySelector('.tour-btns')).gap)),
+        guide: !!document.querySelector('.hub-guide')
+      };
+    });
+    assert(r.skipW >= 56 && r.skipH >= 56, `${w}px: skip is a real tap target (${r.skipW}x${r.skipH})`);
+    assert(r.ring, `${w}px: the lit dot is marked by shape as well as colour`);
+    assert(/0\.5[0-9]|0\.6/.test(r.offBg), `${w}px: the unlit dots are dark enough to see (${r.offBg})`);
+    assert(r.gap >= 24, `${w}px: skip is not a fat finger from Next (${r.gap}px)`);
+    assert(r.guide === false, `${w}px: the hub's guide bubble stands down while the tour is up — it cannot be squeezed to a sliver`);
+  }
+  // and it comes back the moment the tour is done
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.click('.tour-skip');
+  await sleep(200);
+  await page.evaluate(() => window.BooTown.go('hub'));
+  await page.waitForSelector('.hub', { timeout: 15000 });
+  await sleep(250);
+  assert(await page.evaluate(() => !!document.querySelector('.hub-guide')), 'and the guide is back on the very next hub');
+  await ctx.close();
+}
+
 // ================== 2. once, and it survives a reload ==================
 console.log('== 2. once — and the answer is committed, not debounced ==');
 {
