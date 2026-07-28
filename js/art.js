@@ -1170,12 +1170,12 @@ export function renderDeco(item, opts = {}) {
     case 'ball': {
       const bold = `stroke="${INK}" stroke-width="7" stroke-linejoin="round"`;
       inner =
-        ell(60, 78, 34, 34, COLORS.cream, `stroke="${HALO}" stroke-width="12"`) +
-        ell(60, 78, 34, 34, COLORS.cream, bold) +
-        path('M60 44 Q40 78 60 112 Q80 78 60 44 Z', COLORS.bubblegum, '') +               // panels: endpoints on the rim
-        path('M26 78 Q60 58 94 78 Q60 98 26 78 Z', COLORS.teal, '') +
-        ell(60, 78, 34, 34, 'none', bold) +
-        `<circle cx="46" cy="64" r="8" fill="#fff" opacity="0.65"/>`;
+        ell(60, 90, 28, 28, COLORS.cream, `stroke="${HALO}" stroke-width="12"`) +
+        ell(60, 90, 28, 28, COLORS.cream, bold) +
+        path('M60 62 Q44 90 60 118 Q76 90 60 62 Z', COLORS.bubblegum, '') +               // panels: endpoints on the rim
+        path('M32 90 Q60 74 88 90 Q60 106 32 90 Z', COLORS.teal, '') +
+        ell(60, 90, 28, 28, 'none', bold) +
+        `<circle cx="48" cy="79" r="7" fill="#fff" opacity="0.65"/>`;
       break;
     }
     case 'balloon': {

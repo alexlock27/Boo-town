@@ -132,8 +132,16 @@ export function violatesOddPredicate(boo, grid) {
 export const FLASH_PROP_POOL = [
   { key: 'swing',    label: 'swing',     pose: 'on',      deco: 'swings', socket: 'deco_swings', booFrac: 0.52 },
   { key: 'bench',    label: 'bench',     pose: 'on',      deco: 'bench',  socket: 'deco_bench',  booFrac: 0.56 },
-  { key: 'ball',     label: 'ball',      pose: 'holding', deco: 'ball',    holdBottomPct: 4 },
-  { key: 'balloon',  label: 'balloon',   pose: 'holding', deco: 'balloon', holdBottomPct: 21 },
+  // A held prop is anchored by the point on it that the Boo is holding (holdInk, in its own
+  // 120x130 viewBox) landing on a point on the Boo (holdAnchor, in the Boo's box): the ball
+  // by its middle at the Boo's lower right, the balloon by the END OF ITS STRING at hand
+  // height with the balloon itself floating clear. Both anchors keep the prop off the FACE
+  // — a prop over an eye does not read as something held; the critic read the first cut as
+  // an eyepatch, and was right.
+  { key: 'ball',    label: 'ball',    pose: 'holding', deco: 'ball',
+    holdAnchor: [0.82, 0.87], holdInk: [0.5, 90 / 130] },
+  { key: 'balloon', label: 'balloon', pose: 'holding', deco: 'balloon',
+    holdAnchor: [0.95, 0.80], holdInk: [56 / 120, 118 / 130] },
   { key: 'partyhat', label: 'party hat', pose: 'wearing', acc: 'partyhat' },
   { key: 'sunhat',   label: 'sun hat',   pose: 'wearing', acc: 'sunhat' }
 ];
@@ -249,7 +257,14 @@ export function flashQuestion(scene, rng = Math.random) {
     });
   }
   const legal = candidates.filter(q => flashRelationHolds(scene, q));
-  const q = pick(legal.length ? legal : candidates, rng);
+  // Pick the TYPE first, then an instance of it. Picking an instance straight out of the
+  // pool buries the composed relations: a scene offers one colour question per Boo but only
+  // two or three prop questions in total, so 8 rounds would average 1.6 questions about the
+  // picture this packet exists to compose. The pack lists question TYPES; this samples them.
+  const pool = legal.length ? legal : candidates;
+  const kinds = [...new Set(pool.map(q => q.kind))];
+  const kind = pick(kinds, rng);
+  const q = pick(pool.filter(c => c.kind === kind), rng);
 
   let near;
   if (q.answerType === 'boo') {
