@@ -162,7 +162,9 @@ console.log('== the authored content is implemented exactly (CONTENT_COURSES.md 
   const names = COURSES.map(c => c.name).join(', ');
   ok(names === 'First Roll, Over and Under, Lift Off, Spin Cycle, The Gate, Sunset Ridge', `named and ordered as authored: ${names}`);
   const pars = COURSES.map(c => `${c.pars.gold}/${c.pars.silver}/${c.pars.bronze}`).join(' ');
-  ok(pars === '20/28/38 26/34/45 30/40/52 34/44/58 38/50/64 45/60/78', `pars exactly as authored: ${pars}`);
+  // lift-off's 14/22/35 is RUN18B Y8, Alex-approved via that pack; CONTENT_COURSES.md was
+  // amended in the same change, so this still asserts the tree against the law file.
+  ok(pars === '20/28/38 26/34/45 14/22/35 34/44/58 38/50/64 45/60/78', `pars exactly as authored: ${pars}`);
   ok(COURSES.every(c => c.stars.length === 3), 'every course has exactly three pickup stars');
   ok(COURSES.every(c => c.checkpoints.length >= 1), 'every course has at least one checkpoint');
   ok(COURSES[5].checkpoints.length === 2, 'Sunset Ridge has its two authored checkpoints');
