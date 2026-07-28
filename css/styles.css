@@ -6260,3 +6260,76 @@ html.bigger-text { --vz: 1.125; }
 .tp-ic svg { display: block; }
 .pp-slot { font-size: 0; }
 .pp-slot svg { display: block; width: 100%; height: 100%; }
+
+/* ============================================================
+   RUN18D D5 — THE HUB, ONE SCROLL
+   The hub had three scroll contexts: the page, the games grid (`overflow-y: auto` with
+   `flex: 1`), and the Today rail sideways. Two of them were invisible, so a child could not
+   tell whether there was more below — and the grid's own scroller was actively harmful:
+   scrolling a card into view inside it left the card UNDER the Today rail or the bottom bar,
+   which is why tests/m1.mjs could not click "Bubble Pop" at all.
+   The page scrolls. The grids are full wrapped grids that take the height they need. The bar
+   sticks to the bottom so the four ways out never scroll away. The rail keeps its sideways
+   scroll, because a carousel IS a sideways scroll — and its peek is the affordance.
+   ============================================================ */
+.hub { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.game-cards-groups { overflow: visible; flex: 0 0 auto; min-height: 0; }
+/* A sticky bar over a scrolling page needs a floor, or the cards slide UNDER the words:
+   the sky gradient is fixed to the viewport, so the bar borrows the same two colours and the
+   grid disappears behind it instead of through it. The soft top edge stops it reading as a
+   hard cut across the page. */
+.hub .bottom-bar {
+  position: sticky; bottom: 0; z-index: 30;
+  background: linear-gradient(180deg, rgba(59,46,126,0) 0%, var(--sky-mid) 22%, var(--sky-mid) 100%);
+  padding-top: 22px; margin-top: -10px;
+}
+/* the hub's guide is no longer the only shrinkable row, so it stops being squeezed and
+   clipped — RUN18B Y16's 96px floor was cutting 36px off the top AND bottom of a 175px
+   guide at >=601px (playtest critic, D1 pass). */
+@media (min-width: 601px) { .hub .hub-guide { min-height: 96px; overflow: visible; flex: 0 0 auto; } }
+.hub .hub-guide .guide-art svg { max-height: calc(20vh / var(--vz)); }
+
+/* ---- the Today carousel: the peek IS the affordance ---- */
+.today-rail .trail-inner { scroll-snap-type: x proximity; }
+.trail-chip { scroll-snap-align: start; }
+@media (min-width: 600px) { .trail-chip { flex: 0 0 320px; max-width: 320px; } }
+@media (max-width: 599px) {
+  /* 85% of the rail, so the next card always shows ~24px of itself past the right edge */
+  .trail-chip { flex: 0 0 85%; min-width: 0; max-width: 85%; }
+  .trail-chip .tc-sub { max-width: none; }
+}
+
+/* ---- star chips: pinned to the card's own top-right, never escaping it ---- */
+.game-card { position: relative; }
+.game-card .gc-stars {
+  position: absolute; top: 8px; right: 8px; margin-top: 0; max-width: calc(100% - 16px);
+  overflow: hidden; pointer-events: none;
+}
+.game-card .gc-stars-pill { max-width: 100%; overflow: hidden; font-size: clamp(11px, 2.6vw, 14px); padding: 2px 6px; }
+.game-card .gc-stars-pill svg { width: 1.15em; height: 1.15em; }
+/* the name and tag keep clear of the chip */
+.game-card .gc-name, .game-card .gc-tag { max-width: 100%; }
+
+/* ---- the single Town banner ---- */
+.hub-town-banner {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  background: linear-gradient(100deg, #FFF8F0 0%, #F3ECFF 100%);
+  border: none; border-left: 8px solid var(--zing); border-radius: var(--radius);
+  box-shadow: var(--card-shadow); padding: 10px 16px; margin: 4px auto 10px;
+  cursor: pointer; text-align: left; min-height: var(--tap);
+  transition: transform 150ms ease-out;
+}
+.hub-town-banner:active { transform: scale(0.985) translateY(2px); }
+.hub-town-banner .htb-art { flex: 0 0 auto; display: grid; place-items: center; width: 64px; height: 64px; }
+.hub-town-banner .htb-art svg { width: 64px; height: 64px; }
+.hub-town-banner .htb-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.hub-town-banner .htb-title { font-family: var(--font-display); font-weight: 700; font-size: 21px; color: var(--ink); }
+.hub-town-banner .htb-sub { font-family: var(--font-body); font-size: 14px; font-weight: 600; color: #574B86; }
+.hub-town-banner .htb-go { font-family: var(--font-display); font-size: 30px; font-weight: 700; color: var(--ink); flex: 0 0 auto; opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .hub-town-banner { transition: none; } }
+@media (max-width: 600px) {
+  .hub-town-banner { padding: 8px 12px; gap: 10px; }
+  .hub-town-banner .htb-art, .hub-town-banner .htb-art svg { width: 52px; height: 52px; }
+  .hub-town-banner .htb-title { font-size: 18px; }
+  .hub-town-banner .htb-sub { font-size: 13px; }
+}
