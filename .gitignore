@@ -63,3 +63,9 @@ _programme/
 AUDIT_23.07.26.md
 AUDIT_23.07.26 ai studio v2.md
 BLOCKED.md
+
+# Playtest-critic scratch probes — written at the repo root so the playwright import
+# resolves, deleted by the critic when it is done. They must never ship (RUN18C).
+_critic*.mjs
+_probe*.mjs
+_fix.py
