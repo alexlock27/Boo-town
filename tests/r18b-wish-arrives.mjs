@@ -171,8 +171,17 @@ console.log('== 5. the idle hint suggests only what she has never wished for =='
     'and it is NOT one she has already wished for');
   assert(r.unwished.includes(r.word), 'it comes from the unwished pool');
   assert(r.state.word === r.word, `ONCE per visit — a second attempt changes nothing (still "${r.state.word}")`);
+  // RUN18B Y1/Y3 resolution (Dispatch, 2026-07-28): the SIGHT of the spelling keeps the
+  // authored 600ms cadence, letter by letter; the SOUND is chained through Y1's queue so no
+  // letter is ever cut. So the line is NOT complete the instant the hint fires.
+  const partial = await page.evaluate(() => window.__wishwell.idleHint().text);
+  const lettersNow = (partial.match(/[A-Z]/g) || []).length;
+  assert(lettersNow < r.word.length, `the spelling is revealed a letter at a time (${lettersNow} of ${r.word.length} at the start)`);
   const expected = `Someone once wished for a ${r.word.toUpperCase().split('').join('-')}…`;
-  assert(r.state.text === expected, `and it is spelled out on screen, verbatim: "${r.state.text}"`);
+  await page.waitForFunction(want => window.__wishwell.idleHint().text === want, expected,
+    { timeout: 600 * (r.word.length + 3) });
+  const full = await page.evaluate(() => window.__wishwell.idleHint().text);
+  assert(full === expected, `and lands on the whole word, verbatim: "${full}"`);
   await ctx.close();
 }
 
