@@ -22,6 +22,20 @@
 
 export const WHATSNEW = [
   {
+    // RUN18A (Stop the Bleeding) was a repair run: a softlock, an Expedition full of
+    // placeholder text, a shop back button hiding behind a giraffe. None of that is news
+    // — a child is not told "the thing that was broken is less broken". H3 is the one
+    // packet that gives her something she did not have: a permanent front door to the
+    // Joke Boo, in the Play grid, so it is no longer a landmark she has to find in a
+    // four-screen-wide town. Entry authored verbatim in _programme/RUN18A.md.
+    version: 'run18a-20260728',
+    entries: [
+      { icon: '🎤', title: 'The Joke Boo has a stage!',
+        blurb: 'Tap the microphone in the Play games — 120 jokes are waiting.',
+        route: 'jokeboo' }
+    ]
+  },
+  {
     // RUN16 (Literacy & Lessons 2.0) shipped in parallel with RUN17 and could not be seen
     // from that branch, so its entries are added here at the merge — which is exactly the
     // failure X4's law exists to prevent: four whole games the children would never have
