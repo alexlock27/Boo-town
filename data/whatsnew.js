@@ -22,6 +22,20 @@
 
 export const WHATSNEW = [
   {
+    // RUN18C (The Expedition, presented). The Expedition's logic had been finished since
+    // RUN10 and its presentation was never built, so RUN18A shut its door rather than hand
+    // a child a feature that looked broken. This run built the presentation — the party
+    // select, the trail map, the four puzzles and the postcard ending — and reopened it.
+    // ONE entry, exactly as _programme/RUN18C.md C5 authors it: it is one feature, and the
+    // rest of the run is repairs a child would only ever notice as an absence.
+    version: 'run18c-20260728',
+    entries: [
+      { icon: '🥾', title: 'The Boo Expedition is open!',
+        blurb: 'Pick eight brave Boos and puzzle your way along the trail.',
+        route: 'expedition' }
+    ]
+  },
+  {
     // RUN18B (Repair & Respect). Sixteen packets, most of them repairs a child would only
     // notice as an absence — a hearts row that never took a heart, a clock that lied, ids
     // that did not line up. These five are the ones that hand her something NEW, exactly as
