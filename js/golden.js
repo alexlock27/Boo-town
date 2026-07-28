@@ -4,7 +4,7 @@
 // Worth double stars + a +2 meter bonus on a 3-star clear, ONCE per local day; replays after
 // that earn normal stars. No AI anywhere — this is parent-typed content only.
 
-import { el, clear, starsRow } from './ui.js';
+import { el, clear, starsRow, backControl } from './ui.js';
 import { getState, mutate, todayKey } from './state.js';
 import { createGameShell } from './gameshell.js';
 import { renderGuide } from './art.js';
@@ -32,6 +32,11 @@ export function mount(container, params, ctx) {
       el('p', { text: 'No Golden Round yet! A grown-up can add one in the cog corner.' }),
       el('button', { class: 'btn', text: 'Back', onclick: () => ctx.go('hub') })
     ]));
+    // RUN18B Y11 (registry audit): this empty state had a bespoke "Back" button and none of
+    // the shared "‹" every other screen carries — so the phone's back gesture had no action
+    // registered here and the one screen a child reaches by accident was the one that did
+    // not answer it. The friendly button stays; the standard control joins it.
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
     return { unmount() {} };
   }
 

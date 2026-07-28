@@ -88,12 +88,18 @@ export function suppressContextMenu(node) {
 // handler in main.js invokes it, so the Android back button/gesture does exactly
 // what the on-screen control does — one level, confirm-on-leave kept, nothing at
 // the hub (no action registered there).
-let _backAction = null;
-export function setBackAction(fn) { _backAction = fn; }
+//
+// RUN18B Y11: a back action can be GUARDED — it asks before it acts (the game shell's
+// "Leave this round?"). The router needs to know, because a browser/gesture back that lands
+// on a round must raise that dialog rather than silently route away from a round in play.
+let _backAction = null, _backGuarded = false;
+export function setBackAction(fn, guarded = false) { _backAction = fn; _backGuarded = !!guarded; }
 export function getBackAction() { return _backAction; }
+export function backActionGuarded() { return _backGuarded; }
 
-export function backControl(onBack, { floating = false, label = 'Back' } = {}) {
+export function backControl(onBack, { floating = false, label = 'Back', guarded = false } = {}) {
   _backAction = onBack || null;
+  _backGuarded = !!guarded;
   return el('button', {
     class: 'icon-btn back-btn' + (floating ? ' screen-back' : ''),
     'aria-label': label,

@@ -271,7 +271,11 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
 
   await sweep();
 
-  // mid-round shells for EVERY game: back + hint + hearts reachable in-round
+  // mid-round shells for EVERY game: back + progress + hint reachable in-round.
+  // RUN18B Y7 removed the hearts row at every tier — it counted down while the round carried
+  // on regardless, telling a child she was running out of something she was not. The progress
+  // dots took its place in the topbar, so the reach sweep now measures those. (This suite
+  // rides gameshell.js and was missed in Y7's affected set.)
   const ROUNDS = [
     ['bubblepop', async () => { await page.waitForSelector('.picker'); await page.click('.picker-levels .level-btn'); }],
     ['feedboos',  async () => { await page.waitForSelector('.picker'); await page.click('.picker-levels .level-btn'); }],
@@ -292,10 +296,10 @@ for (const [w, h] of [[360, 740], [412, 780], [740, 360], [780, 412]]) {
     await sleep(400);
     await page.evaluate(() => { const s = document.getElementById('screen').firstElementChild; if (s) s.scrollTop = 0; });
     const bar = await page.evaluate(() => {
-      const names = [['back', '.game-topbar .back-btn'], ['hearts', '.game-topbar .hearts-wrap'], ['hint', '.game-topbar .hint-btn']];
+      const names = [['back', '.game-topbar .back-btn'], ['progress', '.game-topbar .progress-wrap'], ['hint', '.game-topbar .hint-btn']];
       return names.map(([n, sel]) => { const el2 = document.querySelector(sel); if (!el2) return n + ':missing'; const r = el2.getBoundingClientRect(); const ok = r.top >= -1 && r.bottom <= innerHeight + 1 && r.left >= -1 && r.right <= innerWidth + 1; return ok ? null : n + ':clipped'; }).filter(Boolean);
     });
-    assert(bar.length === 0, `${game} mid-round: back/hearts/hint all reachable (${bar.join(',') || 'ok'})`);
+    assert(bar.length === 0, `${game} mid-round: back/progress/hint all reachable (${bar.join(',') || 'ok'})`);
     await page.evaluate(() => window.BooTown.go('hub'));
     await page.waitForSelector('.hub');
   }

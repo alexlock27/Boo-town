@@ -42,7 +42,9 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
       ]
     });
     if (leave) onBack && onBack(b);
-  }, { label: 'Leave round' });
+    // guarded: this control ASKS before it acts, so a gesture/browser back must run it
+    // rather than route away from a round in play (RUN18B Y11).
+  }, { label: 'Leave round', guarded: true });
 
   const dots = el('div', { class: 'progress-dots' });
   const progressLabel = el('span', { class: 'progress-label' });
