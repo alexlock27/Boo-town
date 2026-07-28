@@ -25,7 +25,11 @@ export const AGE_CHOICES = [
 export function tierAllows(tag) { return ORDER[contentTier()] >= ORDER[tag || 'light']; }
 
 // ---- Bubble Pop / Boo Dash categories ----
-export const BUBBLE_CAT_TIER = { tables: 'light', bonds: 'medium', addsub: 'medium', doubles: 'full', moreless: 'full' };
+// RUN18B Y9: the gates were set too high for what the games actually ask. Number bonds and
+// doubles/halves are Year 1–2 work — a Light child meets them at school long before she meets
+// them here — and "more or less" is a comparison, not a table. Bonds and doubles drop to
+// Light, more-or-less to Medium; add & subtract stays Medium.
+export const BUBBLE_CAT_TIER = { tables: 'light', bonds: 'light', addsub: 'medium', doubles: 'light', moreless: 'medium' };
 export function filterCategories(cats) { return cats.filter(c => tierAllows(BUBBLE_CAT_TIER[c.key] || 'full')); }
 
 // ---- Levels everywhere: Light (and below) shows Starter to Level 2; Medium/Full all ----

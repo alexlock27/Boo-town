@@ -16,8 +16,11 @@ const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 // Build a re-askable recognition item from a word miss (correct spelling vs 2 misspellings).
+// RUN18B Y9: the id is the GAME-PREFIXED ledger id ('spellboo:Thursday'), not the old 'w:'
+// form. A pile id and a ledger id have to be the same string or the pile can never boost the
+// pool item it came from — which is exactly why Spell Boo's pile did nothing until now.
 export function wordMiss(word, game = 'spellboo') {
-  return { id: 'w:' + word, game, prompt: 'Which one is spelled correctly?', options: shuffle([word, ...misspellings(word)]), answer: word };
+  return { id: game + ':' + word, game, prompt: 'Which one is spelled correctly?', options: shuffle([word, ...misspellings(word)]), answer: word };
 }
 // Choice-type miss (maths facts, arcade, twins): options already exist.
 export function choiceMiss({ id, game, prompt, options, answer }) {
@@ -89,7 +92,11 @@ export function persistUnrescued(ids) {
   });
 }
 export function clearPersisted(ids) {
-  mutate(s => { s.trickyPile = (s.trickyPile || []).filter(id => !ids.includes(id)); });
+  // Clear the OLD form too, or a word rescued today keeps its pre-Y9 pile entry for ever and
+  // goes on being boosted after she has proved she knows it.
+  const gone = new Set();
+  for (const id of ids || []) { gone.add(id); for (const l of legacyPileIds(id)) gone.add(l); }
+  mutate(s => { s.trickyPile = (s.trickyPile || []).filter(id => !gone.has(id)); });
 }
 export function persistedPile() { const s = getState(); return (s && s.trickyPile) || []; }
 // RUN16 W6 — spaced retrieval, closed. Items she missed and did NOT rescue were persisted
@@ -97,7 +104,19 @@ export function persistedPile() { const s = getState(); return (s && s.trickyPil
 // only half true. A pool item whose id is sitting in the pile now carries extra weight, so
 // the thing she got wrong last time is the thing she is most likely to meet next time.
 export const PILE_BOOST = 3;
-export function pileBoost(id, base = 1) { return persistedPile().includes(id) ? base * PILE_BOOST : base; }
+export function pileBoost(id, base = 1) { return inPile(id) ? base * PILE_BOOST : base; }
+// RUN18B Y9 — read both forms. Spell Boo's pile ids used to be 'w:<word>' and 'twin:<set>';
+// they are now 'spellboo:<word>' and 'spellboo:twin:<set>'. Nothing rewrites the save, so a
+// pile filled in before today still boosts the words it holds. Only the new form is written.
+function legacyPileIds(id) {
+  if (typeof id !== 'string' || !id.startsWith('spellboo:')) return [];
+  const rest = id.slice(9);
+  return [rest.startsWith('twin:') ? rest : 'w:' + rest];
+}
+export function inPile(id) {
+  const pile = persistedPile();
+  return pile.includes(id) || legacyPileIds(id).some(l => pile.includes(l));
+}
 
 // The Rescue step, rendered into `container`. Offers items one at a time.
 // onGift() is called if a rescue's +1 meter banks a box. Calls onDone() when finished.

@@ -485,7 +485,28 @@ export function todayKey() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export function ledgerEntry(id) { return (state && state.ledger && state.ledger[id]) || { rights: 0, misses: 0, lastSeen: 0 }; }
+// ---- game-prefixed ledger ids, read-both-forms (RUN18B Y9) --------------------
+// Every other game already prefixes its ledger ids with its own name ('blendit:sun',
+// 'soundsorter:th'). Spell Boo did not: it wrote the bare word ('Thursday') and 'twin:<set>',
+// which meant a spelling word could collide with any other game's id and no code could tell
+// whose item it was. The ids are now 'spellboo:Thursday' / 'spellboo:twin:toTooTwo'.
+//
+// NO MIGRATION, deliberately: a migration would have to rewrite arbitrary keys in a map that
+// several games share, and a lossless rename is not worth the risk to a child's history.
+// Instead every WRITE goes to the new id and every READ falls back to the old one when the
+// new one is absent, so a save made before today keeps its rights, misses and certificates.
+// Only Spell Boo's prefix is aliased — a generic "strip any prefix" rule would let
+// 'blendit:sun' read Spell Boo's 'sun'.
+export function spellId(id) { return 'spellboo:' + id; }
+const LEGACY_LEDGER = { 'spellboo:': (id) => id.slice(9) };
+function ledgerRaw(id) {
+  const L = state && state.ledger;
+  if (!L || typeof id !== 'string') return null;
+  if (L[id]) return L[id];
+  for (const p in LEGACY_LEDGER) if (id.startsWith(p)) { const old = L[LEGACY_LEDGER[p](id)]; if (old) return old; }
+  return null;
+}
+export function ledgerEntry(id) { return ledgerRaw(id) || { rights: 0, misses: 0, lastSeen: 0 }; }
 export function isMastered(id) { const e = ledgerEntry(id); return e.rights >= MASTER_RIGHTS && (e.rights - e.misses) >= MASTER_MARGIN; }
 // weak = has been missed more than got right (recent trouble); mastered as above; else middle.
 export function ledgerClass(id) {
