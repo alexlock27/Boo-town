@@ -6138,3 +6138,44 @@ html.bigger-text { --vz: 1.125; }
    recording: .hub-guide holds the hub's ONLY speech bubble, so the Star Chest's "«N» more
    stars until the chest opens!" (RUN18B Y7) and every other hub line had nowhere to land. */
 @media (min-width: 601px) { .hub-guide { min-height: 96px; } }
+
+/* ============================================================
+   RUN18D D1 — THE LAYOUT SHELL ("the ocean of purple")
+   A menu or text screen on a 1024px tablet was a narrow column of content with
+   400px of empty night sky either side of it, or — worse — a row of cards
+   stretched the full width of the glass with nothing holding them together.
+   One shell fixes both: from 900px up, a menu/text screen's content lives in a
+   720px column, centred.
+
+   WHAT IS DELIBERATELY NOT IN THE SHELL. Stages want the whole width, and the
+   pack names them: Bubble Pop, Boo Dash, Boo Roll, Boo Beat, the town areas,
+   the Disco Hall, the Gallery and the trail map. They are full-bleed by
+   construction — the shell is opt-in, so a screen that never asks for
+   .screen-content is untouched, and tests/r18d-layout.mjs pixel-compares a town
+   screenshot to prove it.
+
+   SCREENS ALREADY INSIDE THE SHELL, which therefore keep their own tighter
+   width rather than being widened to 720: results (.result-card, 460),
+   grown-ups (.grownups, 640), the Studio menu (.studio-grid, 640), Teach Me's
+   lesson list (.start-card, 460) and the Boo Care panel (.care-panel, 720).
+   ============================================================ */
+@media (min-width: 900px) {
+  .screen-content { width: 100%; max-width: 720px; margin-inline: auto; }
+}
+
+/* Teach Me, vertically centred. `.tm-stage` asked for `flex: 1` inside
+   `.game-area`, which is not a flex container — so the stage was its content's
+   own height and a three-line lesson card sat at the TOP of 600px of sky with
+   everything below it empty. The stage is a flex child now, and it safe-centres
+   (auto margins rather than justify-content:center) so that a stage taller than
+   the viewport can still be scrolled to the top — the RUN5 C4 lesson. */
+.teachme .game-area { display: flex; flex-direction: column; }
+.tm-stage { justify-content: flex-start; gap: 24px; padding-top: max(12px, calc(8vh / var(--vz))); }
+.tm-stage > :first-child { margin-top: auto; }
+.tm-stage > :last-child { margin-bottom: auto; }
+
+/* Boo Blocks: the tray sat centred inside a 320px side column, so the pieces she
+   is dragging were up to 40px away from the board she is dragging them onto.
+   They hug now — 14px, the column gap itself. Below 900px the tray is already
+   below the board (`.blk-play` turns into a column), so nothing there changes. */
+@media (min-width: 900px) { .blk-tray { justify-content: flex-start; } }

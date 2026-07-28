@@ -19,7 +19,10 @@ const SAVE = (over = {}) => Object.assign({
   inventory: { boo_inky: 1, boo_plum: 1, boo_lolly: 1 }, boxes: 0, meter: 3, opened: 5, pity: { commons: 0 },
   stars: { total: 126, byGame: { bubblepop: { best: 3, plays: 4, earned: 12 } } },
   golden: { words: ['cat', 'dog'], choices: [], savedAt: 1 }, nicknames: {}, equips: {}, catBest: {}, ledger: {}, town: [],
-  seen: { lastPlay: { game: 'bubblepop', gameName: 'Make 10', cat: 'make10', level: 2, mix: false }, lastPlayDay: YESTERDAY,
+  // RUN18D D1: `welcomeTour` marks RUN18B Y16's three one-time cards as read. Without it the
+  // tour card sits in .hub-specials and pushes the whole grid below the fold — this suite is
+  // about the Today rail's manners on a settled hub, not about a child's first-ever open.
+  seen: { lastPlay: { game: 'bubblepop', gameName: 'Make 10', cat: 'make10', level: 2, mix: false }, lastPlayDay: YESTERDAY, welcomeTour: true,
     introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, lastStarsShown: 126 },
   settings: { sound: false, music: false, voice: false, content: 'full', requests: false }, ageAsked: true, age: 8, quest: { node: 2, lands: {} }
 }, over);
@@ -70,7 +73,7 @@ console.log('== chips render only when they have content ==');
   assert(want.every(c => shown.includes(c)) && JSON.stringify(shown.filter(c => want.includes(c))) === JSON.stringify(want), `every content chip shows, in order (${shown.join(',')})`);
   await ctx.close();
   // no golden published, no botd (no Boos), no lastPlay → those chips vanish
-  ({ ctx, page } = await openHub(SAVE({ golden: null, inventory: {}, seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } })));
+  ({ ctx, page } = await openHub(SAVE({ golden: null, inventory: {}, seen: { welcomeTour: true, introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } })));
   const c = await chips(page);
   assert(!c.includes('golden'), 'no Golden chip when none is published');
   assert(!c.includes('botd'), 'no Boo-of-the-Day chip when she owns no Boos');
@@ -120,7 +123,7 @@ console.log('== Jump Back In manners ==');
   assert(await page.evaluate(() => window.__hub.jumpbackShown()) === false, 'hidden after that mode has been played today');
   await ctx.close();
   // (3) never shown without a last-played mode
-  ({ ctx, page } = await openHub(SAVE({ seen: { introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } })));
+  ({ ctx, page } = await openHub(SAVE({ seen: { welcomeTour: true, introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true } })));
   assert(await page.evaluate(() => window.__hub.jumpbackShown()) === false, 'never shown when nothing has been played');
   await ctx.close();
   // (4) the × dismisses until a simulated next day
