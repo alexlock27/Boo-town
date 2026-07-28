@@ -11,7 +11,11 @@ import { sfx } from './sfx.js';
 import { getState } from './state.js';
 import { BY_ID } from '../data/catalogue.js';
 
-const SPECIES_EMOJI = { giraffe: '🦒', puppy: '🐶', kitten: '🐱', penguin: '🐧', bunny: '🐰' };
+// RUN18D D4: the species chips wore 🦒🐶🐱🐧🐰 — five other people's drawings on the one
+// screen that is entirely about what HER character looks like, and five that render
+// differently on every tablet. Each chip now draws that species' own head in the colours
+// she has picked, so the row is a live preview: she can see what a penguin Twiggy would
+// look like before she chooses one.
 const rand = (n) => (Math.random() * n) | 0;
 
 // Owned accessory items become extra accessory choices (populated from phase 2).
@@ -42,7 +46,8 @@ export function buildCreator(guideObj, opts = {}) {
   const accOptions = [...GUIDE_ACCS, ...ownedAccessoryOptions()];
 
   const speciesRow = pillRow(
-    GUIDE_SPECIES.map(o => ({ key: o.key, label: (SPECIES_EMOJI[o.key] || '') + ' ' + o.label })),
+    GUIDE_SPECIES.map(o => ({ key: o.key, label: o.label,
+      art: () => renderGuide({ ...guide, species: o.key, acc: 'none' }, { view: 'head', size: 34 }) })),
     () => guide.species, k => { guide.species = k; pick(); }
   );
   const bodyRow    = swatchRow(GUIDE_BODIES,          () => guide.body,          k => { guide.body = k; pick(); });
@@ -108,9 +113,18 @@ function swatchRow(options, getSel, onPick) {
 
 function pillRow(options, getSel, onPick) {
   const row = el('div', { class: 'chip-row' });
-  const btns = options.map(o => el('button', { class: 'acc-chip', text: o.label, onclick: () => onPick(o.key) }));
+  // RUN18D D4: an option may carry `art`, a function returning house-style SVG for the chip.
+  // It is re-run on every _sync, so the species heads follow the colours she is choosing.
+  const btns = options.map(o => o.art
+    ? el('button', { class: 'acc-chip chip-art', 'aria-label': o.label, onclick: () => onPick(o.key) }, [
+        el('span', { class: 'chip-art-ic', html: o.art() }), el('span', { text: o.label })
+      ])
+    : el('button', { class: 'acc-chip', text: o.label, onclick: () => onPick(o.key) }));
   btns.forEach(b => row.appendChild(b));
-  row._sync = () => options.forEach((o, i) => btns[i].classList.toggle('sel', getSel() === o.key));
+  row._sync = () => options.forEach((o, i) => {
+    btns[i].classList.toggle('sel', getSel() === o.key);
+    if (o.art) btns[i].querySelector('.chip-art-ic').innerHTML = o.art();
+  });
   row._sync();
   return row;
 }
