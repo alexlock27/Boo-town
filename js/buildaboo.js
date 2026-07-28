@@ -2,10 +2,15 @@
 // mouth, tail, pattern and colour; name it and SEAL it. Sealed customs (cap 5) enter the
 // mystery-box pool with a 10% slice while unwon; winning one plays the ceremony banner.
 
-import { el, clear, backControl } from './ui.js';
+import { el, clear, backControl, REDUCED, sparkleAt } from './ui.js';
 import { sfx, music } from './sfx.js';
 import { renderCustomBoo, BUILD_PARTS } from './art.js';
 import { addSealedCustom, canSeal, sealedCustoms, CUSTOM_CAP } from './customs.js';
+import { celebrate } from './celebrate.js';   // RUN18D D11
+
+// RUN18D D11 — verbatim from the pack; «name» is filled with what she called it.
+export const SEAL_LINE = 'Sealed! «name» might visit a mystery box one day…';
+export const SEAL_FLIP_MS = 400;
 import { stampJournal } from './quests.js';
 
 const PART_LABELS = { body: 'Body', ears: 'Ears', eyes: 'Eyes', mouth: 'Mouth', tail: 'Tail', pattern: 'Pattern' };
@@ -56,12 +61,30 @@ export function mount(container, params, ctx) {
   function seal() {
     if (!canSeal()) return;
     const first = sealedCustoms().length === 0;
-    addSealedCustom(parts, nameInput.value.trim() || 'My Boo');
+    const name = nameInput.value.trim() || 'My Boo';
+    addSealedCustom(parts, name);
     if (first) stampJournal('firstCustom');
-    sfx.star();
-    msg.textContent = '🎉 Sealed! It\'s hidden in your mystery boxes now — open boxes to win it!';
-    msg.classList.add('ok');
+    // RUN18D D11: the biggest making-moment in the app used to be a chime and a sentence in
+    // a status div. The card she has just built FLIPS (400ms), sparkles, and is told what
+    // happens to it next, out loud. Line verbatim from the pack.
+    const line = SEAL_LINE.replace('«name»', name);
+    if (!REDUCED) {
+      preview.classList.remove('build-sealed'); void preview.offsetWidth;
+      preview.classList.add('build-sealed');
+      setTimeout(() => preview.classList.remove('build-sealed'), SEAL_FLIP_MS + 80);
+      const r = preview.getBoundingClientRect();
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => sparkleAt(r.left + r.width * (0.2 + Math.random() * 0.6), r.top + r.height * (0.15 + Math.random() * 0.6)), 120 + i * 70);
+      }
+    }
+    // updateCap() REWRITES msg, so it runs first — otherwise the announcement she is meant
+    // to read is replaced by the cap counter in the same tick, which is exactly the silent
+    // save D11 exists to remove. (Caught by the reduced-motion half of r18d-standards,
+    // which reads the DOM rather than the ledger.)
     updateCap();
+    msg.textContent = line;
+    msg.classList.add('ok');
+    celebrate(sealBtn, { counter: msg, line, act: () => {} });
   }
 
   function rebuild() {

@@ -6333,3 +6333,45 @@ html.bigger-text { --vz: 1.125; }
   .hub-town-banner .htb-title { font-size: 18px; }
   .hub-town-banner .htb-sub { font-size: 13px; }
 }
+
+/* ============================================================
+   RUN18D — THE CELEBRATION AND EXPLANATION STANDARDS (js/celebrate.js)
+   Four classes, one meaning each, so every screen's success and every screen's wrong
+   answer look like the same app rather than like whoever built them.
+   Transform-only, and each has a reduced-motion twin that keeps the MEANING (sound and a
+   colour pulse) rather than deleting the beat.
+   ============================================================ */
+.cel-pop { animation: celPop 220ms ease-out; }
+@keyframes celPop { 0% { transform: scale(1); } 45% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.cel-hop { animation: celHop 250ms ease-out; }
+@keyframes celHop { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-8px); } }
+.cel-tick { animation: celTick 180ms ease-out; }
+@keyframes celTick { 0% { transform: scale(1); filter: none; } 50% { transform: scale(1.18); filter: brightness(1.25); } 100% { transform: scale(1); filter: none; } }
+.cel-wobble { animation: celWobble 360ms ease-in-out; }
+@keyframes celWobble {
+  0%, 100% { transform: rotate(0); }
+  16% { transform: rotate(-4deg); } 33% { transform: rotate(4deg); }
+  50% { transform: rotate(-4deg); } 66% { transform: rotate(4deg); }
+  83% { transform: rotate(-4deg); }
+}
+/* the reduced-motion twins: a colour pulse, which is what the Standard allows, and never a
+   darkening — a wrong answer is comedy or a soft signal, never a punishment (house law). */
+.cel-flash { animation: celFlash 240ms ease-out; }
+@keyframes celFlash { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 4px var(--star); } }
+.cel-flash-wrong { animation: celFlashWrong 300ms ease-out; }
+@keyframes celFlashWrong { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 4px var(--oops); } }
+@media (prefers-reduced-motion: reduce) {
+  .cel-pop, .cel-hop, .cel-wobble { animation: none; }
+  .cel-tick { animation: celFlash 240ms ease-out; }
+}
+
+/* RUN18D D11 — Build-a-Boo's seal: the card she has just made flips over, which is what
+   "sealed" looks like. 400ms, transform-only, and reduced motion skips the flip and keeps
+   the sparkle-free line and the chime (js/buildaboo.js gates it on REDUCED). */
+.build-preview.build-sealed { animation: buildSeal 400ms ease-in-out; transform-style: preserve-3d; }
+@keyframes buildSeal {
+  0% { transform: rotateY(0); }
+  50% { transform: rotateY(90deg) scale(1.04); }
+  100% { transform: rotateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .build-preview.build-sealed { animation: none; } }
