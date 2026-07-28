@@ -5546,6 +5546,50 @@ html.calm-motion .exp-go-wrap { transform: none; }
   .hotel-floor > strong { width: 52px; font-size: 12px; }
 }
 
+
+/* ===== RUN18C C4 — the ending: the postcard, full screen ====================
+   The postcard has been composed since RUN10 P21 and went straight into the Gallery, so
+   a child who finished a four-node trail was handed back a list of buttons. */
+.exp-postcard-overlay { position: fixed; inset: 0; z-index: 8000; display: flex; align-items: center;
+  justify-content: center; padding: 16px; background: rgba(22,8,50,.78); }
+.exp-postcard-card { width: 100%; max-width: 560px; max-height: 100%; overflow-y: auto;
+  display: grid; justify-items: center; gap: 10px; padding: 16px 18px 18px;
+  background: var(--card); border: 4px solid var(--ink); border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow); text-align: center;
+  transform: translateY(64px); opacity: 0; transition: transform 400ms cubic-bezier(.2,.9,.3,1.15), opacity 400ms ease-out; }
+.exp-postcard-overlay.up .exp-postcard-card { transform: translateY(0); opacity: 1; }
+.exp-postcard-title { margin: 0; font-size: 24px; color: var(--ink); font-family: var(--font-display); }
+.exp-postcard-shot { position: relative; width: 100%; display: flex; justify-content: center;
+  min-height: 96px; align-items: center; }
+.exp-postcard-img { width: 100%; max-width: 480px; height: auto; border-radius: 12px;
+  border: 3px solid var(--ink); box-shadow: 0 6px 0 rgba(42,27,78,.28); }
+.exp-postcard-fallback { margin: 0; font-size: 17px; color: var(--ink); }
+/* the sparkle pass over the picture, 600ms */
+.exp-postcard-sparkle { position: absolute; inset: 0; pointer-events: none; border-radius: 12px;
+  overflow: hidden; }
+.exp-postcard-overlay.up .exp-postcard-sparkle::after { content: ''; position: absolute; top: -20%; left: -60%;
+  width: 45%; height: 140%; background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.72) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-16deg); animation: expPostcardSparkle 600ms ease-out 380ms 1; }
+@keyframes expPostcardSparkle { from { left: -60%; } to { left: 120%; } }
+.exp-postcard-guide { align-items: center; }
+.exp-postcard-bond { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 18px;
+  color: #B4256F; }
+.exp-postcard-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.exp-postcard-keep.btn { background: var(--zing); min-height: var(--tap); }
+.exp-postcard-keep.btn[disabled] { background: #CFE9E4; }
+.exp-postcard-done.btn { min-height: var(--tap); }
+@media (prefers-reduced-motion: reduce) {
+  .exp-postcard-card { transition: opacity 200ms ease-out; transform: none; }
+  .exp-postcard-overlay.up .exp-postcard-sparkle::after { animation: none; display: none; }
+}
+html.calm-motion .exp-postcard-card { transform: none; }
+html.calm-motion .exp-postcard-overlay.up .exp-postcard-sparkle::after { display: none; }
+@media (max-width: 600px), (max-height: 500px) {
+  .exp-postcard-card { padding: 12px 12px 14px; gap: 8px; }
+  .exp-postcard-title { font-size: 20px; }
+  .exp-postcard-bond { font-size: 16px; }
+}
+
 /* RUN10 P17 (RUN11 Q5): caper signposts + detective notebook */
 .caper-town-sign { position: absolute; transform: translateX(-50%); background: #FFF3D0; color: #5A3E20; border: 3px solid #8A5A2B; border-radius: 8px; padding: 4px 10px; font-family: var(--font-display); font-weight: 700; font-size: 13px; white-space: nowrap; box-shadow: 0 3px 0 #6B4420; z-index: 6; }
 .trail-chip.caper .tc-ic { font-size: 22px; }
