@@ -1825,6 +1825,33 @@ export function renderExpGlyph(key, { size = 24, cls = '' } = {}) {
       <rect x="6.4" y="13.8" width="3.4" height="3.2" rx="0.6" fill="${COLORS.cream}" ${ink}/>
       <rect x="14.2" y="13.8" width="3.4" height="3.2" rx="0.6" fill="${COLORS.gold}" ${ink}/>
       <rect x="10.2" y="16.2" width="3.6" height="4.2" rx="0.6" fill="${COLORS.cocoa}" ${ink}/></g>`,
+    // the two bridge guardians: a little arch with a tickly nose over it
+    guardian: `<g><rect x="1.5" y="16" width="21" height="5.4" rx="1.4" fill="#7FC7E8" ${ink}/>
+      <path d="M2.6 16.4 Q12 6.4 21.4 16.4" fill="none" ${ink}/>
+      <path d="M5.2 12.6 L5.2 16.4 M8.6 10 L8.6 16.4 M12 9 L12 16.4 M15.4 10 L15.4 16.4 M18.8 12.6 L18.8 16.4" ${thin}/>
+      <ellipse cx="12" cy="4.4" rx="3.4" ry="2.8" fill="${COLORS.bubblegum}" ${ink}/>
+      <path d="M16.4 3 q2 -1.2 3.4 .4 M16.8 6 q2.4 .2 3.6 2" fill="none" ${thin}/></g>`,
+    // an empty raft seat — a coil of rope, where an anchor emoji used to sit
+    seat: `<g><circle cx="12" cy="12" r="8.4" fill="none" ${ink}/>
+      <circle cx="12" cy="12" r="4.6" fill="none" ${ink}/>
+      <path d="M12 3.6 q4 1 4 4" fill="none" ${thin}/></g>`,
+    // an empty hotel room — a shut door with a little handle
+    door: `<g><rect x="5.6" y="3.6" width="12.8" height="16.8" rx="1.6" fill="${COLORS.cream}" ${ink}/>
+      <rect x="8" y="6.2" width="8" height="6" rx="0.8" fill="#DCE9F5" ${ink}/>
+      <circle cx="15.4" cy="16" r="1.2" fill="${COLORS.gold}" ${ink}/></g>`,
+    // the three Picky Grumps, one mood each — drawn, not 😤😒🙄
+    grump1: `<g><circle cx="12" cy="12" r="8.6" fill="${COLORS.orange}" ${ink}/>
+      <path d="M7.4 9.4 L10.4 10.6 M16.6 9.4 L13.6 10.6" ${ink}/>
+      <circle cx="9.4" cy="12.6" r="1.3" fill="${INK}"/><circle cx="14.6" cy="12.6" r="1.3" fill="${INK}"/>
+      <path d="M9.2 17 Q12 14.8 14.8 17" fill="none" ${ink}/></g>`,
+    grump2: `<g><circle cx="12" cy="12" r="8.6" fill="${COLORS.aqua}" ${ink}/>
+      <path d="M7.4 10 L10.6 10 M13.4 10 L16.6 10" ${ink}/>
+      <circle cx="9.4" cy="12.8" r="1.3" fill="${INK}"/><circle cx="14.6" cy="12.8" r="1.3" fill="${INK}"/>
+      <path d="M9.4 16.6 L14.6 16.6" ${ink}/></g>`,
+    grump3: `<g><circle cx="12" cy="12" r="8.6" fill="${COLORS.lilac}" ${ink}/>
+      <path d="M7.2 9.2 Q9.2 7.6 11 9.2 M13 9.2 Q14.8 7.6 16.8 9.2" fill="none" ${ink}/>
+      <circle cx="9.4" cy="11.6" r="1.3" fill="${INK}"/><circle cx="14.6" cy="11.6" r="1.3" fill="${INK}"/>
+      <path d="M9.6 16.8 Q12 18.6 14.4 16.8" fill="none" ${ink}/></g>`,
     // the cocoa camp between the nodes — a fire, not the 🔥 glyph it used to be
     campfire: `<g><path d="M3.4 19.6 L20.6 19.6" ${ink}/>
       <path d="M5.6 19.6 L12.4 15.2 M18.4 19.6 L11.6 15.2" stroke="${COLORS.cocoa}" stroke-width="2.2" stroke-linecap="round"/>
