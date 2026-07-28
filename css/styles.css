@@ -1043,6 +1043,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .echo-mode.sel { background: var(--star); box-shadow: 0 0 0 3px #fff, 0 0 16px rgba(255,201,60,.5); }
 .echo-mode.lightning.sel { background: var(--pop); color: var(--ink); }
 .echo-board { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(14px, 4vh, 34px); }
+/* RUN18B Y6 — the offer after a slip: the play stops and she is asked, rather than the
+   tune simply restarting slower at her. */
+.echo-again { margin-top: 14px; padding: 14px 18px; border: 4px solid var(--ink); border-radius: 22px; background: var(--card); box-shadow: var(--card-shadow); text-align: center; max-width: 460px; }
+.echo-again-line { margin: 0 0 10px; font-family: var(--font-display); font-weight: 700; font-size: 21px; color: var(--ink); }
+.echo-again-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.echo-again-btns .btn { min-height: 56px; font-size: 18px; }
+@media (max-width: 600px) { .echo-again { padding: 10px 12px; } .echo-again-line { font-size: 17px; } .echo-again-btns .btn { font-size: 16px; } }
 .echo-podium { display: flex; flex-direction: column; align-items: center; }
 .echo-boo { width: clamp(84px, 20vw, 150px); height: clamp(84px, 20vw, 150px); border-radius: 50%; border: none; background: none; padding: 0;
   filter: brightness(0.82) saturate(0.85); transition: filter 120ms, transform 120ms, box-shadow 120ms; touch-action: manipulation; }
