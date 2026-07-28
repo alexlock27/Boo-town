@@ -12,6 +12,7 @@ Thumbs.db
 # itself excluded, so `.claude/` + `!.claude/agents/` would silently not work.)
 .claude/*
 !.claude/agents/
+!.claude/agents/**
 
 # QA artifacts (regenerable via tests)
 screenshots/
