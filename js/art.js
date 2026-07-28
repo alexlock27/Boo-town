@@ -1782,6 +1782,54 @@ export function renderAreaGlyph(key, { size = 44 } = {}) {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
 }
 
+// ---- Expedition glyphs (RUN18C C1/C2) --------------------------------------
+// The Expedition had no art of its own at all: its chips, its counter and its four trail
+// nodes were emoji glyphs in text nodes, which is the art contract's exact prohibition
+// once they stop being tray chrome and start BEING the scene. Same 0..24 sticker box as
+// renderAreaGlyph so a boot in a 20px chip and a bridge in a 72px marker are one family.
+export function renderExpGlyph(key, { size = 24, cls = '' } = {}) {
+  const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"`;
+  const thin = `stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
+  const G = {
+    // a walking boot, laced, mid-stride — the counter chip's icon
+    boots: `<g><path d="M8 4 L12.6 4 L13 12 L18.5 15 Q20.5 16 20.5 18 L20.5 19.6 L7.6 19.6 Q6.6 19.6 6.6 18.6 L7 5 Q7 4 8 4 Z" fill="${COLORS.cocoa}" ${ink}/>
+      <path d="M6.7 17.2 L20.5 17.2" ${thin}/>
+      <path d="M8.4 6.4 L12.7 6.4 M8.5 8.8 L12.8 8.8 M8.6 11.2 L13 11.2" ${thin}/></g>`,
+    // the selection tick — drawn on its own disc so it can sit as a badge
+    tick: `<g><circle cx="12" cy="12" r="10" fill="${COLORS.teal}" ${ink}/>
+      <path d="M6.8 12.4 L10.4 16 L17.2 8.4" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g>`,
+    // Sneezy Bridges — two little arches over water
+    bridges: `<g><rect x="1.5" y="15" width="21" height="6" rx="1.5" fill="#7FC7E8" ${ink}/>
+      <path d="M2.5 15.4 Q7 7.6 11.5 15.4" fill="none" ${ink}/>
+      <path d="M12.5 15.4 Q17 7.6 21.5 15.4" fill="none" ${ink}/>
+      <path d="M4.6 12.4 L4.6 15.4 M7 10.6 L7 15.4 M9.4 12.4 L9.4 15.4 M14.6 12.4 L14.6 15.4 M17 10.6 L17 15.4 M19.4 12.4 L19.4 15.4" ${thin}/>
+      <path d="M3.4 18.6 q1.8 -1.1 3.6 0 M9 18.6 q1.8 -1.1 3.6 0 M14.6 18.6 q1.8 -1.1 3.6 0" fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round" opacity="0.7"/></g>`,
+    // the Picky Grumps' Picnic — a hamper on a checked rug
+    picnic: `<g><path d="M1.6 20.4 L22.4 20.4 L20.4 17 L3.6 17 Z" fill="${COLORS.bubblegum}" ${ink}/>
+      <path d="M7.4 17 L6 20.4 M12 17 L12 20.4 M16.6 17 L18 20.4" ${thin}/>
+      <path d="M8 10 Q12 5.4 16 10" fill="none" ${ink}/>
+      <rect x="5.4" y="9.6" width="13.2" height="7.6" rx="1.6" fill="${COLORS.sand}" ${ink}/>
+      <path d="M5.4 13 L18.6 13" ${thin}/>
+      <path d="M9 9.6 L9 17 M15 9.6 L15 17" ${thin}/></g>`,
+    // the Ferry Raft — logs, a mast and a sail
+    raft: `<g><path d="M1.4 17.6 Q12 21.4 22.6 17.6 L22.6 20 Q12 23.6 1.4 20 Z" fill="#7FC7E8" ${ink}/>
+      <rect x="2.6" y="14.6" width="18.8" height="3.4" rx="1.4" fill="${COLORS.cocoa}" ${ink}/>
+      <path d="M7 14.6 L7 18 M12 14.6 L12 18 M17 14.6 L17 18" ${thin}/>
+      <path d="M12 14.6 L12 3.2" ${ink}/>
+      <path d="M12.9 4 Q19 7.4 12.9 12.8 Z" fill="${COLORS.cream}" ${ink}/></g>`,
+    // the Boo Hotel — three lit floors and a canopy
+    hotel: `<g><rect x="4" y="6.6" width="16" height="13.8" rx="1.6" fill="${COLORS.lilac}" ${ink}/>
+      <path d="M2.8 6.6 L12 2.4 L21.2 6.6 Z" fill="${COLORS.bubblegum}" ${ink}/>
+      <rect x="6.4" y="9" width="3.4" height="3.2" rx="0.6" fill="${COLORS.gold}" ${ink}/>
+      <rect x="14.2" y="9" width="3.4" height="3.2" rx="0.6" fill="${COLORS.cream}" ${ink}/>
+      <rect x="6.4" y="13.8" width="3.4" height="3.2" rx="0.6" fill="${COLORS.cream}" ${ink}/>
+      <rect x="14.2" y="13.8" width="3.4" height="3.2" rx="0.6" fill="${COLORS.gold}" ${ink}/>
+      <rect x="10.2" y="16.2" width="3.6" height="4.2" rx="0.6" fill="${COLORS.cocoa}" ${ink}/></g>`
+  };
+  const inner = G[key] || G.boots;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+}
+
 // ---- Build-a-Boo custom renderer (RUN3 C6) ----
 // A parametric Boo from parts: body (4), ears (5), eyes (4), mouth (4), tail (3),
 // pattern + a colour. Cute rules: big low eyes, wide body, oversized ears, thick outlines.
