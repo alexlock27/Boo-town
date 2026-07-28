@@ -100,3 +100,26 @@ PROGRESS.md. Every game teaches itself: first-play intro (3 short steps, skippab
 plus a "?" replay in the shell. No screen shows more than 8 primary option buttons
 at phone width. Empty and first-run states are part of every screen: warm one-line
 guide copy + the single most useful action, never a bare blank.
+
+## Experience laws (2026-07-27)
+
+- **Engine reuse.** Every Build Pack states, per feature, which existing
+  engine/system it reuses (music: sfx/band/beat-groove · seating & poses: sockets ·
+  speech: guide/tts · trays: drawer · placement: town grammar · adaptivity:
+  comfort/ledger) — or a one-line justification why none fits. An executor who
+  finds an unlisted parallel system mid-build logs it to BLOCKED.md rather than
+  building a second one.
+- **No dead props.** Every NEW placeable ships with at least one of: a socket, a
+  tap reaction, an idle animation, a surface slot, or a scheduled moment. A pack
+  adding items lists each item's verb. Scenery sold as a toy is a defect.
+- **Continuity.** A continuous experience (music, dancing, weather, wandering) is
+  implemented continuously — no N-second silences or freezes between samples of
+  it. If a performance loop already exists, use it. "One event per bar" patterns
+  need explicit sign-off in the pack.
+- **Announced moments.** A state change the child caused or would care about (a
+  purchase, a wish, a socket claim, a nap, a milestone) lands as a witnessed
+  moment — motion + a line + a place to look — never solely as a toast, a drawer
+  entry, or silent state.
+- **Curriculum mapping.** Every lesson or learning-content pack maps its hardest
+  item to the National Curriculum appendix line it serves, in the pack itself.
+  Levels named for a tier deliver that tier.
