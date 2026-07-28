@@ -67,7 +67,50 @@ export const ODD_SPECIES_PAIRS = [
 export const ODD_NEAR_COLOURS = [['teal', 'aqua'], ['indigo', 'lilac'], ['lilac', 'bubblegum']];
 const ODD_SUBTLETY = { toddler: 'loud', light: 'loud', medium: 'any', full: 'subtle' };
 
+// RUN18D D7 — the guarantee is made at the point of SERVICE, not left to construction.
+// Every board oddGrid is about to hand a child is checked first: exactly one item differs,
+// it differs on exactly one feature, every other feature is constant across the whole
+// board, and sparkle is not the difference unless the round's own rule names it (it never
+// does — 'shine' is not in ODD_FEATURES). Returns null when the board is sound, or the
+// reason it is not, so the caller can reject and regenerate.
+export const ODD_CHECK_FEATURES = ['colour', 'species', 'hat', 'shine'];
+export function oddGridFault(grid) {
+  if (!grid || !Array.isArray(grid.items) || grid.items.length < 2) return 'no board';
+  const { items, oddIndex, oddFeature } = grid;
+  if (!(oddIndex >= 0 && oddIndex < items.length)) return 'the odd index is off the board';
+  const base = items[oddIndex === 0 ? 1 : 0];
+  const differs = [];
+  for (const f of ODD_CHECK_FEATURES) {
+    // every NON-odd item must agree with every other on every feature
+    for (let i = 0; i < items.length; i++) {
+      if (i === oddIndex) continue;
+      if (items[i][f] !== base[f]) return `two ordinary Boos disagree on ${f}`;
+    }
+    if (items[oddIndex][f] !== base[f]) differs.push(f);
+  }
+  if (differs.length === 0) return 'no Boo is different — the board has no answer';
+  if (differs.length > 1) return `the odd Boo differs on ${differs.length} features (${differs.join('+')})`;
+  if (differs[0] !== oddFeature) return `the difference is ${differs[0]} but the rule says ${oddFeature}`;
+  if (differs[0] === 'shine') return 'sparkle is the difference, and no rule names sparkle';
+  return null;
+}
+
 export function oddGrid(tier = 'light', rng = Math.random, options = {}) {
+  // Reject and regenerate: bounded, because a generator that cannot make a sound board in
+  // eight goes is broken and silently looping forever would be worse than serving the last
+  // one. In practice buildOddGrid is sound by construction and this never spends a retry —
+  // which is exactly why it is worth having, since nothing else would notice if it stopped
+  // being sound.
+  let grid = null;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    grid = buildOddGrid(tier, rng, options);
+    if (!oddGridFault(grid)) return grid;
+  }
+  console.warn('[oddGrid] served a board after 8 rejections:', oddGridFault(grid));
+  return grid;
+}
+
+function buildOddGrid(tier = 'light', rng = Math.random, options = {}) {
   const count = ODD_GRID_SIZE[tier] || 4;
   const subtlety = ODD_SUBTLETY[tier] || 'loud';
   const oddFeature = ODD_FEATURES.includes(options.oddFeature) ? options.oddFeature : pick(ODD_FEATURES, rng);
