@@ -6179,3 +6179,11 @@ html.bigger-text { --vz: 1.125; }
    They hug now — 14px, the column gap itself. Below 900px the tray is already
    below the board (`.blk-play` turns into a column), so nothing there changes. */
 @media (min-width: 900px) { .blk-tray { justify-content: flex-start; } }
+
+/* RUN18D D2 — a bubble reaching the HUD edge fades out over 300ms IN PLACE rather than
+   vanishing, and stays inside the field (and tappable) for the whole fade. That is what
+   makes the correct-answer guarantee literal: the answer is on screen, whole and
+   hit-testable, at every instant — including the instant it is on its way out. */
+.bubble.bp-sink { animation: bpSink 300ms linear forwards; }
+@keyframes bpSink { from { opacity: 1; } to { opacity: 0.08; } }
+@media (prefers-reduced-motion: reduce) { .bubble.bp-sink { animation: none; opacity: 0.35; } }

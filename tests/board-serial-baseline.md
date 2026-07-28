@@ -19,8 +19,10 @@
 >   pixel-hash sequences under real clocks; parallel load starves the rAF cadence.
 > - `r13t1-care-direct` (168s) — pixel-hashed 8-frame sequences per care action per
 >   viewport; same real-clock evidence law.
-> - `r12s12-bubble-containment` (132s) — a 60s live containment watch plus a 22s
->   respawn watch; the minute-long observation IS the assertion.
+> - `r12s12-bubble-containment` (132s -> ~185s after RUN18D D2) — a 60s live containment
+>   watch plus a 22s respawn watch; the minute-long observation IS the assertion. D2 added
+>   a 1.5s drift measurement at each of the four levels and a 14s retire/respawn watch,
+>   because the authored BUBBLE_SPEED_PX_S table can only be checked on a running board.
 > Every non-@serial suite measured under 120s (slowest: r12s4-contrast 109s,
 > r4p3-rewards 108s, r12s1-routes 94s).
 >

@@ -29,6 +29,15 @@ const rand = (n) => (Math.random() * n) | 0;
 // RUN12 S12: the play field's own inset. Bubbles never leave it, in either direction.
 const FIELD_PAD = 6;
 
+// ---- RUN18D D2: containment, in pixels per second ---------------------------------
+// The drift is AUTHORED per level and identical for every bubble on the board, so
+// reading the question is never a race: speed pressure belongs to material she has
+// already mastered (RUN18B Y10), not to working out what is being asked.
+export const BUBBLE_SPEED_PX_S = { S: 110, 1: 140, 2: 170, 3: 200 };
+export const DESPAWN_FADE_MS = 300;      // a bubble reaching the HUD edge fades out over this
+export const CORRECT_RESPAWN_MS = 800;   // ...and the CORRECT one is back from the bottom within this
+export const SPAWN_BAND = 0.20;          // respawns arrive in the bottom fifth of the field
+
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen bubblepop' });
   container.appendChild(root);
@@ -191,23 +200,69 @@ export function mount(container, params, ctx) {
       b.node.classList.toggle('golden', !!b.golden);
     }
 
+    // RUN18D D2: the board's drift, in px/s, from the authored table. Smart Mix has no
+    // level of its own, so it climbs the same ladder its sky already climbs - the child
+    // sees one thing getting brisker, not two unrelated things.
+    function driftPxS() {
+      const key = mix ? (solved < 4 ? 1 : solved < 7 ? 2 : 3) : (level == null ? 1 : level);
+      return BUBBLE_SPEED_PX_S[key] != null ? BUBBLE_SPEED_PX_S[key] : BUBBLE_SPEED_PX_S[1];
+    }
+
     function resetPositions() {
       const W = field.clientWidth || 600, H = field.clientHeight || 500;
       bubbles.forEach((b, i) => {
         b.size = 74 + rand(16);
         b._pi = i;
         b.x = (i + 0.5) / BUBBLE_COUNT * W - b.size / 2 + (Math.random() * 24 - 12);
-        // spread across the field, entirely INSIDE it (S12)
+        // Spread across the field, entirely INSIDE it (S12). Every bubble now drifts at the
+        // SAME authored speed, so this opening stagger is the only thing keeping the board
+        // from rising and re-entering as one solid block - it is load-bearing, not cosmetic.
         b.y = FIELD_PAD + (i / BUBBLE_COUNT) * Math.max(0, H - b.size - FIELD_PAD * 2);
-        b.speed = 0.6 + Math.random() * 0.5;                       // gentle upward drift
         b.phase = Math.random() * Math.PI * 2;
-        place(b);
+        b.fadingSince = 0;
+        b.node.classList.remove('bp-sink');
       });
+      separate();
+      bubbles.forEach(place);
+    }
+
+    function swayOf(b) { return Math.sin((b.y + b.phase * 80) / 90) * 14; }   // hoisted: resetPositions runs before this line
+
+    // RUN18D D2 — bubbles keep their CENTRES out of each other.
+    // Two bubbles are allowed to overlap: six of them, 74-90px across, cannot always be
+    // laid out on a 378px phone field without touching, and jostling reads as bubbles.
+    // What is NOT allowed is one bubble's centre sitting under another, because that is
+    // exactly the point a thumb aims at — and when the covered one is the answer, the
+    // answer is on screen and unreachable. Measured before this: 2-4 samples in a 60s
+    // round where the correct bubble failed a hit-test at its own centre.
+    // One relaxation pass per frame, x only, so the authored vertical drift is untouched.
+    function separate() {
+      const W = field.clientWidth || 600;
+      for (let i = 0; i < bubbles.length; i++) {
+        const a = bubbles[i];
+        if (a.hidden) continue;
+        for (let j = i + 1; j < bubbles.length; j++) {
+          const c = bubbles[j];
+          if (c.hidden) continue;
+          const need = Math.max(a.size, c.size) / 2 + 10;
+          const ay = a.y + a.size / 2, cy = c.y + c.size / 2;
+          const dy = cy - ay;
+          if (Math.abs(dy) >= need) continue;                 // not level with each other
+          const ax = a.x + swayOf(a) + a.size / 2, cx = c.x + swayOf(c) + c.size / 2;
+          const dx = cx - ax;
+          const wantDx = Math.sqrt(need * need - dy * dy);    // the x gap that clears both centres
+          if (Math.abs(dx) >= wantDx) continue;
+          const sign = dx === 0 ? (i % 2 ? 1 : -1) : Math.sign(dx);
+          const push = (wantDx - Math.abs(dx)) / 2;
+          a.x = Math.max(FIELD_PAD, Math.min(W - a.size - FIELD_PAD, a.x - sign * push));
+          c.x = Math.max(FIELD_PAD, Math.min(W - c.size - FIELD_PAD, c.x + sign * push));
+        }
+      }
     }
 
     function place(b) {
       const W = field.clientWidth || 600, H = field.clientHeight || 500;
-      const sway = Math.sin((b.y + b.phase * 80) / 90) * 14;
+      const sway = swayOf(b);
       const px = Math.max(FIELD_PAD, Math.min(W - b.size - FIELD_PAD, b.x + sway));
       // hard containment: whatever the drift does, the bubble stays inside the play field,
       // so every answer on screen is a whole answer and every centre is tappable (S12)
@@ -223,14 +278,29 @@ export function mount(container, params, ctx) {
       let lastNow = performance.now();
       const stepFrame = (now) => {
         if (!now) now = performance.now();
+        // RUN18D D2: the frame clock only ever advanced on a PAUSED frame, so `now - lastNow`
+        // grew without bound and the 38ms clamp made every playing frame a fixed 38ms step -
+        // the drift was neither the authored speed nor frame-rate independent. It advances
+        // every frame now, and the clamp does what it was always meant to do: absorb a
+        // dropped frame or a backgrounded tab without teleporting the board.
         const ms = Math.min(now - lastNow, 38);
-        if (shell.paused()) lastNow = now;   // do not bank the paused stretch as one huge dt
-        const dt = Math.max(0.1, ms / 16.667);
+        lastNow = now;
+        const sec = ms / 1000;
         // RUN12 S6: bubbles do not drift on behind an intro or a "?" replay
         if (!document.hidden && !shell.paused()) {
           const H = field.clientHeight || 500;
+          const step = driftPxS() * sec;
           for (const b of bubbles) {
-            b.y += b.speed * dt;
+            // RUN18D D2 - a bubble RETIRES at the HUD edge with a 300ms fade rather than
+            // vanishing mid-air, and it never crosses the edge to do it. It stays inside the
+            // field and stays tappable all the way through the fade, which is what keeps the
+            // correct-answer guarantee true: the answer is on screen and reachable at every
+            // instant, including the instant it is leaving.
+            if (b.fadingSince) {
+              if (now - b.fadingSince >= DESPAWN_FADE_MS) respawn(b);
+              continue;
+            }
+            b.y += step;
             // RUN12 S12 — a bubble is RETIRED when its top edge reaches the top of the play
             // field and respawned from the bottom, fully inside. It used to drift on until
             // it was completely past the field (b.y > H + b.size) and respawn from
@@ -239,9 +309,15 @@ export function mount(container, params, ctx) {
             // its centre hit the screen behind it. Measured at 390x844: bubbles crossed into
             // the HUD's band in 10 of 12 samples, worst overlap 164px, and one bubble was
             // genuinely untappable.
-            if (b.y + b.size >= H - FIELD_PAD) respawn(b);
-            place(b);
+            if (b.y + b.size >= H - FIELD_PAD) {
+              b.y = Math.max(FIELD_PAD, H - b.size - FIELD_PAD);
+              b.fadingSince = now;
+              b.node.classList.remove('bp-fresh');
+              b.node.classList.add('bp-sink');
+            }
           }
+          separate();
+          for (const b of bubbles) place(b);
         }
         loopId = requestAnimationFrame(stepFrame);
       };
@@ -250,8 +326,15 @@ export function mount(container, params, ctx) {
     function stopLoop() { if (loopId) cancelAnimationFrame(loopId); loopId = null; }
 
     function respawn(b) {
-      b.y = FIELD_PAD;                       // back at the bottom of the field, fully inside
+      // RUN18D D2: back in the bottom SPAWN_BAND of the field, fully inside it. The correct
+      // bubble is therefore never more than DESPAWN_FADE_MS away from being a whole,
+      // untouched answer again - well inside the 800ms the pack allows.
+      const H = field.clientHeight || 500;
+      const usable = Math.max(0, H - b.size - FIELD_PAD * 2);
+      b.y = FIELD_PAD + Math.random() * usable * SPAWN_BAND;
       b.x = Math.random() * ((field.clientWidth || 600) - b.size - 12) + 6;
+      b.fadingSince = 0;
+      b.node.classList.remove('bp-sink');
       // a short fade so a retired bubble reads as a new one arriving, not a teleport
       b.node.classList.remove('bp-fresh'); void b.node.offsetWidth; b.node.classList.add('bp-fresh');
       if (!b.correct) {
@@ -356,7 +439,23 @@ export function mount(container, params, ctx) {
       fieldRect: () => { const r = field.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; },
       bubbleRects: () => bubbles.filter(b => !b.hidden).map(b => { const r = b.node.getBoundingClientRect(); return { correct: b.correct, top: r.top, bottom: r.bottom, left: r.left, right: r.right, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }),
       pad: () => FIELD_PAD,
-      goldPops: () => document.querySelectorAll('.bp-goldpop').length
+      goldPops: () => document.querySelectorAll('.bp-goldpop').length,
+      // RUN18D D2 QA: the authored drift for the board as it stands, and whether the
+      // correct answer is on screen, whole and hit-testable, at this instant.
+      speedPxS: () => driftPxS(),
+      spawnBand: () => SPAWN_BAND,
+      correctState: () => {
+        const b = bubbles.find(x => x.correct);
+        if (!b) return null;
+        const r = b.node.getBoundingClientRect(), f = field.getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const hit = document.elementFromPoint(cx, cy);
+        return {
+          hidden: b.hidden, fading: !!b.fadingSince,
+          inside: r.top >= f.top - 0.5 && r.bottom <= f.bottom + 0.5 && r.left >= f.left - 0.5 && r.right <= f.right + 0.5,
+          tappable: !!(hit && (hit === b.node || b.node.contains(hit)))
+        };
+      }
     };
 
     function finish() {
