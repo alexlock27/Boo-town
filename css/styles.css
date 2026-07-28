@@ -5614,3 +5614,8 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    desktop, and on a phone protruded as a half-medallion wedged above the keys. */
 .wish-magic { position: relative; z-index: 5; }
 .wish-made, .wish-poof { z-index: 6; }
+
+/* RUN18B Y7 — a Star Chest that is not ready answers a tap: a wobble and a line. */
+.chest-wobble { animation: chestWobble 320ms ease-in-out; }
+@keyframes chestWobble { 0%,100% { transform: rotate(0); } 16% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } 83% { transform: rotate(-4deg); } }
+@media (prefers-reduced-motion: reduce) { .chest-wobble { animation: none; } }

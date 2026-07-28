@@ -96,6 +96,9 @@ export const LINES = {
   builders: ["The Builders finished something for you!", "The Builders finished something for you! Come and see!"],
   // RUN4 C8: shiny reveals + the Star Chest.
   boxShiny: ["It SPARKLES!! A shiny Boo — look at it glitter!", "A SHINY one!! Ooh it shimmers when it moves!"],
+  // RUN18B Y7 — a chest that is not ready says how far off it is, live. {n} is filled by
+  // js/hub.js, not by subst(): it is a count, not a name.
+  chestNotReady: ['{n} more stars until the chest opens!'],
   chestOpen: ["Your stars filled a whole golden chest! Fancy treasure inside!", "A Star Chest! Only the best things live in gold boxes."],
   gameIntroPop: ["Swap two gems so a matching pair touches — POP! Watch them tumble!"],
   cosyRound: [
