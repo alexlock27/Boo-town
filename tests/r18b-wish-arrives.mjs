@@ -195,6 +195,61 @@ console.log('== 6. the authored constants, and the living wishes ==');
   await ctx.close();
 }
 
+// ---- 7. THE MOMENT IS WITNESSABLE ------------------------------------------------------
+// The mechanics were all correct and the ten seconds she actually experiences were empty:
+// the item and its puff landed ~954px outside a camera that never panned, the line
+// measured 0% visible in every configuration, and the well's own overlay stayed up over
+// the whole thing. With the voice muted — an ordinary state — pressing WISH produced
+// nothing she could perceive. (Found by the playtest critic.)
+console.log('== 7. she can actually SEE it happen ==');
+for (const [W, H] of [[1024, 768], [390, 844]]) {
+  const ctx = await browser.newContext({ viewport: { width: W, height: H } });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => errors.push(String(e).split('\n')[0]));
+  // voice OFF on purpose: if the moment only exists in speech, it does not exist.
+  await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), save({ settings: { sound: false, music: false, voice: false, content: 'full' } }));
+  await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
+  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 40000 });
+  await page.evaluate(() => window.BooTown.go('town', { area: 'meadow' }));
+  await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'town', null, { timeout: 15000 });
+  await page.waitForTimeout(1100);
+  await wishFor(page, 'balloon');
+  await page.waitForTimeout(1400);   // the well hands the moment over at 1500ms
+  const seen = await page.evaluate(() => {
+    const vis = (n) => {
+      if (!n) return null;
+      const r = n.getBoundingClientRect();
+      if (!(r.width > 0 && r.height > 0)) return { onScreen: false, topmost: false };
+      const cx = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
+      const cy = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
+      // The line is deliberately pointer-transparent, and elementFromPoint SKIPS such
+      // elements — so asking it directly would report the thing behind and call a
+      // perfectly visible caption occluded. Measure PAINT order by making it hit-testable
+      // for exactly one call, then putting it back.
+      const prev = n.style.pointerEvents;
+      n.style.pointerEvents = 'auto';
+      const top = document.elementFromPoint(cx, cy);
+      n.style.pointerEvents = prev;
+      return {
+        onScreen: r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight,
+        topmost: !!(top && (n === top || n.contains(top) || top.contains(n))),
+        rect: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }
+      };
+    };
+    return {
+      item: vis(document.querySelector('.t-item[data-item="wish_balloon"]')),
+      line: vis(document.querySelector('.wish-said')),
+      wellStillUp: !!document.querySelector('.overlay.wish-overlay')
+    };
+  });
+  assert(seen.item && seen.item.onScreen, `${W}px: the wish lands INSIDE the camera, not off in the band (${JSON.stringify(seen.item && seen.item.rect)})`);
+  assert(seen.line && seen.line.onScreen && seen.line.topmost,
+    `${W}px: and "Your wish came true!" is actually visible, on top (${JSON.stringify(seen.line && seen.line.rect)})`);
+  assert(!seen.wellStillUp, `${W}px: the well has got out of the way so she can reach what arrived`);
+  await page.screenshot({ path: `${SHOTS}/witnessed-${W}.png` });
+  await ctx.close();
+}
+
 console.log(errors.length ? '\nPAGE ERRORS: ' + errors.slice(0, 5).join(' | ') : '\nno page errors');
 if (errors.length) failed = true;
 await browser.close();

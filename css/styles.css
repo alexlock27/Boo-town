@@ -5555,3 +5555,12 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .t-item.wish-arrive { animation: none; }
   .wish-said { transition: none; }
 }
+
+/* RUN18B Y3 (critic): the arrival line has to clear the well's own overlay (z 1500) —
+   rendered inside the town it measured 0% visible in every configuration, including with
+   the voice muted, which is an ordinary state and left the wish with no output at all. */
+.wish-said { z-index: 2000; }
+/* ...and the in-panel token has to clear the keyboard: it measured 8-14% visible on
+   desktop, and on a phone protruded as a half-medallion wedged above the keys. */
+.wish-magic { position: relative; z-index: 5; }
+.wish-made, .wish-poof { z-index: 6; }

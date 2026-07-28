@@ -2306,13 +2306,20 @@ export function mount(container, params, ctx) {
   const WISH_PUFF_PARTICLES = 24;
   const WISH_GROW_MS = 350;        // 0 -> 1.05 -> 1.0
 
-  // Nearest free x to the middle of the area on row 1, because the middle is where she is
-  // looking. Returns null when the row genuinely cannot take another thing.
+  // Nearest free x to THE MIDDLE OF THE CAMERA on row 1 — not the middle of the area.
+  //
+  // The area is four viewports wide. "Nearest x to 0.5" is the middle of the BAND, which
+  // is up to ~1000px outside the window she is actually looking through: the playtest
+  // critic measured the wish and its 24-particle puff landing 954px off the right edge at
+  // 1024x768, with the camera never panning. A moment she cannot see is not a moment
+  // (CLAUDE.md, announced moments), so the search starts from where she is looking and
+  // walks outwards from there.
   function freeWishSpot() {
     const zi = 0, row = 1;
     const STEP = MIN_SPACING * 0.5;
-    for (let d = 0; d <= 0.5; d += STEP) {
-      for (const x of (d === 0 ? [0.5] : [0.5 - d, 0.5 + d])) {
+    const centre = zoneW > 0 ? Math.max(0.04, Math.min(0.96, (scrollX + viewW / 2) / zoneW)) : 0.5;
+    for (let d = 0; d <= 1; d += STEP) {
+      for (const x of (d === 0 ? [centre] : [centre - d, centre + d])) {
         if (x < 0.04 || x > 0.96) continue;
         if (!spotTaken(zi, x, row)) return { x: +x.toFixed(3), row };
       }
@@ -2386,9 +2393,14 @@ export function mount(container, params, ctx) {
     speakMaybe(text);
     // ONE line at a time — the H4 lesson again: a second moment replaces the first rather
     // than stacking behind it, so she is never reading two things that disagree.
-    root.querySelectorAll('.wish-said').forEach(old => old.remove());
+    // On <body>, not inside the town: the well's overlay is z-index 1500 and the town's
+    // own layers top out around 60, so a line rendered in the scene measured 0% VISIBLE in
+    // every configuration the critic tried — including the packed-Meadow fallback, whose
+    // string was exactly right in the DOM and invisible on screen. With the voice muted,
+    // an ordinary state, the whole wish produced nothing she could perceive.
+    document.querySelectorAll('.wish-said').forEach(old => old.remove());
     const note = el('div', { class: 'wish-said', role: 'status', text });
-    root.appendChild(note);
+    document.body.appendChild(note);
     setTimeout(() => note.classList.add('show'), 20);
     setTimeout(() => { note.classList.remove('show'); setTimeout(() => note.remove(), 260); }, 2600);
   }
