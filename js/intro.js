@@ -61,7 +61,7 @@ export const INTRO_SCRIPTS = {
   ],
   blendit: [
     { text: 'These sounds are shy — they sit apart!' },
-    { text: 'Pull them together, or tap Blend.' },
+    { text: 'Tap Blend and watch the sounds slide together!' },
     { text: 'Then tap the picture the word makes!' }
   ],
   rhymetime: [

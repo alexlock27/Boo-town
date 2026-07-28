@@ -46,7 +46,7 @@ export const WHATSNEW = [
         blurb: 'I say a sound — like shhh! — and you find it hiding in the pictures. Twelve sounds to hunt for.',
         route: 'soundsorter' },
       { icon: '🤝', title: 'Blend It',
-        blurb: 'The sounds sit apart until you pull them together. Watch them slide into a word, then tap the picture it makes!',
+        blurb: 'The sounds sit apart until you tap Blend. Watch them slide into a word, then tap the picture it makes!',
         route: 'blendit' },
       { icon: '🎵', title: 'Rhyme Time',
         blurb: 'Cat, hat, mat! Find the words that chime at the end — and watch out, some only LOOK like they rhyme.',
