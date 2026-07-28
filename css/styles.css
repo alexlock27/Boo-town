@@ -5619,3 +5619,26 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .chest-wobble { animation: chestWobble 320ms ease-in-out; }
 @keyframes chestWobble { 0%,100% { transform: rotate(0); } 16% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } 83% { transform: rotate(-4deg); } }
 @media (prefers-reduced-motion: reduce) { .chest-wobble { animation: none; } }
+
+
+/* ---- RUN18B Y15: the Comfort & access switches ---------------------------------------- */
+/* "Calm motion": the same blanket the OS setting gets, forced from the grown-ups' card.
+   js/ui.js's REDUCED (a live binding) already turns off every JS-driven flourish; this
+   catches the CSS-driven ones so nothing keeps sliding after she has asked it to stop.
+   Durations go to a hair above zero rather than to `none`, so animationend/transitionend
+   still fire and nothing that waits on them can hang. */
+html.calm-motion *,
+html.calm-motion *::before,
+html.calm-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* "Bigger text": one step, the authored 112.5%. Applied as a zoom rather than a root
+   font-size because this sheet is px-based — see the note on setBiggerText in js/ui.js.
+   It is on body, not #screen, so dialogs, the first-play intro and toasts (all appended to
+   body) grow with the screen behind them instead of shrinking beside it. */
+html.bigger-text body { zoom: 1.125; }

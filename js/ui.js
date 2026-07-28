@@ -2,9 +2,48 @@
 
 import { sfx } from './sfx.js';
 
-export const REDUCED = (() => {
+// RUN18B Y15: REDUCED is a LIVE BINDING (`let`, not `const`) so "Calm motion" can force the
+// reduced path app-wide the moment it is switched on. ES module exports are live: every one
+// of the ~30 modules that does `import { REDUCED } from './ui.js'` reads the current value
+// on its next use, with no plumbing and no re-import. It is only ever written by
+// setCalmMotion() below.
+function osReducedMotion() {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
-})();
+}
+export let REDUCED = osReducedMotion();
+let calmMotion = false;
+
+// The grown-ups' switch. ON forces REDUCED regardless of the device setting; OFF hands the
+// decision back to the device rather than overriding it the other way — a grown-up turning a
+// comfort OFF must never take away a comfort the tablet itself was already providing.
+export function setCalmMotion(on) {
+  calmMotion = !!on;
+  REDUCED = calmMotion || osReducedMotion();
+  try { document.documentElement.classList.toggle('calm-motion', calmMotion); } catch {}
+  return REDUCED;
+}
+export function calmMotionOn() { return calmMotion; }
+
+// One step, off or on, at the authored 112.5%.
+//
+// THE MECHANISM IS NOT THE AUTHORED ONE, and here is why. The pack says "root font-size
+// 112.5%", which assumes a rem-based sheet. css/styles.css is not one: it carries 435 px
+// font-size declarations against 69 rem/em usages, and `:root` already sets 18px — so
+// `font-size: 112.5%` computes against the browser's 16px default and lands on the SAME 18px
+// it already had. Measured on the hub: forcing the root to 20.25px (a true +12.5%) moved the
+// average rendered text from 17.78px to 18.15px — a 2% change from a switch that promises
+// 12.5%. A control that does almost nothing is a lying control.
+// The authored MAGNITUDE ships exactly: 112.5%, one step, off or on. It is applied as a zoom
+// on the app's own root in css/styles.css, which scales the px type with everything else and
+// therefore cannot put type out of proportion with the boxes around it.
+export const BIGGER_TEXT_SCALE = '112.5%';
+let biggerText = false;
+export function setBiggerText(on) {
+  biggerText = !!on;
+  try { document.documentElement.classList.toggle('bigger-text', biggerText); } catch {}
+  return biggerText;
+}
+export function biggerTextOn() { return biggerText; }
 
 // Dev = served from a local machine. The guard below is loud here and silent in
 // production: a developer wants the stack trace, a child must never see the word
