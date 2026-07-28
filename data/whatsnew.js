@@ -22,6 +22,22 @@
 
 export const WHATSNEW = [
   {
+    // RUN18D (Polish & presentation). Twelve packets, and TWO entries — because the pack
+    // says so, and because it is right: polish is not news. A child does not want to be
+    // told that the hub scrolls in one direction now, or that a wrong answer explains
+    // itself, or that thirty emoji became drawings. She will simply find those things
+    // better. These two are the only ones that are genuinely NEW to look at or to use.
+    version: 'run18d-20260728',
+    entries: [
+      { icon: '🖼️', title: 'The Gallery got a proper room',
+        blurb: 'Spotlights, name plates, and a Boo wandering about looking at your treasures.',
+        route: 'gallerymuseum' },
+      { icon: '🔤', title: 'ABC keys in Word Detective',
+        blurb: 'Tap "ABC keys" and the letters line up A to Z instead of hiding.',
+        route: 'detective' }
+    ]
+  },
+  {
     // RUN18C (The Expedition, presented). The Expedition's logic had been finished since
     // RUN10 and its presentation was never built, so RUN18A shut its door rather than hand
     // a child a feature that looked broken. This run built the presentation — the party

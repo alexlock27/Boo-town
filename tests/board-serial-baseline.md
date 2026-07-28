@@ -19,6 +19,9 @@
 >   pixel-hash sequences under real clocks; parallel load starves the rAF cadence.
 > - `r13t1-care-direct` (168s) — pixel-hashed 8-frame sequences per care action per
 >   viewport; same real-clock evidence law.
+> - `r18d-standards` (~50s, RUN18D) — beat 1 of the Celebration Standard is a 220ms pop
+>   sampled once per animation frame; a starved rAF and a missing animation are the same
+>   reading, so it cannot share a lane.
 > - `r18d-intro-freeze` (~110s, RUN18D D3) — drives all eighteen games into a live round and
 >   watches each for 2s with an overlay up. A frozen clock and a clock starved by parallel
 >   load are indistinguishable, so this one has to run alone.

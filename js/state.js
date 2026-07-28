@@ -259,10 +259,15 @@ export function migrate(obj) {
   // the earliest journal stamp if there is one (a restored save really was created then),
   // otherwise lastPlayed. A save with neither keeps 0 and simply has nothing to check
   // against.
+  // The EARLIEST JOURNAL STAMP and nothing else. An earlier cut also fell back to
+  // `lastPlayed`, and that was wrong for a reason worth keeping: lastPlayed MOVES on every
+  // commit, so exporting a backup and importing it invented a brand-new birthday, and the
+  // grown-ups' backup code stopped round-tripping (caught by r4p3-rewards). A save with no
+  // stamps keeps `created: 0` — which is precisely "nothing to check against", and the
+  // clamps in js/quests.js already no-op when createdDayKey() has no answer.
   if (!o.created) {
     const stamps = Object.values(o.journal || {}).filter(v => /^\d{4}-\d{2}-\d{2}$/.test(String(v))).sort();
     if (stamps.length) o.created = Date.parse(stamps[0] + 'T00:00:00') || 0;
-    else if (o.lastPlayed) o.created = o.lastPlayed;
   }
   // v1 giraffe guide { body, patch, acc, name } -> v3 guide object.
   if (o.guide && !o.guide.species) o.guide = migrateGuideShape(o.guide);
