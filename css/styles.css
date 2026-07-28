@@ -5199,6 +5199,96 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .exp-reward { display: grid; justify-items: center; gap: 6px; }
 .exp-complete { font-family: var(--font-display); font-weight: 700; color: var(--star); text-align: center; }
 
+/* ===== RUN18C C1 — the party select, rebuilt ================================
+   It was a stack of 46px chips on the bare night sky with a code-ish feature strip
+   under each one. It is a screen now: a header that says where she is, cream cards on
+   the sky, and Boos big enough to recognise from across a table. */
+.screen.expedition { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.exp-picker { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+  padding: 8px 14px 12px; max-width: 860px; width: 100%; margin: 0 auto; overflow-y: auto; }
+.exp-head { display: grid; justify-items: center; gap: 6px; padding: 4px 62px 0; }
+.exp-title { margin: 0; font-size: 26px; color: var(--card); font-family: var(--font-display); }
+.exp-sub { margin: 0; color: rgba(255,248,240,.88); font-size: 15px; text-align: center; }
+/* the counter chip: a label and a progress bar in one, filling left-to-right */
+.exp-count-chip { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px;
+  background: var(--card); border: 3px solid var(--ink); border-radius: 999px; padding: 7px 16px 7px 12px;
+  min-height: 40px; box-shadow: var(--card-shadow); }
+.exp-count-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--star);
+  transition: width 180ms ease-out; }
+.exp-count-boots, .exp-count-text { position: relative; z-index: 1; }
+.exp-count-boots { display: flex; }
+.exp-count-text { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); }
+.exp-count-chip.pulse { animation: expCountPulse 180ms ease-out; }
+@keyframes expCountPulse { 0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.exp-guide { align-self: center; max-width: 100%; align-items: center; }
+/* .guide-block sets display:flex, which beats the UA's [hidden] — say it here or Twiggy
+   stands beside an empty bubble for the whole selection. */
+.exp-guide[hidden] { display: none; }
+.exp-guests { margin: 0; text-align: center; color: var(--star); font-family: var(--font-display);
+  font-weight: 700; font-size: 15px; min-height: 1px; }
+/* the under-eight state: warm, and holding the one door that helps */
+.exp-need.card { display: grid; justify-items: center; gap: 12px; padding: 16px 18px; text-align: center;
+  max-width: 520px; margin: 0 auto; }
+.exp-need[hidden] { display: none; }
+.exp-need-line { margin: 0; color: var(--ink); font-size: 17px; line-height: 1.35; }
+.exp-party-card.card { padding: 12px; }
+.exp-party-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.exp-chip.exp-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 120px; min-height: var(--tap); padding: 8px 6px 10px; background: var(--card);
+  border: 3px solid rgba(42,27,78,.32); border-radius: 18px; cursor: pointer;
+  font: inherit; color: var(--ink); transition: transform 120ms ease-out; }
+.exp-tile-art { display: flex; width: 88px; height: 88px; align-items: center; justify-content: center; }
+.exp-tile-art svg { width: 100%; height: 100%; }
+.exp-tile-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink);
+  line-height: 1.15; text-align: center; }
+/* The selected state. The 4px --zing ring is the pack's; the 2px ink ring outside it is the
+   contrast law's — teal on cream measures 1.85:1, so an unbounded teal ring would be a
+   selection indicator a child cannot see. Bounded by ink on both sides it reads at 7.9:1. */
+.exp-chip.exp-tile.sel { border-color: var(--ink);
+  box-shadow: 0 0 0 4px var(--zing), 0 0 0 6px var(--ink); }
+.exp-tick { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; display: none; }
+.exp-chip.exp-tile.sel .exp-tick { display: block; }
+.exp-chip.exp-tile.hop { animation: expHop 250ms ease-out; }
+@keyframes expHop { 0% { transform: translateY(0); } 40% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+.exp-chip.exp-tile.visitor { opacity: .96; border-style: dashed; border-color: var(--ink); }
+.exp-visitor-flag { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: .06em;
+  color: #6B4E9B; font-style: normal; }
+/* "Off we go!" waits below the fold and slides up on the eighth Boo */
+.exp-go-wrap { display: flex; justify-content: center; padding: 2px 0 4px;
+  transform: translateY(96px); opacity: 0; pointer-events: none;
+  transition: transform 300ms cubic-bezier(.2,.9,.3,1.2), opacity 300ms ease-out; }
+.exp-go-wrap.up { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.exp-go.btn.big { min-height: 64px; background: var(--pop); font-size: 22px; padding: 0 34px; }
+/* the departure: transform-only, staggered, off the right edge */
+.exp-party-grid.exp-departing .exp-chip { pointer-events: none; }
+.exp-party-grid.exp-departing .exp-chip.sel { animation: expWalkOff 1200ms cubic-bezier(.45,0,.75,.3) forwards; }
+.exp-party-grid.exp-departing .exp-chip:not(.sel) { transition: opacity 300ms ease-out; opacity: .18; }
+@keyframes expWalkOff {
+  0%   { transform: translate3d(0,0,0) rotate(0deg); }
+  18%  { transform: translate3d(14vw,-8px,0) rotate(3deg); }
+  38%  { transform: translate3d(32vw,0,0) rotate(-3deg); }
+  58%  { transform: translate3d(52vw,-8px,0) rotate(3deg); }
+  100% { transform: translate3d(130vw,0,0) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .exp-party-grid.exp-departing .exp-chip.sel { animation: none; transition: opacity 260ms ease-out; opacity: 0; }
+  .exp-chip.exp-tile.hop, .exp-count-chip.pulse { animation: none; }
+  .exp-go-wrap { transition: opacity 200ms ease-out; transform: none; }
+}
+/* "Calm motion" clamps every duration to a hair above zero, so the walk-off would snap to
+   its last keyframe. Give it the same fade the OS setting gets, and no translate. */
+html.calm-motion .exp-party-grid.exp-departing .exp-chip.sel { animation: none !important; opacity: 0; }
+html.calm-motion .exp-go-wrap { transform: none; }
+@media (max-width: 600px), (max-height: 500px) {
+  .exp-picker { padding: 6px 10px 10px; gap: 8px; }
+  .exp-head { padding: 2px 56px 0; }
+  .exp-title { font-size: 21px; }
+  .exp-sub { font-size: 13px; }
+  .exp-chip.exp-tile { width: 96px; }
+  .exp-tile-art { width: 84px; height: 84px; }
+  .exp-go.btn.big { min-height: 64px; font-size: 19px; padding: 0 24px; }
+}
+
 /* RUN10 P17 (RUN11 Q5): caper signposts + detective notebook */
 .caper-town-sign { position: absolute; transform: translateX(-50%); background: #FFF3D0; color: #5A3E20; border: 3px solid #8A5A2B; border-radius: 8px; padding: 4px 10px; font-family: var(--font-display); font-weight: 700; font-size: 13px; white-space: nowrap; box-shadow: 0 3px 0 #6B4420; z-index: 6; }
 .trail-chip.caper .tc-ic { font-size: 22px; }
