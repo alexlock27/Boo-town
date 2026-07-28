@@ -130,11 +130,20 @@ for (const [W, H] of [[1024, 768], [768, 1024], [390, 844]]) {
 
   // ---- 2. the bought card -------------------------------------------------------------
   console.log('== 2. the purchase confirmation card ==');
-  const bought = await page.evaluate(() => {
+  const bought = await page.evaluate(async () => {
+    // RUN18B Y14: anything at 10+ stars now asks first. Say yes please, then carry on —
+    // this suite is about what happens AFTER a purchase, not about the confirm itself
+    // (tests/r18b-buy-confirm.mjs owns that).
+    // No trailing wait: r18a-shop-chrome times the bought card's LIFETIME from the moment
+    // this returns, so a pause here would start its stopwatch late and read short.
+    const yesPlease = async () => { await new Promise(r => setTimeout(r, 80));
+      const y = [...document.querySelectorAll('.overlay .dialog-btns .btn')].find(b => b.textContent === 'Yes please!');
+      if (y) y.click(); };
     const buys = [...document.querySelectorAll('.shop-card .sc-buy')].filter(b => b.textContent === 'Buy');
     if (!buys.length) return { none: true };
     const name = buys[0].closest('.shop-card').querySelector('.sc-name').textContent;
     buys[0].click();
+    await yesPlease();
     return { name };
   });
   assert(!bought.none, `something affordable was bought (${bought.name})`);
@@ -180,9 +189,18 @@ for (const [W, H] of [[1024, 768], [768, 1024], [390, 844]]) {
 
   // ---- 3. and a tap dismisses it early -------------------------------------------------
   const dismissed = await page.evaluate(async () => {
+    // RUN18B Y14: anything at 10+ stars now asks first. Say yes please, then carry on —
+    // this suite is about what happens AFTER a purchase, not about the confirm itself
+    // (tests/r18b-buy-confirm.mjs owns that).
+    // No trailing wait: r18a-shop-chrome times the bought card's LIFETIME from the moment
+    // this returns, so a pause here would start its stopwatch late and read short.
+    const yesPlease = async () => { await new Promise(r => setTimeout(r, 80));
+      const y = [...document.querySelectorAll('.overlay .dialog-btns .btn')].find(b => b.textContent === 'Yes please!');
+      if (y) y.click(); };
     const buys = [...document.querySelectorAll('.shop-card .sc-buy')].filter(b => b.textContent === 'Buy');
     if (!buys.length) return { none: true };
     buys[0].click();
+    await yesPlease();
     await new Promise(r => setTimeout(r, 300));
     const c = document.querySelector('.shop-bought .sb-card');
     if (!c) return { noCard: true };
@@ -199,15 +217,25 @@ for (const [W, H] of [[1024, 768], [768, 1024], [390, 844]]) {
   // edges. (Found by the playtest critic; ordered small-then-large it happens to hide,
   // which is why it survives a casual look.)
   const rapid = await page.evaluate(async () => {
+    // RUN18B Y14: anything at 10+ stars now asks first. Say yes please, then carry on —
+    // this suite is about what happens AFTER a purchase, not about the confirm itself
+    // (tests/r18b-buy-confirm.mjs owns that).
+    // No trailing wait: r18a-shop-chrome times the bought card's LIFETIME from the moment
+    // this returns, so a pause here would start its stopwatch late and read short.
+    const yesPlease = async () => { await new Promise(r => setTimeout(r, 80));
+      const y = [...document.querySelectorAll('.overlay .dialog-btns .btn')].find(b => b.textContent === 'Yes please!');
+      if (y) y.click(); };
     const pick = () => [...document.querySelectorAll('.shop-card .sc-buy')].filter(b => b.textContent === 'Buy');
     const first = pick();
     if (first.length < 2) return { tooFew: first.length };
     first[0].click();
+    await yesPlease();
     await new Promise(r => setTimeout(r, 350));
     const afterOne = document.querySelectorAll('.shop-bought').length;
     const again = pick();
     if (!again.length) return { tooFew: 1 };
     again[0].click();
+    await yesPlease();
     await new Promise(r => setTimeout(r, 350));
     const cards = [...document.querySelectorAll('.shop-bought')];
     return { afterOne, afterTwo: cards.length, visible: cards.filter(c => c.getBoundingClientRect().width > 0).length };
