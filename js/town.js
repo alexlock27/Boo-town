@@ -456,6 +456,21 @@ export function mount(container, params, ctx) {
 
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
+    // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
+    // there", so she arrives IN build mode with that item already selected in its own
+    // drawer tab — no hunting for the hammer and no hunting through six tabs. Selected,
+    // not held on the finger: the pack is explicit that selection is enough.
+    if (params && params.build && !buildMode) {
+      toggleBuildMode();
+      const held = params.place && resolveItem(params.place);
+      if (held) {
+        const spec = DRAWER_TABS_SPEC.find(t => t.test(held));
+        if (spec) drawerApi.showTab(spec.id);
+        holding = params.place;
+        placeMode = true;
+        renderDrawer(); updateHint();
+      }
+    }
     if (params && params.enterPan) setTimeout(() => panAcrossZone(0, 1600), REDUCED ? 0 : 200);
     if (params && params.openWishWell) setTimeout(() => openWellHere(), 350);
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
@@ -713,7 +728,7 @@ export function mount(container, params, ctx) {
       const stallX = zoneW * 0.42;
       const stall = el('button', {
         class: 't-shop-stall', 'aria-label': 'Go to the Boo Shop',
-        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); ctx.go('shop'); }
+        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); ctx.go('shop', { fromArea: AREA.key }); }
       });
       stall.style.left = stallX + 'px';
       stall.style.top = (groundY - 118) + 'px';

@@ -163,7 +163,11 @@ for (const [W, H] of [[1024, 768], [768, 1024], [390, 844]]) {
   assert(card.intersectsAnyTab === false, `its box intersects none of the ${card.tabsCount} shelf tabs`);
   assert(card.onScreen, `and it is fully on screen (${JSON.stringify(card.box)})`);
   assert(card.pointer === 'auto' && card.wrapPointer === 'none', 'the card takes taps; the backdrop does not hold the shop hostage');
-  assert(/is yours! Find it in Build\./.test(card.line), `the copy is untouched — RUN18B Y2 owns the words ("${card.line}")`);
+  // H4 owned the CONTAINER; RUN18B Y2 then took the words, exactly as H4's own note said
+  // it would. So this asserts what H4 actually cares about and Y2 cannot invalidate: the
+  // card names the thing she just bought, on the card, in a readable line.
+  assert(card.line.startsWith(bought.name + ' is yours'),
+    `the card names what she bought ("${card.line}")`);
   await page.screenshot({ path: `${SHOTS}/bought-${W}.png` });
 
   // it must still be there well past 2s, and gone after its full life

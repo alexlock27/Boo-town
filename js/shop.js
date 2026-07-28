@@ -23,6 +23,29 @@ import { stampJournal } from './quests.js';
 export const SHOP_BOUGHT_MS = 2500;
 const SHOP_BOUGHT_CLEAR = 14;
 
+// ---- RUN18B Y2: the handoff ------------------------------------------------------------
+// "Find it in Build" was a set of directions, not a door. The confirmation card now offers
+// the VERB the thing wants — pop it in a room, find it a spot, put it on a Boo — and takes
+// her there with the item already selected in the right drawer tab.
+//
+// Keyed by SHELF first (the Special shelf has its own line whatever kind its stock is this
+// month) and then by the item's KIND. `[Not now] is always second`, per the pack.
+export const USE_VERBS = {
+  special:   { line: (n) => `${n} is yours — something truly special! Where will it live?`, label: 'Take me there', to: 'town-meadow' },
+  furniture: { line: (n) => `${n} is yours! Pop it in a room?`, label: 'Take me there', to: 'house-lounge' },
+  accessory: { line: (n) => `${n} is yours! Who's wearing it?`, label: 'Dress a Boo', to: 'dress' },
+  place:     { line: (n) => `${n} is yours! Where shall it go?`, label: 'Take me there', to: 'town-here' }
+};
+// deco, landscape and the playground shelf's stock all want the same verb: somewhere outside.
+export function useVerbFor(itemId, shelfId) {
+  if (shelfId === 'special') return USE_VERBS.special;
+  const item = BY_ID[itemId];
+  const kind = item && item.kind;
+  if (kind === 'furniture') return USE_VERBS.furniture;
+  if (kind === 'accessory') return USE_VERBS.accessory;
+  return USE_VERBS.place;   // deco · landscape · playground
+}
+
 export const SHOP_INTRO = [
   { text: 'Welcome to my shop! Everything here is bought with stars.' },
   { text: 'Each shelf likes a different kind of star. Look for the little icon!' },
@@ -192,7 +215,9 @@ export function mount(container, params, ctx) {
     const card = root.querySelector(`.shop-card[data-item="${id}"]`);
     if (card && !REDUCED) { const b = card.getBoundingClientRect(); sparkleAt(b.left + b.width / 2, b.top + b.height / 2); }
     const item = BY_ID[id];
-    showBought(item);
+    // Which shelf sold it: the Special shelf has its own line whatever it is stocking.
+    const shelf = SHELVES.find(sh => sh.items.some(([iid]) => iid === id));
+    showBought(item, shelf && shelf.id);
     renderPurse(); renderShelves();
     return r;
   }
@@ -205,10 +230,14 @@ export function mount(container, params, ctx) {
   // screen — same words (RUN18B Y2 replaces those wholesale; only the container is this
   // packet's business), but on a real surface, sitting clear of the shelf tabs, held long
   // enough to read, and dismissible by tapping it.
-  function showBought(item) {
+  function showBought(item, shelfId) {
+    // RUN18B Y2: the card offers the VERB the thing wants, and takes her there. The spoken
+    // line stays the short one — "«name» is yours!" — because the written line carries the
+    // question and the buttons answer it.
+    const verb = useVerbFor(item.id, shelfId);
     const card = el('div', { class: 'sb-card', role: 'status' }, [
       el('div', { class: 'sb-art', html: renderItem(item, { size: 96 }) }),
-      el('p', { class: 'sb-line', text: `${item.name} is yours! Find it in Build.` })
+      el('p', { class: 'sb-line', text: verb.line(item.name) })
     ]);
     const wrap = el('div', { class: 'shop-bought' }, [card]);
     // ONE card at a time. Two purchases in quick succession used to leave two live cards
@@ -233,8 +262,32 @@ export function mount(container, params, ctx) {
       wrap.classList.remove('show');
       timers.after(220, () => wrap.remove());
     };
+    // The two buttons. [Not now] is ALWAYS second, per the pack — the offer first, the
+    // way out second, so the way out is never the thing her thumb lands on.
+    const go = el('button', {
+      class: 'btn sb-go', text: verb.label,
+      onclick: (e) => { e.stopPropagation(); try { sfx.tap(); } catch {} dismiss(); takeHer(verb.to, item.id); }
+    });
+    const notNow = el('button', {
+      class: 'btn soft sb-later', text: 'Not now',
+      onclick: (e) => { e.stopPropagation(); try { sfx.tap(); } catch {} dismiss(); }
+    });
+    card.appendChild(el('div', { class: 'sb-actions' }, [go, notNow]));
+
+    // Tapping the CARD still dismisses (RUN18A H4), but not when the tap was a button.
     card.addEventListener('click', () => { try { sfx.tap(); } catch {} dismiss(); });
     timers.after(SHOP_BOUGHT_MS, dismiss);
+  }
+
+  // Where each verb goes, with the item already selected in the right drawer tab. The
+  // outdoor destination is the area she came into the shop FROM, so "where shall it go?"
+  // means the place she was just looking at — falling back to the Meadow when she arrived
+  // by a route with no area of its own (the Collection's shop link).
+  function takeHer(to, itemId) {
+    if (to === 'dress') return ctx.go('collection', { from: 'shop', dressWith: itemId });
+    if (to === 'house-lounge') return ctx.go('town', { area: 'boohouse', room: 'lounge', build: true, place: itemId });
+    const area = to === 'town-meadow' ? 'meadow' : ((params && params.fromArea) || 'meadow');
+    return ctx.go('town', { area, build: true, place: itemId });
   }
 
   // First visit: the Welcome purse, with a small ceremony, so day one is browsing with
