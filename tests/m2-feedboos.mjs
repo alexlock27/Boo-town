@@ -46,13 +46,17 @@ console.log('== one wrong drop must NOT end the round ==');
 const nBuckets = await page.evaluate(() => document.querySelectorAll('.feeder').length);
 const correct0 = Number(await page.getAttribute('.food-item', 'data-bucket'));
 const wrongBucket = (correct0 + 1) % nBuckets;
-const heartsBefore = await page.evaluate(() => document.querySelectorAll('.heart-ic.on').length);
+// RUN18B Y7 removed the hearts ROW at every tier — nothing is drawn and nothing announces
+// it. The forgiveness counter it used to visualise still exists (round flow and results math
+// read it), so this asks the counter instead of counting pips that no longer exist.
+const heartsBefore = await page.evaluate(() => window.__feedboos.state().hearts);
 await dragToFeeder(page, wrongBucket);
 await page.waitForTimeout(400);
 const stillPlaying = await page.$('.food-item');
 assert(!!stillPlaying, 'round still going after a wrong drop');
-const heartsAfter = await page.evaluate(() => document.querySelectorAll('.heart-ic.on').length);
-assert(heartsAfter === heartsBefore - 1, 'a heart dimmed on wrong drop (' + heartsBefore + '->' + heartsAfter + ')');
+const heartsAfter = await page.evaluate(() => window.__feedboos.state().hearts);
+assert(heartsAfter === heartsBefore - 1, 'a wrong drop still spends a try, silently (' + heartsBefore + '->' + heartsAfter + ')');
+assert(await page.evaluate(() => document.querySelectorAll('.heart-ic, .hearts-row, .hearts-wrap').length) === 0, 'and nothing is drawn for it');
 
 console.log('== now feed everything correctly ==');
 let guard = 0;

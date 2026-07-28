@@ -233,9 +233,13 @@ export function mount(container, params, ctx) {
       });
       food.addEventListener('pointermove', e => {
         if (!dragging) return;
-        const parent = tray.getBoundingClientRect();
-        const x = (e.clientX - ox - (parent.left + parent.width / 2)) / scale;
-        const y = (e.clientY - oy - (parent.top + parent.height / 2)) / scale;
+        // Anchored to the food's OWN untransformed centre (captured at pointerdown), not to
+        // the tray's centre. The tray stopped centring its child when Y5 pulled the food up
+        // under the feeders for the reach rule, and a transform measured from the tray's
+        // middle then threw the card ~185px above the finger — off the top edge at 768x1024,
+        // so she was dragging nothing. The card must sit under the finger at every layout.
+        const x = (e.clientX - ox - (startRect.left + startRect.width / 2)) / scale;
+        const y = (e.clientY - oy - (startRect.top + startRect.height / 2)) / scale;
         food.style.transform = `translate(${x}px, ${y}px) scale(1.05)`;
         highlight(e.clientX, e.clientY);
       });
@@ -289,10 +293,23 @@ export function mount(container, params, ctx) {
     // The last CHOMP_FLY_PX into the mouth take CHOMP_FLY_MS; whatever distance came
     // before that is covered first, at the arc's own speed.
     function flyToMouth(food, feeder, done) {
-      const fr = food.getBoundingClientRect(), tr = feeder.getBoundingClientRect();
-      const dx = (tr.left + tr.width / 2) - (fr.left + fr.width / 2);
-      const dy = (tr.top + tr.height * 0.42) - (fr.top + fr.height / 2);
+      // Clear the drag transform BEFORE measuring, and clear it FOR REAL. `.food-item` has a
+      // 200ms transform transition, so dropping the inline transform does not move the box
+      // synchronously — it starts easing back, and a rect read on the next line is still the
+      // DRAGGED rect. That is what made a dragged item vanish at a fixed point on the empty
+      // floor: measured at the mouth she had dragged it to, the delta came out as zero, and
+      // the reset then teleported it home to fly nowhere. Suppress the transition, flush the
+      // layout, then measure the origin the fly classes will actually animate from.
+      food.style.transition = 'none';
       food.style.transform = '';
+      void food.offsetWidth;
+      const fr = food.getBoundingClientRect();
+      // ...and aim at the BOO's mouth, not at 0.42 of a zone that also contains a signpost.
+      const boo = feeder.querySelector('.feeder-boo') || feeder;
+      const tr = boo.getBoundingClientRect();
+      const dx = (tr.left + tr.width / 2) - (fr.left + fr.width / 2);
+      const dy = (tr.top + tr.height * (96 / 130)) - (fr.top + fr.height / 2);   // mouth y in the Boo viewBox
+      food.style.transition = '';                            // the fly classes own it again
       if (REDUCED) { done(); return; }                       // reduced: mouth swap + sfx only
       const d = Math.hypot(dx, dy) || 1;
       const k = Math.max(0, (d - CHOMP_FLY_PX) / d);         // where the final stretch begins
