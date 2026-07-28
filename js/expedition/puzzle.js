@@ -47,19 +47,76 @@ function plural(key, number) { return `${BUDGET_LABEL[key] || key}: ${number}`; 
 // its species. Strip the noun so a Grump asks for "sweet ones", never "sweet species".
 function wanted(rule) { return String((rule && rule.text) || '').replace(/ (species|colour)$/, ''); }
 
+// RUN18C C3/C4 — NOT HAVING SOMETHING IS NOT SHARING IT.
+//
+// The Ferry Raft's whole rule, printed on its own banner, is "Neighbours share exactly ONE
+// thing". This function counted four features as shared whenever they were EQUAL, and two
+// of the four are booleans that are false for almost every Boo in the game: 44 catalogue
+// Boos, 16 with an accessory, and none shiny by default. So two ordinary Boos "shared"
+// not-wearing-a-hat and not-being-shiny before anyone looked at what they are or what
+// colour they are — a floor of 2 on every pair, when the rule needs exactly 1.
+//
+// Measured on the eight starter Boos: ZERO of the 28 pairs shared exactly one thing (every
+// pair shared 2 or 3), so no seating satisfied the law and THE RAFT COULD NOT BE COMPLETED
+// AT ALL. A child with eight plain Boos could pull the sail forever. It has been that way
+// since RUN10 P16 and nothing caught it, because no test had ever finished the node —
+// the raft's own `try` hook pulled the sail on an empty deck and called that a solve.
+//
+// The repair is to the PREDICATE, not to the rule: a shared feature is now one they both
+// HAVE. Same species, same colour, both wearing an accessory, both shiny. The sentence on
+// the banner is unchanged and is finally true — which is the point, because a nine-year-old
+// reading "share exactly one thing" is looking at what the two Boos have, not at what
+// neither of them has. Logged for Alex in NEEDS_ALEX.md with the repro in BLOCKED.md.
 export function sharedFeatureCount(a, b) {
   const aa = featuresOf(a), bb = featuresOf(b);
-  return ['species', 'colour', 'accessory', 'shiny'].filter(path => aa[path] === bb[path]).length;
+  const same = path => aa[path] === bb[path];
+  const bothHave = path => !!aa[path] && !!bb[path];
+  return ['species', 'colour'].filter(same).length + ['accessory', 'shiny'].filter(bothHave).length;
 }
 export function raftEdge(a, b) { return !a || !b ? 'empty' : sharedFeatureCount(a, b) === 1 ? 'green' : sharedFeatureCount(a, b) === 0 ? 'red' : 'amber'; }
 export function raftValid(seats) {
-  const width = 4;
+  const width = 4;                       // the raft is always four across; only its LENGTH grows
   return seats.every((boo, index) => {
     if (!boo) return true;
     const right = index % width < width - 1 ? seats[index + 1] : null;
     const below = index + width < seats.length ? seats[index + width] : null;
     return raftEdge(boo, right) !== 'red' && raftEdge(boo, right) !== 'amber' && raftEdge(boo, below) !== 'red' && raftEdge(boo, below) !== 'amber';
   });
+}
+
+// Can these riders be seated on a deck of `size` seats (four across) so that every pair of
+// neighbours shares exactly one thing? Backtracks down the seats: at each one, either sit a
+// rider whose already-placed neighbours all agree, or leave it empty. Returns the seating,
+// or null. Exported because it is the thing the raft's guarantee rests on.
+//
+// A solution ALWAYS exists for a big enough deck — a checkerboard leaves every rider with
+// nothing but empty seats around them — which is what makes the loop in raftPuzzle finite.
+export function packRaft(riders, size) {
+  const placed = Array(size).fill(null), used = new Set();
+  const around = idx => [idx % 4 ? idx - 1 : -1, idx % 4 < 3 ? idx + 1 : -1, idx - 4, idx + 4].filter(i => i >= 0 && i < size);
+  const fits = (idx, boo) => around(idx).every(i => !placed[i] || raftEdge(boo, placed[i]) === 'green');
+  const rec = (idx, left) => {
+    if (!left) return true;
+    if (idx >= size || size - idx < left) return false;
+    for (const boo of riders) {
+      if (used.has(boo.id) || !fits(idx, boo)) continue;
+      placed[idx] = boo; used.add(boo.id);
+      if (rec(idx + 1, left - 1)) return true;
+      placed[idx] = null; used.delete(boo.id);
+    }
+    return rec(idx + 1, left);
+  };
+  return rec(0, riders.length) ? placed : null;
+}
+
+// The smallest deck (in rows of four, never fewer than the authored 4x3) that these riders
+// can actually be seated on. THE RAFT IS NEVER BUILT UNWINNABLE — this is the guarantee,
+// and it is made before a single seat is drawn rather than discovered by a child who has
+// pulled the sail twenty times.
+export function raftRowsFor(riders) {
+  const start = Math.max(3, Math.ceil((riders.length + 4) / 4));
+  for (let rows = start; rows <= riders.length + 3; rows++) if (packRaft(riders, rows * 4)) return rows;
+  return riders.length + 3;
 }
 
 export function mount(container, params, ctx) {
@@ -266,27 +323,27 @@ export function mount(container, params, ctx) {
     const rules = genExclusiveRules(people, 2, { tier }) || [];
     const dock = el('div', { class: 'exp-dock' });
     const bridges = el('div', { class: 'bridge-row' });
-    let chosen = null, chosenTile = null, busy = false;
+    let chosen = null, chosenTile = null;
     progressLabel = () => `Across: ${solved.length} of ${people.length}`;
     const cross = (side, target) => {
-      if (busy || !chosen || solved.includes(chosen.id)) return;
+      if (!chosen || solved.includes(chosen.id)) return;
       const boo = chosen, tile = chosenTile;
       const good = rules[side] ? rules[side].pred(boo) : true;
       if (good) {
-        busy = true;
+        // The line, the chime and the counter land AT ONCE — the Celebration Standard is
+        // 300ms, and an earlier cut of this held every one of them behind the 900ms walk
+        // AND locked the board for its duration, which is 7 seconds of waiting across a
+        // party of eight. The walk is the visible travel, not the gate on her next move.
         solved.push(boo.id);
         target.classList.add('bridge-pass');
-        crossTo(boo, tile, target, 'walk').then(() => {
-          target.classList.remove('bridge-pass');
-          busy = false;
-          right(`${boo.name} skips safely across!`);
-          if (solved.length === people.length) finish();
-        });
         tile?.classList.add('gone');
+        right(`${boo.name} skips safely across!`);
+        crossTo(boo, tile, target, 'walk').then(() => target.classList.remove('bridge-pass'));
       } else wrongAt(boo, tile, target, `${boo.name} tumbles back giggling!`);
       dock.querySelector(`[data-id="${boo.id}"]`)?.setAttribute('disabled', '');
       chosen = null; chosenTile = null;
-      if (!busy && solved.length === people.length) finish();
+      // let the last Boo actually arrive before the screen changes under them
+      if (solved.length === people.length) setTimeout(finish, REDUCED ? 0 : CROSS_MS);
     };
     [0, 1].forEach(side => bridges.appendChild(el('button', { class: `bridge-guardian bridge-${side}`, 'aria-label': `Bridge ${side + 1}`, onclick: event => cross(side, event.currentTarget) }, [
       el('span', { class: 'bg-art', html: renderExpGlyph('guardian', { size: 66 }) }),
@@ -376,14 +433,21 @@ export function mount(container, params, ctx) {
   function raftPuzzle() {
     const count = [8, 10, 12, 12][tier - 1];
     const riders = people.slice(0, count);
-    const seats = Array(12).fill(null); let chosen = null;
+    // THE RAFT GROWS UNTIL IT CAN BE FINISHED. It was twelve seats whatever the tier asked
+    // for, so a tier-3 party of twelve had to pack a 4x3 grid perfectly — every adjacency
+    // green, and no empty seat anywhere to separate two Boos who did not suit each other.
+    // Measured after the sharedFeatureCount repair: eight riders in twelve seats solved
+    // 12/12 of the time, twelve riders in twelve seats 0/12. The empty seats ARE the slack
+    // the law needs, so the deck is sized to the party it is carrying — and sized by
+    // ASKING, not by a formula, so the answer is a guarantee and not an estimate.
+    const seats = Array(raftRowsFor(riders) * 4).fill(null); let chosen = null;
     const grid = el('div', { class: 'raft-seats' }); const dock = el('div', { class: 'exp-dock' });
     let chosenTile = null;
     progressLabel = () => `Seated: ${seats.filter(Boolean).length} of ${riders.length}`;
     const draw = () => {
       grid.innerHTML = '';
       seats.forEach((boo, index) => {
-        const neighbours = [index % 4 ? seats[index - 1] : null, index % 4 < 3 ? seats[index + 1] : null, index > 3 ? seats[index - 4] : null, index < 8 ? seats[index + 4] : null].filter(Boolean);
+        const neighbours = [index % 4 ? seats[index - 1] : null, index % 4 < 3 ? seats[index + 1] : null, index >= 4 ? seats[index - 4] : null, index < seats.length - 4 ? seats[index + 4] : null].filter(Boolean);
         const state = neighbours.reduce((worst, neighbour) => { const edge = raftEdge(boo, neighbour); return edge === 'red' ? 'red' : edge === 'amber' && worst !== 'red' ? 'amber' : worst; }, 'green');
         grid.appendChild(el('button', {
           class: `raft-seat ${boo ? state : 'empty'}`,
@@ -416,9 +480,23 @@ export function mount(container, params, ctx) {
       el('span', { class: 'es-art', html: renderExpGlyph('raft', { size: 30 }) }), el('span', { text: 'Pull the sail' })
     ])); draw();
     status.textContent = 'Tap a Boo, then tap a seat.';
+    // A seating that satisfies the law, found by backtracking down the seats: at each one,
+    // either sit a rider whose placed neighbours all share exactly one thing with them, or
+    // leave it empty. Twelve seats and eight riders make this cheap. It exists so `try`
+    // can actually FINISH the raft — it was the only node whose hook pulled the sail on an
+    // empty deck and called that a solve, which is why no scripted run had ever completed
+    // a whole trail. It is a test hook, not a hint: nothing in the UI calls it.
+    const solveSeats = () => {
+      const packing = packRaft(riders, seats.length);
+      if (!packing) return false;
+      packing.forEach((boo, idx) => { seats[idx] = boo; });
+      draw(); tickProgress();
+      return true;
+    };
     // The raft has no generated rule — its rule is the seating law itself, so the hint
     // states that law rather than pointing at a Boo.
-    return { rules: () => [], hintLine: () => 'Sit Boos who share exactly ONE thing next to each other.', try: () => sail(), seats: () => seats.slice(), valid: () => raftValid(seats) };
+    return { rules: () => [], hintLine: () => 'Sit Boos who share exactly ONE thing next to each other.',
+      solve: solveSeats, try: () => { solveSeats(); sail(); }, seats: () => seats.slice(), valid: () => raftValid(seats) };
   }
 
   function hotelPuzzle() {
@@ -458,7 +536,7 @@ export function mount(container, params, ctx) {
       if (tier === 4 && !shifted && solved.length >= Math.ceil(people.length / 2)) {
         shifted = true; const changed = 1; rules[changed] = rules[changed]?.swap?.() || rules[changed]; housed[changed] = []; solved = housed.flat().filter(Boolean).map(boo => boo.id); status.textContent = 'NEW SHIFT! One floor changed its mind!';
       }
-      draw(); if (solved.length === people.length) finish();
+      draw(); if (solved.length === people.length) setTimeout(finish, REDUCED ? 0 : CROSS_MS);
     };
     people.forEach(boo => dock.appendChild(dockTile(boo, (picked, tile) => {
       chosen = picked; chosenTile = tile; selectIn(dock, tile);
