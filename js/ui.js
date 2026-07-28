@@ -177,19 +177,12 @@ export function starsRow(count, { max = 3, size = 34 } = {}) {
   return `<span class="stars-row">${s}</span>`;
 }
 
-// ---- hearts row — RETIRED (RUN18B Y7) -------------------------------------
-// Nothing renders this any more: the game shell dropped the row at every tier, and nothing
-// replaced it. Kept only so an old caller cannot crash; do not reintroduce it.
-export function heartsRow(remaining, { max = 3, size = 26 } = {}) {
-  let s = '';
-  for (let i = 0; i < max; i++) {
-    const on = i < remaining;
-    s += `<svg viewBox="0 0 24 24" width="${size}" height="${size}" class="heart-ic ${on ? 'on' : 'off'}">
-      <path d="M12 21s-7.5-4.9-9.6-9.2C1 8.6 2.6 5.5 5.7 5.5c1.9 0 3.2 1.1 4.3 2.6C11 6.6 12.4 5.5 14.3 5.5c3.1 0 4.7 3.1 3.3 6.3C19.5 16.1 12 21 12 21z"
-        fill="${on ? 'var(--pop)' : 'rgba(255,255,255,0.16)'}" stroke="${on ? '#D85AA6' : 'rgba(255,255,255,0.28)'}" stroke-width="1.4"/></svg>`;
-  }
-  return `<span class="hearts-row" aria-label="tries left ${remaining}">${s}</span>`;
-}
+// RUN18B Y7 removed the hearts row from every tier: it counted down while the round carried
+// on regardless, telling a child she was running out of something she was not. RUN18D
+// deletes what was left of it — an unused renderer still carrying the aria-label "tries
+// left", which is the exact wording RUN12 flagged as saying the opposite of the truth.
+// (.hearts-row survives in css/styles.css only as a shared flex rule with .stars-row, and
+// two suites assert the row is never drawn, which is the guarantee worth keeping.)
 
 // ---- gift icon -----------------------------------------------------------
 export function giftSVG(size = 44) {
