@@ -92,9 +92,15 @@ export function mount(container, params, ctx) {
     const camp = el('div', { class: 'exp-camp' }, [el('span', { text: '🔥' }), mugs, el('small', { text: 'Cosy cocoa at camp' })]);
     const doneAll = NODES.every(node => (ex.progress || {})[node.key] > 0);
     if (doneAll) grantTrailRewards(ex);
-    root.append(el('h2', { text: 'The Expedition Trail' }), nodes, camp,
+    // RUN18A H2: this line used to pass the ternary's `null` straight into append(), which
+    // is NOT el() — el() skips null children, but the DOM's own append() coerces null to
+    // the string "null" and prints it. So every child who had not yet finished the trail
+    // was shown the word "null" under the campfire. Filter, then spread.
+    root.append(...[
+      el('h2', { text: 'The Expedition Trail' }), nodes, camp,
       doneAll ? el('p', { class: 'exp-complete', text: 'The whole trail is glowing with stars!' }) : null,
-      backControl(picker, { floating: true }));
+      backControl(picker, { floating: true })
+    ].filter(Boolean));
   }
   // RUN10 P15 rewards: a full trail grants the "First Expedition" trophy; a full trail at
   // tier ≥2 grants the exclusive Boo Wander (never in box rolls); all nodes at tier 4 grant

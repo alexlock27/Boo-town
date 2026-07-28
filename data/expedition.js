@@ -1,3 +1,11 @@
+// RUN18A H2 — HONEST CONTAINMENT, the exact Course-3 precedent (data/courses.js UNPLAYABLE).
+// The Expedition's logic is finished and its presentation was never built: the audit found
+// it rendering "as a tiny card in a void". So its front door says so plainly and does not
+// open, rather than handing a child a feature that looks broken. RUN18C builds the
+// presentation and DELETES this constant (set it to '' and the card returns to normal) —
+// the truth repairs in js/expedition/ land either way, because 18C builds on them.
+export const CONTAINED = 'Being polished — back soon! 🚧';
+
 export const BUDGETS = { bridges: { sneezes: [6, 6, 8, 8] }, picnic: { huffs: [5, 6, 7, 8] }, raft: { failedSails: [3, 4, 4, 5] }, hotel: { wrongRooms: [6, 8, 10, 10] } };
 export const NODES = [{ key: 'bridges', name: 'Sneezy Bridges', icon: '🌉' }, { key: 'picnic', name: "Picky Grumps' Picnic", icon: '🧺' }, { key: 'raft', name: 'Ferry Raft', icon: '⛵' }, { key: 'hotel', name: 'Boo Hotel', icon: '🏨' }];
 export const GUESTS = [
