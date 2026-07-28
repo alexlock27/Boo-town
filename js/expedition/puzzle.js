@@ -21,6 +21,17 @@ import { sfx } from '../sfx.js';
 // what Boos LOOK LIKE cannot afford to do.
 const CROSS_MS = 900;
 const WOBBLE_MS = 360;
+// The shared ui.js wobble runs 450ms (css .wobble -> @keyframes wob). The pack authors 360
+// for a wrong guess here, so the Expedition drives its own at the authored number rather
+// than leaving a constant in the source asserting something the screen does not do.
+function shake(node) {
+  if (!node || REDUCED) return;
+  node.classList.remove('exp-wobble');
+  void node.offsetWidth;
+  node.style.setProperty('--exp-wobble-ms', `${WOBBLE_MS}ms`);
+  node.classList.add('exp-wobble');
+  setTimeout(() => node.classList.remove('exp-wobble'), WOBBLE_MS + 40);
+}
 
 const BUDGET_KEY = { bridges: 'sneezes', picnic: 'huffs', raft: 'failedSails', hotel: 'wrongRooms' };
 // What the counter CALLS itself to her. The keys above index BUDGETS and must stay as they
@@ -46,6 +57,8 @@ function plural(key, number) { return `${BUDGET_LABEL[key] || key}: ${number}`; 
 // ("pip species") and wrong for a plate of food — featuresOf() reads a topping's `kind` as
 // its species. Strip the noun so a Grump asks for "sweet ones", never "sweet species".
 function wanted(rule) { return String((rule && rule.text) || '').replace(/ (species|colour)$/, ''); }
+// "a, b and c" — a list a nine-year-old reads as a list.
+function listOf(items) { return items.length < 2 ? (items[0] || '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`; }
 
 // RUN18C C3/C4 — NOT HAVING SOMETHING IS NOT SHARING IT.
 //
@@ -188,11 +201,11 @@ export function mount(container, params, ctx) {
     // It used to wobble the thing she aimed at and say something funny about nobody.
     const named = api.wrongLine && api.wrongLine(boo);
     fail(named || fallback, tile || target);
-    if (tile && target && tile !== target) wobble(target);
+    if (tile && target && tile !== target) shake(target);
     sfx.oops();
   };
   const wonder = () => { wonderIndex = Math.min(lines.length - 1, wonderIndex + 1); status.textContent = lines[wonderIndex]; };
-  const fail = (message, target) => { wrong++; updateCounter(); status.textContent = message; if (target) wobble(target); if (wrong % 2 === 0) setTimeout(wonder, 350); };
+  const fail = (message, target) => { wrong++; updateCounter(); status.textContent = message; if (target) shake(target); if (wrong % 2 === 0) setTimeout(wonder, 350); };
   const right = (message) => { status.textContent = message; sfx.chime(); tickProgress(); };
   const finish = () => {
     if (finished) return; finished = true;
@@ -339,8 +352,13 @@ export function mount(container, params, ctx) {
         tile?.classList.add('gone');
         right(`${boo.name} skips safely across!`);
         crossTo(boo, tile, target, 'walk').then(() => target.classList.remove('bridge-pass'));
+        // ...and ONLY a Boo who is across leaves the dock. This line used to sit outside the
+        // branch, so a wrong guess disabled the Boo for good: guess wrong twice and the
+        // party could never all get across, guess wrong eight times and the screen had no
+        // tappable control left at all. The file's own opening line is "never a lockout …
+        // every party always gets home together" (RUN10 P16), and it has never been true.
+        dock.querySelector(`[data-id="${boo.id}"]`)?.setAttribute('disabled', '');
       } else wrongAt(boo, tile, target, `${boo.name} tumbles back giggling!`);
-      dock.querySelector(`[data-id="${boo.id}"]`)?.setAttribute('disabled', '');
       chosen = null; chosenTile = null;
       // let the last Boo actually arrive before the screen changes under them
       if (solved.length === people.length) setTimeout(finish, REDUCED ? 0 : CROSS_MS);
@@ -416,10 +434,14 @@ export function mount(container, params, ctx) {
     };
     // dataset id so the hint's highlight can find a topping — it only ever found Boos.
     TOPPINGS.forEach(item => tray.appendChild(el('button', { class: 'topping', dataset: { id: item.id }, onclick: () => {
-      if (selected[active].length >= 3) { status.textContent = 'That plate is full — serve it!'; wobble(plates.children[active]); return; }
+      if (selected[active].length >= 3) { status.textContent = 'That plate is full — serve it!'; shake(plates.children[active]); return; }
       selected[active].push(item); sfx.tap(); draw();
     } }, [el('span', { class: 'tp-ic', text: item.icon }), el('b', { class: 'tp-name', text: item.name })])));
     board.append(plates, tray, el('button', { class: 'btn big exp-serve', text: 'Serve this plate', onclick: serve })); draw();
+    // Same rule, same restraint. With ONE Grump there is no "which" to discover, so naming
+    // the value would BE the answer — that plate keeps the authored ladder rung.
+    const asked = rules.filter(Boolean).map(rule => wanted(rule));
+    if (asked.length >= 2) lines[0] = `The Grumps want ${listOf(asked)} ones — but which Grump wants which?`;
     status.textContent = 'Put three toppings on the plate, then serve it.';
     return {
       rules: () => rules,
@@ -454,7 +476,7 @@ export function mount(container, params, ctx) {
           'aria-label': boo ? `${boo.name} is in seat ${index + 1}` : `Empty seat ${index + 1}`,
           onclick: event => {
             if (boo) { seats[index] = null; sfx.tap(); draw(); tickProgress(); return; }
-            if (!chosen) { status.textContent = 'Pick a Boo below first!'; wobble(event.currentTarget); return; }
+            if (!chosen) { status.textContent = 'Pick a Boo below first!'; shake(event.currentTarget); return; }
             const rider = chosen, tile = chosenTile;
             seats[index] = rider; chosen = null; chosenTile = null;
             crossTo(rider, tile, event.currentTarget, 'glide');
@@ -524,7 +546,7 @@ export function mount(container, params, ctx) {
       dock.querySelectorAll('button').forEach(button => button.disabled = housed.flat().some(boo => boo?.id === button.dataset.id));
     };
     const house = (floor, room, target) => {
-      if (!chosen) { if (!housed[floor][room]) { status.textContent = 'Pick a Boo below first!'; wobble(target); } return; }
+      if (!chosen) { if (!housed[floor][room]) { status.textContent = 'Pick a Boo below first!'; shake(target); } return; }
       if (housed[floor][room]) return;
       const boo = chosen, tile = chosenTile;
       if (rules[floor]?.pred(boo)) {
@@ -543,6 +565,12 @@ export function mount(container, params, ctx) {
       status.textContent = `${picked.name} is at the desk — which floor?`;
     })));
     board.append(floors, dock); draw();
+    // The generated rule, on the banner, the way bridges does it (RUN18A H2): name what the
+    // floors WANT without naming which floor wants which — that is the thing she is here to
+    // discover. Rung 0 of the wonder ladder stays as the fallback for a party too thin to
+    // generate three rules from.
+    const wants = rules.filter(Boolean).map(rule => rule.text);
+    if (wants.length >= 2) lines[0] = `The floors like ${listOf(wants)} — but which floor likes which?`;
     status.textContent = 'Tap a Boo, then tap a room.';
     return {
       rules: () => rules,

@@ -307,7 +307,7 @@ console.log('== 6. the rule stays, and a wrong guess names the Boo AND the rule 
     document.querySelectorAll('.bridge-guardian')[1].click();     // the other bridge: wrong
     await new Promise(r => setTimeout(r, 80));
     return { name, live: window.__expeditionPuzzle.liveText(), rule: window.__expeditionPuzzle.ruleText(),
-      wobbling: !!document.querySelector('.exp-puzzle-boo.wobble'), ruleText: rules[0].text };
+      wobbling: !!document.querySelector('.exp-puzzle-boo.exp-wobble'), ruleText: rules[0].text };
   });
   assert(wrong.live.includes(wrong.name), `the wrong-guess line names the Boo she picked: "${wrong.live}"`);
   assert(wrong.live.includes(wrong.ruleText), 'and names the rule it broke');
