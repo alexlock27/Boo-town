@@ -115,8 +115,17 @@ console.log('== 2. the card offers the verb, and the way out is second ==');
     if (t) t.click();
     await new Promise(res => setTimeout(res, 250));
     const buy = [...document.querySelectorAll('.shop-shelf[data-shelf="house"] .sc-buy')].find(b => b.textContent === 'Buy');
+    // RUN18B Y14: anything at 10+ stars now asks first. Say yes please, then carry on —
+    // this suite is about what happens AFTER a purchase, not about the confirm itself
+    // (tests/r18b-buy-confirm.mjs owns that).
+    // No trailing wait: r18a-shop-chrome times the bought card's LIFETIME from the moment
+    // this returns, so a pause here would start its stopwatch late and read short.
+    const yesPlease = async () => { await new Promise(r => setTimeout(r, 80));
+      const y = [...document.querySelectorAll('.overlay .dialog-btns .btn')].find(b => b.textContent === 'Yes please!');
+      if (y) y.click(); };
     const name = buy.closest('.shop-card').querySelector('.sc-name').textContent;
     buy.click();
+    await yesPlease();
     await new Promise(res => setTimeout(res, 300));
     const card = document.querySelector('.shop-bought .sb-card');
     const btns = [...card.querySelectorAll('.sb-actions .btn')];
@@ -167,7 +176,16 @@ console.log('== 4. the outdoor jump goes back to the area she came from ==');
     // Scope to the TOWN shelf: every shelf's cards live in the DOM at once, so an
     // unscoped query buys whatever the first shelf happens to be selling.
     const buy = [...document.querySelectorAll('.shop-shelf[data-shelf="town"] .sc-buy')].find(b => b.textContent === 'Buy');
+    // RUN18B Y14: anything at 10+ stars now asks first. Say yes please, then carry on —
+    // this suite is about what happens AFTER a purchase, not about the confirm itself
+    // (tests/r18b-buy-confirm.mjs owns that).
+    // No trailing wait: r18a-shop-chrome times the bought card's LIFETIME from the moment
+    // this returns, so a pause here would start its stopwatch late and read short.
+    const yesPlease = async () => { await new Promise(r => setTimeout(r, 80));
+      const y = [...document.querySelectorAll('.overlay .dialog-btns .btn')].find(b => b.textContent === 'Yes please!');
+      if (y) y.click(); };
     buy.click();
+    await yesPlease();
     await new Promise(res => setTimeout(res, 300));
     document.querySelector('.shop-bought .sb-actions .sb-go').click();
     await new Promise(res => setTimeout(res, 900));

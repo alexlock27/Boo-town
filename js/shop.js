@@ -6,7 +6,7 @@
 // G11 is structural here, not a convention: buyItem() deducts from stars.spent ONLY.
 // stars.total and stars.byType are lifetime and are never written by this file.
 
-import { el, clear, backControl, confetti, sparkleAt, REDUCED } from './ui.js';
+import { el, clear, backControl, confetti, sparkleAt, dialog, REDUCED } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { createDrawer } from './drawer.js';
 import { renderItem, renderGuide } from './art.js';
@@ -65,6 +65,9 @@ export const SHOP_INTRO = [
 
 // ---- the purchase engine (the ONLY route from a wish to an owned thing) --------------
 // Returns { ok, reason?, paid? }. Every refusal is a reason, never a silent no-op.
+// RUN18B Y14: at or above this, a purchase is confirmed before it is spent.
+export const CONFIRM_AT_STARS = 10;
+
 export function buyItem(itemId) {
   // The unlock-only gate is asked FIRST so the refusal carries the true reason — a Boo is
   // not "not for sale today", she is never for sale, and the shop says so warmly.
@@ -214,7 +217,25 @@ export function mount(container, params, ctx) {
     }
   }
 
-  function doBuy(id) {
+  // RUN18B Y14: a big spend gets asked about first. Ten stars is several rounds' work, and
+  // the Buy button sits under her thumb on a scrolling shelf — a mis-tap used to be final and
+  // silent. Below ten, and for anything free, nothing changes: a small purchase she meant to
+  // make should not have to be made twice.
+  async function doBuy(id) {
+    const price = priceOf(id);
+    if (price && price.cost >= CONFIRM_AT_STARS) {
+      const t = typeByKey(price.currency) || { name: 'Stars' };
+      const typeWord = String(t.name).replace(/\s*Stars$/, '');
+      const yes = await dialog({
+        title: `Spend ${price.cost} ${typeWord} Stars on ${(BY_ID[id] || {}).name}?`,
+        buttons: [
+          { label: 'Yes please!', value: true },
+          { label: 'Not yet', value: false, kind: 'soft' }
+        ]
+      });
+      // Declining spends nothing and changes nothing — she is still on the shelf she was on.
+      if (!yes) { sfx.tap(); return { ok: false, reason: 'declined' }; }
+    }
     const r = buyItem(id);
     if (!r.ok) {
       // never a silent refusal
