@@ -5,7 +5,6 @@ import { renderGuide, renderItem } from './art.js';
 import { getState, mutate } from './state.js';
 import { contentTier } from './content.js';
 import { guideLine, speakMaybe } from './guide.js';
-import { showToast } from './resilience.js';
 import { sfx } from './sfx.js';
 import { WISH_WORDS, SHORT_WISHES, nearestWish, wishItem } from '../data/wishes.js';
 import { keyRows, readAloudButton, nameWithValue } from './a11y.js';
@@ -17,9 +16,19 @@ const KEYROWS = ['qwertyuiop','asdfghjkl','zxcvbnm'];
 // Keep eight empty tiles normally and reveal one overflow tile only for a ninth letter.
 const MAX = 9;
 
+// RUN18B Y3 — the idle hint. A child who has stopped typing is not being stubborn; she has
+// run out of ideas about what this well will even accept. After this long with no key
+// pressed, the well whispers ONE word she has never wished for, spelled out letter by
+// letter, and then never nags again this visit.
+export const WISH_HINT_IDLE_MS = 8000;
+export const WISH_HINT_LETTER_MS = 600;
+
 export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   const state = getState();
   let current = '', misses = 0, locked = false, resetTimer = null;
+  // RUN18B Y3: the idle hint's state. `hintedThisVisit` is the max-1-per-visit cap.
+  let idleTimer = null, hintedThisVisit = false, hintWord = null;
+  const letterTimers = [];
   const overlay = el('div', { class:'overlay wish-overlay', role:'dialog', 'aria-label':'Wish Well' });
   const panel = el('div', { class:'wish-panel' });
   const top = el('header', { class:'wish-head' }, [
@@ -63,6 +72,7 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   renderSlots();
   renderSuggestions();
   speakMaybe(guideLine('L_WISH_OPEN'));
+  armIdleHint();
   const onKeyDown = (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const key = e.key.toLowerCase();
@@ -102,16 +112,53 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   function type(ch) {
     if (locked || current.length >= MAX) return;
     current += ch; sfx.chime(current.length - 1); hint.textContent = ''; renderSlots();
+    armIdleHint();
   }
   function backspace() {
     if (locked) return;
     current = current.slice(0, -1); hint.textContent = ''; renderSlots();
+    armIdleHint();
+  }
+
+  // ---- the idle hint (RUN18B Y3) --------------------------------------------------------
+  // ONE per visit, drawn UNIFORMLY from the words she has never wished for — suggesting a
+  // rainbow to a child who owns three rainbows is not a hint, it is noise. Spelled aloud a
+  // letter at a time so the well teaches the spelling it is asking for, and whispered, so
+  // it reads as the well musing rather than as an instruction.
+  function unwishedWords() {
+    const unlocked = ((getState().wishes || {}).unlocked) || {};
+    return WISH_WORDS.filter(w => !unlocked[w]);
+  }
+  function armIdleHint() {
+    clearTimeout(idleTimer);
+    if (hintedThisVisit || locked) return;
+    idleTimer = setTimeout(showIdleHint, WISH_HINT_IDLE_MS);
+  }
+  function showIdleHint() {
+    if (hintedThisVisit || locked) return;
+    const pool = unwishedWords();
+    if (!pool.length) { hintedThisVisit = true; return; }   // she has wished for everything
+    const word = pool[(Math.random() * pool.length) | 0];
+    hintedThisVisit = true;
+    hintWord = word;
+    hint.textContent = `Someone once wished for a ${word.toUpperCase().split('').join('-')}…`;
+    hint.classList.add('wish-idle-hint');
+    // the letters, individually, 600ms apart — the spelling IS the hint
+    [...word].forEach((ch, i) => {
+      letterTimers.push(setTimeout(() => speakMaybe(ch.toUpperCase()), i * WISH_HINT_LETTER_MS));
+    });
+  }
+  function stopIdleHint() {
+    clearTimeout(idleTimer);
+    letterTimers.forEach(clearTimeout);
+    letterTimers.length = 0;
   }
   function submit() {
     if (locked) return false;
     const word = current.toLowerCase();
     if (!WISH_WORDS.includes(word)) { miss(word); return false; }
     locked = true;
+    stopIdleHint();
     const item = wishItem(word);
     slots.querySelectorAll('.wish-slot.filled').forEach((tile, i) => {
       setTimeout(() => tile.classList.add('gold'), REDUCED ? 0 : i * 45);
@@ -127,7 +174,9 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     magic.append(puff, art);
     sfx.fanfare();
     if (!REDUCED) confetti({ count:36, power:.75, origin:{x:.5,y:.45} });
-    if (wasNew) showToast(`New wish: ${word.toUpperCase()}! (in your Build drawer)`, { autoHideMs:4500, className:'wish-toast' });
+    // RUN18B Y3: the toast is DELETED. "New wish: RAINBOW! (in your Build drawer)" told her
+    // where a thing had been filed; the wish now ARRIVES IN THE WORLD, and the town's
+    // onSpawn owns that moment. A toast is not a payoff (CLAUDE.md, announced moments).
     if (onSpawn) onSpawn(word, item, { wasNew });
     resetTimer = setTimeout(resetWish, 1500);
     return true;
@@ -148,6 +197,7 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   function close() {
     document.removeEventListener('keydown', onKeyDown);
     clearTimeout(resetTimer);
+    stopIdleHint();
     overlay.classList.remove('show');
     setTimeout(() => overlay.remove(), 220);
     if (window.__wishwell && window.__wishwell.close === close) delete window.__wishwell;
@@ -157,6 +207,10 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     type, backspace, submit, spell(word) { current=''; for (const ch of String(word).toLowerCase().slice(0, MAX)) type(ch); return submit(); },
     spellInstant(word) { current=''; locked=false; for (const ch of String(word).toLowerCase().slice(0, MAX)) type(ch); const ok=submit(); resetWish(); return ok; },
     value:() => current, misses:() => misses, hint:() => hint.textContent,
+    // QA: drive the idle hint without waiting 8 real seconds, and read what it chose.
+    idleHint:() => ({ shown: hintedThisVisit, word: hintWord, text: hint.textContent }),
+    forceIdleHint:() => { showIdleHint(); return hintWord; },
+    unwished:() => unwishedWords(),
     unlocked:() => ({...((getState().wishes || {}).unlocked || {})}), close,
     usesDrawer:() => panel.querySelector('.boo-drawer') != null,
     suggestions:() => ['toddler','light'].includes(contentTier()) ? [...suggestions.querySelectorAll('.wish-chip')].map(n => n.dataset.word || n.textContent.toLowerCase()) : []

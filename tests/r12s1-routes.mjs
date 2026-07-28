@@ -238,8 +238,18 @@ console.log('== the Wish Well card opens the well and closes back to the town ==
   const spawned = await page.evaluate(() => window.__wishwell.spellInstant('star'));
   await page.waitForTimeout(500);
   assert(spawned !== false, 'the well accepts a spelled wish');
-  const inTown = await page.evaluate(() => document.querySelectorAll('.wish-town-spawn').length);
-  assert(inTown >= 1, `the wish spawns beside the well in the town (${inTown})`);
+  // RUN18B Y3: a granted wish is a REAL PLACEMENT now, not a decorative `.wish-town-spawn`
+  // that drifted beside the well for 20s and deleted itself. What this route check has
+  // always cared about is that spelling a wish from the Today-rail card puts the thing in
+  // her town — so it asks the save, which is where a kept thing lives.
+  await page.waitForTimeout(500);
+  const inTown = await page.evaluate(() => {
+    const s = window.BooTown.State.getState();
+    const items = ((s.town.areas.meadow || {}).items || []).map(i => i.item);
+    return { placed: items.filter(i => i === 'wish_star').length, rendered: document.querySelectorAll('.t-item[data-item="wish_star"]').length };
+  });
+  assert(inTown.placed === 1 && inTown.rendered >= 1,
+    `the wish ARRIVES in the town as a real placement she can keep (${inTown.placed} saved, ${inTown.rendered} rendered)`);
 
   await page.evaluate(() => window.__wishwell.close());
   await page.waitForTimeout(500);
