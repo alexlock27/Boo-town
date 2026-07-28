@@ -38,12 +38,23 @@ export const USE_VERBS = {
 };
 // deco, landscape and the playground shelf's stock all want the same verb: somewhere outside.
 export function useVerbFor(itemId, shelfId) {
-  if (shelfId === 'special') return USE_VERBS.special;
   const item = BY_ID[itemId];
   const kind = item && item.kind;
-  if (kind === 'furniture') return USE_VERBS.furniture;
-  if (kind === 'accessory') return USE_VERBS.accessory;
-  return USE_VERBS.place;   // deco · landscape · playground
+  // The Special shelf keeps its authored LINE but takes the destination its KIND needs.
+  //
+  // RUN18B Y2 says "Special shelf → build mode, Meadow", and every one of the three items
+  // that shelf actually stocks (projector lamp, grand bookshelf, telescope) is INDOOR-ONLY
+  // furniture. Following the pack literally lands her in the Meadow holding something the
+  // Meadow refuses — "Cosy things like a roof!" — twice, with no way forward. That is
+  // "working-but-dead", which CLAUDE.md's quality bar makes a FAIL, and CLAUDE.md binds
+  // over a pack. So this applies the pack's OWN adjacent rule (furniture → the Lounge)
+  // rather than inventing a third one. Recorded in NEEDS_ALEX.md as a pack correction.
+  // (Found by the playtest critic, who called it an escalation rather than a deviation.)
+  const line = shelfId === 'special' ? USE_VERBS.special.line : null;
+  const base = kind === 'furniture' ? USE_VERBS.furniture
+    : kind === 'accessory' ? USE_VERBS.accessory
+      : USE_VERBS.place;   // deco · landscape · playground
+  return line ? { ...base, line } : base;
 }
 
 export const SHOP_INTRO = [

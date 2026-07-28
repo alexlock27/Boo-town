@@ -27,7 +27,9 @@ const AK = ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 
 const save = () => JSON.stringify({
   version: 17, name: 'Ada', ageAsked: true,
   guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
-  inventory: { boo_inky: 1, boo_plum: 1 },
+  // She has just BOUGHT the hat, so she owns it — the wardrobe only ever shows owned
+  // accessories, and a fixture that skipped this would be testing an empty drawer.
+  inventory: { boo_inky: 1, boo_plum: 1, acc_sunhat: 1 },
   stars: { total: 2000, byType: { maths: 500, word: 500, puzzle: 500, creative: 500, lesson: 500 }, spent: {}, legacy: 500, byGame: {} },
   trophies: {}, boxes: 0,
   town: { areas: Object.fromEntries(AK.map(k => [k, { items: [], paths: [] }])) },
@@ -65,11 +67,23 @@ console.log('== 1. every id on every shelf gets the right verb ==');
   assert(mapped.every(m => m.kind), 'every shelf id resolves to a catalogue item with a kind');
 
   const wrong = mapped.filter(m => {
-    if (m.shelf === 'special') return m.to !== 'town-meadow' || !/something truly special/.test(m.line);
+    // The Special shelf keeps its authored LINE but goes where its item's KIND can
+    // actually be put. The pack says "Special → Meadow"; all three items that shelf
+    // stocks are indoor-only, so the pack's destination is a dead end and CLAUDE.md's
+    // quality bar (working-but-dead is a FAIL) binds over it. See NEEDS_ALEX.md.
+    if (m.shelf === 'special') {
+      if (!/something truly special/.test(m.line)) return true;
+      return m.kind === 'furniture' ? m.to !== 'house-lounge' : m.to !== 'town-here';
+    }
     if (m.kind === 'furniture') return m.to !== 'house-lounge' || !/Pop it in a room\?$/.test(m.line);
     if (m.kind === 'accessory') return m.to !== 'dress' || m.label !== 'Dress a Boo';
     return m.to !== 'town-here' || !/Where shall it go\?$/.test(m.line);
   });
+  // ...and no item is EVER sent somewhere it cannot legally be placed. This is the
+  // assertion the Special shelf failed: indoor-only furniture routed outdoors.
+  const stranded = mapped.filter(m => m.kind === 'furniture' && m.to !== 'house-lounge' && m.to !== 'dress');
+  assert(stranded.length === 0, 'no indoor-only item is ever sent outdoors to be refused'
+    + (stranded.length ? ': ' + JSON.stringify(stranded.map(x => x.id)) : ''));
   assert(wrong.length === 0, 'every id maps to the verb and destination its kind deserves'
     + (wrong.length ? ': ' + JSON.stringify(wrong.slice(0, 3)) : ''));
 
@@ -162,6 +176,48 @@ console.log('== 4. the outdoor jump goes back to the area she came from ==');
   });
   assert(dest.screen === 'town', `it lands in the town (${dest.screen})`);
   assert(/hill/i.test(dest.title || ''), `and in the area she came in FROM, not a default ("${dest.title}")`);
+  await ctx.close();
+}
+
+// ---- 5. the wearable jump opens the wardrobe AT the thing she just bought --------------
+// Y2's own assertion: "both jump routes mount with the drawer on the right tab and the
+// item selected". The accessory route used to land on a bare-headed Boo with the wardrobe
+// shut and the new hat unmarked — the card asked "Who's wearing it?" and the answer was a
+// closed drawer. (Found by the playtest critic: 4 taps / 3.46s to worn, against 1.16s for
+// the build route, and at 390px the bought item was not on screen at all.)
+console.log('== 5. "Who\'s wearing it?" lands on the hat, not on a shut drawer ==');
+for (const W of [1024, 390]) {
+  const ctx = await browser.newContext({ viewport: { width: W, height: W === 390 ? 844 : 768 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => errors.push(String(e).split('\n')[0]));
+  await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), save());
+  await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
+  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
+  await page.evaluate(() => window.BooTown.go('collection', { from: 'shop', dressWith: 'acc_sunhat' }));
+  await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'collection', null, { timeout: 12000 });
+  await page.waitForSelector('.acc-overlay', { timeout: 8000 });
+  await page.waitForTimeout(400);
+  const r = await page.evaluate(() => {
+    const ov = document.querySelector('.acc-overlay');
+    const drawer = ov.querySelector('[class*="drawer"]');
+    const mine = ov.querySelector('.acc-drawer-item.just-bought');
+    const box = mine && mine.getBoundingClientRect();
+    const tabs = [...ov.querySelectorAll('.bd-tab')];
+    const sel = tabs.find(t => t.classList.contains('sel') || t.getAttribute('aria-selected') === 'true');
+    return {
+      open: !!drawer && !/\bclosed\b/.test(drawer.className),
+      marked: !!mine,
+      onScreen: !!(box && box.width > 0 && box.height > 0 && box.top >= 0 && box.bottom <= innerHeight),
+      tab: sel ? sel.textContent : null,
+      aria: mine ? mine.getAttribute('aria-label') : null
+    };
+  });
+  assert(r.open, `${W}px: the wardrobe is already OPEN when she arrives`);
+  assert(r.tab && /hat/i.test(r.tab), `${W}px: on the bought item's own tab ("${r.tab}")`);
+  assert(r.marked, `${W}px: and the thing she just bought is marked in it`);
+  assert(r.onScreen, `${W}px: and it is actually on screen, not below the fold`);
+  assert(/just bought/i.test(r.aria || ''), `${W}px: a screen reader is told which one it is ("${r.aria}")`);
+  await page.screenshot({ path: `${SHOTS}/dress-${W}.png` });
   await ctx.close();
 }
 

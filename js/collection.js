@@ -254,7 +254,7 @@ export function mount(container, params, ctx) {
   // screen: there is nowhere else a hat can be put on.
   if (params && params.dressWith) {
     const firstBoo = COLLECTIBLES.find(it => it.kind === 'boo' && (owned[it.id] || 0) > 0);
-    if (firstBoo) setTimeout(() => openDressUp(firstBoo, { onDone: () => ctx.go('collection') }), 60);
+    if (firstBoo) setTimeout(() => openDressUp(firstBoo, { onDone: () => ctx.go('collection'), highlight: params.dressWith }), 60);
   }
   // Arriving from a specific figure (RUN10 P4: the Gallery) opens straight to its card.
   if (params && params.openItem) {
