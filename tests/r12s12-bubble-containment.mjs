@@ -7,6 +7,10 @@
 // so a hit-test at its centre hit the screen behind it. Measured at 390x844 before the fix:
 // bubbles crossed into the HUD's band in 10 of 12 samples, worst overlap 164px, one bubble
 // genuinely untappable.
+//
+// RUN18D D2 extends it to the pack's three containment assertions: the CORRECT bubble is on
+// screen, whole and tappable, at every sampled instant of a 60-second round; nothing ever
+// touches the HUD; and the drift is the authored BUBBLE_SPEED_PX_S table within 5%.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 
@@ -30,13 +34,13 @@ const SAVE = JSON.stringify({
 });
 
 const browser = await chromium.launch({ args: RESOLVE });
-async function open(vp) {
+async function open(vp, resume) {
   const ctx = await browser.newContext({ viewport: vp });
   const page = await ctx.newPage();
   await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), SAVE);
   await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
   await page.waitForFunction(() => window.BooTown, null, { timeout: 20000 });
-  await page.evaluate(() => window.BooTown.go('bubblepop', { resume: { mix: true } }));
+  await page.evaluate(r => window.BooTown.go('bubblepop', { resume: r }), resume || { mix: true });
   await page.waitForTimeout(1200);
   await page.evaluate(() => { if (window.__intro) window.__intro.close(); });
   await page.waitForTimeout(600);
@@ -46,7 +50,7 @@ async function open(vp) {
 console.log('== a 60-second instrumented run records ZERO bubbles outside the play field ==');
 {
   const { ctx, page } = await open({ width: 390, height: 844 });
-  const totals = { samples: 0, bubbles: 0, outsideField: 0, intersectingHUD: 0, intersectingBar: 0, worst: [] };
+  const totals = { samples: 0, bubbles: 0, outsideField: 0, intersectingHUD: 0, intersectingBar: 0, correctMissing: 0, correctWorst: [], worst: [] };
   const hud = await page.evaluate(() => {
     const t = document.querySelector('.game-topbar')?.getBoundingClientRect();
     return t ? { top: t.top, bottom: t.bottom } : null;
@@ -62,10 +66,14 @@ console.log('== a 60-second instrumented run records ZERO bubbles outside the pl
         const overHud = hudR ? (b.top < hudR.bottom && b.bottom > hudR.top) : false;
         if (outside || overHud) out.push({ ...b, outside, overHud, f });
       }
-      return { count: window.__bubblepop.bubbleRects().length, bad: out };
+      return { count: window.__bubblepop.bubbleRects().length, bad: out, correct: window.__bubblepop.correctState() };
     });
     totals.samples++;
     totals.bubbles += s.count;
+    if (!s.correct || !s.correct.inside || !s.correct.tappable || s.correct.hidden) {
+      totals.correctMissing++;
+      if (totals.correctWorst.length < 4) totals.correctWorst.push(s.correct);
+    }
     for (const b of s.bad) {
       if (b.outside) totals.outsideField++;
       if (b.overHud) totals.intersectingHUD++;
@@ -77,6 +85,9 @@ console.log('== a 60-second instrumented run records ZERO bubbles outside the pl
   assert(totals.outsideField === 0,
     `no bubble ever leaves the play field (${totals.outsideField}${totals.worst.length ? ' → ' + JSON.stringify(totals.worst[0]) : ''})`);
   assert(totals.intersectingHUD === 0, `and none ever crosses into the HUD's band (${totals.intersectingHUD})`);
+  // RUN18D D2 — the correct-answer guarantee, over the whole 60 seconds.
+  assert(totals.correctMissing === 0,
+    `the correct answer was on screen, whole and tappable, in all ${totals.samples} samples (${totals.correctMissing} misses${totals.correctWorst.length ? ' -> ' + JSON.stringify(totals.correctWorst[0]) : ''})`);
   await page.screenshot({ path: `${SHOTS}/contained-390.png` });
   await ctx.close();
 }
@@ -148,16 +159,94 @@ console.log('== difficulty is unchanged: the speed constants are untouched ==');
   });
   assert(r.distinct.length === 1 && r.distinct[0] != null,
     `100 simulated median rounds all return the same star outcome (${r.distinct.join(',')})`);
-  const speeds = await page.evaluate(async () => {
+  const sizeUnchanged = await page.evaluate(async () => {
     const res = await fetch('js/games/bubblepop.js');
     const src = await res.text();
-    return {
-      driftUnchanged: /b\.speed = 0\.6 \+ Math\.random\(\) \* 0\.5;/.test(src),
-      sizeUnchanged: /b\.size = 74 \+ rand\(16\);/.test(src)
-    };
+    return /b\.size = 74 \+ rand\(16\);/.test(src);
   });
-  assert(speeds.driftUnchanged, 'the drift speed constant is exactly as it was (0.6 + rand*0.5)');
-  assert(speeds.sizeUnchanged, 'and so is the bubble size (74 + rand 16) — no retune was needed');
+  assert(sizeUnchanged, 'the bubble size is unchanged (74 + rand 16) — no retune was needed');
+  await ctx.close();
+}
+
+// ============ RUN18D D2: the authored drift, measured, per level ============
+// The old assertion here pinned `b.speed = 0.6 + rand*0.5` — a per-frame nudge whose real
+// px/s depended on the frame clock, which never advanced. D2 authors the drift in px/s and
+// this measures it on the running board, which is the only number a child experiences.
+console.log('== the drift matches BUBBLE_SPEED_PX_S within 5% ==');
+{
+  const { BUBBLE_SPEED_PX_S } = await import('../js/games/bubblepop.js').catch(() => ({ BUBBLE_SPEED_PX_S: null }));
+  assert(!!BUBBLE_SPEED_PX_S, 'the table is exported');
+  const TABLE = BUBBLE_SPEED_PX_S || {};
+  assert(TABLE.S === 110 && TABLE[1] === 140 && TABLE[2] === 170 && TABLE[3] === 200,
+    `the table is the authored one (${JSON.stringify(TABLE)})`);
+  for (const level of ['S', 1, 2, 3]) {
+    const { ctx, page } = await open({ width: 1024, height: 768 }, { cat: 'tables', level, mix: false });
+    const declared = await page.evaluate(() => window.__bubblepop.speedPxS());
+    const measured = await page.evaluate(async () => {
+      const ys = () => window.__bubblepop.bubbleRects().map(b => b.bottom);
+      // Dense sampling over 2.5s, median of every positive step. One long before/after pair
+      // is useless here: at 200 px/s most bubbles wrap inside the window, and the median of
+      // six noisy deltas grazes a 5% tolerance under board load.
+      const d = [];
+      let prev = ys(), tPrev = performance.now();
+      const t0 = tPrev;
+      while (performance.now() - t0 < 2500) {
+        await new Promise(r => setTimeout(r, 100));
+        const cur = ys(); const tNow = performance.now();
+        const dt = (tNow - tPrev) / 1000;
+        for (let i = 0; i < Math.min(prev.length, cur.length); i++) {
+          const v = (prev[i] - cur[i]) / dt;
+          if (v > 1) d.push(v);                    // skip the frames where this one respawned
+        }
+        prev = cur; tPrev = tNow;
+      }
+      d.sort((x, y) => x - y);
+      return d.length >= 30 ? d[d.length >> 1] : null;
+    });
+    const want = TABLE[level];
+    assert(declared === want, `level ${level}: the game declares ${declared} px/s (want ${want})`);
+    assert(measured != null && Math.abs(measured - want) / want <= 0.05,
+      `level ${level}: measured ${measured == null ? '?' : measured.toFixed(1)} px/s, within 5% of ${want}`);
+    await ctx.close();
+  }
+}
+
+// ============ RUN18D D2: retirement fades in place, respawn arrives low ============
+console.log('== a retiring bubble fades at the HUD edge and comes back from the bottom fifth ==');
+{
+  const { ctx, page } = await open({ width: 1024, height: 768 }, { cat: 'tables', level: 3, mix: false });
+  const r = await page.evaluate(async () => {
+    const f = window.__bubblepop.fieldRect();
+    const band = window.__bubblepop.spawnBand();
+    const H = f.bottom - f.top;
+    let fadesSeen = 0, spawnsOutsideBand = 0, spawnsSeen = 0, worstSpawn = 0, correctGaps = 0, samples = 0;
+    let prev = window.__bubblepop.bubbleRects().map(b => f.bottom - b.bottom);
+    const start = performance.now();
+    while (performance.now() - start < 14000) {
+      await new Promise(r => setTimeout(r, 60));
+      const cur = window.__bubblepop.bubbleRects().map(b => f.bottom - b.bottom);
+      for (let i = 0; i < Math.min(prev.length, cur.length); i++) {
+        if (cur[i] < prev[i] - 20) {            // it jumped back down: a respawn
+          spawnsSeen++;
+          const frac = cur[i] / H;
+          if (frac > band + 0.06) spawnsOutsideBand++;
+          worstSpawn = Math.max(worstSpawn, frac);
+        }
+      }
+      prev = cur;
+      const c = window.__bubblepop.correctState();
+      samples++;
+      if (!c || !c.inside || !c.tappable) correctGaps++;
+      if (document.querySelectorAll('.bubble.bp-sink').length) fadesSeen++;
+    }
+    return { fadesSeen, spawnsSeen, spawnsOutsideBand, worstSpawn, correctGaps, samples };
+  });
+  assert(r.spawnsSeen > 3, `bubbles really retired and returned (${r.spawnsSeen} respawns in 14s)`);
+  assert(r.fadesSeen > 0, `and the 300ms fade was actually seen on screen (${r.fadesSeen} samples with a fading bubble)`);
+  assert(r.spawnsOutsideBand === 0,
+    `every respawn landed in the bottom fifth (worst ${(r.worstSpawn * 100).toFixed(1)}% up, ${r.spawnsOutsideBand} outside)`);
+  assert(r.correctGaps === 0,
+    `and the correct answer stayed on screen and tappable through every retirement (${r.correctGaps}/${r.samples} gaps)`);
   await ctx.close();
 }
 
