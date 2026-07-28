@@ -191,7 +191,12 @@ export function showTrophyCeremony(items, { retro = false } = {}) {
     el('h2', { class: 'tc-title', text: retro ? 'The Trophy Room is open!' : (items.length > 1 ? 'New trophies!' : newLabel(items[0])) }),
     retro ? el('p', { class: 'tc-sub', text: 'Look what you had already earned:' }) : null,
     cards,
-    el('button', { class: 'btn big', text: retro ? 'To my cabinet! 🏆' : 'Wonderful!', onclick: () => { sfx.tap(); ov.remove(); } })
+    // "To my cabinet! 🏆" was a label that did not do what it said — it dismisses the
+    // ceremony and leaves her exactly where she was. Two playtest critics reported being
+    // misled by it. The button is honest about being a dismiss now (RUN18A H3); making it
+    // actually route to the cabinet is a design change and belongs to RUN18B Y1, with the
+    // rest of this modal's manners (no ×, Escape does nothing).
+    el('button', { class: 'btn big', text: retro ? 'Hooray! 🏆' : 'Wonderful!', onclick: () => { sfx.tap(); ov.remove(); } })
   ]);
   ov.appendChild(panel);
   document.body.appendChild(ov);
