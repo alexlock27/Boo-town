@@ -1645,13 +1645,32 @@ export function renderAccessory(item, { size = 120, cls = '' } = {}) {
     `<circle cx="60" cy="60" r="52" fill="rgba(255,255,255,0.06)"/>` + art + `</svg>`;
 }
 
+// A granted wish, as a house-style medallion. RUN10 P20 drew a raw emoji glyph here as
+// `<text font-size="48">` — the same one for all sixty words — which is emoji-as-art in a
+// game scene, against CLAUDE.md's architecture contract, and it became permanent the moment
+// RUN18B Y3 started leaving the thing in her town. Dispatch's decision (2026-07-28): the
+// medallion is identical for every word, so ONE house-style asset clears the law, not sixty.
+// The word itself is what tells her which wish this is, and it always did.
+// (A separate future packet may give the sixty words their own art; that is not this.)
 export function renderWish(item, { size = 120, cls = '' } = {}) {
-  const icon = String(item.icon || '⭐');
+  const gold = COLORS.gold, star = '#FFE9A8';
+  const ray = (a, r1, r2) => {
+    const rad = (a - 90) * Math.PI / 180;
+    return `<line x1="${(60 + Math.cos(rad) * r1).toFixed(1)}" y1="${(62 + Math.sin(rad) * r1).toFixed(1)}" ` +
+           `x2="${(60 + Math.cos(rad) * r2).toFixed(1)}" y2="${(62 + Math.sin(rad) * r2).toFixed(1)}" ` +
+           `stroke="${gold}" stroke-width="3.4" stroke-linecap="round" opacity="0.85"/>`;
+  };
   return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130 / 120}" class="wish-svg wish-${item.word} ${cls}" role="img" aria-label="${escapeHTML(item.name)}" xmlns="http://www.w3.org/2000/svg">` +
     `<ellipse cx="60" cy="110" rx="39" ry="9" fill="rgba(42,27,78,.18)"/>` +
+    [22, 68, 112, 158, 202, 248, 292, 338].map(a => ray(a, 49, 57)).join('') +
     `<circle cx="60" cy="62" r="47" fill="#FFF8E4" stroke="${INK}" stroke-width="4"/>` +
-    `<circle cx="60" cy="62" r="40" fill="#FFF1B8" stroke="#FFC93C" stroke-width="3" stroke-dasharray="4 5"/>` +
-    `<text x="60" y="76" text-anchor="middle" font-size="48" font-family="Arial, sans-serif">${icon}</text>` +
+    `<circle cx="60" cy="62" r="40" fill="#FFF1B8" stroke="${gold}" stroke-width="3" stroke-dasharray="4 5"/>` +
+    // the wish itself: a big house star, the same shape the meter and the trophies use
+    path(starPath(60, 60, 26, 11), gold, `stroke="${INK}" stroke-width="3.2" stroke-linejoin="round"`) +
+    path(starPath(60, 60, 13, 5.5), star, `opacity="0.9"`) +
+    // two little sparkles, so it reads as granted rather than as a coin
+    path(starPath(88, 34, 7, 3), star, `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"`) +
+    path(starPath(32, 88, 5.5, 2.4), star, `stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"`) +
     `<text x="60" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="${INK}" font-family="Fredoka, sans-serif">${escapeHTML(item.name)}</text></svg>`;
 }
 
