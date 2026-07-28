@@ -132,7 +132,9 @@ export function starsRow(count, { max = 3, size = 34 } = {}) {
   return `<span class="stars-row">${s}</span>`;
 }
 
-// ---- hearts row (forgiveness indicator) ----------------------------------
+// ---- hearts row — RETIRED (RUN18B Y7) -------------------------------------
+// Nothing renders this any more: the game shell dropped the row at every tier, and nothing
+// replaced it. Kept only so an old caller cannot crash; do not reintroduce it.
 export function heartsRow(remaining, { max = 3, size = 26 } = {}) {
   let s = '';
   for (let i = 0; i < max; i++) {

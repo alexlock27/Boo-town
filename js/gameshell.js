@@ -1,9 +1,9 @@
 // js/gameshell.js — the frame shared by all three games (spec §5.3).
-// Top bar: back (with confirm), round progress dots, hearts (informational,
+// Top bar: back (with confirm), round progress dots, (no hearts since RUN18B Y7,
 // round never ends early), hint button with the guide's face. Guide peeks from
 // a corner and slides in a bubble for hints and reactions.
 
-import { el, clear, heartsRow, dialog, backControl } from './ui.js';
+import { el, clear, dialog, backControl } from './ui.js';
 import { getState, beginRoundTally } from './state.js';
 import { renderGuide } from './art.js';
 import { speakMaybe } from './guide.js';
@@ -49,8 +49,10 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
   const progressWrap = el('div', { class: 'progress-wrap' }, [dots, progressLabel]);
   if (hideProgress) progressWrap.style.display = 'none';   // score-chase games show a score, not dots
 
-  const heartsWrap = el('div', { class: 'hearts-wrap', html: heartsRow(hearts, { max: maxHearts }) });
-  if (hideHearts) heartsWrap.style.display = 'none';   // Toddler mode (RUN5 C7): no hearts anywhere
+  // RUN18B Y7: the hearts row is GONE, at every tier — nothing replaces it. It counted down
+  // while the round carried on regardless, telling a child she was running out of something
+  // she was not. The counter behind it stays because round flow and results math read it;
+  // it is simply never drawn and never announced.
 
   const hintBtn = el('button', {
     class: 'hint-btn', 'aria-label': 'Ask the guide for a hint',
@@ -63,7 +65,7 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
   const helpBtn = onHelp ? el('button', { class: 'help-btn', 'aria-label': 'How to play', text: '?', onclick: () => onHelp() }) : null;
 
   const topbar = el('header', { class: 'game-topbar', style: { '--accent': accent } }, [
-    backBtn, progressWrap, heartsWrap, ...(helpBtn ? [helpBtn] : []), hintBtn
+    backBtn, progressWrap, ...(helpBtn ? [helpBtn] : []), hintBtn
   ]);
 
   const area = el('div', { class: 'game-area' });
@@ -127,7 +129,6 @@ export function createGameShell({ title, rounds = 10, accent = 'var(--pop)', max
     advance() { progress = Math.min(progress + 1, rounds); renderDots(); },
     dimHeart() {
       if (hearts > 0) hearts--;
-      heartsWrap.innerHTML = heartsRow(hearts, { max: maxHearts });
       return hearts;
     },
     heartsLeft() { return hearts; },

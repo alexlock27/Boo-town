@@ -354,7 +354,10 @@ export function mount(container, params, ctx) {
       const cs = chestState();
       railInner.appendChild(el('button', { class: 'trail-chip chest' + (cs.ready ? ' ready' : ''),
         'aria-label': cs.ready ? 'Open your Star Chest!' : `Star Chest: ${cs.progress} of ${CHEST_EVERY} stars`,
-        onclick: () => { if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); } } }, [
+        onclick: (e) => {
+          if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); return; }
+          chestNotReadyTap(e.currentTarget, t => gb.sayText(t));
+        } }, [
         el('span', { class: 'tc-ic chest-ic', html: chestSVG(cs.ready) }),
         el('span', { class: 'tc-txt' }, [el('span', { class: 'tc-title', text: 'Star Chest' }),
           cs.ready ? el('span', { class: 'tc-sub open', text: 'Open! 🎁' })
@@ -538,7 +541,10 @@ function mountToddlerHub(container, params, ctx) {
   const meterWrap = el('div', { class: 'meter-wrap' });
   const cs = chestState();
   const chestBtn = el('button', { class: 'star-chest' + (cs.ready ? ' ready' : ''), 'aria-label': cs.ready ? 'Open your Star Chest!' : 'Star Chest',
-    onclick: () => { if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); } } }, [
+    onclick: (e) => {
+      if (chestState().ready) { sfx.tap(); ctx.go('ceremony', { chest: true }); return; }
+      chestNotReadyTap(e.currentTarget, t => gb.sayText(t));
+    } }, [
     el('span', { class: 'chest-ic', html: chestSVG(cs.ready) }),
     el('span', { class: 'chest-track' }, [el('span', { class: 'chest-fill', style: { width: Math.round(cs.progress / CHEST_EVERY * 100) + '%' } })])
   ]);
@@ -732,6 +738,22 @@ function oddIcon() {
 }
 function flashIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><path d="M6 9h48v42H6z" fill="#4B2B78" stroke="var(--ink)" stroke-width="3"/><path d="M6 9h21v42H6zM54 9H33v42h21z" fill="var(--pop)" stroke="var(--ink)" stroke-width="2"/><circle cx="30" cy="32" r="9" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><circle cx="27" cy="30" r="2" fill="var(--ink)"/><circle cx="33" cy="30" r="2" fill="var(--ink)"/></svg>`;
+}
+
+// RUN18B Y7: tapping a chest that is not ready used to do NOTHING — the one control on the
+// hub that answered a tap with silence. It now wobbles and says how many stars are left,
+// live from the save. Ready behaviour is unchanged.
+export const CHEST_WOBBLE_MS = 320;
+function chestNotReadyTap(btn, say) {
+  const cs = chestState();
+  if (cs.ready) return false;
+  sfx.tap();
+  btn.classList.remove('chest-wobble'); void btn.offsetWidth; btn.classList.add('chest-wobble');
+  setTimeout(() => btn.classList.remove('chest-wobble'), CHEST_WOBBLE_MS);
+  const n = Math.max(1, CHEST_EVERY - cs.progress);
+  const line = guideLine('chestNotReady').replace('{n}', String(n));
+  if (say) say(line); else speakMaybe(line);
+  return true;
 }
 
 // the Star Chest (RUN4 C8): closed gold chest; lid pops + glow when ready

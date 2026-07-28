@@ -91,12 +91,12 @@ export function mount(container, params, ctx) {
     if (typeof window !== 'undefined') window.__booquest = hooks();
   }
 
-  function makeHearts(panel) {
+  // RUN18B Y7 removed the hearts row everywhere, and this was the other one: three purple
+  // hearts that dimmed on a wrong answer and gated nothing at all (`left()` was never read).
+  // The counter survives so the three call sites are unchanged; nothing is drawn.
+  function makeHearts() {
     let left = 3;
-    const row = el('div', { class: 'bq-hearts' });
-    const draw = () => { row.innerHTML = ''; for (let i = 0; i < 3; i++) row.appendChild(el('span', { class: 'bq-heart' + (i < left ? '' : ' out'), text: '💜' })); };
-    draw(); panel.appendChild(row);
-    return { dim() { left = Math.max(0, left - 1); draw(); }, left: () => left };
+    return { dim() { left = Math.max(0, left - 1); }, left: () => left };
   }
 
   // ---- multiple-choice quiz block (bridge / grump / boss) ----
