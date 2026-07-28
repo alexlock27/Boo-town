@@ -69,8 +69,14 @@ export function mount(container, params, ctx) {
   // ---- chrome ----
   const help = el('button', { class: 'help-btn jb-help', 'aria-label': 'How to play', text: '?',
     onclick: () => replayIntro('jokeboo', INTRO_STEPS) });
+  // Back goes where she CAME FROM. Until RUN18A H3 the stage in the Meadow was the only
+  // door, so "back" could safely mean the Meadow — but H3 adds a card to the hub's Play
+  // grid, and a front door whose Back drops her out of a different door strands her in a
+  // field with no idea how she got there. The in-world door says so (`from: 'town'`);
+  // every other way in — the hub card, What's New — lands back on the hub.
+  const cameFromTown = (params && params.from) === 'town';
   const top = el('header', { class: 'jb-top' }, [
-    backControl(() => ctx.go('town', { area: 'meadow' }), { label: 'Back' }),
+    backControl(() => (cameFromTown ? ctx.go('town', { area: 'meadow' }) : ctx.go('hub')), { label: 'Back' }),
     el('h1', { class: 'jb-title', text: 'The Joke Boo' }),
     help
   ]);

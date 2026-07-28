@@ -14,7 +14,7 @@
 //     on any later visit, permanently.
 // Plus the pack's new front door: a Joke Boos card in the hub's Play grid.
 //
-// Expected runtime: ~18s (measured 17.6s). Not @serial — it waits on state and
+// Expected runtime: ~30s (measured 30.3s). Not @serial — it waits on state and
 // hit-testing, never on frames.
 
 import { chromium } from 'playwright';
@@ -245,6 +245,75 @@ console.log('== 5. the retro ceremony leaves when its screen does ==');
   const tap = await tapStage(page);
   assert(tap.hits && tap.landed === 'jokeboo', `and the town underneath is tappable again: the stage opens the jokes (landed "${tap.landed}", topmost ${tap.by})`);
   await page.screenshot({ path: SHOTS + '/town-uncovered.png' });
+  await ctx.close();
+}
+
+// ---- 6. leaving the hub BEFORE the ceremony fires ------------------------------------
+// The harder half of the same defect, and the one a child actually hits: the hub schedules
+// the ceremony ~400ms after its own mount, and the Play grid is right there, so she is
+// often gone before it fires. The overlay was then appended over whatever screen she had
+// reached — found sitting on the jokes screen with the Knock Knock card, Back and "?" all
+// dead underneath it. Three departure timings, because this is a race.
+console.log('== 6. leaving the hub before the ceremony fires ==');
+for (const delay of [0, 150, 250]) {
+  const { ctx, page } = await open(save({ seen: { lastStarsShown: 400 } }));   // trophyRetro NOT set
+  await page.waitForSelector('.hub', { timeout: 10000 });
+  if (delay) await page.waitForTimeout(delay);
+  // Did she actually SEE it before she left? At the longest delay the 400ms timer can
+  // legitimately have fired already, in which case spending the one-time award is correct.
+  const sawOnHub = await page.evaluate(() => !!document.querySelector('.overlay.trophy-ceremony'));
+  await page.evaluate(() => window.BooTown.go('jokeboo'));
+  await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'jokeboo', null, { timeout: 10000 });
+  await page.waitForTimeout(1500);   // well past the hub's 400ms timer
+  const r = await page.evaluate(() => {
+    const ov = document.querySelector('.overlay.trophy-ceremony');
+    return { covered: !!ov, screen: document.getElementById('screen').dataset.screen, retro: !!(window.BooTown.State.getState().seen || {}).trophyRetro };
+  });
+  assert(!r.covered, `left the hub after ${delay}ms: no ceremony follows her onto the jokes screen`);
+  assert(r.screen === 'jokeboo', `and she is still on the jokes (screen "${r.screen}")`);
+  // The one-time award is spent EXACTLY when the ceremony was really shown to her, never
+  // on one that fired into a screen she had already left.
+  assert(r.retro === sawOnHub, sawOnHub
+    ? 'it had already appeared on the hub before she left, so spending the one-time award is right'
+    : 'and the retro award is NOT spent on a ceremony she never saw — it waits for her next hub visit');
+  await ctx.close();
+}
+// ...and it still fires normally for someone who stays put
+{
+  const { ctx, page } = await open(save({ seen: { lastStarsShown: 400 } }));
+  await page.waitForSelector('.hub', { timeout: 10000 });
+  await page.waitForTimeout(1400);
+  const up = await page.evaluate(() => {
+    const ov = document.querySelector('.overlay.trophy-ceremony');
+    return { up: !!ov, btn: ov && (ov.querySelector('.btn.big') || {}).textContent };
+  });
+  assert(up.up, 'a child who stays on the hub still gets her ceremony');
+  assert(!/cabinet/i.test(up.btn || ''), `and its button no longer promises a cabinet it does not open ("${up.btn}")`);
+  await ctx.close();
+}
+
+// ---- 7. Back returns her to the door she came in by ----------------------------------
+console.log('== 7. Back goes where she came from ==');
+{
+  const { ctx, page } = await open();
+  // in through the hub card
+  await page.evaluate(() => window.BooTown.go('hub'));
+  await page.waitForSelector('.hub', { timeout: 10000 });
+  await page.evaluate(() => [...document.querySelectorAll('.game-card')].find(c => /Joke Boos/.test(c.textContent)).click());
+  await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'jokeboo', null, { timeout: 10000 });
+  await page.evaluate(() => document.querySelector('.jb-top .back-btn, .jb-top button').click());
+  await page.waitForTimeout(700);
+  const fromHub = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+  assert(fromHub === 'hub', `in by the hub card, Back returns to the hub (landed "${fromHub}")`);
+
+  // in through the stage in the Meadow
+  await toMeadow(page);
+  const viaStage = await tapStage(page);
+  assert(viaStage.landed === 'jokeboo', 'in by the stage in the Meadow');
+  await page.evaluate(() => document.querySelector('.jb-top .back-btn, .jb-top button').click());
+  await page.waitForTimeout(900);
+  const fromTown = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+  assert(fromTown === 'town', `and Back returns to the town, not the hub (landed "${fromTown}")`);
   await ctx.close();
 }
 

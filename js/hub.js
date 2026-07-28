@@ -67,6 +67,7 @@ export function mount(container, params, ctx) {
   // Toddler mode (RUN5 C7): a calm hub of four giant cards. Quests, Golden Round,
   // Smart Mix, Sound Twins and Trophies are hidden; rewards stay the shared universe.
   if (contentTier() === 'toddler') return mountToddlerHub(container, params, ctx);
+  let retroTimer = null;   // RUN18A H3 — see the ceremony note below
   const s = getState();
   music.play('calm');
   // Occasional Boo requests appear only at app open (RUN3 C8).
@@ -410,7 +411,19 @@ export function mount(container, params, ctx) {
 
   // One-time retroactive trophy award for existing saves (RUN4 C4): everything
   // derivable lands at once in a single gentle cabinet-opening ceremony.
-  setTimeout(() => { try { retroAwardOnce(); } catch (e) { console.warn(e); } }, 400);
+  // RUN18A H3: the timer is HELD and cleared on unmount, and it re-checks that the hub is
+  // still the screen before it fires. A child can leave in under 400ms — she often does,
+  // the Play grid is right there — and the ceremony was then appended over whatever screen
+  // she had reached, full-viewport at z-index 8000, with only one control. Found on the
+  // jokes screen: the Knock Knock card, Back and "?" were all dead underneath it. Skipping
+  // costs nothing, because retroAwardOnce is idempotent-by-flag and simply runs the next
+  // time she lands on the hub and stays.
+  retroTimer = setTimeout(() => {
+    retroTimer = null;
+    const el = document.getElementById('screen');
+    if (el && el.dataset.screen !== 'hub') return;
+    try { retroAwardOnce(); } catch (e) { console.warn(e); }
+  }, 400);
   // Growth milestones (RUN4 C6): the Builders' clock starts when she crosses a
   // milestone, not when she next visits the town.
   try { tickGrowth(); } catch (e) { console.warn(e); }
@@ -579,7 +592,7 @@ function mountToddlerHub(container, params, ctx) {
   renderMeter();
   gb.say('welcome');   // spoken when voice is on
 
-  return { unmount() {} };
+  return { unmount() { if (retroTimer) { clearTimeout(retroTimer); retroTimer = null; } } };
 }
 
 // 3-second press-and-hold cog with a filling progress ring (spec §5.7).

@@ -2247,7 +2247,7 @@ export function mount(container, params, ctx) {
       return;
     }
     if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
-    if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo'); return; }   // RUN17 X1
+    if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     openMenu(wrap, place, item);
   }
