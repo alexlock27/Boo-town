@@ -1,7 +1,7 @@
 // Focused RUN10 P19 check: pure generators, both play loops and non-judgemental Bloom.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
-import { oddGrid, violatesOddPredicate, flashScene, flashQuestion, validateFlashQuestion } from '../js/brainhelpers.js';
+import { oddGrid, violatesOddPredicate, flashScene, flashQuestion, validateFlashQuestion, flashRelationHolds } from '../js/brainhelpers.js';
 import { bloomStats, persistBloomMax } from '../data/bloom.js';
 
 let failed = false;
@@ -42,9 +42,10 @@ for (const tier of ['light', 'medium', 'full']) {
     const scene = flashScene(tier), q = flashQuestion(scene);
     if (!validateFlashQuestion(scene, q)) { valid = false; break; }
     if (q.answerType === 'number' && q.answers.filter(x => x !== q.correct).some(x => Math.abs(x - q.correct) > 2)) genuineNear = false;
-    if (q.template.includes('swing') && !scene.props.includes('swing')) valid = false;
-    if (q.template.includes('bench') && !scene.props.includes('bench')) valid = false;
-    if (q.template.includes('ball') && !scene.props.includes('ball')) valid = false;
+    // RUN18B Y4 rewrote these three: they matched the template STRING, which was only ever
+    // a proxy for "is this prop in the picture" — and a proxy that reads 'balloon' as a
+    // ball. The scene now states its own relations, so the check asks the scene itself.
+    if (!flashRelationHolds(scene, q)) valid = false;
   }
   ok(valid && genuineNear, `${tier}: 500 Flash questions are answerable with genuine near-misses`);
 }

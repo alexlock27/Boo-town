@@ -119,27 +119,89 @@ export function violatesOddPredicate(boo, grid) {
   return grid.predicateFeatures.some(feature => boo[feature] !== grid.expected[feature]);
 }
 
-const FLASH_PROPS = ['ball', 'hat-stand', 'swing', 'bench'];
+// ---- Flash Boos: COMPOSED SCENES (RUN10 P19, recomposed RUN18B Y4) -------------------
+// A scene used to be a row of Boos with a strip of tiny prop icons underneath, and the
+// generator forced a link for ball/swing/bench whether or not the prop was drawn — so a
+// question could name a relation the picture never showed. A scene is now a PICTURE: every
+// prop is sat on, held or worn BY a named Boo, and a question may only ask about a
+// relation that composition actually put on screen (flashRelationHolds, asserted below).
+//
+// pose: 'on' seats the Boo on the prop through the prop's own socket in data/sockets.js
+// (the same seat geometry the town uses); 'holding' draws the prop over the Boo's front at
+// hand height; 'wearing' is the existing equip render.
+export const FLASH_PROP_POOL = [
+  { key: 'swing',    label: 'swing',     pose: 'on',      deco: 'swings', socket: 'deco_swings', booFrac: 0.52 },
+  { key: 'bench',    label: 'bench',     pose: 'on',      deco: 'bench',  socket: 'deco_bench',  booFrac: 0.56 },
+  { key: 'ball',     label: 'ball',      pose: 'holding', deco: 'ball',    holdBottomPct: 4 },
+  { key: 'balloon',  label: 'balloon',   pose: 'holding', deco: 'balloon', holdBottomPct: 21 },
+  { key: 'partyhat', label: 'party hat', pose: 'wearing', acc: 'partyhat' },
+  { key: 'sunhat',   label: 'sun hat',   pose: 'wearing', acc: 'sunhat' }
+];
+export const FLASH_PROP_BY_KEY = Object.fromEntries(FLASH_PROP_POOL.map(p => [p.key, p]));
+// Pack tiers 1/2/3+ are this app's light/medium/full. Toddler is not a pack tier; it keeps
+// the gentlest scene there is, but at THREE Boos rather than two so that a "who" question
+// can always offer the three answers every other screen in the app offers.
+export const FLASH_TIER_RULES = {
+  toddler: { boos: 3, propped: [1, 1], variation: false, counting: false },
+  light:   { boos: 4, propped: [1, 1], variation: false, counting: false },
+  medium:  { boos: 5, propped: [2, 2], variation: false, counting: false },
+  full:    { boos: 6, propped: [2, 3], variation: true,  counting: true }
+};
+export const FLASH_VARIATIONS = ['eyesClosed', 'waving'];
+const FLASH_NAMES = ['Pip', 'Dot', 'Momo', 'Fizz', 'Tink', 'Bop'];
+
 export function flashScene(tier = 'light', rng = Math.random, { toddler = false } = {}) {
-  const count = toddler ? 2 : tier === 'full' ? 6 : tier === 'medium' ? 5 : tier === 'light' ? 4 : 3;
+  const key = toddler ? 'toddler' : (FLASH_TIER_RULES[tier] ? tier : 'light');
+  const rules = FLASH_TIER_RULES[key];
+  const count = rules.boos;
+  // Colour variation across ALL of them (the pack's tier-1 rule, kept at every tier): six
+  // body colours, each used once, so "what colour was Momo?" is always answerable by looking.
+  const colours = shuffled(BRAIN_COLOURS, rng).slice(0, count);
+  const species = shuffled(BRAIN_SPECIES, rng).slice(0, count);
   const boos = Array.from({ length: count }, (_, index) => ({
-    ...randomBrainBoo(rng), id: `flash-${index}`, position: index,
-    name: ['Pip','Dot','Momo','Fizz','Tink','Bop'][index]
+    id: `flash-${index}`, position: index, name: FLASH_NAMES[index],
+    colour: colours[index], species: species[index],
+    hat: false, shine: false,                    // legacy attribute flags: no longer composed
+    seatedOn: null, holding: null, wearing: null, variation: null
   }));
-  // Position/identity questions need visible differences.
-  boos.forEach((boo, i) => { boo.colour = BRAIN_COLOURS[i % BRAIN_COLOURS.length]; boo.species = BRAIN_SPECIES[i % BRAIN_SPECIES.length]; });
-  // Count questions always have visible evidence to circle on the reveal-again.
-  boos[0].hat = true;
-  boos[Math.min(1, boos.length - 1)].shine = true;
-  const propCount = toddler ? 1 : Math.floor(rng() * 3);
-  const props = FLASH_PROPS.slice().sort(() => rng() - .5).slice(0, propCount);
+  const [lo, hi] = rules.propped;
+  const want = Math.min(lo + Math.floor(rng() * (hi - lo + 1)), count);
+  const chosen = shuffled(FLASH_PROP_POOL, rng).slice(0, want);
+  const hosts = shuffled(boos, rng).slice(0, want);   // distinct Boos: one prop each
+  const items = chosen.map((prop, i) => {
+    const boo = hosts[i];
+    if (prop.pose === 'wearing') boo.wearing = prop.key;
+    else if (prop.pose === 'holding') boo.holding = prop.key;
+    else boo.seatedOn = prop.key;
+    return { prop: prop.key, pose: prop.pose, booId: boo.id };
+  });
+  if (rules.variation) {
+    // one feature variation: a closed-eyes Boo or a waving Boo. Never the seated one — a
+    // pose on top of a pose muddles both.
+    const free = boos.filter(b => !b.seatedOn);
+    pick(free.length ? free : boos, rng).variation = pick(FLASH_VARIATIONS, rng);
+  }
   const links = {};
-  props.forEach((prop, i) => { links[prop] = boos[i % boos.length].id; });
-  // Always make every exact template possible; only visible props are drawn.
-  if (!links.ball) links.ball = boos[Math.floor(rng() * boos.length)].id;
-  if (!links.swing) links.swing = boos[0].id;
-  if (!links.bench) links.bench = boos[boos.length - 1].id;
-  return { boos, props, links };
+  items.forEach(it => { links[it.prop] = it.booId; });
+  return { tier: key, boos, items, props: items.map(it => it.prop), links, counting: rules.counting };
+}
+
+// Does the picture actually show what the question asks about? The generator filters every
+// candidate through this BEFORE choosing one, and r18b-flashboos re-checks it over 400
+// scenes — the two together are what stop a question inventing a relation.
+export function flashRelationHolds(scene, q) {
+  const find = id => scene.boos.find(b => b.id === id);
+  if (q.kind === 'on' || q.kind === 'holding' || q.kind === 'wearing') {
+    const propKey = q.template.split(':')[1];
+    return scene.items.some(it => it.prop === propKey && it.pose === q.kind && it.booId === q.correct);
+  }
+  if (q.kind === 'colour') { const b = find(q.targetId); return !!b && b.colour === q.correct; }
+  if (q.kind === 'nextTo') {
+    const b = find(q.targetId), n = find(q.correct);
+    return !!b && !!n && Math.abs(b.position - n.position) === 1;
+  }
+  if (q.kind === 'count') return q.correct === scene.boos.length;
+  return false;
 }
 
 function countNear(correct, n) {
@@ -148,38 +210,62 @@ function countNear(correct, n) {
   return [...new Set(candidates)].slice(0, 2);
 }
 
+// Six question types, every one of them drawn from a relation the scene composed.
+// `kind` is the ledger-facing type; `template` carries the instance (which prop, which Boo).
 export function flashQuestion(scene, rng = Math.random) {
-  const templates = ['countWearing:hat', 'countWearing:shine', 'colourOfPosition:leftmost', 'colourOfPosition:rightmost', 'howManyTotal'];
-  if (scene.props.includes('swing')) templates.push('whichSatOn:swing');
-  if (scene.props.includes('bench')) templates.push('whichSatOn:bench');
-  if (scene.props.includes('ball')) templates.push('whoHeldThe:ball');
-  const template = pick(templates, rng);
-  const [kind, arg] = template.split(':');
-  let prompt, correct, near, answerType, targetId = null;
-  if (kind === 'countWearing') {
-    correct = scene.boos.filter(b => b[arg]).length;
-    near = countNear(correct, scene.boos.length);
-    prompt = `How many wore ${arg === 'hat' ? 'hats' : 'a shine'}?`;
-    answerType = 'number';
-  } else if (kind === 'howManyTotal') {
-    correct = scene.boos.length; near = countNear(correct, 7);
-    prompt = 'How many Boos were there?'; answerType = 'number';
-  } else if (kind === 'colourOfPosition') {
-    const target = arg === 'leftmost' ? scene.boos[0] : scene.boos.at(-1);
-    correct = target.colour; targetId = target.id;
-    const neighbour = arg === 'leftmost' ? scene.boos[1] : scene.boos.at(-2);
-    near = [neighbour.colour, BRAIN_COLOURS.find(c => c !== correct && c !== neighbour.colour)];
-    prompt = `What colour was the ${arg} Boo?`; answerType = 'colour';
-  } else {
-    const prop = kind === 'whichSatOn' ? arg : 'ball';
-    targetId = scene.links[prop];
-    correct = targetId;
-    near = scene.boos.filter(b => b.id !== correct).slice(0, 2).map(b => b.id);
-    prompt = kind === 'whichSatOn' ? `Who sat on the ${prop}?` : 'Who held the ball?';
-    answerType = 'boo';
+  const VERB = { on: 'ON', holding: 'HOLDING', wearing: 'WEARING' };
+  const candidates = [];
+  for (const it of scene.items) {
+    const prop = FLASH_PROP_BY_KEY[it.prop];
+    candidates.push({
+      kind: it.pose, template: `${it.pose}:${it.prop}`,
+      prompt: `Who was ${VERB[it.pose]} the ${prop.label}?`,
+      correct: it.booId, answerType: 'boo', targetId: it.booId
+    });
   }
-  const answers = [correct, ...near].sort(() => rng() - .5);
-  return { template, prompt, correct, answers, answerType, targetId };
+  for (const b of scene.boos) {
+    candidates.push({
+      kind: 'colour', template: `colour:${b.id}`, prompt: `What colour was ${b.name}?`,
+      correct: b.colour, answerType: 'colour', targetId: b.id
+    });
+  }
+  // NEXT TO is asked only about the two Boos at the ENDS of the line. They have exactly one
+  // neighbour each, so the question has exactly one right answer — and they keep that same
+  // neighbour whether the row is drawn on one line or wrapped onto two (flashboos.js sizes
+  // the grid so the ends never end up alone on a line).
+  if (scene.boos.length >= 4) {
+    for (const i of [0, scene.boos.length - 1]) {
+      const b = scene.boos[i], n = scene.boos[i === 0 ? 1 : i - 1];
+      candidates.push({
+        kind: 'nextTo', template: `nextTo:${b.id}`, prompt: `Who was NEXT TO ${b.name}?`,
+        correct: n.id, answerType: 'boo', targetId: b.id
+      });
+    }
+  }
+  if (scene.counting) {
+    candidates.push({
+      kind: 'count', template: 'count', prompt: 'How many Boos were there?',
+      correct: scene.boos.length, answerType: 'number', targetId: null
+    });
+  }
+  const legal = candidates.filter(q => flashRelationHolds(scene, q));
+  const q = pick(legal.length ? legal : candidates, rng);
+
+  let near;
+  if (q.answerType === 'boo') {
+    // a "next to" question never offers the Boo it just named as an answer
+    const barred = q.kind === 'nextTo' ? [q.targetId] : [];
+    near = shuffled(scene.boos.filter(b => b.id !== q.correct && !barred.includes(b.id)), rng)
+      .slice(0, 2).map(b => b.id);
+  } else if (q.answerType === 'colour') {
+    near = [...new Set(shuffled(scene.boos, rng).map(b => b.colour).filter(c => c !== q.correct))].slice(0, 2);
+    while (near.length < 2) {
+      near.push(pick(BRAIN_COLOURS.filter(c => c !== q.correct && !near.includes(c)), rng));
+    }
+  } else {
+    near = countNear(q.correct, 7);
+  }
+  return { ...q, answers: shuffled([q.correct, ...near], rng) };
 }
 
 export function validateFlashQuestion(scene, q) {
