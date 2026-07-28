@@ -107,6 +107,39 @@ console.log('== 1. the seed fires for a restored save ==');
   await ctx.close();
 }
 
+// ---- 1a. and through the REAL restore path, not just a pre-seeded localStorage --------
+// The pack says "a RESTORED save (adoptSave path)". Writing the save straight into
+// localStorage proves the seeding but skips the code the sentence names, so this drives a
+// genuine BOO1 backup code through importAny → readSaveText → adoptSave → migrate, the
+// way a grown-up restoring from a backup does.
+console.log('== 1a. restored from a real BOO1 backup code ==');
+{
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => errors.push(String(e).split('\n')[0]));
+  await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
+  await page.waitForFunction(() => window.BooTown, null, { timeout: 20000 });
+  const restored = await page.evaluate(async (saveText) => {
+    const State = window.BooTown.State;
+    const code = 'BOO1.' + btoa(unescape(encodeURIComponent(saveText)));
+    const r = State.importAny(code);
+    return { ok: r && r.ok, err: r && r.error, name: State.getState().name, flag: !!(State.getState().seen || {}).jokeStageSeeded };
+  }, save());
+  assert(restored.ok === true, `a BOO1 code restores through importAny/adoptSave (${restored.err || 'ok'})`);
+  assert(restored.flag === false, 'and the restored save has never been seeded');
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
+  await toMeadow(page);
+  const seeded = await page.evaluate(() => {
+    const s = window.BooTown.State.getState();
+    return { has: (s.town.areas.meadow.items || []).some(i => i.item === 'deco_jokestage'), inDom: document.querySelectorAll('.t-item[data-item="deco_jokestage"]').length };
+  });
+  assert(seeded.has && seeded.inDom === 1, 'the stage is seeded and rendered for a genuinely restored save');
+  const tapped = await tapStage(page);
+  assert(tapped.landed === 'jokeboo', `and it opens the jokes from there too (landed "${tapped.landed}")`);
+  await ctx.close();
+}
+
 // ---- 1b. a FULL Meadow must not BURN the flag ----------------------------------------
 // The stage stays in Build → Landscape when there is no room — that is the authored
 // behaviour. What must not happen is the flag being spent on a placement that never
