@@ -5675,3 +5675,12 @@ html.bigger-text { --vz: 1.125; }
 .tour-skip { background: none; border: 0; padding: 10px 12px; min-height: var(--tap, 56px); min-width: var(--tap, 56px);
   font-family: var(--font-display); font-size: 15px; color: var(--ink); opacity: 0.72; text-decoration: underline; cursor: pointer; }
 .gu-tour-replay { margin-top: 10px; align-self: flex-start; }
+
+/* RUN18B Y16 (playtest critic, second attempt): at >=601px .hub-guide is the only shrinkable
+   row, so the welcome tour card came straight out of it — the guide's clientHeight fell from
+   58px to 29px with the tour up, and to 10px on a save that also shows the age card: half a
+   sentence over a sliver of giraffe. A floor, not a removal. The first fix took the guide
+   section away entirely while the tour was up, and that was wrong for a reason worth
+   recording: .hub-guide holds the hub's ONLY speech bubble, so the Star Chest's "«N» more
+   stars until the chest opens!" (RUN18B Y7) and every other hub line had nowhere to land. */
+@media (min-width: 601px) { .hub-guide { min-height: 96px; } }

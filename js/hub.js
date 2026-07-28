@@ -411,14 +411,7 @@ export function mount(container, params, ctx) {
   }
 
   // hero → Today rail → games grid (the grid is the dominant content again, C3).
-  // RUN18B Y16 (playtest critic): while the tour is up, the hub's guide bubble stands down.
-  // At >=601px .hub-guide is the only shrinkable row, so the tour card came straight out of
-  // it — the guide's clientHeight fell from 58px to 29px, and to 10px on a save that also
-  // shows the age card, leaving half a sentence over a sliver of giraffe. It is duplication
-  // anyway: the tour card carries its own guide head and speaks its own line, and the
-  // greeting it was competing with ("Ooh, good timing. I was getting bored.") is written for
-  // a child coming BACK, not one arriving for the first time.
-  root.append(top, ...(tourCard ? [] : [guideSection]), specials, todayRail, cards, bar);
+  root.append(top, guideSection, specials, todayRail, cards, bar);
 
   if (typeof window !== 'undefined') window.__hub = {
     railChips: () => [...todayRail.querySelectorAll('.trail-chip')].map(c => [...c.classList].find(k => k !== 'trail-chip')),
