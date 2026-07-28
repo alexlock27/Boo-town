@@ -1867,6 +1867,15 @@ export function renderExpGlyph(key, { size = 24, cls = '' } = {}) {
       <path d="M7.2 9.2 Q9.2 7.6 11 9.2 M13 9.2 Q14.8 7.6 16.8 9.2" fill="none" ${ink}/>
       <circle cx="9.4" cy="11.6" r="1.3" fill="${INK}"/><circle cx="14.6" cy="11.6" r="1.3" fill="${INK}"/>
       <path d="M9.6 16.8 Q12 18.6 14.4 16.8" fill="none" ${ink}/></g>`,
+    // the trail in miniature — the Expedition's hub card (RUN18C C5). A little map, not a
+    // compass emoji: it is the same hillside, path and four markers the trail screen draws.
+    trailmap: `<g><rect x="1.6" y="2.6" width="20.8" height="18.8" rx="3" fill="#BFE6F5" ${ink}/>
+      <path d="M1.6 14 Q7 10.2 12 13 Q17 15.8 22.4 12.4 L22.4 21.4 L1.6 21.4 Z" fill="#7FC85F" ${ink}/>
+      <path d="M4.6 19.4 Q7.4 15.4 10.6 15.6 Q14 15.8 15 11.6 Q16 7.6 19.6 6.2" fill="none" stroke="${COLORS.sand}" stroke-width="2.6" stroke-linecap="round"/>
+      <circle cx="4.6" cy="19.4" r="1.9" fill="${COLORS.gold}" ${thin}/>
+      <circle cx="10.6" cy="15.6" r="1.9" fill="${COLORS.cream}" ${thin}/>
+      <circle cx="15" cy="11.6" r="1.9" fill="${COLORS.cream}" ${thin}/>
+      <circle cx="19.6" cy="6.2" r="1.9" fill="${COLORS.cream}" ${thin}/></g>`,
     // the cocoa camp between the nodes — a fire, not the 🔥 glyph it used to be
     campfire: `<g><path d="M3.4 19.6 L20.6 19.6" ${ink}/>
       <path d="M5.6 19.6 L12.4 15.2 M18.4 19.6 L11.6 15.2" stroke="${COLORS.cocoa}" stroke-width="2.2" stroke-linecap="round"/>

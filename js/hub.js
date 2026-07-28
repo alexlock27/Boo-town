@@ -16,7 +16,7 @@ import { tickGrowth } from './growth.js';
 import { tickFunfair } from './funfair.js';
 import { chestState, CHEST_EVERY } from './shiny.js';
 import { booOfTheDay } from './delights.js';
-import { renderItem } from './art.js';
+import { renderItem, renderExpGlyph } from './art.js';
 import { getDisplayName } from './accessories.js';
 import { isBestFriend } from './care.js';   // RUN10 P21 best-friend cameo
 import { BY_ID } from '../data/catalogue.js';
@@ -48,7 +48,11 @@ const GAMES = [
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'oddboo',    name: 'Odd Boo Out',  tag: 'Spot the difference', accent: 'var(--zing)', icon: oddIcon, group: 'Learn' },
   { id: 'flashboos', name: 'Flash Boos',   tag: 'Look, hide, remember', accent: 'var(--pop)', icon: flashIcon, group: 'Learn' },
-  { id: 'expedition', name: 'Boo Expedition', tag: 'Story trail', accent: 'var(--star)', icon: () => '🧭', group: 'Learn', building: () => EXPEDITION_CONTAINED },   // RUN10 P15; contained RUN18A H2, reopens in RUN18C
+  // RUN18C C5: the door is open again. The card wears the trail in miniature (the same
+  // hillside, path and four markers the trail screen draws) instead of a compass emoji,
+  // and the pack's blurb. `building` still reads CONTAINED, which is now '' — the switch
+  // stays wired so a future run can shut this door with one line.
+  { id: 'expedition', name: 'Boo Expedition', tag: 'Pick 8 brave Boos and solve the trail!', accent: 'var(--star)', icon: () => renderExpGlyph('trailmap', { size: 56 }), group: 'Learn', building: () => EXPEDITION_CONTAINED },   // RUN10 P15; contained RUN18A H2, reopened RUN18C C5
   { id: 'blocks',    name: 'Boo Blocks',   tag: 'Build & clear', accent: 'var(--zing)', icon: blocksIcon, group: 'Play' },
   { id: 'bounce',    name: 'Boo Bounce',   tag: 'Bounce & break', accent: 'var(--pop)', icon: bounceIcon, group: 'Play' },
   { id: 'beat',      name: 'Boo Beat',     tag: 'Tap to the beat', accent: 'var(--star)', icon: beatIcon, group: 'Play' },
