@@ -3,7 +3,7 @@
 // drag placement along the ground band, wandering Boos, real-clock day/night. Multi-area
 // navigation lives in worldmap.js; this file only ever renders one already-unlocked area.
 
-import { el, clear, confetti, REDUCED, backControl } from './ui.js';
+import { el, clear, confetti, REDUCED, backControl, sparkleAt } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
@@ -30,7 +30,7 @@ import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
 import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions, heartsMarkup } from './care.js';
 import { openWishWell } from './wishwell.js';
-import { wishId, wishItem } from '../data/wishes.js';
+import { wishId, wishItem, LIVING_WISHES } from '../data/wishes.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -2277,8 +2277,8 @@ export function mount(container, params, ctx) {
     const well = wellWrap || ground.querySelector('.t-item[data-item="deco_wishwell"]');
     sfx.chime(2);
     openWishWell({
-      onSpawn: (word, wished) => {
-        if (well) spawnWishBesideWell(well, word, wished);
+      onSpawn: (word, wished, info) => {
+        grantWishIntoWorld(well, word, wished, (info && info.wasNew) !== false);
         renderDrawer();
         updateBuildUI();
       },
@@ -2291,6 +2291,106 @@ export function mount(container, params, ctx) {
       }
     });
     return !!well;
+  }
+
+  // ---- RUN18B Y3: the wish ARRIVES ------------------------------------------------------
+  // It used to be filed. A toast said "New wish: RAINBOW! (in your Build drawer)" and a
+  // decorative sprite drifted beside the well for twenty seconds and then deleted itself.
+  // Nothing she could keep, nothing she could move, nothing she had to be there for.
+  //
+  // Now: a beat, a puff of star-dust at a real free spot, the thing scaling into being, and
+  // Twiggy saying so — and what lands is a REAL PLACEMENT she can drag now or leave, and
+  // put away from the long-press menu like anything else she owns.
+  const WISH_BEAT_MS = 300;        // the pause before it happens; the moment needs a breath
+  const WISH_PUFF_MS = 500;
+  const WISH_PUFF_PARTICLES = 24;
+  const WISH_GROW_MS = 350;        // 0 -> 1.05 -> 1.0
+
+  // Nearest free x to the middle of the area on row 1, because the middle is where she is
+  // looking. Returns null when the row genuinely cannot take another thing.
+  function freeWishSpot() {
+    const zi = 0, row = 1;
+    const STEP = MIN_SPACING * 0.5;
+    for (let d = 0; d <= 0.5; d += STEP) {
+      for (const x of (d === 0 ? [0.5] : [0.5 - d, 0.5 + d])) {
+        if (x < 0.04 || x > 0.96) continue;
+        if (!spotTaken(zi, x, row)) return { x: +x.toFixed(3), row };
+      }
+    }
+    return null;
+  }
+
+  function grantWishIntoWorld(wellWrap, word, wished = wishItem(word), wasNew = true) {
+    // A repeat wish never duplicates a placement: she already has one in the world or in
+    // her drawer, and silently making a second is the app deciding for her.
+    if (!wasNew) {
+      if (wellWrap) sparkleAtNode(wellWrap);
+      sayInWorld(`Another ${word}! It's in your Build drawer.`);
+      return { repeat: true };
+    }
+    // An indoor room is not where a wish goes; the Meadow is (the pack's own fallback).
+    if (AREA.kind !== 'outdoor') return { deferred: 'indoors' };
+
+    const spot = freeWishSpot();
+    if (!spot) {
+      // The area genuinely cannot take it. Say so in as many words rather than dropping it
+      // silently into a drawer she has to go and find.
+      sayInWorld('Your wish is in your Build drawer — the Meadow is packed!');
+      return { deferred: 'full' };
+    }
+    const id = wishId(word);
+    // LIVING WISHES ARE UNCHANGED (the pack says so, and it is right): the butterfly still
+    // flutters away over three seconds and the fish still swims to the pond, because those
+    // are authored moments, not placeholder decoration. The flourish plays AND the thing
+    // still lands as something she keeps — Y3 replaces the FILING, not the magic.
+    if (wellWrap && LIVING_WISHES.includes(word)) spawnWishBesideWell(wellWrap, word, wished);
+    setTimeout(() => {
+      if (!ground.isConnected) return;
+      wishPuffAt(spot);
+      mutate(st => { areaItems(st).push({ zone: AREA.key, x: spot.x, row: spot.row, item: id }); });
+      renderPlaced();
+      const node = ground.querySelector(`.t-item[data-item="${id}"]`);
+      if (node && !REDUCED) { node.classList.remove('wish-arrive'); void node.offsetWidth; node.classList.add('wish-arrive'); }
+      sayInWorld('Your wish came true!');
+      renderDrawer(); updateBuildUI();
+    }, REDUCED ? 0 : WISH_BEAT_MS);
+    return { placed: spot, id };
+  }
+
+  // 24 particles of --star and white. Reduced motion gets the arrival without the shower:
+  // a single scale-in, which is the information without the movement.
+  function wishPuffAt(spot) {
+    if (REDUCED) return;
+    // Same geometry renderPlaced uses, so the puff happens exactly where the thing lands.
+    const px = spot.x * zoneW, py = viewH * ROW_GROUND[spot.row];
+    const puff = el('div', { class: 'wish-puff' });
+    puff.style.left = `${px}px`; puff.style.top = `${py}px`;
+    for (let i = 0; i < WISH_PUFF_PARTICLES; i++) {
+      const a = (Math.PI * 2 * i) / WISH_PUFF_PARTICLES + Math.random() * 0.2;
+      const r = 26 + Math.random() * 42;
+      const bit = el('i', { class: 'wish-bit' + (i % 2 ? ' pale' : '') });
+      bit.style.setProperty('--dx', `${Math.cos(a) * r}px`);
+      bit.style.setProperty('--dy', `${Math.sin(a) * r - 12}px`);
+      bit.style.setProperty('--d', `${(i % 6) * 22}ms`);
+      puff.appendChild(bit);
+    }
+    ground.appendChild(puff);
+    setTimeout(() => puff.remove(), WISH_PUFF_MS + 260);
+  }
+
+  function sparkleAtNode(node) {
+    try { const b = node.getBoundingClientRect(); sparkleAt(b.left + b.width / 2, b.top + b.height / 2); } catch {}
+  }
+  // Twiggy, in the world — shown and spoken, so a voice-off house gets the same moment.
+  function sayInWorld(text) {
+    speakMaybe(text);
+    // ONE line at a time — the H4 lesson again: a second moment replaces the first rather
+    // than stacking behind it, so she is never reading two things that disagree.
+    root.querySelectorAll('.wish-said').forEach(old => old.remove());
+    const note = el('div', { class: 'wish-said', role: 'status', text });
+    root.appendChild(note);
+    setTimeout(() => note.classList.add('show'), 20);
+    setTimeout(() => { note.classList.remove('show'); setTimeout(() => note.remove(), 260); }, 2600);
   }
 
   function spawnWishBesideWell(wellWrap, word, wished = wishItem(word)) {

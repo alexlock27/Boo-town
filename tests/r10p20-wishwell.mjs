@@ -55,11 +55,22 @@ ok((await page.evaluate(() => window.__wishwell.hint())) === 'STAR', 'second mis
 
 const ledgerBefore = await page.evaluate(async () => JSON.stringify((await import('./js/state.js')).getState().ledger));
 await page.evaluate(() => window.__wishwell.spellInstant('star'));
-ok(await page.locator('.wish-town-spawn[data-word="star"]').count() === 1, 'a correct wish POOFs beside the well');
+await page.waitForTimeout(600);   // RUN18B Y3's 300ms beat, then the placement renders
+// RUN18B Y3 changed WHAT HAPPENS here, so these three assertions are rewritten to what
+// they have always been about rather than to the mechanism they used to name. A granted
+// wish no longer POOFs a decorative sprite beside the well for 20s and no longer raises a
+// toast filing it into the drawer: it ARRIVES as a real placement she can keep, and is
+// announced in the world. What is asserted is unchanged in substance and stronger in fact
+// — a sprite that deletes itself proved nothing about whether she got to keep anything.
+ok(await page.evaluate(() => (window.BooTown.State.getState().town.areas.meadow.items || []).filter(i => i.item === 'wish_star').length) === 1,
+  'a correct wish ARRIVES in the Meadow as a real placement');
 ok((await page.evaluate(() => window.__wishwell.unlocked())).star === true, 'first correct spelling permanently unlocks its Build item');
-ok(await page.locator('.boo-toast.wish-toast').count() === 1, 'first unlock shows one drawer toast');
+ok(await page.locator('.wish-said').count() === 1, 'and the arrival is announced in the world, once');
+ok(await page.locator('.boo-toast.wish-toast').count() === 0, 'the old drawer toast is gone — a wish is not filed away any more');
 await page.evaluate(() => window.__wishwell.spellInstant('star'));
-ok(await page.locator('.boo-toast.wish-toast').count() === 1, 'repeating the same wish never repeats its unlock toast');
+await page.waitForTimeout(600);
+ok(await page.evaluate(() => (window.BooTown.State.getState().town.areas.meadow.items || []).filter(i => i.item === 'wish_star').length) === 1,
+  'and wishing the same word again never makes a second one');
 await page.evaluate(() => window.__wishwell.close());
 await page.waitForTimeout(250);
 ok(await page.locator('#screen').getAttribute('data-screen') === 'town', 'closing the well returns to the same Meadow scene');
