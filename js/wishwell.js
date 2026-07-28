@@ -27,7 +27,7 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
   const state = getState();
   let current = '', misses = 0, locked = false, resetTimer = null;
   // RUN18B Y3: the idle hint's state. `hintedThisVisit` is the max-1-per-visit cap.
-  let idleTimer = null, hintedThisVisit = false, hintWord = null;
+  let idleTimer = null, hintedThisVisit = false, hintWord = null, hintSpeaking = false;
   const letterTimers = [];
   const overlay = el('div', { class:'overlay wish-overlay', role:'dialog', 'aria-label':'Wish Well' });
   const panel = el('div', { class:'wish-panel' });
@@ -141,17 +141,33 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     const word = pool[(Math.random() * pool.length) | 0];
     hintedThisVisit = true;
     hintWord = word;
-    hint.textContent = `Someone once wished for a ${word.toUpperCase().split('').join('-')}…`;
     hint.classList.add('wish-idle-hint');
-    // the letters, individually, 600ms apart — the spelling IS the hint
-    [...word].forEach((ch, i) => {
-      letterTimers.push(setTimeout(() => speakMaybe(ch.toUpperCase()), i * WISH_HINT_LETTER_MS));
+    // RUN18B Y1/Y3 resolution (Dispatch, 2026-07-28): the two channels are DECOUPLED.
+    // The SIGHT of the spelling keeps Y3's authored 600ms cadence — one letter at a time,
+    // which is what makes it read as spelling rather than as a word. The SOUND goes through
+    // Y1's queue and is CHAINED: each letter plays to its end and the next follows it, so
+    // no letter is ever cut mid-word (interruption stays reserved for the Interrupting Boo)
+    // and none is dropped by QUEUE_MAX on a nine-letter word like BUTTERFLY.
+    const letters = [...word].map(c => c.toUpperCase());
+    const shown = [];
+    const paint = () => { hint.textContent = `Someone once wished for a ${shown.join('-')}…`; };
+    paint();
+    letters.forEach((ch, i) => {
+      letterTimers.push(setTimeout(() => { shown.push(ch); paint(); }, i * WISH_HINT_LETTER_MS));
     });
+    hintSpeaking = true;
+    let li = 0;
+    const sayNextLetter = () => {
+      if (!hintSpeaking || li >= letters.length) return;
+      speakMaybe(letters[li++], true, { onend: sayNextLetter });
+    };
+    sayNextLetter();
   }
   function stopIdleHint() {
     clearTimeout(idleTimer);
     letterTimers.forEach(clearTimeout);
     letterTimers.length = 0;
+    hintSpeaking = false;           // and the spoken chain stops where it is
   }
   function submit() {
     if (locked) return false;

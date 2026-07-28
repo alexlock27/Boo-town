@@ -86,7 +86,10 @@ export function speakMaybe(text, voice = true, opts = {}) {
     onstart: () => music.duck(true),
     // Unduck only when nothing is left to say — otherwise the music swells between two
     // queued lines and dips again, which is worse than not ducking at all.
-    onend: () => { if (!tts.queueState().length) music.duck(false); }
+    onend: (why) => {
+      if (!tts.queueState().length) music.duck(false);
+      if (opts.onend) opts.onend(why);        // callers that CHAIN utterances (RUN18B Y3/Y1)
+    }
   });
   if (!id) music.duck(false);
   return id;
