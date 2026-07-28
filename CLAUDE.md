@@ -66,7 +66,9 @@ The full-board-per-run regime proved too heavy. The regime now is TARGETED:
 - **Per run-end gate: ONLY THE AFFECTED SUITES.** The suites covering the files that run
   changed, plus their importers/dependents, plus a fixed small core: routing
   (`r12s1-routes`), save/era migration (`r8p1-migrations`), the sw asset manifest
-  (`m3-pwa`), and one contrast/tap-target check (`r12s4-contrast` or `r12s13-a11y`).
+  (`m3-pwa`), one contrast/tap-target check (`r12s4-contrast` or `r12s13-a11y`), and the
+  template-leakage guard (`r18a-copyguard`, RUN18A H6 — in the core, and in `--smoke`,
+  precisely because the leaks it catches are never in the files you edited).
   **NOT the full board.**
 - **After a fix: re-verify ONLY the changed/affected suites, directly.** Never re-run a
   broad board for a small fix.

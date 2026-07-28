@@ -36,7 +36,12 @@ if [ "$WORKERS" = "0" ]; then
 fi
 
 if [ "$MODE" = "smoke" ]; then
-  ALL="r12s1-routes r12s4-contrast r8p1-migrations $SMOKE_EXTRA"
+  # r18a-copyguard is part of the fixed core from RUN18A H6 onwards: it walks every
+  # registered route asserting no leaked template token ("null", "undefined",
+  # "[object Object]", "NaN", "…at SOMETHING") ever reaches a child's screen. It is here
+  # rather than in a run's affected set BECAUSE the leaks it catches are never in the
+  # files you edited — that is the whole shape of the bug. ~14s.
+  ALL="r12s1-routes r12s4-contrast r8p1-migrations r18a-copyguard $SMOKE_EXTRA"
 else
   ALL=$(ls tests/*.mjs | grep -v "shoot\|sim-blocks\|device-qa" | sed 's#tests/##;s#.mjs##')
 fi
