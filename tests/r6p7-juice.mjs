@@ -97,10 +97,14 @@ console.log('== Feed the Boos: chew, arc-nom, varied reactions, drumming at 4 ==
   await sleep(60);
   assert(await page.evaluate(() => window.__feedboos.arcing()), 'a fed item arcs through the air (frame evidence)');
   await page.waitForFunction(() => !window.__feedboos.state().locked, { timeout: 2000 });   // let the first arc finish
-  // varied wrong reactions over several misses
+  // RUN18B Y5 replaced three RANDOM wrong reactions (raspberry / headshake / sigh — one of
+  // which drew a raw 😮‍💨 glyph as scene art, a hard-law violation shipping since RUN6) with
+  // ONE authored reaction: the Boo turns its head away. This assertion moved with that law.
+  // It is not weaker: the old one allowed any two of three, this one demands the authored
+  // one EVERY time.
   const reactions = new Set();
   for (let i = 0; i < 10; i++) { await page.evaluate(() => window.__feedboos.feedWrong()); const r = await page.evaluate(() => window.__feedboos.lastReaction()); if (r) reactions.add(r); await sleep(120); }
-  assert([...reactions].every(r => ['raspberry', 'headshake', 'sigh'].includes(r)) && reactions.size >= 2, `wrong deliveries get varied friendly reactions (${[...reactions].join(',')})`);
+  assert(reactions.size === 1 && reactions.has('turn-away'), `every wrong delivery gets the one authored reaction — the Boo turns its head away (${[...reactions].join(',') || 'none'})`);
   await page.screenshot({ path: 'screenshots/r6p7/feedboos-900x680.png' });
   await ctx.close();
 }

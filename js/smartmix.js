@@ -59,6 +59,58 @@ export function mixPlan(n) {
   return shuffle([...Array(wWeak).fill('weak'), ...Array(wMiddle).fill('middle'), ...Array(wMastered).fill('mastered')]);
 }
 
+// ---- Timed games practise mastered material (RUN18B Y10) ----------------------
+// A timed game is not where a child MEETS something. Boo Beat puts a falling note behind the
+// question and Bubble Pop puts a clock behind it; being asked, at speed, something you have
+// never yet got right is not practice, it is a small ambush. The timed games draw only what
+// she has already shown she can do.
+//
+// ELIGIBLE = two or more rights, OR the item has never been got wrong. The second half is
+// what keeps a fresh save playable: an empty ledger makes EVERYTHING eligible, so a first-
+// ever round is unchanged in every respect. The policy only bites once she has a history —
+// and what it removes is precisely the handful of things she is currently getting wrong,
+// which the untimed games and Teach Me (the introduction path) go on serving as before.
+export const TIMED_RIGHTS = 2;
+export function eligibleForTimed(item) {
+  const id = typeof item === 'string' ? item : (item && (item.id || item.key));
+  if (!id) return true;
+  const e = ledgerEntry(id);
+  return e.rights >= TIMED_RIGHTS || e.misses === 0;
+}
+
+// The timed games GENERATE candidates rather than draw from a listed pool, so "the eligible
+// pool" is measured by probing the generator for DISTINCT eligible ids before the round
+// starts. If it cannot find needs x 1.5 of them the whole round falls back to the full pool
+// — SILENTLY: no message, no marker, nothing on screen. A child is never told that a game
+// has quietly lowered a bar for her.
+export function timedGate(gen, needs, { probe = 150 } = {}) {
+  const want = Math.max(1, Math.ceil(needs * 1.5));
+  const found = new Set();
+  for (let i = 0; i < probe && found.size < want; i++) {
+    const q = gen();
+    const id = q && (q.key || q.id);
+    if (id && eligibleForTimed(q)) found.add(id);
+  }
+  const on = found.size >= want;
+  return {
+    on, found: found.size, want,
+    // Draw one question. `prefer` is a SOFT wish (Smart Mix's class plan); eligibility is the
+    // hard filter, so a slot that wanted a 'weak' item and cannot have one still gets served.
+    pick(gen1, { tries = 12, prefer = null } = {}) {
+      let first = null, firstOk = null;
+      for (let t = 0; t < tries; t++) {
+        const q = gen1();
+        if (!q) continue;
+        if (!first) first = q;
+        const ok = !on || eligibleForTimed(q);
+        if (ok && !firstOk) firstOk = q;
+        if (ok && (!prefer || prefer(q))) return q;
+      }
+      return firstOk || first;
+    }
+  };
+}
+
 // Diagnostic: bucket sizes for a pool (used by tests + debugging).
 export function bucketCounts(pool, classOf = (item) => ledgerClass(item.id)) {
   const c = { weak: 0, middle: 0, mastered: 0 };

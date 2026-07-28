@@ -15,6 +15,7 @@ import { sfx, music, beatvoice, audioClockMs } from '../sfx.js';
 import { BOO_POP_HITS } from '../../data/songs.js';
 import { resolveItem } from '../customs.js';
 import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
+import { timedGate } from '../smartmix.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
 import { pickForMeButton } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
@@ -143,7 +144,11 @@ export function mount(container, params, ctx) {
     const beatMs = (60000 / track.bpm) * (steady ? STEADY_TEMPO : 1);
     mutate(s => { if (!auto) s.seen.beatCat = category; s.seen.beatSteady = steady; s.seen.beatTrack = TRACKS[trackKey] ? trackKey : DEFAULT_TRACK; });
 
-    let question = auto ? autoQuestion(null, 3, true) : makeBeatQuestion(category, level, null);
+    // RUN18B Y10: Boo Beat is timed — a question arrives on a falling note whether she is
+    // ready or not — so it practises what she has already got right. Measured once per round.
+    const genOne = (prev) => auto ? autoQuestion(prev, 3, true) : makeBeatQuestion(category, level, prev);
+    const gate = timedGate(() => genOne(null), PHRASES);
+    let question = gate.pick(() => genOne(null));
     let notes = [];              // active QUESTION notes {lane, text, correct, spawnBeat, node, judged}
     let taps = [];               // active TAP-ALONG notes (RUN14 U2) — groove, any lane
     let phraseIdx = 0, correct = 0, perfects = 0, misses = 0, combo = 0, melodyIdx = 0;
@@ -507,7 +512,7 @@ export function mount(container, params, ctx) {
       phraseIdx++;
       shell.setProgress(phraseIdx);
       if (phraseIdx >= PHRASES) return shell.after(500, finish);
-      question = auto ? autoQuestion(question.key, 3, true) : makeBeatQuestion(category, level, question.key);
+      question = gate.pick(() => genOne(question.key));
       // clear the resolved trio immediately — the groove carries the round onward
       notes.forEach(n => n.node.remove());
       notes = [];
@@ -527,6 +532,9 @@ export function mount(container, params, ctx) {
     if (typeof window !== 'undefined') window.__beat = {
       steady: () => steady,
       track: () => TRACKS[trackKey] ? trackKey : DEFAULT_TRACK,
+      // RUN18B Y10 QA: what she is being asked, and whether the eligible pool was big enough.
+      key: () => question && question.key,
+      gate: () => ({ on: gate.on, found: gate.found, want: gate.want }),
       tapCorrect: (grade = 'perfect') => { const n = notes.find(x => x.correct); if (n && !resolving) awardCorrect(n, grade); },
       tapWrong: () => { const n = notes.find(x => !x.correct); if (n && !resolving) wrongTap(); },
       missNow: () => { if (!resolving) missPhrase(); },
