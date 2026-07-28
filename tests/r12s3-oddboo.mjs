@@ -9,6 +9,7 @@
 // answer pool entirely and never rendered inside a grid.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
+import { oddGridFault } from '../js/brainhelpers.js';   // RUN18D D7
 import { oddGrid, violatesOddPredicate, ODD_FEATURES, ODD_SPECIES_PAIRS, ODD_BASE_SPECIES,
          ODD_NEAR_COLOURS, ODD_GRID_SIZE, BRAIN_COLOURS } from '../js/brainhelpers.js';
 import { renderBoo } from '../js/art.js';
@@ -23,6 +24,49 @@ const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m
 
 const ALL = ['colour', 'species', 'hat', 'shine'];
 const TIERS = ['toddler', 'light', 'medium', 'full'];
+
+// ---- 0. RUN18D D7: the guarantee is CHECKED at the point of service ------------------
+// RUN12 S3 made the generator sound by construction, and §1 below still proves that at
+// 1000 grids per tier. D7 asks for the promise to be made where the board is handed over,
+// so that a future change to the construction cannot quietly un-make it. What is new here
+// is the validator itself: it must pass every served board AND actually catch a broken one,
+// because a check that never says no is not a check.
+console.log('== every served board is validated, and the validator can say no ==');
+{
+  let served = 0, faults = [];
+  for (const tier of TIERS) {
+    for (let i = 0; i < 500; i++) {
+      const g = oddGrid(tier);
+      served++;
+      const f = oddGridFault(g);
+      if (f && faults.length < 3) faults.push(`${tier}: ${f}`);
+      else if (f) served--;
+    }
+  }
+  assert(served === TIERS.length * 500 && faults.length === 0,
+    `${TIERS.length * 500} served boards, zero ambiguous (${faults.join(' | ') || 'none'})`);
+
+  // …and it is not a rubber stamp. Four hand-broken boards, four different refusals.
+  const twoDiffs = oddGrid('full');
+  twoDiffs.items[twoDiffs.oddIndex] = { ...twoDiffs.items[twoDiffs.oddIndex], hat: !twoDiffs.items[twoDiffs.oddIndex].hat, colour: 'gold' };
+  assert(!!oddGridFault(twoDiffs), 'a board whose odd Boo differs twice is refused');
+
+  const noAnswer = oddGrid('full');
+  noAnswer.items[noAnswer.oddIndex] = { ...noAnswer.items[(noAnswer.oddIndex + 1) % noAnswer.items.length] };
+  assert(/no answer/.test(oddGridFault(noAnswer) || ''), 'a board with no odd Boo at all is refused');
+
+  const mixedCrowd = oddGrid('full');
+  const other = mixedCrowd.oddIndex === 0 ? 1 : 0;
+  mixedCrowd.items[other] = { ...mixedCrowd.items[other], hat: !mixedCrowd.items[other].hat };
+  assert(/ordinary Boos disagree/.test(oddGridFault(mixedCrowd) || ''), 'a board where two ORDINARY Boos disagree is refused');
+
+  const sparkly = oddGrid('full');
+  sparkly.items = sparkly.items.map((b, i) => ({ ...b, ...(i === sparkly.oddIndex ? {} : {}) }));
+  const s0 = sparkly.items[sparkly.oddIndex === 0 ? 1 : 0];
+  sparkly.items = sparkly.items.map((b, i) => (i === sparkly.oddIndex ? { ...s0, shine: true } : { ...s0 }));
+  sparkly.oddFeature = 'shine';
+  assert(/sparkle/.test(oddGridFault(sparkly) || ''), 'a board whose only difference is sparkle is refused');
+}
 
 // ---- 1. uniqueness, at 1000 grids per tier ------------------------------------------
 console.log('== 1000 grids per tier: exactly one item, differing on exactly one feature ==');
