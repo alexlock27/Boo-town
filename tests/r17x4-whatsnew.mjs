@@ -11,6 +11,10 @@
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'fs';
 import { WHATSNEW, LATEST_VERSION, entriesSince } from '../data/whatsnew.js';
+// RUN18A H2: a feature can be temporarily contained (its front door shut while it is
+// rebuilt). Its entry stays in the list — it really did arrive — but wears the reason
+// instead of a "Show me!", because a door into a contained feature is still a door.
+import { CONTAINED_ROUTES } from '../data/expedition.js';
 
 const RAW = process.env.BASE || 'http://127.0.0.1:8000';
 const BASE = RAW.replace('127.0.0.1', 'app.localhost').replace('//localhost', '//app.localhost');
@@ -151,10 +155,20 @@ console.log('== opening it shows the list, and it never returns for that version
   const { ctx, page } = await openHub();
   const r = await page.evaluate(() => {
     const n = window.__whatsnew.expand();
-    return { rows: n, goButtons: document.querySelectorAll('.wn-go').length, seen: window.__whatsnew.seen(), latest: window.__whatsnew.latest };
+    return {
+      rows: n, goButtons: document.querySelectorAll('.wn-go').length,
+      shut: [...document.querySelectorAll('.wn-shut')].map(s => s.textContent),
+      seen: window.__whatsnew.seen(), latest: window.__whatsnew.latest
+    };
   });
+  const containedEntries = allEntries.filter(e => CONTAINED_ROUTES[e.route]);
   assert(r.rows >= 14, `the list shows every entry (${r.rows})`);
-  assert(r.goButtons === r.rows, `each one has a "Show me!" (${r.goButtons})`);
+  assert(r.goButtons + r.shut.length === r.rows,
+    `every entry has EITHER a "Show me!" or the reason it is shut — never nothing (${r.goButtons} + ${r.shut.length} = ${r.rows})`);
+  assert(r.shut.length === containedEntries.length,
+    `exactly the contained entries wear the reason instead of a door (${containedEntries.length}: ${containedEntries.map(e => e.title).join(', ') || 'none'})`);
+  assert(r.shut.every(t => Object.values(CONTAINED_ROUTES).includes(t)),
+    'and each says the authored containment line verbatim' + (r.shut.length ? `: "${r.shut[0]}"` : ''));
   assert(r.seen === r.latest, 'opening it records the version as seen');
   await page.screenshot({ path: `${SHOTS}/list-1024.png` });
   // and it is gone on the next open — persisted, not just hidden
@@ -190,10 +204,16 @@ console.log('== "Show me!" really goes there ==');
     const e = allEntries[i];
     const { ctx, page } = await openHub();
     await page.evaluate(() => window.__whatsnew.expand());
-    await page.evaluate((idx) => window.__whatsnew.go(idx), i);
+    const clicked = await page.evaluate((idx) => window.__whatsnew.go(idx), i);
     await page.waitForTimeout(700);
     const landed = await page.evaluate(() => document.getElementById('screen').dataset.screen);
-    assert(landed === e.route, `"${e.title}" → ${e.route} (landed "${landed}")`);
+    if (CONTAINED_ROUTES[e.route]) {
+      // Contained: the route still RESOLVES (asserted against the real registry above) —
+      // what must not exist is a door a child can walk through while it is shut.
+      assert(!clicked && landed === 'hub', `"${e.title}" is contained: no "Show me!", and she stays on the hub (landed "${landed}")`);
+    } else {
+      assert(landed === e.route, `"${e.title}" → ${e.route} (landed "${landed}")`);
+    }
     await ctx.close();
   }
 }

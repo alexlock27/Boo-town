@@ -19,6 +19,7 @@ import { el, clear } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { sfx } from './sfx.js';
 import { WHATSNEW, LATEST_VERSION, entriesSince } from '../data/whatsnew.js';
+import { CONTAINED_ROUTES } from '../data/expedition.js';   // RUN18A H2
 
 // The version she has already been shown. Absent on every existing save, which is correct:
 // a save that predates this feature has seen nothing, and gets the whole catch-up once.
@@ -92,10 +93,16 @@ export function createWhatsNewCard(ctx) {
           el('strong', { class: 'wn-item-title', text: e.title }),
           el('span', { class: 'wn-blurb', text: e.blurb })
         ]),
-        e.route ? el('button', {
-          class: 'btn wn-go', text: 'Show me!',
-          onclick: () => { sfx.tap(); ctx.go(e.route, e.params || {}); }
-        }) : null
+        // RUN18A H2: a feature that is being rebuilt keeps its entry — it really did
+        // arrive, and pretending otherwise would rewrite what she was told — but it wears
+        // the reason instead of a door. "Show me!" that opens something contained would be
+        // the app advertising as new the one thing it is telling her is shut.
+        e.route ? (CONTAINED_ROUTES[e.route]
+          ? el('span', { class: 'wn-shut', text: CONTAINED_ROUTES[e.route] })
+          : el('button', {
+            class: 'btn wn-go', text: 'Show me!',
+            onclick: () => { sfx.tap(); ctx.go(e.route, e.params || {}); }
+          })) : null
       ]);
       list.appendChild(row);
     }
@@ -108,7 +115,10 @@ export function createWhatsNewCard(ctx) {
     entries: () => entries.map(e => ({ title: e.title, route: e.route, params: e.params || null })),
     expand: () => { expand(); return list.querySelectorAll('.wn-item').length; },
     dismiss: () => { dismiss.click(); },
-    go: (i) => { const b = list.querySelectorAll('.wn-go')[i]; if (b) b.click(); return !!b; },
+    // Indexed by ROW, not by button: a contained entry has no "Show me!", and indexing the
+    // buttons would silently shift every entry after it onto the wrong row. Returns false
+    // when that row has no door — which is itself the thing worth asserting.
+    go: (i) => { const b = list.querySelectorAll('.wn-item')[i]?.querySelector('.wn-go'); if (b) b.click(); return !!b; },
     isModal: () => !!card.closest('.overlay, .intro-overlay, [role="dialog"]'),
     seen: () => seenVersion(),
     latest: LATEST_VERSION

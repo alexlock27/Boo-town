@@ -4645,6 +4645,11 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .hub .game-card .gc-icon svg { width: 46px; height: 46px; }
   .hub .game-card .gc-name { font-size: clamp(17px, 4.6vw, 21px); }
   .hub .game-card .gc-tag { display: none; }
+  /* ...EXCEPT on a card that is being rebuilt, where the tag IS the message. Losing
+     "Build & clear" off Boo Blocks costs nothing; losing "Being polished — back soon! 🚧"
+     leaves a phone showing an unlabelled card that does not respond — a dead end with no
+     sign on it, on the primary form factor. (RUN18A H2, found by the playtest critic.) */
+  .hub .game-card.building .gc-tag { display: block; font-size: 13px; }
   .hub .game-card .gc-stars { margin-left: auto; }
 
   /* the game shell HUD compresses to one row */
@@ -5475,6 +5480,13 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .wn-item-title { font-weight: 800; font-size: .98rem; }
 .wn-blurb { font-size: .85rem; opacity: .85; line-height: 1.35; }
 .wn-go { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: .9rem; }
+/* RUN18A H2: where a "Show me!" would be for a feature that is being rebuilt. Deliberately
+   NOT button-shaped — nothing here to press — and the same tested ink/oatmeal pair the
+   contained hub card uses, so it reads as "not yet" rather than as a failed control. */
+.wn-shut {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 12px; font-size: .82rem; font-weight: 700;
+  background: #EFE7DA; color: #5C4B3A; text-align: center; max-width: 46%;
+}
 
 @media (max-width: 600px) {
   .wn-item { flex-wrap: wrap; }
