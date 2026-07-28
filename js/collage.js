@@ -11,6 +11,8 @@ import { resolveItem, ownedCustomItems } from './customs.js';
 import { COLLECTIBLES } from '../data/catalogue.js';
 import { equippedArt } from './accessories.js';
 import { saveArtwork } from './studio.js';
+import { celebrate } from './celebrate.js';   // RUN18D D11
+import { SAVED_LINE } from './paint.js';      // one line, one place
 
 const W = 640, H = 480;
 const BACKGROUNDS = [
@@ -203,7 +205,12 @@ export function mount(container, params, ctx) {
     const png = await rasterise();
     const res = await saveArtwork(png, 'collage');
     if (res.full) { saveMsg.textContent = 'Gallery is full (20)! Delete one first.'; saveMsg.classList.add('err'); }
-    else { saveMsg.classList.remove('err'); saveMsg.textContent = 'Saved! 🌟'; sfx.star(); }
+    else {
+      // RUN18D D11: the same Standard and the same authored line as Paint — one save, one
+      // way it feels, whichever room she made it in.
+      saveMsg.classList.remove('err'); saveMsg.textContent = SAVED_LINE;
+      celebrate(saveBtn, { counter: saveMsg, line: SAVED_LINE });
+    }
     setTimeout(() => saveMsg.textContent = '', 2600);
   }
   function rasterise() {

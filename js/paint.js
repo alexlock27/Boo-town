@@ -6,6 +6,10 @@ import { el, clear, backControl } from './ui.js';
 import { createDrawer } from './drawer.js';
 import { sfx, music } from './sfx.js';
 import { saveArtwork } from './studio.js';
+import { celebrate } from './celebrate.js';   // RUN18D D11
+
+// RUN18D D11 — verbatim from the pack.
+export const SAVED_LINE = 'Saved to your gallery!';
 import { idbGet, idbPut, idbDelete, idbCount } from './idb.js';
 import { seasonOf, currentMonth } from './rewards.js';
 import { contentTier } from './content.js';
@@ -351,7 +355,11 @@ export function mount(container, params, ctx) {
     const res = await saveArtwork(png, 'paint');
     if (res.full) { saveMsg.textContent = 'Gallery is full (20)! Delete one first.'; saveMsg.classList.add('err'); }
     else {
-      saveMsg.classList.remove('err'); saveMsg.textContent = 'Saved! 🌟'; sfx.star();
+      // RUN18D D11: beats 1 and 3 of the Celebration Standard, and the authored line, out
+      // loud. A picture she has just made saved itself with a four-word status message and
+      // a chime — the announced-moments law calls that "solely a toast".
+      saveMsg.classList.remove('err'); saveMsg.textContent = SAVED_LINE;
+      celebrate(saveBtn, { counter: saveMsg, line: SAVED_LINE });
       dirty = false;
       // a saved painting is no longer a draft (RUN5 C6)
       if (draftRec) { try { await idbDelete('artworks', DRAFT_ID); } catch {} draftRec = null; renderTemplates(); }

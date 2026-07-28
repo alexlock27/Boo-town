@@ -6,6 +6,10 @@ import { sfx, music } from '../sfx.js';
 import { idbDelete, idbPut } from '../idb.js';
 import { listJams, jamEvents, startBandWatch } from '../band.js';
 import { INSTRUMENTS } from './shared.js';
+import { celebrate } from '../celebrate.js';   // RUN18D D11
+
+// RUN18D D11 — verbatim from the pack.
+export const BANDSTAND_LINE = 'The bandstand will play «jam name» tonight!';
 
 const EVENT_ICON = { drum: '🥁', key: '🎹', guitar: '🎸', xylo: '🌈' };
 
@@ -94,7 +98,14 @@ export function mount(container, params, ctx) {
         el('button', {
           class: `btn soft${getState().bandSong === jam.id ? ' active' : ''}`,
           text: getState().bandSong === jam.id ? '★ Band song' : 'Set as band song',
-          onclick: () => { mutate(st => { st.bandSong = jam.id; }); sfx.star(); render(); }
+          // RUN18D D11: setting the bandstand's song changed a star on a button and said
+          // nothing. It is a decision about her town's evening now, and it says so. Line
+          // verbatim from the pack.
+          onclick: (e) => {
+            mutate(st => { st.bandSong = jam.id; });
+            celebrate(e.currentTarget, { line: BANDSTAND_LINE.replace('«jam name»', jam.name || 'your jam') });
+            render();
+          }
         })
       ]),
       add,

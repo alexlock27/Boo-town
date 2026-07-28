@@ -27,6 +27,7 @@ const ASSETS = [
   'js/rewards.js',
   'js/results.js',
   'js/gameshell.js',
+  'js/celebrate.js',        // RUN18D: the Celebration + Explanation Standards
   'js/hub.js',
   'js/collection.js',
   'js/care.js',

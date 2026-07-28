@@ -12,6 +12,8 @@ import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, XYLO_S
 import { idbPut, idbGetAll, idbDelete } from './idb.js';
 import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../data/songs.js';
 import { contentTier } from './content.js';
+import { celebrate } from './celebrate.js';   // RUN18D D11
+import { BANDSTAND_LINE } from './band/jams.js';
 
 export const BANDSTAND_X = 0.68;         // where the bandstand sits in the funfair zone
 export const MAX_JAMS = 3;               // up to three saved jams (named constant)
@@ -383,7 +385,10 @@ export function mount(container, params, ctx) {
     if (!jams.length) { jamsList.appendChild(el('p', { class: 'jams-empty', text: 'Record a jam and save it — up to three live here.' })); return; }
     const cur = getState().bandSong;
     for (const j of jams) {
-      const setBtn = el('button', { class: 'btn soft jam-set' + (cur === j.id ? ' active' : ''), text: cur === j.id ? '★ Band song' : 'Set as band song', onclick: () => { mutate(st => { st.bandSong = j.id; }); sfx.star(); refreshJams(); } });
+      const setBtn = el('button', { class: 'btn soft jam-set' + (cur === j.id ? ' active' : ''), text: cur === j.id ? '★ Band song' : 'Set as band song',
+        // RUN18D D11: the preserved RUN9 harness carries the same control, so it carries the
+        // same announcement — "no silent saves remain" means all of them.
+        onclick: (e) => { mutate(st => { st.bandSong = j.id; }); celebrate(e.currentTarget, { line: BANDSTAND_LINE.replace('«jam name»', j.name || 'your jam') }); refreshJams(); } });
       const row = el('div', { class: 'jam-row', dataset: { id: j.id } }, [
         el('span', { class: 'jam-name', text: j.name }),
         el('button', { class: 'btn soft jam-play', text: '▶', 'aria-label': 'Play ' + j.name, onclick: () => playRecording(jamEvents(j)) }),
