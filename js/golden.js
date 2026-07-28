@@ -28,7 +28,8 @@ export function mount(container, params, ctx) {
 
   if (!golden || (!(golden.words || []).length && !(golden.choices || []).length)) {
     // nothing published yet — shouldn't happen (card is hidden), but fail gently
-    root.appendChild(el('div', { class: 'card', style: { margin: '40px', padding: '24px' } }, [
+    // the top margin clears the floating "‹" added below — it sat over the card's corner
+    root.appendChild(el('div', { class: 'card', style: { margin: '76px 40px 40px', padding: '24px' } }, [
       el('p', { text: 'No Golden Round yet! A grown-up can add one in the cog corner.' }),
       el('button', { class: 'btn', text: 'Back', onclick: () => ctx.go('hub') })
     ]));

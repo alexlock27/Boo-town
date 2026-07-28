@@ -141,11 +141,38 @@ let navDepth = -1;
 let navOnce = null;          // 'replace' for the ONE go() a popstate causes
 const NAV_MAX = 60;          // a session's stack, bounded; a child cannot out-tap this
 
+// A signature for "the same place, with the same arguments". Functions are dropped (results
+// carries a live `replay`); anything that cannot be serialised at all gets a value that can
+// never match, so an unknown shape is treated as a NEW place rather than silently folded
+// onto an old one.
+let sigSeq = 0;
+function paramSig(p) {
+  if (!p) return '';
+  try { return JSON.stringify(p, (k, v) => (typeof v === 'function' ? undefined : v)) || ''; }
+  catch { return '?' + (++sigSeq); }
+}
+
 function recordNav(name, params) {
   const mode = navOnce; navOnce = null;
   try {
     if (mode === 'replace' && navStack[navDepth]) {
       navStack[navDepth] = { name, params };
+      history.replaceState({ boo: navDepth }, '');
+      return;
+    }
+    // GOING BACK POPS. The shared "‹" is a plain go('hub') — it cannot know it is a backward
+    // move — so without this the stack GREW on the way back and the phone's back gesture
+    // then walked her FORWARDS into the screens she had just left: back out of a round and
+    // one more back dropped her into it again. Arriving at a screen that is already open
+    // below her therefore pops to it and drops everything in front, exactly as a stack-based
+    // navigator does. (RUN18B Y11, found by the playtest critic.)
+    const sig = paramSig(params);
+    for (let i = navDepth; i >= 0; i--) {
+      const e = navStack[i];
+      if (!e || e.name !== name || paramSig(e.params) !== sig) continue;
+      navStack[i] = { name, params };
+      navStack.length = i + 1;
+      navDepth = i;
       history.replaceState({ boo: navDepth }, '');
       return;
     }
@@ -159,7 +186,10 @@ function recordNav(name, params) {
     history.pushState({ boo: navDepth }, '');
   } catch (e) { console.warn('[main] history unavailable', e); }
 }
-function syncHistory() { try { history.pushState({ boo: navDepth }, ''); } catch {} }
+// Undo a back we are not honouring, WITHOUT pushing: a push would silently destroy her
+// forward branch, so back-back-forward would stop working. Stepping forward returns to the
+// entry we were already on, and the popstate that follows hits the `to === navDepth` guard.
+function syncHistory() { try { history.forward(); } catch {} }
 
 function setupHistory() {
   try { history.replaceState({ boo: -1 }, ''); } catch (e) { console.warn('[main] history guard unavailable', e); }

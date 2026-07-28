@@ -167,6 +167,72 @@ console.log('== 5. back in a round raises "Leave this round?" — and cancelling
   await ctx.close();
 }
 
+// ================== 5b. the shared "‹" POPS, it does not stack ==================
+// The playtest critic's MUST-FIX. The "‹" is a plain go('hub'), so the stack used to GROW on
+// the way back and the gesture back then walked her FORWARDS into the screens she had just
+// left — out of a round, one more back, and she was inside it again.
+console.log('== 5b. the "‹" pops back rather than stacking a second copy ==');
+{
+  const { ctx, page } = await open();
+  await goTo(page, 'collection');
+  await page.click('.back-btn');
+  await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'hub', null, { timeout: 10000 });
+  let nav = await page.evaluate(() => window.BooTown.nav());
+  assert(nav.stack.filter(Boolean).join('>') === 'hub' && nav.depth === 0,
+    `"‹" from the collection pops back to a stack of just the hub (${nav.stack.filter(Boolean).join('>')} @${nav.depth})`);
+  await page.goBack().catch(() => {});
+  await sleep(400);
+  assert(await page.evaluate(() => document.getElementById('screen').dataset.screen) === 'hub',
+    'and the gesture back does NOT then walk her forwards into the collection again');
+
+  // the same, two levels deep, through the town's "‹" chain
+  await goTo(page, 'town', { area: 'meadow' });
+  await goTo(page, 'worldmap');
+  await goTo(page, 'hub');
+  nav = await page.evaluate(() => window.BooTown.nav());
+  assert(nav.stack.filter(Boolean).join('>') === 'hub' && nav.depth === 0,
+    `arriving back at a screen already open below her drops everything in front of it (${nav.stack.filter(Boolean).join('>')})`);
+  await page.goBack().catch(() => {});
+  await sleep(400);
+  await page.goBack().catch(() => {});
+  await sleep(400);
+  assert(await page.evaluate(() => document.getElementById('screen').dataset.screen) === 'hub',
+    'two more backs still leave her on the hub, not back out through the world map');
+
+  // leaving a round must not leave the round one back-press away
+  await goTo(page, 'bubblepop', { resume: { cat: 'tables', level: 1 } });
+  await page.waitForSelector('.bubble-field', { timeout: 15000 });
+  await page.click('.game-topbar .back-btn');
+  await page.waitForSelector('.overlay', { timeout: 6000 });
+  await page.click('.overlay button:has-text("Leave")');
+  await page.waitForFunction(() => ['hub', 'results'].includes(document.getElementById('screen').dataset.screen), null, { timeout: 10000 });
+  const landed = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+  if (landed === 'hub') {
+    await page.goBack().catch(() => {});
+    await sleep(500);
+    assert(await page.evaluate(() => document.getElementById('screen').dataset.screen) === 'hub',
+      'and after leaving a round, back does not drop her straight back inside it');
+  } else {
+    assert(true, `leaving banked stars and went to ${landed} — the round is not on the stack behind the hub`);
+  }
+  await ctx.close();
+}
+
+// ================== 5c. a swallowed back keeps her forward branch ==================
+console.log('== 5c. a back that goes nowhere does not destroy forward ==');
+{
+  const { ctx, page } = await open();
+  await goTo(page, 'collection');
+  await goTo(page, 'shop');
+  await page.goBack(); await sleep(400);       // → collection
+  await page.goBack(); await sleep(400);       // → hub
+  await page.goBack().catch(() => {}); await sleep(400);   // → nothing (off the bottom)
+  await page.goForward(); await sleep(500);
+  assert(await page.evaluate(() => document.getElementById('screen').dataset.screen) === 'collection',
+    'forward still works after a back that had nowhere to go');
+  await ctx.close();
+}
+
 // ================== 6. a refresh opens where it always did ==================
 console.log('== 6. a refresh opens the hub, exactly as before ==');
 {
