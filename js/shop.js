@@ -142,7 +142,7 @@ export function mount(container, params, ctx) {
   const purse = el('div', { class: 'shop-purse', 'aria-label': 'Your stars' });
   const shelfNodes = {};
   const tabs = SHELVES.map(shelf => {
-    const node = el('div', { class: 'shop-shelf', dataset: { shelf: shelf.id } });
+    const node = el('div', { class: 'shop-shelf screen-content', dataset: { shelf: shelf.id } });
     shelfNodes[shelf.id] = node;
     return { id: shelf.id, label: shelf.label, node };
   });

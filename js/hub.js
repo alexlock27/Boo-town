@@ -129,7 +129,10 @@ export function mount(container, params, ctx) {
     class: 'care-pocket hub-pocket', 'aria-label': `Treats: ${treats}`,
     onclick: () => { sfx.tap(); ctx.go('town', { area: 'meadow' }); }
   }, [el('span', { class: 'cp-ic', text: '🍪' }), el('span', { class: 'cp-n', text: String(treats) })]);
-  const top = el('header', { class: 'hub-top' }, [speaker, totalChip, meterWrap, pocketChip]);
+  // RUN18D D1: every hub section rides the 720px shell at >=900px, so the header, the
+  // Today rail and the two grids share one column edge instead of drifting apart across a
+  // tablet's width.
+  const top = el('header', { class: 'hub-top screen-content' }, [speaker, totalChip, meterWrap, pocketChip]);
 
   // ---- guide + bubble ----
   const gb = createGuideBubble({ view: 'full', size: 150, side: 'left' });
@@ -155,7 +158,7 @@ export function mount(container, params, ctx) {
   // It collapses every meta-card into chips shown ONLY when they have content, so
   // the games grid is the dominant hub content again (≥2 cards visible at 390x844).
   // This is CONTENT, not navigation — the four-slot bottom bar rule is untouched.
-  const todayRail = el('div', { class: 'today-rail', 'aria-label': 'Today' });
+  const todayRail = el('div', { class: 'today-rail screen-content', 'aria-label': 'Today' });
   const railInner = el('div', { class: 'trail-inner' });
   todayRail.appendChild(railInner);
 
@@ -226,7 +229,7 @@ export function mount(container, params, ctx) {
   }
 
   // ---- game cards, grouped Learn / Play (RUN2 part D) ----
-  const cards = el('section', { class: 'game-cards-groups' });
+  const cards = el('section', { class: 'game-cards-groups screen-content' });
   const makeCard = (g) => {
     const best = s.stars.byGame[g.id] ? s.stars.byGame[g.id].best : 0;
     // A card whose feature is being rebuilt says so and does not open — the Course-3
@@ -268,7 +271,7 @@ export function mount(container, params, ctx) {
   const bar = el('nav', { class: 'bottom-bar' }, [townBtn, collBtn, studioBtn, cog]);
 
   // ---- Golden Round + daily quests cards (RUN3 C3/C4) ----
-  const specials = el('section', { class: 'hub-specials' });
+  const specials = el('section', { class: 'hub-specials screen-content' });
 
   // RUN17 X4: "Something new arrived!" — one card, in the hub's own flow, on the first
   // open after a new version. It is page content and not a layer over the page, so it

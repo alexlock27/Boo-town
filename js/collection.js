@@ -23,7 +23,7 @@ export function mount(container, params, ctx) {
 
   const root = el('div', { class: 'collection' });
 
-  const header = el('header', { class: 'coll-header' }, [
+  const header = el('header', { class: 'coll-header screen-content' }, [
     backControl(() => ctx.go((params && params.from) || 'hub')),   // RUN10 P4: return to whoever sent us here (e.g. the Gallery)
     el('h2', { text: 'My Collection' }),
     el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` }),
@@ -123,10 +123,10 @@ export function mount(container, params, ctx) {
     ]);
   }
 
-  const scroll = el('div', { class: 'coll-scroll' }, [myCharCard, grid, ...(birthdaySection ? [birthdaySection] : []), ...(customsSection ? [customsSection] : []), wardrobe]);
+  const scroll = el('div', { class: 'coll-scroll screen-content' }, [myCharCard, grid, ...(birthdaySection ? [birthdaySection] : []), ...(customsSection ? [customsSection] : []), wardrobe]);
 
   // ---- Journal tab (RUN3 C4): a scrapbook of dated stamp stickers on flippable pages ----
-  const journalView = el('div', { class: 'coll-scroll journal-view', style: { display: 'none' } });
+  const journalView = el('div', { class: 'coll-scroll journal-view screen-content', style: { display: 'none' } });
   const PER_PAGE = 6;
   let jpage = 0;
   function renderJournal() {
@@ -157,13 +157,13 @@ export function mount(container, params, ctx) {
   renderJournal();
 
   // ---- Trophies tab (RUN4 C4): the warm wooden cabinet ----
-  const trophyView = el('div', { class: 'coll-scroll trophy-view', style: { display: 'none' } });
+  const trophyView = el('div', { class: 'coll-scroll trophy-view screen-content', style: { display: 'none' } });
   let trophyMounted = false;
 
   // Toddler mode (RUN5 C7): the Trophies tab is hidden — the shared universe stays,
   // but the ledgered challenge furniture waits until she's older.
   const toddler = contentTier() === 'toddler';
-  const tabs = el('div', { class: 'coll-tabs' }, [
+  const tabs = el('div', { class: 'coll-tabs screen-content' }, [
     el('button', { class: 'coll-tab sel', text: '🧸 Boos', onclick: (e) => switchTab('coll', e.currentTarget) }),
     toddler ? null : el('button', { class: 'coll-tab', text: '🏆 Trophies', onclick: (e) => switchTab('trophies', e.currentTarget) }),
     el('button', { class: 'coll-tab', text: '📖 Journal', onclick: (e) => switchTab('journal', e.currentTarget) }),
