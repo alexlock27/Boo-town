@@ -222,7 +222,12 @@ export function openEquipPicker(accItem, { onDone } = {}) {
 }
 
 // "Dress up" (from a Boo's card / a placed Boo): pick an owned accessory, or take off.
-export function openDressUp(booItem, { onDone } = {}) {
+// RUN18B Y2: `highlight` is the accessory she has JUST BOUGHT. The shop's "Who's wearing
+// it?" hands her here, so the wardrobe opens on that thing's own tab with the thing itself
+// marked — arriving at a bare-headed Boo and a closed drawer answered the card's question
+// with a shrug. (Found by the playtest critic: 4 taps and 3.46s to worn, against 1.16s for
+// the build route, and at 390px the bought item was not on screen at all.)
+export function openDressUp(booItem, { onDone, highlight = null } = {}) {
   const s = getState();
   const owned = ACCESSORIES.filter(a => s.inventory[a.id] > 0);
   const shiny = ((s.shinies && s.shinies[booItem.id]) || 0) > 0;
@@ -244,6 +249,11 @@ export function openDressUp(booItem, { onDone } = {}) {
     ariaLabel: `${getDisplayName(booItem.id)} wardrobe`
   });
   drawer.setCurrent('<span class="bd-cur-ic">🎀</span><span class="bd-cur-label">Open the wardrobe</span>');
+  // ...and if she came in holding something new, the wardrobe is already open at it.
+  if (highlight) {
+    const slot = (BY_ID[highlight] && BY_ID[highlight].slot) || 'hat';
+    try { drawer.showTab(slot); drawer.open(); } catch {}
+  }
   card.append(title, preview, chips, note, drawer.root, close);
   ov.appendChild(card);
   document.body.appendChild(ov);
@@ -282,7 +292,8 @@ export function openDressUp(booItem, { onDone } = {}) {
           ? Object.values(worn).some(id => typeof id === 'string' && id.startsWith(`set:${acc.id}:`))
           : worn[slot] === acc.id;
         const tile = el('button', {
-          class: `acc-drawer-item${selected ? ' sel' : ''}`,
+          class: `acc-drawer-item${selected ? ' sel' : ''}${highlight === acc.id ? ' just-bought' : ''}`,
+          'aria-label': highlight === acc.id ? `${acc.name} — the one you just bought` : acc.name,
           onclick: () => {
             if (refuses(booItem.id, acc.id)) { note.textContent = guideLine('djRefuse'); speakMaybe(note.textContent); return; }
             sfx.tap();
