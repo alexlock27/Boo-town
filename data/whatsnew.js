@@ -22,6 +22,30 @@
 
 export const WHATSNEW = [
   {
+    // RUN18B (Repair & Respect). Sixteen packets, most of them repairs a child would only
+    // notice as an absence — a hearts row that never took a heart, a clock that lied, ids
+    // that did not line up. These five are the ones that hand her something NEW, exactly as
+    // _programme/RUN18B.md's gate names them (Y3, Y4, Y5, Y6, Y16).
+    version: 'run18b-20260728',
+    entries: [
+      { icon: '⭐', title: 'How Boo Town works',
+        blurb: 'Three little cards on your hub tell you what stars are for. A grown-up can show them again any time.',
+        route: 'hub' },
+      { icon: '🌟', title: 'Your wish comes true',
+        blurb: 'Spell a word at the Wish Well and it arrives in your town for keeps, on a shining gold medallion.',
+        route: 'town', params: { area: 'meadow', openWishWell: true } },
+      { icon: '🖼️', title: 'Flash Boos paints a picture',
+        blurb: 'The Boos really sit on the bench and really hold the ball now — look hard, then answer!',
+        route: 'flashboos' },
+      { icon: '😋', title: 'The Boos actually eat it',
+        blurb: 'Sort the food right and a Boo opens its mouth, chomps, and puffs its cheeks. And the rule can change halfway!',
+        route: 'feedboos' },
+      { icon: '🔊', title: 'Hear the tune again',
+        blurb: 'Miss a note in Echo Boos and you can ask for the tune once more — same speed, same tune, no fuss.',
+        route: 'echoboos' }
+    ]
+  },
+  {
     // RUN18A (Stop the Bleeding) was a repair run: a softlock, an Expedition full of
     // placeholder text, a shop back button hiding behind a giraffe. None of that is news
     // — a child is not told "the thing that was broken is less broken". H3 is the one

@@ -1,6 +1,7 @@
 // js/grownups.js — the grown-ups corner (spec §5.7). Plain adult styling.
 
 import { el, backControl, setCalmMotion, setBiggerText } from './ui.js';
+import { replayTour } from './welcometour.js';
 import { getState, mutate, commit, exportCode, importCode, resetAll } from './state.js';
 import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
 import * as tts from './tts.js';
@@ -83,7 +84,14 @@ export function mount(container, params, ctx) {
       commit();
       setBiggerText(v);
     }),
-    el('p', { class: 'gu-note', text: 'One step larger everywhere. Nothing is hidden or cut off — every screen grows with it.' })
+    el('p', { class: 'gu-note', text: 'One step larger everywhere. Nothing is hidden or cut off — every screen grows with it.' }),
+    // RUN18B Y16: the welcome tour's replay lives here, not on the hub — a child who has
+    // been told does not need a permanent "tell me again" chip in the way of her games.
+    el('button', { class: 'btn soft gu-tour-replay', text: 'Show the welcome tour again', onclick: (e) => {
+      replayTour();
+      e.target.textContent = 'It will show next time you open the hub';
+      e.target.disabled = true;
+    } })
   ]);
 
   // ---- voice picker (RUN9 C6b): choose from the device's installed English voices ----

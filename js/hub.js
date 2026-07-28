@@ -27,7 +27,8 @@ import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
 import { encouragementFor, returningAfterBreak, inLongSession } from './encouragement.js';   // RUN17 X2
 import { feelingsAvailable } from './feelings.js';   // RUN17 X3 (gated: off by default, Medium/Full only)
-import { createWhatsNewCard } from './whatsnew.js';   // RUN17 X4
+import { createWhatsNewCard } from './whatsnew.js';
+import { createWelcomeTour } from './welcometour.js';   // RUN18B Y16
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -268,6 +269,17 @@ export function mount(container, params, ctx) {
   // RUN17 X4: "Something new arrived!" — one card, in the hub's own flow, on the first
   // open after a new version. It is page content and not a layer over the page, so it
   // cannot block play; and the hub is its only caller, so it cannot appear mid-round.
+  // RUN18B Y16: "How Boo Town works" — three cards, once, ABOVE What's New, because a child
+  // who has never been told what stars are for cannot make sense of what is new about them.
+  // Built here and nowhere else, so like What's New it can never land over a game.
+  {
+    const tour = createWelcomeTour(ctx, { onFinish: () => {
+      const learn = [...root.querySelectorAll('.group-label')].find(l => l.textContent === 'Learn');
+      if (learn) learn.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+    } });
+    if (tour) specials.appendChild(tour);
+  }
+
   {
     const wn = createWhatsNewCard(ctx);
     if (wn) specials.appendChild(wn);
