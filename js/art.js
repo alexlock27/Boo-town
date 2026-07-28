@@ -1940,6 +1940,46 @@ export const TRAIL_NODE_AT = TRAIL_NODE_ATS.land;
 // wrong by the data.
 // data/expedition.js is untouched — it is authored content. Every drawing here is built to
 // match its OWN row: red or green, round or long, and its name says sweet or savoury.
+// ---- RUN18D D9: the Gallery is a ROOM ----------------------------------------------
+// It was the town's night-sky gradient with figures floating on invisible discs — the same
+// backdrop as a field, for the one place in the app whose whole subject is "look at what
+// you have collected". A museum interior instead: a cream wall band with a wainscot line,
+// a skirting shadow, and a spotlight cone over every plinth position. Drawn once, sized to
+// the room, and painted UNDER everything so nothing has to move.
+export function renderMuseumRoom(w, h, spots = []) {
+  const W = Math.max(320, Math.round(w)), H = Math.max(200, Math.round(h));
+  const floorY = Math.round(H * 0.66);
+  const wainscotY = Math.round(H * 0.52);
+  const cones = spots.map((x, i) => {
+    const cx = Math.round(x);
+    const top = Math.round(H * 0.06);
+    const halfTop = 14, halfBottom = Math.round(Math.min(78, W * 0.09));
+    return `<g class="gm-cone" style="--i:${i}">
+      <path d="M${cx - halfTop} ${top} L${cx + halfTop} ${top} L${cx + halfBottom} ${floorY + 14} L${cx - halfBottom} ${floorY + 14} Z" fill="url(#gmBeam)"/>
+      <ellipse cx="${cx}" cy="${floorY + 14}" rx="${halfBottom}" ry="10" fill="#FFF6DE" opacity="0.16"/>
+      <rect x="${cx - 13}" y="${top - 9}" width="26" height="9" rx="3" fill="#4A3F6B"/>
+    </g>`;
+  }).join('');
+  return `<svg class="gm-room" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="gmBeam" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#FFF6DE" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="#FFF6DE" stop-opacity="0.02"/>
+      </linearGradient>
+      <linearGradient id="gmWall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#F6EDDD"/><stop offset="100%" stop-color="#EADFC9"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="${W}" height="${floorY}" fill="url(#gmWall)"/>
+    <rect x="0" y="${wainscotY}" width="${W}" height="${floorY - wainscotY}" fill="#DFCFB2"/>
+    <rect x="0" y="${wainscotY - 5}" width="${W}" height="6" fill="#B9A483"/>
+    <rect x="0" y="${floorY - 7}" width="${W}" height="8" fill="#8A7658"/>
+    <rect x="0" y="${floorY}" width="${W}" height="${H - floorY}" fill="#A98C63"/>
+    <rect x="0" y="${floorY}" width="${W}" height="14" fill="#000" opacity="0.14"/>
+    ${cones}
+  </svg>`;
+}
+
 export function renderTopping(id, { size = 40, cls = '' } = {}) {
   const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"`;
   const thin = `stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
