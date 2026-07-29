@@ -191,10 +191,17 @@ export function mount(container, params, ctx) {
           ? `Look closer — ${TWIN_EXPLAIN[c.displayed] || ''} This sentence needs "${c.answer}"!`
           : `Look again — "${c.displayed}" is exactly right here. ${TWIN_EXPLAIN[c.displayed] || ''}`;
         const explainEl = stage.querySelector('.tt-explain');
-        explainEl.style.display = ''; explainEl.textContent = line;
         speakMaybe(line);
         [...stage.querySelectorAll('.tt-innocent,.tt-guilty')].forEach(b => b.disabled = true);
-        shell.timeout(advance, 2800);
+        // Alex, 2026-07-30: a grammar explanation needs reading time, not a timer racing
+        // her — she taps Next when she's ready, same idea as the culprit-fix step already
+        // did for a correct Guilty call.
+        clear(explainEl);
+        explainEl.style.display = '';
+        explainEl.append(
+          el('p', { class: 'tt-explain-line', text: line }),
+          el('button', { class: 'btn big tt-next', text: 'Next ›', onclick: () => { sfx.tap(); advance(); } })
+        );
       }
     }
 
@@ -260,6 +267,7 @@ export function mount(container, params, ctx) {
       verdictInnocent: () => stamp(false),
       verdictGuilty: () => stamp(true),
       tapCulprit: () => { const b = stage.querySelector('.tt-word'); if (b && !b.disabled) b.click(); },
+      tapNext: () => { const b = stage.querySelector('.tt-next'); if (b) b.click(); },
       rank: () => rankFor((getState().seen && getState().seen.twinTroubleCorrect) || 0).name,
       lifetimeCorrect: () => (getState().seen && getState().seen.twinTroubleCorrect) || 0,
       hint: () => useHint(),

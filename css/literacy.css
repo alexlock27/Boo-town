@@ -482,8 +482,11 @@
 .tt-guilty { background: #E4695E; color: var(--cream, #FFF8F0); }
 .tt-explain {
   background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
-  padding: 10px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+  padding: 14px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
+.tt-explain-line { margin: 0; }
+.tt-next { min-height: 56px; min-width: 140px; background: var(--star, #FFC93C); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
   .tt-word.culprit-glow, .tt-word.whoosh { animation: none; }
 }
