@@ -42,7 +42,8 @@ const GAMES = [
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
   { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'soundsorter', name: 'Sound Sorter', tag: 'Hear the sound', accent: 'var(--pop)', icon: soundIcon, group: 'Learn' },   // RUN16 W1
-  { id: 'blendit',   name: 'Blend It',     tag: 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2
+  // RUN18E Part B: at Medium/Full the same card opens the Word Factory, so its tag says so.
+  { id: 'blendit',   name: 'Blend It',     tag: () => (contentTier() === 'medium' || contentTier() === 'full') ? 'Build orders in the Word Factory' : 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2; RUN18E Word Factory
   { id: 'rhymetime', name: 'Rhyme Time',   tag: 'Words that chime', accent: 'var(--star)', icon: rhymeIcon, group: 'Learn' },   // RUN16 W3
   { id: 'storyorder', name: 'Story Order', tag: 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
@@ -247,7 +248,7 @@ export function mount(container, params, ctx) {
     return el('button', { class: 'game-card', style: { '--accent': g.accent }, onclick: () => ctx.go(g.id) }, [
       el('div', { class: 'gc-icon', html: g.icon() }),
       el('div', { class: 'gc-name', text: g.name }),
-      el('div', { class: 'gc-tag', text: g.tag }),
+      el('div', { class: 'gc-tag', text: typeof g.tag === 'function' ? g.tag() : g.tag }),
       el('div', { class: 'gc-stars', html: `<span class="gc-stars-pill">${starsRow(best, { size: 20 })}</span>` })
     ]);
   };

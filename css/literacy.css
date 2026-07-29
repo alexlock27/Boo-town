@@ -398,3 +398,59 @@
   background: var(--card); box-shadow: 0 2px 6px rgba(20,12,48,0.3);
   display: grid; place-items: center; font-size: 0;
 }
+
+/* ======================= RUN18E L2: The Word Factory ======================= */
+.wf-stage { display: grid; gap: 10px; justify-items: center; }
+.wf-rail { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.wf-ticket {
+  background: var(--cream, #FFF8F0); border: 3px solid var(--ink, #2A1B4E); border-radius: 16px;
+  padding: 8px 16px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 4px 0 rgba(42, 27, 78, .35); max-width: 480px;
+}
+.wf-order { font-weight: 700; font-size: 17px; color: var(--ink, #2A1B4E); }
+.wf-rush { min-height: 56px; background: var(--star, #FFC93C); font-weight: 700; }
+.wf-rush.taken { opacity: .5; }
+.wf-plate {
+  display: flex; gap: 6px; min-height: 64px; align-items: center; justify-content: center;
+  font-family: Fredoka, system-ui, sans-serif; font-weight: 700; font-size: 30px;
+  color: var(--cream, #FFF8F0);
+}
+.wf-slot {
+  min-width: 56px; min-height: 56px; padding: 4px 10px; display: grid; place-items: center;
+  border: 3px dashed rgba(255, 248, 240, .55); border-radius: 12px;
+}
+.wf-plate.stamping { animation: wfThunk .3s ease-out; }
+.wf-plate.stamped { display: block; text-align: center; }
+.wf-stamped-word { display: inline-block; animation: wfPop .4s cubic-bezier(.2, .9, .3, 1.2); }
+@keyframes wfThunk { 0% { transform: scale(1); } 40% { transform: scale(.94) translateY(4px); } 100% { transform: scale(1); } }
+@keyframes wfPop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.wf-rule {
+  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 8px 14px; text-align: center; max-width: 460px;
+}
+.wf-rule-type { display: block; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--star, #FFC93C); }
+.wf-rule-line { display: block; font-weight: 600; color: var(--cream, #FFF8F0); font-size: 15px; margin-top: 2px; }
+.wf-shelf { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+.wf-tile {
+  min-width: 56px; min-height: 56px; padding: 8px 16px;
+  font-family: Fredoka, system-ui, sans-serif; font-weight: 700; font-size: 20px;
+  background: var(--pop, #FF7AC6); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  color: var(--ink, #2A1B4E); box-shadow: 0 4px 0 rgba(42, 27, 78, .35);
+}
+.wf-tile:disabled { opacity: .35; }
+.wf-tile.placed { opacity: 0; }
+.wf-tile.sneeze { animation: wfSneeze .36s ease-in-out; }
+@keyframes wfSneeze { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-10px) rotate(-4deg); } 60% { transform: translateY(2px) rotate(3deg); } }
+.wf-gauge {
+  display: flex; align-items: center; gap: 6px; width: 160px; margin: 4px auto 0;
+  background: rgba(0,0,0,.18); border-radius: 10px; height: 14px; position: relative; overflow: hidden;
+}
+.wf-gauge-fill { display: block; height: 100%; width: 0; background: var(--zing, #35D0BA); transition: width .3s ease-out; }
+.wf-gauge.stage-2 .wf-gauge-fill { background: var(--star, #FFC93C); }
+.wf-gauge.stage-3 .wf-gauge-fill, .wf-gauge.blocked .wf-gauge-fill { background: #E4695E; }
+.wf-gauge-puff { position: absolute; right: 4px; top: -10px; font-size: 14px; opacity: 0; }
+.wf-gauge.stage-3 .wf-gauge-puff, .wf-gauge.blocked .wf-gauge-puff { opacity: 1; animation: wfPuff 1.2s ease-in-out infinite; }
+@keyframes wfPuff { 0%, 100% { transform: translateY(0); opacity: .6; } 50% { transform: translateY(-6px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .wf-plate.stamping, .wf-stamped-word, .wf-tile.sneeze, .wf-gauge-puff { animation: none; }
+}
