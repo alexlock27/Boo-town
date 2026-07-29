@@ -148,6 +148,7 @@ const ASSETS = [
   'data/soundTwins.js',
   'data/wordfactory.js',
   'data/apostrophe.js',
+  'data/storyReader.js',
   'data/sorting.js',
   'data/sortingExtra.js',
   'data/quests.js',
