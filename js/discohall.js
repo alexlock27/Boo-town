@@ -351,7 +351,10 @@ export function mount(container, params, ctx) {
     posterWall.appendChild(el('strong', { text: 'YOUR ROUTINES' }));
     const saved = routines();
     if (!saved.length) {
-      posterWall.appendChild(el('p', { text: 'Save a Dance Stage routine and its poster hangs here!' }));
+      // Alex, 2026-07-30: this used to just say "save a routine", with no hint that a
+      // Dance Stage is a rare prize she has to find first — it read as a missing feature
+      // rather than something not unlocked yet.
+      posterWall.appendChild(el('p', { text: 'Find a Dance Stage (a special box prize!), place it in your town, and choreograph a routine — its poster hangs here!' }));
       return;
     }
     saved.forEach(([key, seq], index) => {
