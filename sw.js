@@ -144,6 +144,7 @@ const ASSETS = [
   'data/stories.js',
   'data/lessonsLiteracy.js',
   'data/soundTwins.js',
+  'data/wordfactory.js',
   'data/sorting.js',
   'data/sortingExtra.js',
   'data/quests.js',

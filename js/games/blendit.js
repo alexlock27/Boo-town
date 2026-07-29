@@ -28,6 +28,8 @@ import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { filterLevels } from '../content.js';
 import { renderWordArt } from '../wordart.js';
 import { BLEND_LEVELS, BLEND_LEVEL_NUMBERS, blendLevel, blendEntry, ALL_BLEND_WORDS } from '../../data/blending.js';
+import { FACTORY_LEVEL_NUMBERS, factoryLevel, ALL_FACTORY_ITEMS, factoryItem } from '../../data/wordfactory.js';
+import { contentTier } from '../content.js';
 
 const ROUND_WORDS = 8;
 const MAX_HINTS = 2;
@@ -52,6 +54,11 @@ export function buildBlendRound(level, n = ROUND_WORDS) {
 }
 
 export function mount(container, params, ctx) {
+  // RUN18E Part B: at Medium/Full the card becomes the Word Factory (morpheme mode).
+  // Light/Toddler keep the grapheme-blend game exactly as RUN16 built it. One card, one
+  // route — the tier decides which game answers it.
+  const t = contentTier();
+  if (t === 'medium' || t === 'full') return mountFactory(container, params, ctx);
   const root = el('div', { class: 'screen blendit' });
   container.appendChild(root);
   let shell = null;
@@ -312,6 +319,267 @@ export function mount(container, params, ctx) {
   }
 
   return { unmount() { if (shell) shell.cleanup(); tts.cancel(); } };
+}
+
+// ===================== RUN18E L2/Part B: THE WORD FACTORY (Medium/Full) =====================
+// Fiction: Boos queue at the hatch with orders; she builds the word from the parts shelf;
+// the machine stamps it. Order-fulfilment, not fill-the-gap — see RUN18E.md L2 for the DNA.
+
+const FACTORY_ROUND = 8;
+const FACTORY_MAX_HINTS = 2;
+export const GAUGE_MAX = 3;              // stage that counts as "the red puff"
+const RUSH_CHANCE = 0.3;                 // L3+ only
+
+// A shelf for one order: its own true parts, plus 2-4 distractor morphemes drawn from the
+// same level (other items' parts, deduped by label so two identical decoys never appear).
+export function buildShelf(item, levelItems) {
+  const correct = item.parts.map((p, i) => ({ id: item.id + ':c' + i, k: p.k, correct: true, slot: i }));
+  const pool = [];
+  for (const other of levelItems) {
+    if (other.id === item.id) continue;
+    for (const p of other.parts) { if (!item.parts.some(cp => cp.k === p.k) && !pool.some(x => x.k === p.k)) pool.push(p.k); }
+  }
+  shuffle(pool);
+  const nDecoy = Math.min(pool.length, 2 + rand(3));   // 2-4
+  const decoys = pool.slice(0, nDecoy).map((k, i) => ({ id: item.id + ':d' + i, k, correct: false }));
+  return shuffle([...correct, ...decoys]);
+}
+
+export function buildFactoryRound(level, n = FACTORY_ROUND) {
+  const lvl = factoryLevel(level);
+  const items = lvl.items;
+  const out = []; let guard = 0;
+  while (out.length < Math.min(n, items.length * 3) && guard++ < n * 20) {
+    const it = items[rand(items.length)];
+    if (out.length && out[out.length - 1].id === it.id && items.length > 1) continue;
+    out.push(it);
+    if (out.length >= n) break;
+  }
+  return out.map(it => ({ ...it, shelf: buildShelf(it, items), rush: level >= 3 && Math.random() < RUSH_CHANCE }));
+}
+
+export function mountFactory(container, params, ctx) {
+  const root = el('div', { class: 'screen blendit wordfactory' });
+  container.appendChild(root);
+  let shell = null;
+
+  const rz = params && params.resume;
+  if (rz && rz.mix) playMix();
+  else if (rz && rz.level) play(rz.level);
+  else startCard();
+  maybeIntro('wordfactory');
+
+  function startCard() {
+    clear(root);
+    music.play('game');
+    const s = getState();
+    const card = el('div', { class: 'start-card card' }, [
+      el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 96 }) }),
+      el('h2', { text: 'The Word Factory' }),
+      el('p', { class: 'sc-intro', text: 'Boos are queuing with orders — build them, stamp them, keep the combo alive!' })
+    ]);
+    card.appendChild(buildPicker({
+      game: 'wordfactory',
+      choices: [{ key: 'factory', name: 'The Word Factory', sub: 'build the order' }],
+      levelsFor: () => FACTORY_LEVEL_NUMBERS,
+      levelName: (l) => factoryLevel(l).name,
+      onStart: (key, level) => (key === MIX_KEY ? playMix() : play(level))
+    }).node);
+    card.appendChild(el('div', { class: 'star-rule' }, [
+      el('div', { html: starsRow(3, { size: 24 }) }),
+      el('p', { text: 'Three stars: at most one wrong part, no hints — and keep the steam gauge out of the red!' })
+    ]));
+    root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
+  }
+
+  function play(level) { startRound(buildFactoryRound(level), { badgeKey: 'L' + level, level, title: 'The Word Factory' }); }
+  function playMix() {
+    const pool = ALL_FACTORY_ITEMS.map(it => ({ id: 'wordfactory:' + it.id, item: it.id, boost: pileBoost('wordfactory:' + it.id) }));
+    const picked = buildSmartMix(pool, FACTORY_ROUND).map(p => factoryItem(p.item)).filter(Boolean);
+    const items = picked.map(it => ({ ...it, shelf: buildShelf(it, ALL_FACTORY_ITEMS), rush: Math.random() < RUSH_CHANCE }));
+    startRound(items.length ? items : buildFactoryRound(1), { badgeKey: MIX_KEY, level: null, title: 'Smart Mix', mix: true });
+  }
+
+  function startRound(items, { badgeKey, level, title, mix = false }) {
+    clear(root);
+    if (!items.length) return startCard();
+    let idx = 0, wrong = 0, hintsUsed = 0, combo = 0, bestCombo = 0, scoreUnits = 0;
+    let queueDepth = 1, gaugeStage = 0, goldBlocked = false, rushAccepted = false, ticketTimer = null;
+    let placed = 0, phase = 'build', curShelf = null, curNodes = null, itemHadWrong = false;
+
+    shell = createGameShell({
+      title, rounds: items.length, accent: 'var(--zing)',
+      onHelp: () => replayIntro('wordfactory'),
+      onBack: () => { tts.cancel(); ctx.go('hub'); },
+      onHint: () => useHint(),
+      bank: () => ({ correct: scoreUnits, of: items.length })
+    });
+    root.appendChild(shell.root);
+    const guide = getState().guide;
+    const stage = el('div', { class: 'wf-stage' });
+    shell.area.appendChild(stage);
+    const gauge = el('div', { class: 'wf-gauge', 'aria-label': 'Steam pressure' }, [
+      el('span', { class: 'wf-gauge-fill' }), el('span', { class: 'wf-gauge-puff', text: '💨' })
+    ]);
+    shell.area.appendChild(gauge);
+    const collector = createTrickyCollector(shell.area);
+
+    function ticketMs() { return (typeof window !== 'undefined' && window.__wfTicketMs) || 12000; }
+    function armTicket() {
+      shell.cancel(ticketTimer);
+      ticketTimer = shell.timeout(() => {
+        if (idx < items.length - 1) { queueDepth = Math.min(4, queueDepth + 1); paintGauge(); }
+        armTicket();
+      }, ticketMs());
+    }
+    function paintGauge() {
+      gaugeStage = Math.min(GAUGE_MAX, Math.max(0, queueDepth - 1));
+      if (gaugeStage >= GAUGE_MAX) goldBlocked = true;
+      gauge.className = 'wf-gauge stage-' + gaugeStage + (goldBlocked ? ' blocked' : '');
+      gauge.querySelector('.wf-gauge-fill').style.width = Math.round((gaugeStage / GAUGE_MAX) * 100) + '%';
+    }
+    function serveTicket() { queueDepth = Math.max(1, queueDepth - 1); paintGauge(); }
+
+    renderItem();
+    armTicket();
+    function cur() { return items[idx]; }
+
+    function renderItem() {
+      phase = 'build'; placed = 0; itemHadWrong = false;
+      const item = cur();
+      rushAccepted = false;
+      clear(stage);
+      const rail = el('div', { class: 'wf-rail' }, [
+        el('div', { class: 'wf-ticket' }, [
+          el('div', { class: 'wf-guide', html: renderGuide(guide, { view: 'head', size: 60 }) }),
+          el('div', { class: 'wf-order', text: item.order })
+        ]),
+        ...(item.rush ? [el('button', {
+          class: 'btn soft wf-rush', text: '✨ Rush! (double)',
+          onclick: (e) => { rushAccepted = true; e.currentTarget.disabled = true; e.currentTarget.classList.add('taken'); sfx.tap(); shell.react('Rush accepted — worth double!', { voice: false, hold: 1400 }); }
+        })] : [])
+      ]);
+      const plate = el('div', { class: 'wf-plate' });
+      for (let i = 0; i < item.parts.length; i++) plate.appendChild(el('span', { class: 'wf-slot', dataset: { i: String(i) } }));
+      const ruleCard = el('div', { class: 'wf-rule', style: { visibility: 'hidden' } }, [el('span', { class: 'wf-rule-type', text: item.ruleType }), el('span', { class: 'wf-rule-line' })]);
+      const shelf = el('div', { class: 'wf-shelf' });
+      curShelf = item.shelf;
+      curNodes = {};
+      for (const tile of curShelf) {
+        const b = el('button', { class: 'btn wf-tile', dataset: { id: tile.id }, text: tile.k, onclick: () => tapTile(tile, b) });
+        curNodes[tile.id] = b;
+        shelf.appendChild(b);
+      }
+      stage.append(rail, plate, ruleCard, shelf);
+      shell.setProgress(idx);
+      speakMaybe(item.order);
+    }
+
+    function tapTile(tile, node) {
+      if (phase !== 'build') return;
+      const need = cur().parts[placed];
+      if (tile.k === need.k && tile.correct) {
+        // right part: seats onto the plate; the seam join (if any) shows as the tile lands
+        sfx.tap();
+        node.disabled = true; node.classList.add('placed');
+        const slot = stage.querySelectorAll('.wf-slot')[placed];
+        if (slot) slot.textContent = need.l;
+        placed++;
+        if (placed >= cur().parts.length) shell.timeout(stamp, 220);
+      } else {
+        // wrong part: sneezes back, the rule line fires, the order never leaves
+        wrong++; combo = 0; itemHadWrong = true;
+        shell.dimHeart();
+        sfx.oops();
+        node.classList.remove('sneeze'); void node.offsetWidth; node.classList.add('sneeze');
+        shell.timeout(() => node.classList.remove('sneeze'), 360);
+        const rc = stage.querySelector('.wf-rule');
+        rc.style.visibility = ''; rc.querySelector('.wf-rule-line').textContent = cur().rule;
+        speakMaybe(cur().rule);
+        recordResult('wordfactory:' + cur().id, false);
+        collector.addAttempted(factoryMiss(cur()));
+      }
+    }
+
+    function stamp() {
+      phase = 'stamping';
+      const plate = stage.querySelector('.wf-plate');
+      plate.classList.add('stamping');
+      sfx.correct();
+      shell.timeout(() => {
+        plate.classList.add('stamped');
+        plate.textContent = '';
+        plate.appendChild(el('span', { class: 'wf-stamped-word', text: cur().build }));
+        sfx.star();
+        finishItem();
+      }, 300);
+    }
+
+    function finishItem() {
+      const item = cur();
+      const perfect = !itemHadWrong;
+      if (perfect) { combo++; bestCombo = Math.max(bestCombo, combo); } else combo = 0;
+      const units = rushAccepted ? 2 : 1;
+      scoreUnits += (perfect ? units : units * 0.5);
+      recordResult('wordfactory:' + item.id, perfect);
+      const comboNote = combo >= 8 ? ' 🎉' : combo >= 5 ? ' 🚩' : combo >= 3 ? ' ✨' : '';
+      shell.react(`${item.build}! Stamped and done!${comboNote}`, { voice: false, hold: 1500 });
+      speakMaybe(`${item.build}! Stamped and done!`);
+      serveTicket();
+      shell.advance();
+      idx++;
+      shell.timeout(() => (idx >= items.length ? finish() : renderItem()), 1300);
+    }
+
+    function useHint() {
+      if (hintsUsed >= FACTORY_MAX_HINTS || phase !== 'build') return;
+      hintsUsed++;
+      if (hintsUsed >= FACTORY_MAX_HINTS) shell.enableHint(false);
+      const decoyNode = Object.values(curNodes).find(n => !n.disabled && curShelf.find(t => t.id === n.dataset.id && !t.correct));
+      if (decoyNode) { decoyNode.disabled = true; decoyNode.style.opacity = '.35'; }
+      shell.react('I moved a wrong part out of the way!', { voice: false, hold: 1600 });
+    }
+
+    function finish() {
+      shell.cancel(ticketTimer);
+      tts.cancel();
+      shell.cleanup();
+      const of = items.length;
+      let stars = (hintsUsed === 0 && wrong <= 1) ? 3 : (wrong <= 3 ? 2 : 1);
+      if (goldBlocked && stars > 2) stars = 2;
+      recordBest('blendit', 'factory:' + (badgeKey || 'L'), stars);
+      ctx.go('results', {
+        game: 'blendit', gameName: mix ? 'Smart Mix' : 'The Word Factory', stars, level,
+        cat: mix ? null : badgeKey, mix, tricky: collector.items(),
+        replay: () => ctx.go('blendit')
+      });
+    }
+
+    if (typeof window !== 'undefined') window.__factory = {
+      state: () => ({ idx, wrong, hintsUsed, combo, bestCombo, scoreUnits, total: items.length, placed, phase }),
+      item: () => ({ id: cur().id, build: cur().build, order: cur().order, parts: cur().parts.map(p => p.k), rule: cur().rule }),
+      shelf: () => curShelf.map(t => ({ id: t.id, k: t.k, correct: t.correct })),
+      tapCorrect: () => { const need = cur().parts[placed]; const t = curShelf.find(x => x.k === need.k && x.correct); if (t) tapTile(t, curNodes[t.id]); },
+      tapWrong: () => { const need = cur().parts[placed]; const t = curShelf.find(x => !(x.k === need.k && x.correct)); if (t) tapTile(t, curNodes[t.id]); },
+      finishItem: () => { while (placed < cur().parts.length) window.__factory.tapCorrect(); },
+      gaugeStage: () => gaugeStage, goldBlocked: () => goldBlocked, queueDepth: () => queueDepth,
+      forceTicket: () => { queueDepth = Math.min(4, queueDepth + 1); paintGauge(); },
+      rushVisible: () => !!stage.querySelector('.wf-rush'), acceptRush: () => { const b = stage.querySelector('.wf-rush'); if (b) b.click(); },
+      collected: () => collector.items().length,
+      hint: () => useHint()
+    };
+  }
+
+  return { unmount() { if (shell) shell.cleanup(); tts.cancel(); } };
+}
+
+export function factoryMiss(item) {
+  return {
+    id: 'wordfactory:' + item.id, game: 'blendit', prompt: item.order,
+    options: item.parts.map(p => p.k), answer: item.parts.map(p => p.k).join('+'),
+    say: item.order
+  };
 }
 
 // A mis-blended word goes to the Tricky Pile as three pictures, one of which is the word.
