@@ -45,7 +45,9 @@ const GAMES = [
   // RUN18E Part B: at Medium/Full the same card opens the Word Factory, so its tag says so.
   { id: 'blendit',   name: 'Blend It',     tag: () => (contentTier() === 'medium' || contentTier() === 'full') ? 'Build orders in the Word Factory' : 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2; RUN18E Word Factory
   { id: 'rhymetime', name: 'Rhyme Time',   tag: 'Words that chime', accent: 'var(--star)', icon: rhymeIcon, group: 'Learn' },   // RUN16 W3
-  { id: 'storyorder', name: 'Story Order', tag: 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4
+  { id: 'storyorder', name: 'Story Order', tag: () => (contentTier() === 'medium' || contentTier() === 'full') ? 'Rebuild the story, print the page' : 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4; RUN18E L5 Medium mode
+  { id: 'soundtwins', name: 'Twin Trouble', tag: 'Innocent, or guilty?', accent: 'var(--zing)', icon: twinsIcon, group: 'Learn' },   // RUN18E L3
+  { id: 'apostrophepatrol', name: 'Apostrophe Patrol', tag: 'Flying commas & squeezes', accent: 'var(--star)', icon: apostropheIcon, group: 'Learn' },   // RUN18E L4
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },
   { id: 'oddboo',    name: 'Odd Boo Out',  tag: 'Spot the difference', accent: 'var(--zing)', icon: oddIcon, group: 'Learn' },
   { id: 'flashboos', name: 'Flash Boos',   tag: 'Look, hide, remember', accent: 'var(--pop)', icon: flashIcon, group: 'Learn' },
@@ -737,6 +739,14 @@ function storyIcon() {
 
 function rhymeIcon() {
   return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="20" cy="24" r="13" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><circle cx="40" cy="36" r="13" fill="var(--pop)" stroke="var(--ink)" stroke-width="3"/><text x="20" y="29" font-family="Fredoka,sans-serif" font-size="12" font-weight="700" fill="var(--ink)" text-anchor="middle">at</text><text x="40" y="41" font-family="Fredoka,sans-serif" font-size="12" font-weight="700" fill="var(--ink)" text-anchor="middle">at</text></svg>`;
+}
+
+function twinsIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><circle cx="20" cy="26" r="12" fill="var(--zing)" stroke="var(--ink)" stroke-width="3"/><circle cx="20" cy="26" r="12" fill="none" stroke="var(--ink)" stroke-width="3" stroke-dasharray="0" transform="translate(6,0)" opacity="0.55"/><circle cx="26" cy="26" r="12" fill="var(--zing)" fill-opacity="0.55" stroke="var(--ink)" stroke-width="3"/><circle cx="42" cy="40" r="10" fill="none" stroke="var(--ink)" stroke-width="4"/><path d="M49 47l7 7" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/></svg>`;
+}
+
+function apostropheIcon() {
+  return `<svg viewBox="0 0 60 60" width="56" height="56"><rect x="6" y="16" width="48" height="26" rx="6" fill="var(--star)" stroke="var(--ink)" stroke-width="3"/><text x="30" y="36" font-family="Fredoka,sans-serif" font-size="18" font-weight="700" fill="var(--ink)" text-anchor="middle">Boo's</text><path d="M26 10c2-4 6-4 6 0s-3 5-3 8" fill="none" stroke="var(--ink)" stroke-width="3.4" stroke-linecap="round"/></svg>`;
 }
 
 function blendIcon() {

@@ -72,6 +72,69 @@ export const TWIN_SETS = [
   { id: 'affectEffect', level: 3, options: ['affect', 'effect'], items: [
       { s: "The rain didn't ___ our fun", a: 'affect' },
       { s: 'The medicine had a good ___', a: 'effect' }
+  ]},
+  // RUN18E Part C — the missing homophone twin sets, authored for Twin Trouble (L3).
+  // Level 4 keeps them a step past spellboo's own Sound Twins levels while still reusing
+  // the same engine and picker; verbatim from _programme/RUN18E.md Appendix A Part C.
+  { id: 'mainMane', level: 4, options: ['main', 'mane'], items: [
+      { s: 'The lion shook his golden ___', a: 'mane' },
+      { s: 'We walked down the ___ street', a: 'main' },
+      { s: 'The ___ thing is to have fun', a: 'main' },
+      { s: "She brushed the pony's ___", a: 'mane' }
+  ]},
+  { id: 'missedMist', level: 4, options: ['missed', 'mist'], items: [
+      { s: 'I ___ the bus this morning', a: 'missed' },
+      { s: 'The hill was hidden in ___', a: 'mist' },
+      { s: 'She ___ her friend at the gate', a: 'missed' },
+      { s: 'Morning ___ hung over the pond', a: 'mist' }
+  ]},
+  { id: 'groanGrown', level: 4, options: ['groan', 'grown'], items: [
+      { s: "The Boos ___ at Dad's joke", a: 'groan' },
+      { s: "Look how much you've ___!", a: 'grown' },
+      { s: 'He let out a long ___', a: 'groan' },
+      { s: 'The sunflower has ___ so tall', a: 'grown' }
+  ]},
+  { id: 'sceneSeen', level: 4, options: ['scene', 'seen'], items: [
+      { s: 'Have you ___ my other sock?', a: 'seen' },
+      { s: "The play's first ___ is in a forest", a: 'scene' },
+      { s: "I've never ___ a shooting star", a: 'seen' },
+      { s: 'Paint a snowy ___ for the wall', a: 'scene' }
+  ]},
+  { id: 'fairFare', level: 4, options: ['fair', 'fare'], items: [
+      { s: "That's not ___ — it's my turn!", a: 'fair' },
+      { s: 'The bus ___ is two pounds', a: 'fare' },
+      { s: 'We won a goldfish at the ___', a: 'fair' },
+      { s: 'How much is the train ___?', a: 'fare' }
+  ]},
+  { id: 'medalMeddle', level: 4, options: ['medal', 'meddle'], items: [
+      { s: 'She won a gold ___ for swimming', a: 'medal' },
+      { s: "Don't ___ with my things!", a: 'meddle' },
+      { s: 'The ___ shone on its ribbon', a: 'medal' },
+      { s: 'Snaffle loves to ___ in everything', a: 'meddle' }
+  ]},
+  { id: 'berryBury', level: 4, options: ['berry', 'bury'], items: [
+      { s: 'The dog wants to ___ his bone', a: 'bury' },
+      { s: 'Pick the reddest ___ on the bush', a: 'berry' },
+      { s: 'Pirates ___ their treasure', a: 'bury' },
+      { s: 'A black___ pie for tea', a: 'berry' }
+  ]},
+  { id: 'knotNot', level: 4, options: ['knot', 'not'], items: [
+      { s: 'Tie a strong ___ in the rope', a: 'knot' },
+      { s: 'That is ___ my hat', a: 'not' },
+      { s: 'My shoelace has a ___ in it', a: 'knot' },
+      { s: "It's ___ raining any more", a: 'not' }
+  ]},
+  { id: 'heelHeal', level: 4, options: ['heel', 'heal'], items: [
+      { s: 'My sock has a hole at the ___', a: 'heel' },
+      { s: 'The cut will ___ in a few days', a: 'heal' },
+      { s: 'Stand on your ___ and wobble', a: 'heel' },
+      { s: 'Rest helps a poorly Boo ___', a: 'heal' }
+  ]},
+  { id: 'ballBawl', level: 4, options: ['ball', 'bawl'], items: [
+      { s: 'Kick the ___ to me!', a: 'ball' },
+      { s: 'The baby started to ___', a: 'bawl' },
+      { s: 'A beach ___ blew into the sea', a: 'ball' },
+      { s: "Don't ___ — it's only a scratch", a: 'bawl' }
   ]}
 ];
 
@@ -104,7 +167,27 @@ export const TWIN_EXPLAIN = {
   'accept': "'Accept' means to take something offered to you.",
   'except': "'Except' means apart from.",
   'affect': "'Affect' means to change something (it's a doing word).",
-  'effect': "'Effect' is the result (it's a naming word)."
+  'effect': "'Effect' is the result (it's a naming word).",
+  'main': "'Main' means the biggest or most important.",
+  'mane': "'Mane' is the long hair on a lion or horse's neck.",
+  'missed': "'Missed' means you didn't catch it in time.",
+  'mist': "'Mist' is a thin, low cloud you can see through.",
+  'groan': "'Groan' is a long, low sound of annoyance.",
+  'grown': "'Grown' means got bigger.",
+  'scene': "'Scene' is a part of a play or story, or a view.",
+  'seen': "'Seen' is what your eyes have done.",
+  'fair': "'Fair' means right and equal, or a funfair.",
+  'fare': "'Fare' is the money you pay for a ride.",
+  'medal': "'Medal' is a prize you wear.",
+  'meddle': "'Meddle' means to interfere in something.",
+  'berry': "'Berry' is a small soft fruit.",
+  'bury': "'Bury' means to hide something under the ground.",
+  'knot': "'Knot' is a tangle you tie in string or rope.",
+  'not': "'Not' means the opposite, or 'no'.",
+  'heel': "'Heel' is the back of your foot.",
+  'heal': "'Heal' means to get better.",
+  'ball': "'Ball' is a round thing you kick or throw.",
+  'bawl': "'Bawl' means to cry loudly."
 };
 
 // All Sound Twins levels present (for the picker).

@@ -60,11 +60,17 @@ export function filterArcadeCategories(cats) { return cats.filter(c => tierAllow
 // this pair keeps them apart without a redesign of the hub grid. A grown-up can always
 // override (settings.showAgedOutGames), e.g. for a Medium child who still enjoys them.
 export const HUB_HIDE_AT_MEDIUM = ['soundsorter', 'blendit', 'rhymetime', 'storyorder'];
+// RUN18E L3/L4: the two brand-new Medium/Full literacy games (Twin Trouble, Apostrophe
+// Patrol) are Y3/4 content — they hide below Medium the same way the older games hide
+// AT Medium, and the same override switch reveals them for a curious younger reader.
+export const HUB_MEDIUM_PLUS_ONLY = ['soundtwins', 'apostrophepatrol'];
 export function gameVisibleAtHub(id) {
-  if (!HUB_HIDE_AT_MEDIUM.includes(id)) return true;
   const s = getState();
-  if (s && s.settings && s.settings.showAgedOutGames) return true;
-  return contentTier() !== 'medium';
+  const override = !!(s && s.settings && s.settings.showAgedOutGames);
+  if (override) return true;
+  if (HUB_HIDE_AT_MEDIUM.includes(id)) return contentTier() !== 'medium';
+  if (HUB_MEDIUM_PLUS_ONLY.includes(id)) return contentTier() === 'medium' || contentTier() === 'full';
+  return true;
 }
 
 // ---- Feed the Boos ----

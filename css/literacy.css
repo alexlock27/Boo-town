@@ -454,3 +454,36 @@
 @media (prefers-reduced-motion: reduce) {
   .wf-plate.stamping, .wf-stamped-word, .wf-tile.sneeze, .wf-gauge-puff { animation: none; }
 }
+
+/* ======================= RUN18E L3: Twin Trouble ======================= */
+.tt-rank-badge {
+  display: inline-block; background: var(--star, #FFC93C); border: 3px solid var(--ink, #2A1B4E);
+  border-radius: 999px; padding: 4px 14px; font-weight: 700; color: var(--ink, #2A1B4E); margin-top: 4px;
+}
+.tt-stage { display: grid; gap: 14px; justify-items: center; }
+.tt-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.tt-sentence {
+  background: var(--cream, #FFF8F0); border: 3px solid var(--ink, #2A1B4E); border-radius: 16px;
+  padding: 14px 18px; font-size: 19px; font-weight: 600; color: var(--ink, #2A1B4E);
+  max-width: 520px; text-align: center; box-shadow: 0 4px 0 rgba(42, 27, 78, .35);
+}
+.tt-word {
+  min-height: 44px; padding: 4px 10px; font-family: Fredoka, system-ui, sans-serif; font-weight: 800;
+  font-size: 19px; background: var(--zing, #35D0BA); border: 3px solid var(--ink, #2A1B4E); border-radius: 10px;
+  color: var(--ink, #2A1B4E); margin: 0 2px;
+}
+.tt-word:disabled { opacity: 1; cursor: default; }
+.tt-word.culprit-glow { animation: ttPulse 1s ease-in-out infinite; cursor: pointer; }
+.tt-word.whoosh { animation: ttWhoosh .26s ease-out; }
+@keyframes ttPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(228, 105, 94, .6); } 50% { box-shadow: 0 0 0 8px rgba(228, 105, 94, 0); } }
+@keyframes ttWhoosh { 0% { transform: scale(1) rotate(0); } 50% { transform: scale(.7) rotate(8deg); opacity: .3; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+.tt-verdicts { display: flex; gap: 16px; }
+.tt-innocent, .tt-guilty { min-height: 56px; min-width: 140px; font-size: 18px; font-weight: 700; }
+.tt-guilty { background: #E4695E; color: var(--cream, #FFF8F0); }
+.tt-explain {
+  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 10px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tt-word.culprit-glow, .tt-word.whoosh { animation: none; }
+}
