@@ -23,7 +23,7 @@
 // both the captions and the question are spoken.
 
 import { el, clear, starsRow, sparkleAt, backControl, REDUCED } from '../ui.js';
-import { getState, recordResult } from '../state.js';
+import { getState, mutate, recordResult } from '../state.js';
 import { createGameShell } from '../gameshell.js';
 import { renderGuide } from '../art.js';
 import { speakMaybe } from '../guide.js';
@@ -37,6 +37,8 @@ import { filterLevels } from '../content.js';
 import { makeDraggable, makeDropTargets, clearLift } from '../dragdrop.js';
 import { renderStoryArt } from '../storyart.js';
 import { STORIES, STORY_BY_ID, STORY_LEVELS, storiesAtLevel } from '../../data/stories.js';
+import { STORY_READER_SETS, reporterRankFor } from '../../data/storyReader.js';
+import { contentTier } from '../content.js';
 
 const MAX_HINTS = 2;
 const READ_MS = 2400;          // how long each line is left highlighted while it is read
@@ -57,6 +59,12 @@ export const isSolved = (order) => order.every((v, i) => v === i);
 export const isReversed = (order) => order.every((v, i) => v === order.length - 1 - i);
 
 export function mount(container, params, ctx) {
+  // RUN18E L5/Part E: at Medium/Full (and never for the Toddler door) the card becomes
+  // the reporter's INSERTION game — sentences, not pictures, revealed one at a time.
+  // Light's picture stories are untouched.
+  const toddlerMode0 = !!(params && params.toddler);
+  const t0 = contentTier();
+  if (!toddlerMode0 && (t0 === 'medium' || t0 === 'full')) return mountReader(container, params, ctx);
   const root = el('div', { class: 'screen storyorder' });
   container.appendChild(root);
   let shell = null;
@@ -362,6 +370,247 @@ export function mount(container, params, ctx) {
   }
 
   return { unmount() { if (shell) shell.cleanup(); tts.cancel(); clearLift(); } };
+}
+
+// ===================== RUN18E L5/Part E: STORY ORDER — MEDIUM (insertion) =====================
+// Fiction: she's the reporter, Snaffle scrambled the story, the printing press waits.
+// Sentences are revealed ONE AT A TIME (in a shuffled reveal order, not the story's own
+// order) and she inserts each into the growing line at the gap that keeps it in TRUE order —
+// so she has to reason about the connective, not just append to the end.
+
+const READER_LEVEL_SLOTS = [1, 2, 3, 4];
+
+// Build a reveal order that is a genuine shuffle (never simply the true order).
+function revealOrderFor(n) {
+  const order = Array.from({ length: n }, (_, i) => i);
+  let guard = 0;
+  let shuffled = order.slice();
+  do { shuffled = shuffle(shuffled.slice()); } while (guard++ < 50 && shuffled.every((v, i) => v === order[i]));
+  return shuffled;
+}
+export { revealOrderFor };
+
+function mountReader(container, params, ctx) {
+  const root = el('div', { class: 'screen storyorder reader' });
+  container.appendChild(root);
+  let shell = null;
+  startCard();
+  maybeIntro('storyorder-reader');
+
+  function startCard() {
+    clear(root);
+    music.play('calm');
+    const s = getState();
+    const rank = reporterRankFor((s.seen && s.seen.reporterCorrect) || 0);
+    const card = el('div', { class: 'start-card card' }, [
+      el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 96 }) }),
+      el('h2', { text: 'Story Order' }),
+      el('p', { class: 'sc-intro', text: "Snaffle scrambled the story! Slot each sentence into place and print the front page." }),
+      el('div', { class: 'tt-rank-badge', text: '📰 ' + rank.name })
+    ]);
+    const levelRow = el('div', { class: 'so-reader-levels' });
+    for (const l of READER_LEVEL_SLOTS) {
+      levelRow.appendChild(l === 1
+        ? el('button', { class: 'btn big', text: 'Start', onclick: () => { sfx.tap(); play(); } })
+        : el('div', { class: 'btn soft so-soon', 'aria-disabled': 'true', text: 'More stories soon!' }));
+    }
+    card.append(levelRow);
+    root.appendChild(card);
+    root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));
+  }
+
+  function play() { startRound(STORY_READER_SETS.slice()); }
+
+  function startRound(stories) {
+    clear(root);
+    let sIdx = 0, wrong = 0, hintsUsed = 0, correctQuestions = 0;
+    let placed = [], revealOrder = [], revealPtr = 0, phase = 'insert';
+
+    shell = createGameShell({
+      title: 'Story Order', rounds: stories.length, accent: 'var(--zing)',
+      onHelp: () => replayIntro('storyorder-reader'),
+      onBack: () => { tts.cancel(); ctx.go('hub'); },
+      onHint: () => useHint(),
+      bank: () => ({ correct: correctQuestions, of: stories.length })
+    });
+    root.appendChild(shell.root);
+    const guide = getState().guide;
+    const stage = el('div', { class: 'so-reader-stage' });
+    shell.area.appendChild(stage);
+    const collector = createTrickyCollector(shell.area);
+
+    renderStory();
+    function cur() { return stories[sIdx]; }
+
+    function renderStory() {
+      placed = []; revealPtr = 0; phase = 'insert';
+      const story = cur();
+      revealOrder = revealOrderFor(story.sentences.length);
+      clear(stage);
+      shell.setProgress(sIdx);
+      stage.append(el('div', { class: 'so-title', text: story.title }));
+      drawInsert();
+    }
+
+    function drawInsert() {
+      const old = stage.querySelector('.so-reader-line'); if (old) old.remove();
+      const oldCard = stage.querySelector('.so-reveal-card'); if (oldCard) oldCard.remove();
+      const story = cur();
+      const line = el('div', { class: 'so-reader-line' });
+      // one gap before each placed card, and one after the last
+      const gapBtn = (gapIdx) => el('button', { class: 'so-gap', 'aria-label': 'Place here', onclick: () => tryPlace(gapIdx) });
+      line.appendChild(gapBtn(0));
+      placed.forEach((trueIdx, i) => {
+        line.appendChild(el('div', { class: 'so-placed-card', text: story.sentences[trueIdx].text }));
+        line.appendChild(gapBtn(i + 1));
+      });
+      stage.appendChild(line);
+      if (revealPtr < revealOrder.length) {
+        const revealIdx = revealOrder[revealPtr];
+        stage.appendChild(el('div', { class: 'so-reveal-card', text: story.sentences[revealIdx].text }));
+        speakMaybe(story.sentences[revealIdx].text);
+      }
+    }
+
+    function correctGap(revealIdx) { return placed.filter(i => i < revealIdx).length; }
+
+    function tryPlace(gapIdx) {
+      if (phase !== 'insert' || revealPtr >= revealOrder.length) return;
+      const revealIdx = revealOrder[revealPtr];
+      if (gapIdx === correctGap(revealIdx)) {
+        sfx.tap();
+        placed.splice(gapIdx, 0, revealIdx);
+        revealPtr++;
+        if (revealPtr >= revealOrder.length) shell.timeout(pressStamp, 300);
+        else drawInsert();
+      } else {
+        wrong++;
+        shell.dimHeart();
+        sfx.oops();
+        const card = stage.querySelector('.so-reveal-card');
+        if (card) { card.classList.remove('nudge'); void card.offsetWidth; card.classList.add('nudge'); }
+        const why = cur().sentences[revealIdx].why;
+        shell.react(why, { voice: false, hold: 2400 });
+        speakMaybe(why);
+      }
+    }
+
+    function pressStamp() {
+      phase = 'stamp';
+      clear(stage);
+      const story = cur();
+      sfx.correct();
+      const press = el('div', { class: 'so-press stamping' }, [el('span', { class: 'so-press-label', text: '📰 Printing…' })]);
+      stage.appendChild(press);
+      shell.timeout(() => {
+        clear(stage);
+        const prose = story.sentences.map(s => s.text).join(' ');
+        stage.append(el('div', { class: 'so-frontpage' }, [
+          el('div', { class: 'so-fp-title', text: story.title.toUpperCase() }),
+          el('div', { class: 'so-fp-prose', text: prose })
+        ]));
+        sfx.star();
+        speakMaybe(prose);
+        shell.timeout(askQuestion, REDUCED ? 400 : 2200);
+      }, REDUCED ? 100 : 800);
+    }
+
+    function askQuestion() {
+      phase = 'question';
+      clear(stage);
+      const story = cur();
+      const q = el('div', { class: 'so-question' }, [
+        el('div', { class: 'ss-guide', html: renderGuide(guide, { view: 'head', size: 56 }) }),
+        el('div', { class: 'so-q-text', text: story.question }),
+        el('button', { class: 'btn soft ss-say', text: '🔊 Ask me again', onclick: () => { sfx.tap(); speakMaybe(story.question); } })
+      ]);
+      const opts = el('div', { class: 'so-options' });
+      shuffle(story.options.slice()).forEach(o => {
+        opts.appendChild(el('button', { class: 'btn so-option', text: o, dataset: { opt: o }, onclick: (e) => answer(o, e.currentTarget) }));
+      });
+      stage.append(q, opts);
+      speakMaybe(story.question);
+    }
+
+    function answer(opt, node) {
+      if (phase !== 'question') return;
+      const story = cur();
+      mutate(s => { s.seen.reporterCorrect = (s.seen.reporterCorrect || 0) + (opt === story.answer ? 1 : 0); });
+      if (opt === story.answer) {
+        phase = 'done';
+        node.classList.add('right');
+        sfx.star();
+        correctQuestions++;
+        recordResult('storyorder:' + story.id, true);
+        checkRankUp();
+        shell.react('Front page printed — story understood! 🌟', { voice: false, hold: 1800 });
+        speakMaybe('Front page printed. Story understood!');
+        shell.advance();
+        sIdx++;
+        shell.timeout(() => (sIdx >= stories.length ? finish() : renderStory()), 1700);
+      } else {
+        wrong++;
+        shell.dimHeart();
+        sfx.oops();
+        node.classList.add('miss');
+        recordResult('storyorder:' + story.id, false);
+        collector.addAttempted(storyReaderMiss(story));
+        const line = `Hmm — think back to the front page. ${story.question}`;
+        shell.react(line, { voice: false, hold: 2600 });
+        speakMaybe(line);
+      }
+    }
+
+    function checkRankUp() {
+      const s = getState();
+      const total = (s.seen && s.seen.reporterCorrect) || 0;
+      const rank = reporterRankFor(total), prev = reporterRankFor(total - 1);
+      if (rank.name !== prev.name && total > 0) {
+        shell.react(`Promoted to ${rank.name}! 📰`, { voice: false, hold: 2200 });
+        speakMaybe(`Promoted to ${rank.name}!`);
+      }
+    }
+
+    function useHint() {
+      if (hintsUsed >= 2 || phase !== 'insert' || revealPtr >= revealOrder.length) return;
+      hintsUsed++;
+      if (hintsUsed >= 2) shell.enableHint(false);
+      const revealIdx = revealOrder[revealPtr];
+      shell.react(cur().sentences[revealIdx].why, { voice: false, hold: 2400 });
+    }
+
+    function finish() {
+      tts.cancel();
+      shell.cleanup();
+      const stars = (hintsUsed === 0 && wrong === 0) ? 3 : (wrong <= 2 ? 2 : 1);
+      recordBest('storyorder', 'reader', stars);
+      ctx.go('results', {
+        game: 'storyorder', gameName: 'Story Order', stars, level: null,
+        cat: 'reader', mix: false, tricky: collector.items(),
+        replay: () => ctx.go('storyorder')
+      });
+    }
+
+    if (typeof window !== 'undefined') window.__storyreader = {
+      state: () => ({ sIdx, wrong, hintsUsed, correctQuestions, placed: placed.slice(), revealPtr, phase, total: stories.length }),
+      currentReveal: () => (revealPtr < revealOrder.length ? cur().sentences[revealOrder[revealPtr]].text : null),
+      correctGapNow: () => (revealPtr < revealOrder.length ? correctGap(revealOrder[revealPtr]) : -1),
+      place: (gapIdx) => tryPlace(gapIdx),
+      placeCorrect: () => tryPlace(revealPtr < revealOrder.length ? correctGap(revealOrder[revealPtr]) : 0),
+      placeWrong: () => { const c = correctGap(revealOrder[revealPtr]); const bad = c === 0 ? c + 1 : c - 1; tryPlace(Math.max(0, Math.min(placed.length, bad))); },
+      answerCorrect: () => { const n = [...stage.querySelectorAll('.so-option')].find(x => x.dataset.opt === cur().answer); if (n) n.click(); },
+      answerWrong: () => { const n = [...stage.querySelectorAll('.so-option')].find(x => x.dataset.opt !== cur().answer); if (n) n.click(); },
+      rank: () => reporterRankFor((getState().seen && getState().seen.reporterCorrect) || 0).name,
+      hint: () => useHint(),
+      collected: () => collector.items().length
+    };
+  }
+
+  return { unmount() { if (shell) shell.cleanup(); tts.cancel(); } };
+}
+
+function storyReaderMiss(story) {
+  return { ...choiceMiss({ id: 'storyorder:' + story.id, game: 'storyorder', prompt: story.question, options: story.options.slice(), answer: story.answer }), say: story.question };
 }
 
 // A missed comprehension question goes to the Tricky Pile with its own three pictures.
