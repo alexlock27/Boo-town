@@ -26,10 +26,29 @@
 // stars. The pack asks for a time BETWEEN gold and silver; the scripted route is faster than
 // the authored gold, so it lands below it. The pars ship AS AUTHORED — they are Alex's
 // numbers for a child's hands, not a bot's — and the discrepancy is recorded in BLOCKED.md.
+//
+// PAR CHANGE — ALL SIX COURSES, Alex-approved RUN19 REPAIR, 2026-07-29: every course's pars
+// HALVED (js/games/boorollphysics.js's `elapsedMs()` was reporting the sim's clock at 2x
+// real time — the rAF loop runs two physics sub-steps per frame for stability, and the
+// clock was counting both as elapsed time). The clock is fixed at its source, in true real
+// seconds now; halving every par here keeps every medal landing exactly where it lands
+// today, per Alex's ruling ("whatever you think is best" + the correction that leaving the
+// pars alone would have made gold TWICE as generous, not twice as hard). The lift-off
+// halving above (14/22/35 -> 7/11/17.5) is this SAME change, not a second, contradictory
+// one — it is folded into the six-course table below for one source of truth:
+//   first-roll      20/28/38  -> 10/14/19
+//   over-and-under  26/34/45  -> 13/17/22.5
+//   lift-off        14/22/35  -> 7/11/17.5
+//   spin-cycle      34/44/58  -> 17/22/29
+//   the-gate        38/50/64  -> 19/25/32
+//   sunset-ridge    45/60/78  -> 22.5/30/39
+// Course 3's ("Lift Off") gold-par HOLD (NEEDS_ALEX.md ruling 4) is untouched by this — the
+// clock-honesty fix and the on-hold retune are different things, and this halving keeps
+// Course 3 exactly as easy as it is today, which is what the hold protects.
 
 export const COURSES = [
   {
-    key: 'first-roll', name: 'First Roll', pars: { gold: 20, silver: 28, bronze: 38 },
+    key: 'first-roll', name: 'First Roll', pars: { gold: 10, silver: 14, bronze: 19 },
     teaches: 'tilt, the seesaw, the hop',
     start: { x: 6, y: 8 },
     segments: [
@@ -50,7 +69,7 @@ export const COURSES = [
     finish: { x: 96, y: 24 }
   },
   {
-    key: 'over-and-under', name: 'Over and Under', pars: { gold: 26, silver: 34, bronze: 45 },
+    key: 'over-and-under', name: 'Over and Under', pars: { gold: 13, silver: 17, bronze: 22.5 },
     teaches: 'momentum up a rise, the lift',
     start: { x: 5, y: 6 },
     segments: [
@@ -78,7 +97,7 @@ export const COURSES = [
     finish: { x: 96, y: 14 }
   },
   {
-    key: 'lift-off', name: 'Lift Off', pars: { gold: 14, silver: 22, bronze: 35 },   // RUN18B Y8, Alex-approved (see the note at the top of this file)
+    key: 'lift-off', name: 'Lift Off', pars: { gold: 7, silver: 11, bronze: 17.5 },   // RUN18B Y8 + RUN19 REPAIR halving, Alex-approved (see the note at the top of this file)
     teaches: 'the lift, patience',
     start: { x: 4, y: 44 },
     segments: [
@@ -112,7 +131,7 @@ export const COURSES = [
     finish: { x: 96, y: 14 }
   },
   {
-    key: 'spin-cycle', name: 'Spin Cycle', pars: { gold: 34, silver: 44, bronze: 58 },
+    key: 'spin-cycle', name: 'Spin Cycle', pars: { gold: 17, silver: 22, bronze: 29 },
     teaches: 'the girder as a bridge',
     start: { x: 6, y: 10 },
     segments: [
@@ -134,7 +153,7 @@ export const COURSES = [
     finish: { x: 96, y: 10 }
   },
   {
-    key: 'the-gate', name: 'The Gate', pars: { gold: 38, silver: 50, bronze: 64 },
+    key: 'the-gate', name: 'The Gate', pars: { gold: 19, silver: 25, bronze: 32 },
     teaches: 'braking, holding, the leap of faith',
     start: { x: 4, y: 6 },
     segments: [
@@ -156,7 +175,7 @@ export const COURSES = [
     finish: { x: 96, y: 18 }
   },
   {
-    key: 'sunset-ridge', name: 'Sunset Ridge', pars: { gold: 45, silver: 60, bronze: 78 },
+    key: 'sunset-ridge', name: 'Sunset Ridge', pars: { gold: 22.5, silver: 30, bronze: 39 },
     teaches: 'everything at once',
     start: { x: 5, y: 8 },
     segments: [
