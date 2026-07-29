@@ -63,7 +63,7 @@ async function toTry(page, which = 0) {
 }
 
 // ---- 1. every lesson, old and new, has all four stages ------------------------------
-console.log('== 1. all nine lessons have hook -> show -> try x3 -> win ==');
+console.log('== 1. all eleven lessons have hook -> show -> try x3 -> win ==');
 {
   const { ctx, page } = await open('hub');
   const r = await page.evaluate(async () => {
@@ -84,7 +84,8 @@ console.log('== 1. all nine lessons have hook -> show -> try x3 -> win ==');
       };
     });
   });
-  assert(r.length === 9, `nine lessons: six maths + three literacy (got ${r.length})`);
+  // RUN18E L6 adds two Medium literacy lessons (Word Machine, Flying Comma).
+  assert(r.length === 11, `eleven lessons: six maths + five literacy (got ${r.length})`);
   const noHook = r.filter(l => !l.hook);
   assert(noHook.length === 0, 'every lesson opens with a HOOK that has an authored line' + (noHook.length ? ': ' + noHook.map(l => l.id) : ''));
   const noShow = r.filter(l => l.show < 2);
@@ -199,7 +200,7 @@ console.log('== 3. TRY steps are direct manipulation — dragged, or tapped ==')
 }
 
 // ---- 4. NO SILENT REWIND, anywhere, in any lesson ------------------------------------
-console.log('== 4. a wrong move explains and stays put — in all nine lessons ==');
+console.log('== 4. a wrong move explains and stays put — in all eleven lessons ==');
 {
   const { ctx, page } = await open('teachme');
   const names = await page.evaluate(async () => (await import('./data/lessons.js')).LESSONS.map(l => l.name));
@@ -289,7 +290,7 @@ console.log('== 7. Lesson Stars and the Journal stamp, once each ==');
   await ctx.close();
 }
 
-// ---- 8. all nine lessons play end to end without a page error -----------------------
+// ---- 8. all eleven lessons play end to end without a page error -----------------------
 console.log('== 8. every lesson plays through, start to finish ==');
 {
   const { ctx, page } = await open('teachme');

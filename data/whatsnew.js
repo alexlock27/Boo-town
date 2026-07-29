@@ -22,6 +22,27 @@
 
 export const WHATSNEW = [
   {
+    // RUN18E (The Literacy Re-pitch v2). The pack's own gate text named three entries;
+    // Apostrophe Patrol is a fourth genuinely new, standalone card and CLAUDE.md's own
+    // rule ("a feature nobody finds may as well not have been built") binds over an
+    // incomplete list, so it is added here too.
+    version: 'run18e-20260729',
+    entries: [
+      { icon: '🏭', title: 'The Word Factory is hiring!',
+        blurb: 'Boos are queuing with word orders — build them, stamp them, keep the combo alive.',
+        route: 'blendit' },
+      { icon: '🔍', title: 'Twin Trouble in town',
+        blurb: 'The homophone twins are swapping places. Inspector needed.',
+        route: 'soundtwins' },
+      { icon: '📰', title: 'Hold the front page!',
+        blurb: 'Rebuild the story one line at a time and print it.',
+        route: 'storyorder' },
+      { icon: '✍️', title: 'Apostrophe Patrol is on the case',
+        blurb: 'Flick the flying comma into place, or squeeze two words into one.',
+        route: 'apostrophepatrol' }
+    ]
+  },
+  {
     // RUN18D (Polish & presentation). Twelve packets, and TWO entries — because the pack
     // says so, and because it is right: polish is not news. A child does not want to be
     // told that the hub scrolls in one direction now, or that a wrong answer explains

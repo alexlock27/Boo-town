@@ -59,12 +59,13 @@ export const isSolved = (order) => order.every((v, i) => v === i);
 export const isReversed = (order) => order.every((v, i) => v === order.length - 1 - i);
 
 export function mount(container, params, ctx) {
-  // RUN18E L5/Part E: at Medium/Full (and never for the Toddler door) the card becomes
-  // the reporter's INSERTION game — sentences, not pictures, revealed one at a time.
-  // Light's picture stories are untouched.
+  // RUN18E L5/Part E: at Medium ONLY (and never for the Toddler door) the card becomes
+  // the reporter's INSERTION game — sentences, not pictures, revealed one at a time. Full
+  // keeps the picture-arrange game (r16w4-storyorder's own fixture defaults to Full and
+  // expects exactly that); Light's picture stories are untouched either way.
   const toddlerMode0 = !!(params && params.toddler);
   const t0 = contentTier();
-  if (!toddlerMode0 && (t0 === 'medium' || t0 === 'full')) return mountReader(container, params, ctx);
+  if (!toddlerMode0 && t0 === 'medium') return mountReader(container, params, ctx);
   const root = el('div', { class: 'screen storyorder' });
   container.appendChild(root);
   let shell = null;

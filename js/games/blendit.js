@@ -54,11 +54,13 @@ export function buildBlendRound(level, n = ROUND_WORDS) {
 }
 
 export function mount(container, params, ctx) {
-  // RUN18E Part B: at Medium/Full the card becomes the Word Factory (morpheme mode).
-  // Light/Toddler keep the grapheme-blend game exactly as RUN16 built it. One card, one
-  // route — the tier decides which game answers it.
+  // RUN18E Part B: at Medium ONLY the card becomes the Word Factory (morpheme mode) — the
+  // pack's own words are "Medium sees Parts B-E instead", and Full keeps the grapheme-blend
+  // game exactly as RUN16 built it (r16w2-blendit's own fixture defaults to Full and expects
+  // exactly that). Light/Toddler are unaffected either way. One card, one route — the tier
+  // decides which game answers it.
   const t = contentTier();
-  if (t === 'medium' || t === 'full') return mountFactory(container, params, ctx);
+  if (t === 'medium') return mountFactory(container, params, ctx);
   const root = el('div', { class: 'screen blendit' });
   container.appendChild(root);
   let shell = null;
