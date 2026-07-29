@@ -133,8 +133,12 @@ console.log('== migration ==');
     { zone: 'meadow', x: 0.8, item: 'boo_inky' }
   ] });
   const { ctx, page } = await openTown(OLD);
-  // RUN10 P20 pre-places the Wish Well in the Meadow; count only her migrated items.
-  const migrated = (await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items)).filter(t => t.item !== 'deco_wishwell');
+  // RUN10 P20 pre-places the Wish Well, and RUN18A H3 pre-places the Joke Boo's stage, in
+  // the Meadow — count only HER migrated items, not whatever scenery a fresh Meadow
+  // auto-places (a growing list; this is why RUN19 REPAIR was investigating a false
+  // "migration loses items" report — it never did, the suite's filter just predated the
+  // second auto-placed item and started under-filtering, so it saw MORE than 3, not fewer).
+  const migrated = (await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items)).filter(t => !t.item.startsWith('deco_'));
   assert(migrated.length === 3, 'nothing lost in migration (3 items)');
   assert(migrated.every(t => t.row != null && t.row >= 0 && t.row <= 2), 'every migrated item gained a depth row');
   assert(migrated.map(t => t.row).join(',') === '0,1,2', 'migrated items spread across the three rows (no piling)');

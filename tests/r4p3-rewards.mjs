@@ -149,10 +149,14 @@ console.log('== comfort grows after two 3-star rounds ==');
   await ctx.close();
 }
 
-// Master every Th Word in the live ledger (rights 5, misses 0 → mastered).
-const masterTh = (page) => page.evaluate(() => import('./data/spellingBanks.js').then(m => {
+// Master every Th Word in the live ledger (rights 5, misses 0 → mastered). The ledger is
+// keyed by spellId(word) ("spellboo:" + word), not the bare word — recordResult() in
+// spellboo.js always writes it that way, so isMastered() never saw these entries at all
+// before this fix (it read the SAME missing "spellboo:" keys the round tally uses), and a
+// "mastered" cosy round paid full points because it was never recognised as mastered.
+const masterTh = (page) => page.evaluate(() => Promise.all([import('./data/spellingBanks.js'), import('./js/state.js')]).then(([m, st]) => {
   const th = m.BANKS.find(b => b.id === 'trickyTh');
-  window.BooTown.State.mutate(s => { th.words.forEach(w => { s.ledger[w.w] = { rights: 5, misses: 0, lastSeen: 1 }; }); });
+  window.BooTown.State.mutate(s => { th.words.forEach(w => { s.ledger[st.spellId(w.w)] = { rights: 5, misses: 0, lastSeen: 1 }; }); });
 }));
 
 console.log('== cosy rounds: mastered ≤ comfort caps at 2, stars still full ==');
