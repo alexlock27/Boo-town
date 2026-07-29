@@ -61,11 +61,16 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
+  // RUN18E L1: the Toddler hub's "Stories" card jumps straight into the two shortest
+  // stories, captions permanently hidden (a pre-reader has no use for the eye toggle),
+  // read-back spoken as ever.
+  const toddlerMode = !!(params && params.toddler);
   const rz = params && params.resume;
-  if (rz && rz.mix) playMix();
+  if (toddlerMode) playToddler();
+  else if (rz && rz.mix) playMix();
   else if (rz && rz.level) play(rz.level);
   else startCard();
-  maybeIntro('storyorder');
+  if (!toddlerMode) maybeIntro('storyorder');
 
   function startCard() {
     clear(root);
@@ -94,17 +99,21 @@ export function mount(container, params, ctx) {
   function play(level) {
     startRound(shuffle(storiesAtLevel(level).slice()), { badgeKey: 'L' + level, level, title: 'Story Order' });
   }
+  function playToddler() {
+    const shortest = STORIES.slice().sort((a, b) => a.panels.length - b.panels.length).slice(0, 2);
+    startRound(shortest, { badgeKey: 'toddler', level: null, title: 'Story Order', toddler: true });
+  }
   function playMix() {
     const pool = STORIES.map(s => ({ id: 'storyorder:' + s.id, story: s.id, boost: pileBoost('storyorder:' + s.id) }));
     const items = buildSmartMix(pool, 3).map(it => STORY_BY_ID[it.story]).filter(Boolean);
     startRound(items.length ? items : [STORIES[0]], { badgeKey: MIX_KEY, level: null, title: 'Smart Mix', mix: true });
   }
 
-  function startRound(stories, { badgeKey, level, title, mix = false }) {
+  function startRound(stories, { badgeKey, level, title, mix = false, toddler = false }) {
     clear(root);
     if (!stories.length) return startCard();
     let idx = 0, wrong = 0, hintsUsed = 0, done = 0, renders = 0;
-    let order = [], panelNodes = [], drags = [], phase = 'order', captionsOn = true, readingAt = -1;
+    let order = [], panelNodes = [], drags = [], phase = 'order', captionsOn = !toddler, readingAt = -1;
     let untangle = null;
 
     shell = createGameShell({
@@ -142,7 +151,7 @@ export function mount(container, params, ctx) {
       const head = el('div', { class: 'so-head' }, [
         el('div', { class: 'ss-guide', html: renderGuide(guide, { view: 'head', size: 56 }) }),
         el('div', { class: 'so-title', text: story.title }),
-        eye
+        ...(toddler ? [] : [eye])
       ]);
       const strip = el('div', { class: 'so-strip' });
       const readback = el('div', { class: 'so-readback', 'aria-live': 'polite' });
@@ -318,7 +327,7 @@ export function mount(container, params, ctx) {
       ctx.go('results', {
         game: 'storyorder', gameName: mix ? 'Smart Mix' : 'Story Order', stars, level,
         cat: mix ? null : badgeKey, mix, tricky: collector.items(),
-        replay: () => ctx.go('storyorder')
+        replay: () => ctx.go('storyorder', toddler ? { toddler: true } : undefined)
       });
     }
 

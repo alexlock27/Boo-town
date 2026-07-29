@@ -137,11 +137,15 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
+  // RUN18E L1: the Toddler hub's "Sounds" card jumps straight into initial-sounds only,
+  // one group, no picker — a pre-reader never sees a menu she cannot read.
+  const toddlerMode = !!(params && params.toddler);
   const rz = params && params.resume;
-  if (rz && rz.mix) playMix();
+  if (toddlerMode) play('pairs', 1);
+  else if (rz && rz.mix) playMix();
   else if (rz && rz.cat && GROUP_BY_KEY[rz.cat]) play(rz.cat, rz.level);
   else startCard();
-  maybeIntro('soundsorter');
+  if (!toddlerMode) maybeIntro('soundsorter');
 
   function startCard() {
     clear(root);
@@ -349,7 +353,7 @@ export function mount(container, params, ctx) {
       ctx.go('results', {
         game: 'soundsorter', gameName: choice === MIX_KEY ? 'Smart Mix' : 'Sound Sorter',
         stars, level, cat: choice === MIX_KEY ? null : choice, mix: choice === MIX_KEY,
-        tricky: collector.items(), replay: () => ctx.go('soundsorter')
+        tricky: collector.items(), replay: () => ctx.go('soundsorter', toddlerMode ? { toddler: true } : undefined)
       });
     }
 

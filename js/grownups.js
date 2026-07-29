@@ -365,7 +365,11 @@ export function mount(container, params, ctx) {
     el('h3', { text: 'How many choices?' }),
     el('p', { class: 'gu-note', text: 'This only changes the menus she sees — all the learning stays installed, and her progress and Boos are never touched. Smart Mix quietly uses everything.' }),
     tierSeg, tierDesc,
-    el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (4 and under → Toddler · 5–7 → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' })
+    el('p', { class: 'gu-note gu-age-hint', text: 'The age question sets this automatically (4 and under → Toddler · 5–7 → Light · 8–9 → Medium · 10 and up → Full), but whatever you pick here always wins.' }),
+    // RUN18E L1: Sound Sorter/Blend It/Rhyme Time/Story Order move to the Light menu and
+    // hide at Medium (the newer reading games take their place there) — this is the escape
+    // hatch for a Medium child who still wants them.
+    toggle('Show every game (ignore the age setting)', s.settings.showAgedOutGames === true, v => { mutate(st => { st.settings.showAgedOutGames = v; }); })
   ]);
 
   // ---- the build stamp, quietly (RUN18A H5) --------------------------------------------
