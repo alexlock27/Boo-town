@@ -33,6 +33,7 @@ import { stampJournal } from '../quests.js';
 import { confetti } from '../ui.js';
 import { mountHook, mountTryStep } from '../lessonstages.js';
 import { renderLessonGlyph } from '../art.js';   // RUN18D D4
+import { lessonVisible } from '../content.js';   // RUN18E L6
 
 // RUN18D D4: the nine lesson badges are drawn now — a tower of place-value blocks, a
 // coil, two footprints, a cake slice, a die face, the Clock Shop's own clock, an open
@@ -136,6 +137,7 @@ export function mount(container, params, ctx) {
     ]);
     const grid = el('div', { class: 'lesson-grid' });
     for (const lesson of LESSONS) {
+      if (!lessonVisible(lesson.id)) continue;
       const best = bestStars('teachme', lesson.id);
       grid.appendChild(el('button', { class: 'lesson-card', onclick: () => { sfx.tap(); saveLastPick('teachme', lesson.id, 1); playLesson(lesson); } }, [
         el('div', { class: 'lesson-ic', html: LESSON_ART(lesson.icon, 44) }),

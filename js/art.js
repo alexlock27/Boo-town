@@ -2114,7 +2114,15 @@ export function renderLessonGlyph(key, { size = 40, cls = '' } = {}) {
     // a very long word: an unrolled scroll
     long: `<g><path d="M4.6 5.6 h14.8 v12.8 h-14.8 z" fill="${COLORS.sand}" ${ink}/>
       <path d="M4.6 5.6 q-2 3 0 6 M19.4 12.8 q2 3 0 5.6" fill="none" ${ink}/>
-      <path d="M7.6 9 L16.4 9 M7.6 12 L16.4 12 M7.6 15 L13.4 15" ${thin}/></g>`
+      <path d="M7.6 9 L16.4 9 M7.6 12 L16.4 12 M7.6 15 L13.4 15" ${thin}/></g>`,
+    // RUN18E L6: the Word Factory — three joined blocks (parts) under a stamp arm
+    factory: `<g><rect x="3.4" y="12.4" width="17.2" height="8" rx="1.4" fill="${COLORS.sand}" ${ink}/>
+      <rect x="5.6" y="7" width="4.6" height="5.6" fill="${COLORS.bubblegum}" ${ink}/>
+      <rect x="10.6" y="7" width="4.6" height="5.6" fill="${COLORS.gold}" ${ink}/>
+      <path d="M17.4 4 v4.4" ${ink}/><rect x="15.4" y="8" width="4" height="2.6" rx="0.6" fill="${COLORS.teal}" ${ink}/></g>`,
+    // RUN18E L6: the Flying Comma — a comma mid-flight with a little motion arc
+    apostrophe: `<g><path d="M12.4 4.4 q2.4 -1.4 2.4 1.6 q0 2.6 -2.4 4.6" fill="${COLORS.bubblegum}" ${ink}/>
+      <path d="M4.6 17 q4 -2.6 8 0" fill="none" ${thin}/></g>`
   };
   G.share = G.cakeslice;   // the sharing hook and the fractions lesson are the same cake
   const inner = G[key] || G.dotsgrid;
