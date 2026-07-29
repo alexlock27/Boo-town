@@ -16,7 +16,7 @@ let audioInited = false;
 // Lazy screen registry (dynamic import → build incrementally, lighter first paint).
 const registry = {
   onboarding: () => import('./onboarding.js'),
-  hub:        () => import('./hub.js?v=5'),
+  hub:        () => import('./hub.js?v=6'),
   bubblepop:  () => import('./games/bubblepop.js'),
   feedboos:   () => import('./games/feedboos.js'),
   spellboo:   () => import('./games/spellboo.js'),

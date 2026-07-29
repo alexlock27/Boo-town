@@ -56,10 +56,16 @@ export function arcadeHasPicker() { const t = contentTier(); return t !== 'light
 export function filterArcadeCategories(cats) { return cats.filter(c => tierAllows(ARCADE_CAT_TIER[c.key] || 'full')); }
 
 // ---- RUN18E L1: the four RUN16 reading games move to Light, hidden at Medium ----
-// (Full still shows everything, Toddler is a separate door.) Medium plays L2-L5 instead —
-// this pair keeps them apart without a redesign of the hub grid. A grown-up can always
+// (Full still shows everything, Toddler is a separate door.) A grown-up can always
 // override (settings.showAgedOutGames), e.g. for a Medium child who still enjoys them.
-export const HUB_HIDE_AT_MEDIUM = ['soundsorter', 'blendit', 'rhymetime', 'storyorder'];
+//
+// CONFIRMED BUG (Alex, live-tested 2026-07-30): Blend It and Story Order do NOT belong in
+// this list. Their cards don't disappear at Medium — Part B/E give them a NEW mode at
+// Medium (the Word Factory, the reporter's insertion game; see blendit.js/storyorder.js's
+// own tier branch), so hiding the card here made that new content completely unreachable
+// through the hub. Only Sound Sorter and Rhyme Time have no Medium replacement and are
+// genuinely hidden there.
+export const HUB_HIDE_AT_MEDIUM = ['soundsorter', 'rhymetime'];
 // RUN18E L3/L4: the two brand-new Medium/Full literacy games (Twin Trouble, Apostrophe
 // Patrol) are Y3/4 content — they hide below Medium the same way the older games hide
 // AT Medium, and the same override switch reveals them for a curious younger reader.
