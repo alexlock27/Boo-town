@@ -282,7 +282,11 @@ console.log('== 5. hearing something again is free; revealing an answer still co
   assert(!/spendHint|hintsUsed/.test(echo), 'Echo Boos never charged for a replay and still does not');
 }
 {
-  const { ctx, page } = await open('spellboo', { resume: { cat: null, level: 1, mix: true } });
+  // RUN18E L3: this must land on a plain WORD item deterministically (a real set, not
+  // Smart Mix) — mix:true draws from words AND Sound Twins sentences (kind:'twin' items
+  // have no .hear-btn at all), and growing the twin-set count made a twin-first draw the
+  // normal case here, not a rare one.
+  const { ctx, page } = await open('spellboo', { resume: { cat: 'big', level: 1 } });
   await page.waitForTimeout(1200);
   const r = await page.evaluate(async () => {
     const hear = document.querySelector('.hear-btn');

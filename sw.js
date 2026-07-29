@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run18d-20260728';  // RUN18D: Polish & presentation (D1-D12 + the Celebration and Explanation Standards)
+const BUILD_STAMP = 'run18e-20260729';  // RUN18E: The Literacy Re-pitch v2 (L1-L6) — LOCAL REVIEW BUILD, not yet deployed live
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

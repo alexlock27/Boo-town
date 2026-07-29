@@ -43,9 +43,9 @@ const GAMES = [
   { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'soundsorter', name: 'Sound Sorter', tag: 'Hear the sound', accent: 'var(--pop)', icon: soundIcon, group: 'Learn' },   // RUN16 W1
   // RUN18E Part B: at Medium/Full the same card opens the Word Factory, so its tag says so.
-  { id: 'blendit',   name: 'Blend It',     tag: () => (contentTier() === 'medium' || contentTier() === 'full') ? 'Build orders in the Word Factory' : 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2; RUN18E Word Factory
+  { id: 'blendit',   name: 'Blend It',     tag: () => contentTier() === 'medium' ? 'Build orders in the Word Factory' : 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2; RUN18E Word Factory (Medium only)
   { id: 'rhymetime', name: 'Rhyme Time',   tag: 'Words that chime', accent: 'var(--star)', icon: rhymeIcon, group: 'Learn' },   // RUN16 W3
-  { id: 'storyorder', name: 'Story Order', tag: () => (contentTier() === 'medium' || contentTier() === 'full') ? 'Rebuild the story, print the page' : 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4; RUN18E L5 Medium mode
+  { id: 'storyorder', name: 'Story Order', tag: () => contentTier() === 'medium' ? 'Rebuild the story, print the page' : 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4; RUN18E L5 Medium mode only
   { id: 'soundtwins', name: 'Twin Trouble', tag: 'Innocent, or guilty?', accent: 'var(--zing)', icon: twinsIcon, group: 'Learn' },   // RUN18E L3
   { id: 'apostrophepatrol', name: 'Apostrophe Patrol', tag: 'Flying commas & squeezes', accent: 'var(--star)', icon: apostropheIcon, group: 'Learn' },   // RUN18E L4
   { id: 'clockshop', name: 'Clock Shop',   tag: 'Telling time',  accent: 'var(--pop)',  icon: clockIcon, group: 'Learn' },

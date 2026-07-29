@@ -112,6 +112,9 @@ const FIXTURES = {
   'band-drums': [["record mode", "({ record: true })"]],
   'band-keys': [["a song", "({ song: 'twinkle' })"]],
   booroll: [["resume a course", "({ resume: { course: 'c1' } })"]],
+  // RUN18E L1: the Toddler hub's restricted doors into Sound Sorter / Story Order.
+  soundsorter: [["the Toddler door (initial sounds only)", "({ toddler: true })"]],
+  storyorder: [["the Toddler door (two shortest stories)", "({ toddler: true })"]],
   echoboos: [
     ["resume standard", "({ resume: true, lightning: false })"],
     ["resume lightning", "({ resume: true, lightning: true })"]
