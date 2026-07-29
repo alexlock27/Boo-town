@@ -8,7 +8,7 @@ import { meterState, METER_CAP } from './rewards.js';
 import { setSoundEnabled, setMusicEnabled, getSoundEnabled } from './sfx.js';
 import { questState } from './quests.js';
 import { checkRequestOpen } from './requests.js';
-import { tierForAge, AGE_CHOICES, contentTier } from './content.js';
+import { tierForAge, AGE_CHOICES, contentTier, gameVisibleAtHub } from './content.js';
 import { renderGuide, renderIslandMap } from './art.js';   // RUN18D D5: the Town banner's island
 import { AREAS, AREA_UNLOCK_STARS, flattenTownItems } from './areas.js';
 import { retroAwardOnce } from './trophies.js';
@@ -253,7 +253,7 @@ export function mount(container, params, ctx) {
   };
   for (const groupName of ['Learn', 'Play']) {
     const row = el('div', { class: 'game-cards' });
-    GAMES.filter(g => g.group === groupName).forEach(g => row.appendChild(makeCard(g)));
+    GAMES.filter(g => g.group === groupName && gameVisibleAtHub(g.id)).forEach(g => row.appendChild(makeCard(g)));
     cards.append(el('div', { class: 'group-label', text: groupName }), row);
   }
 
@@ -623,6 +623,15 @@ function mountToddlerHub(container, params, ctx) {
   cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Flash Boos', onclick: () => {
     sfx.tap(); speakMaybe('Flash Boos'); ctx.go('flashboos');
   } }, [el('span', { class: 'tc-icon', text: '👀' }), el('span', { class: 'tc-word', text: 'Flash' })]));
+
+  // RUN18E L1: the two RUN16 reading games that genuinely suit a pre-reader join the
+  // Toddler hub too, each opened restricted (soundsorter.js/storyorder.js read params.toddler).
+  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Sounds', onclick: () => {
+    sfx.tap(); speakMaybe('Sounds'); ctx.go('soundsorter', { toddler: true });
+  } }, [el('span', { class: 'tc-icon', text: '🔤' }), el('span', { class: 'tc-word', text: 'Sounds' })]));
+  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Stories', onclick: () => {
+    sfx.tap(); speakMaybe('Stories'); ctx.go('storyorder', { toddler: true });
+  } }, [el('span', { class: 'tc-icon', text: '📖' }), el('span', { class: 'tc-word', text: 'Stories' })]));
 
   // bottom bar: Town, Collection, Studio + the cog behind its long-press, as ever
   const say = (word, fn) => () => { sfx.tap(); speakMaybe(word); fn(); };

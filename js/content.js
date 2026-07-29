@@ -55,6 +55,18 @@ export const ARCADE_CAT_TIER = { tables: 'medium', bonds: 'medium', words: 'medi
 export function arcadeHasPicker() { const t = contentTier(); return t !== 'light' && t !== 'toddler'; }
 export function filterArcadeCategories(cats) { return cats.filter(c => tierAllows(ARCADE_CAT_TIER[c.key] || 'full')); }
 
+// ---- RUN18E L1: the four RUN16 reading games move to Light, hidden at Medium ----
+// (Full still shows everything, Toddler is a separate door.) Medium plays L2-L5 instead —
+// this pair keeps them apart without a redesign of the hub grid. A grown-up can always
+// override (settings.showAgedOutGames), e.g. for a Medium child who still enjoys them.
+export const HUB_HIDE_AT_MEDIUM = ['soundsorter', 'blendit', 'rhymetime', 'storyorder'];
+export function gameVisibleAtHub(id) {
+  if (!HUB_HIDE_AT_MEDIUM.includes(id)) return true;
+  const s = getState();
+  if (s && s.settings && s.settings.showAgedOutGames) return true;
+  return contentTier() !== 'medium';
+}
+
 // ---- Feed the Boos ----
 // Light: Subject (Maths / Words) + level, auto-rotating a template. Medium: grouped topics.
 // Full: every template. Groups map each template id to a friendly topic.
