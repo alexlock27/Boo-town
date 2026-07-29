@@ -215,5 +215,89 @@ export const LITERACY_LESSONS = [
       }
     ],
     win: { stamp: 'I know how stories work!' }
+  },
+
+  // =====================================================================================
+  // LESSON D (RUN18E Part F): The Word Machine
+  // =====================================================================================
+  {
+    id: 'wordMachine', name: 'The Word Machine', icon: 'factory', starType: 'lesson',
+    hook: {
+      kind: 'sign', scene: 'muddle',
+      before: 'I AM UNHAPPYLY', after: 'I AM UNHAPPILY',
+      line: "Close, but the join has a rule! Let's see how the parts fit together."
+    },
+    show: [
+      { way: 1, title: 'Parts have jobs',
+        text: 'un- means NOT: un + happy = unhappy. re- means AGAIN: re + build = rebuild. Every part changes the meaning on purpose.' },
+      { way: 2, title: 'What happens at the join',
+        text: 'Sometimes the join changes a letter. happy + ly: the y turns to i, so it becomes happily, not happyly!' }
+    ],
+    try: [
+      {
+        kind: 'place', title: 'Unlock it!',
+        instruction: 'Drag the right part into the gap.',
+        tiles: [{ key: 'un', label: 'un' }, { key: 'dis', label: 'dis' }, { key: 're', label: 're' }],
+        frames: [{ pre: '', post: 'lock', answer: 'un', why: 'un means NOT. Not locked any more!' }],
+        why: { dis: 'dis means NOT too — but "dislock" is not a word! un + lock = unlock.', re: 're means AGAIN — but "relock" means locking again, not opening it!' }
+      },
+      {
+        kind: 'place', title: 'happily',
+        instruction: 'Drag the right ending into the gap.',
+        tiles: [{ key: 'ly', label: 'ly' }, { key: 'ily', label: 'ily' }],
+        frames: [{ pre: 'happ', post: '', answer: 'ily', why: 'happy + ly → happily. The y turns to i before -ly.' }],
+        why: { ly: 'Careful — the y turns to i first! happy becomes happi, then + ly.' }
+      },
+      {
+        kind: 'place', title: 'hopping',
+        instruction: 'Drag the right ending into the gap.',
+        tiles: [{ key: 'ing', label: 'ing' }, { key: 'ping', label: 'ping' }],
+        frames: [{ pre: 'hop', post: '', answer: 'ping', why: 'Short vowel, one consonant: double the last letter. One hop, two p’s!' }],
+        why: { ing: 'Just "ing" makes "hoping" — a different word! Double the p for hopping.' }
+      }
+    ],
+    win: { stamp: 'Word Engineer' }
+  },
+
+  // =====================================================================================
+  // LESSON E (RUN18E Part F): The Flying Comma
+  // =====================================================================================
+  {
+    id: 'flyingComma', name: 'The Flying Comma', icon: 'apostrophe', starType: 'lesson',
+    hook: {
+      kind: 'sign', scene: 'confused',
+      before: "THE BOO'S PICNIC", after: "THE BOOS' PICNIC",
+      line: "One Boo is VERY cross — that sign says the picnic belongs to just ONE of them, and everyone came!"
+    },
+    show: [
+      { way: 1, title: 'The apostrophe points at the owner',
+        text: "An apostrophe shows who something belongs to. One Boo's kite — the comma sits right before the s." },
+      { way: 2, title: 'More than one owner',
+        text: 'When there are LOTS of owners and the word already ends in s, the comma goes AFTER the s: the Boos’ picnic.' }
+    ],
+    try: [
+      {
+        kind: 'place', title: 'Squeeze it together',
+        instruction: 'Drag the missing letters into the gap.',
+        tiles: [{ key: "n't", label: "n't" }, { key: 'not', label: 'not' }],
+        frames: [{ pre: 'do', post: '', answer: "n't", why: "do + not squeeze together — the o pops out and an apostrophe drops in: don't!" }],
+        why: { not: "That's the long way — do not! Squeeze it: don't." }
+      },
+      {
+        kind: 'place', title: 'One Boo’s hat',
+        instruction: 'Drag the right ending onto Boo.',
+        tiles: [{ key: "'s", label: "'s" }, { key: "s'", label: "s'" }],
+        frames: [{ pre: 'Boo', post: ' hat blew away.', answer: "'s", why: 'One Boo — the comma flies BEFORE the s.' }],
+        why: { "s'": 'That’s for MORE than one owner — there is only one Boo here!' }
+      },
+      {
+        kind: 'place', title: 'The Boos’ picnic',
+        instruction: 'Drag the right ending onto Boos.',
+        tiles: [{ key: "'s", label: "'s" }, { key: "s'", label: "s'" }],
+        frames: [{ pre: 'Boos', post: ' picnic', answer: "s'", why: 'Lots of Boos, and the word already ends in s — the comma flies AFTER it.' }],
+        why: { "'s": 'That would mean just ONE Boo owns it — but they ALL came to the picnic!' }
+      }
+    ],
+    win: { stamp: 'Apostrophe Patrol' }
   }
 ];

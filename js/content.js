@@ -64,6 +64,15 @@ export const HUB_HIDE_AT_MEDIUM = ['soundsorter', 'blendit', 'rhymetime', 'story
 // Patrol) are Y3/4 content — they hide below Medium the same way the older games hide
 // AT Medium, and the same override switch reveals them for a curious younger reader.
 export const HUB_MEDIUM_PLUS_ONLY = ['soundtwins', 'apostrophepatrol'];
+// RUN18E L6/Part A#3: the two new literacy lessons (Word Machine, Flying Comma) are
+// Medium's — the three RUN16 literacy lessons stay Light-and-up as they always were.
+export const LESSON_MEDIUM_PLUS_ONLY = ['wordMachine', 'flyingComma'];
+export function lessonVisible(id) {
+  if (!LESSON_MEDIUM_PLUS_ONLY.includes(id)) return true;
+  const s = getState();
+  if (s && s.settings && s.settings.showAgedOutGames) return true;
+  return contentTier() === 'medium' || contentTier() === 'full';
+}
 export function gameVisibleAtHub(id) {
   const s = getState();
   const override = !!(s && s.settings && s.settings.showAgedOutGames);
