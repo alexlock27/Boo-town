@@ -36,6 +36,7 @@ const registry = {
   blendit:    () => import('./games/blendit.js'),       // Blend It (RUN16 W2)
   rhymetime:  () => import('./games/rhymetime.js'),     // Rhyme Time (RUN16 W3)
   storyorder: () => import('./games/storyorder.js'),    // Story Order (RUN16 W4)
+  soundtwins: () => import('./games/soundtwins.js'),    // Twin Trouble (RUN18E L3)
   shop:       () => import('./shop.js'),         // the Boo Shop (RUN15 V4)
   golden:     () => import('./golden.js'),
   toddlergame: () => import('./toddler.js'),   // Toddler mode's four games (RUN5 C7)
