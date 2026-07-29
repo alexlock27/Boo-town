@@ -332,14 +332,23 @@ export function createRoll(course) {
     });
     if (st.x >= course.finish.x && Math.abs((st.y + ROLL.BALL_R) - course.finish.y) <= ROLL.FINISH_BAND) {
       st.finished = true;
-      emit('finish', { ms: Math.round(st.t + st.penalty) });
+      emit('finish', { ms: Math.round(st.t / 2 + st.penalty) });   // RUN19 REPAIR: same honest clock as elapsedMs()
     }
     return st;
   }
 
   return {
     step, state: st, mechs, surfaces, walls,
-    elapsedMs: () => Math.round(st.t + st.penalty),
+    // RUN19 REPAIR: js/games/booroll.js's rAF loop runs TWO sim.step()s per real frame —
+    // that is deliberate, for physics stability, and untouched. But it means st.t (which
+    // advances by DT on every step() call) accrues at 2x real wall-clock time. The CLOCK
+    // must be honest without touching the ball, so only the clock READING is corrected:
+    // every two step() calls represent one real rAF tick, so st.t/2 is the true elapsed
+    // time — for the live loop AND for headless simulate() alike (a headless run's step
+    // count is the same physics, so the same halving gives the equivalent real time a
+    // player watching it live would see). st.penalty is a flat ms constant added directly
+    // by respawnAtCheckpoint(), already in true-time units, so it is added AFTER halving.
+    elapsedMs: () => Math.round(st.t / 2 + st.penalty),
     surfacesNow: allSurfaces, wallsNow: allWalls, nearestMech
   };
 }

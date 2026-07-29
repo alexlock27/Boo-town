@@ -75,7 +75,7 @@ for (const [w, h] of [[390, 844], [1024, 768]]) {
 }
 
 // ================== 2. Boo Roll's clock: the readout that DOES match ==================
-console.log('== 2. Boo Roll\'s course clock: monotonic, labelled, and running at 2x ==');
+console.log('== 2. Boo Roll\'s course clock: monotonic, labelled, and now honest ==');
 {
   const { ctx, page } = await open();
   await page.evaluate(() => window.BooTown.go('booroll'));
@@ -100,9 +100,12 @@ console.log('== 2. Boo Roll\'s course clock: monotonic, labelled, and running at
   const a = samples[0], z = samples[samples.length - 1];
   const ratio = (z[1] - a[1]) / (z[0] - a[0]);
   console.log(`  · measured: ${(z[0] - a[0]).toFixed(2)}s of stopwatch showed as ${(z[1] - a[1]).toFixed(1)}s on the clock`);
-  assert(Math.abs(ratio - 1) > 0.05,
-    `KNOWN DEFECT, pinned not endorsed: the clock does NOT match a stopwatch (${ratio.toFixed(2)}x real time). js/games/booroll.js takes two 1/60s engine steps per animation frame, so sim time accrues 2000ms per real second. Fixing it moves the meaning of Y8's Alex-approved pars — see BLOCKED.md and NEEDS_ALEX.md. When Alex rules, invert this assertion.`);
-  assert(ratio > 1.85 && ratio < 2.2, `and the error is exactly the double-step, nothing else (${ratio.toFixed(2)}x, expected ~2.00x)`);
+  // RUN19 REPAIR, Alex-approved: js/games/boorollphysics.js's elapsedMs() now halves the
+  // sim clock (the rAF loop's two physics sub-steps per frame stay, for stability — only
+  // the clock READING was wrong). This assertion is the inversion the old comment asked
+  // for: the clock must match a stopwatch now, not run at 2x.
+  assert(Math.abs(ratio - 1) < 0.2,
+    `the clock matches a stopwatch (${ratio.toFixed(2)}x real time, was ~2.00x before RUN19's repair)`);
   await ctx.close();
 }
 
