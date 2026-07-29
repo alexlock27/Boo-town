@@ -3188,22 +3188,38 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* RUN12 S7: the bottom inset is set by js/discohall.js from the MEASURED floor rect —
    38% was a guess that stood every dancer 76px above the dance floor. The value here is
    only the pre-measure fallback for the first frame. */
-.disco-dancers { position:absolute; z-index:8; inset:0 3% 20%; display:flex; align-items:end; justify-content:center; gap:clamp(4px,2vw,22px); }
-.disco-dancer { width:clamp(68px,10vw,112px); display:grid; place-items:center; transform-origin:center bottom; filter:drop-shadow(0 8px 5px rgba(0,0,0,.35)); }
+/* RUN19 Z1: the projected-cell floor. Each dancer is positioned absolutely by
+   js/discohall.js's layoutFloor()+seatDancers() (left % + bottom PIXELS measured against
+   the floor's own rotated geometry, per RUN12 S7 + --row-scale); this container's OWN
+   bottom edge sits flush with the stage's (bottom:0) so a dancer's pixel `bottom` means
+   exactly what seatDancers() computed it to mean — pixels up from the stage floor. */
+.disco-dancers { position:absolute; z-index:8; inset:0 3% 0; }
+.disco-dancer { position:absolute; width:clamp(68px,10vw,112px); display:grid; place-items:center; transform-origin:center bottom; filter:drop-shadow(0 8px 5px rgba(0,0,0,.35)); transform:translateX(-50%) scale(var(--row-scale,1)); transition:left .5s cubic-bezier(.2,.8,.3,1), bottom .5s cubic-bezier(.2,.8,.3,1), transform .5s cubic-bezier(.2,.8,.3,1), filter .5s ease; }
 .disco-dancer svg { max-width:100%; height:auto; }
 .disco-dancers.routine { display:grid; grid-template-columns:repeat(6,minmax(52px,90px)); grid-template-rows:repeat(2,1fr); align-items:end; justify-content:center; gap:0 12px; }
+.disco-dancers.routine .disco-dancer { position:static; transform:none; }
+/* the overflow rail — a row behind the floor for anyone past MAX_ON_FLOOR (10) */
+.disco-rail { position:absolute; z-index:7; left:6%; right:6%; top:8%; height:10%; display:flex; align-items:center; justify-content:center; gap:clamp(2px,1.4vw,10px); }
+.disco-rail .disco-dancer { position:static; width:clamp(38px,5.5vw,56px); opacity:.85; filter:drop-shadow(0 5px 4px rgba(0,0,0,.3)) brightness(.88); transform:none; }
+.disco-rail-dancer.rail-bounce { animation: discoRailBounce .4s ease; }
+@keyframes discoRailBounce { 40% { transform: translateY(-6px); } }
 .disco-floor { position:absolute; z-index:2; left:5%; right:5%; bottom:0; height:48%; display:grid; grid-template-columns:repeat(6,1fr); grid-template-rows:repeat(4,1fr); gap:4px; padding:5px; transform:perspective(500px) rotateX(55deg); transform-origin:bottom; border:4px solid #38225F; background:#160C31; box-shadow:0 0 35px hsla(var(--disco-hue),90%,60%,.4); }
 .disco-tile { border-radius:6px; background:hsl(var(--tile-hue,300),70%,34%); box-shadow:inset 0 0 0 2px rgba(255,255,255,.12); transition:background .16s,filter .16s; }
 .disco-tile.bar-hit { animation:discoTileBar .46s ease-out; }
 @keyframes discoTileBar { 30% { filter:brightness(2.1); box-shadow:inset 0 0 0 3px rgba(255,255,255,.65),0 0 16px hsl(var(--tile-hue),90%,65%); } }
 .disco-track { position:absolute; z-index:12; right:18px; top:24px; min-width:180px; padding:10px 14px; border:3px solid #fff; border-radius:16px; background:#FF7AC6; color:var(--ink); font:700 15px var(--font-display); box-shadow:0 0 18px rgba(255,122,198,.5); }   /* G7: white-on-pink was 2.37:1 */
 .disco-now { position:absolute; z-index:9; right:18px; top:78px; width:180px; color:#DCCFF5; text-align:center; font:700 12px var(--font-display); }
-.disco-bounce { animation:discoBounce .55s ease; }
-.disco-sway { animation:discoSway .8s ease; }
-.disco-sway-small { animation:discoSwaySmall .8s ease; }
-.disco-spin { animation:discoSpin .65s ease; }
-.disco-shimmy { animation:discoShimmy .55s ease; }
-.disco-star-jump { animation:discoStar .65s ease; }
+.disco-mode { position:absolute; z-index:12; right:18px; top:112px; min-width:180px; min-height:44px; padding:8px 14px; border:3px solid #fff; border-radius:16px; background:#35D0BA; color:var(--ink); font:700 13px var(--font-display); box-shadow:0 0 18px rgba(53,208,186,.5); }
+/* RUN19 Z1: moves chain per BEAT — each animation's duration IS the current track's beat
+   length (js/discohall.js sets --beat-ms on every dancer's svg), so a move never idles
+   waiting for the next one and never overruns into it. The seconds after each keyframes
+   name are only the pre-JS fallback. */
+.disco-bounce { animation-name:discoBounce; animation-duration:var(--beat-ms,.55s); animation-timing-function:ease; }
+.disco-sway { animation-name:discoSway; animation-duration:var(--beat-ms,.8s); animation-timing-function:ease; }
+.disco-sway-small { animation-name:discoSwaySmall; animation-duration:var(--beat-ms,.8s); animation-timing-function:ease; }
+.disco-spin { animation-name:discoSpin; animation-duration:var(--beat-ms,.65s); animation-timing-function:ease; }
+.disco-shimmy { animation-name:discoShimmy; animation-duration:var(--beat-ms,.55s); animation-timing-function:ease; }
+.disco-star-jump { animation-name:discoStar; animation-duration:var(--beat-ms,.65s); animation-timing-function:ease; }
 @keyframes discoBounce { 50% { transform:translateY(-18px) scale(1.06,.94); } }
 @keyframes discoSway { 35% { transform:rotate(-5deg); } 70% { transform:rotate(5deg); } }
 @keyframes discoSwaySmall { 35% { transform:rotate(-2deg) translateX(-2px); } 70% { transform:rotate(2deg) translateX(2px); } }
@@ -3216,17 +3232,21 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .disco-posters { left:8px; top:108px; width:130px; max-height:25%; padding:7px; }
   .disco-track { right:8px; top:108px; min-width:150px; font-size:12px; }
   .disco-now { right:8px; top:158px; width:150px; }
+  .disco-mode { right:8px; top:196px; min-width:150px; font-size:11px; }
   .disco-stage { inset:31% 1% 7%; }
-  /* the bottom inset is overwritten by the measured value; only the sides/wrap matter here */
-  .disco-dancers { inset:0 0 20%; gap:0; flex-wrap:wrap; align-content:end; }
-  .disco-dancer { width:64px; margin-inline:-3px; }
+  /* RUN19 Z1: bottom stays 0 — js/discohall.js's seatDancers() computes every dancer's
+     pixel bottom itself now, per row, and needs this container flush with the stage. */
+  .disco-dancers { inset:0 0 0; }
+  .disco-dancer { width:56px; }
   .disco-dancers.routine { grid-template-columns:repeat(6,52px); gap:0; }
+  .disco-rail .disco-dancer { width:34px; }
 }
 .disco-hall.reduced .disco-dancer svg { animation:discoSway 2.4s ease-in-out infinite !important; }
 .disco-hall.reduced .disco-tile { animation:none !important; transition:background 1.5s ease; }
 @media (prefers-reduced-motion:reduce) {
   .ff-disco-sign,.disco-ball::after,.disco-tile.bar-hit,.disco-bounce,.disco-sway,.disco-sway-small,
-  .disco-spin,.disco-shimmy,.disco-star-jump { animation:none; }
+  .disco-spin,.disco-shimmy,.disco-star-jump,.disco-rail-dancer.rail-bounce { animation:none; }
+  .disco-dancer { transition:none; }
 }
 
 /* RUN10 P12 — Boo Care */
@@ -3920,10 +3940,10 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    costume idles, the fluttering cape and two extra idles per species.
    Everything below is transform-only and has a reduced-motion path at the end.
    --------------------------------------------------------------------------- */
-.disco-wiggle { animation: discoWiggle .5s ease; }
-.disco-robot { animation: discoRobot .7s steps(4); }
-.disco-clap { animation: discoClap .45s ease; }
-.disco-twirl { animation: discoTwirl .9s ease; }
+.disco-wiggle { animation-name: discoWiggle; animation-duration: var(--beat-ms,.5s); animation-timing-function: ease; }
+.disco-robot { animation-name: discoRobot; animation-duration: var(--beat-ms,.7s); animation-timing-function: steps(4); }
+.disco-clap { animation-name: discoClap; animation-duration: var(--beat-ms,.45s); animation-timing-function: ease; }
+.disco-twirl { animation-name: discoTwirl; animation-duration: var(--beat-ms,.9s); animation-timing-function: ease; }
 @keyframes discoWiggle { 25% { transform: translateX(-7px) rotate(-9deg); } 75% { transform: translateX(7px) rotate(9deg); } }
 @keyframes discoRobot { 0% { transform: translateX(-6px); } 50% { transform: translateX(6px) rotate(4deg); } 100% { transform: translateX(-6px); } }
 @keyframes discoClap { 40% { transform: translateY(-6px) scale(1.06, .94); } }
