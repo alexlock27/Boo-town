@@ -487,3 +487,50 @@
 @media (prefers-reduced-motion: reduce) {
   .tt-word.culprit-glow, .tt-word.whoosh { animation: none; }
 }
+
+/* ======================= RUN18E L4: Apostrophe Patrol ======================= */
+.ap-stage { display: grid; gap: 14px; justify-items: center; }
+.ap-owner { display: flex; align-items: center; gap: 8px; }
+.ap-dots { display: inline-flex; gap: 4px; }
+.ap-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--zing, #35D0BA); border: 2px solid var(--ink, #2A1B4E); display: inline-block; }
+.ap-owner-line { font-weight: 700; color: var(--cream, #FFF8F0); }
+.ap-track { overflow: hidden; width: 100%; max-width: 560px; display: flex; justify-content: center; }
+.ap-sign {
+  background: var(--cream, #FFF8F0); border: 4px solid var(--ink, #2A1B4E); border-radius: 12px;
+  padding: 14px 20px; font-family: Fredoka, system-ui, sans-serif; font-weight: 800; font-size: 20px;
+  color: var(--ink, #2A1B4E); text-align: center; box-shadow: 0 5px 0 rgba(42, 27, 78, .35);
+  letter-spacing: .02em;
+}
+.ap-sign.shine { animation: apShine .6s ease-out; }
+@keyframes apShine { 0% { box-shadow: 0 5px 0 rgba(42,27,78,.35); } 50% { box-shadow: 0 5px 0 rgba(42,27,78,.35), 0 0 24px 6px rgba(255,201,60,.9); } 100% { box-shadow: 0 5px 0 rgba(42,27,78,.35); } }
+.ap-track.driving .ap-sign { animation: apDrive var(--van-dur, 6s) linear infinite; }
+@keyframes apDrive { 0% { transform: translateX(-30%); } 100% { transform: translateX(30%); } }
+.ap-options { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.ap-slot { min-height: 56px; min-width: 96px; font-size: 20px; font-weight: 700; }
+.ap-slot.ap-none { background: var(--card, #6A4FD0); color: var(--cream, #FFF8F0); }
+.ap-slot.boing { animation: apBoing .4s ease-in-out; }
+@keyframes apBoing { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-14px); } 70% { transform: translateY(3px); } }
+.ap-explain {
+  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 10px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+}
+.ap-sq-rail { display: flex; align-items: center; gap: 10px; }
+.ap-sq-prompt { font-weight: 700; color: var(--cream, #FFF8F0); }
+.ap-sq-tiles { display: flex; align-items: center; gap: 12px; }
+.ap-sq-plus { font-size: 26px; font-weight: 800; color: var(--star, #FFC93C); }
+.ap-sq-tile {
+  min-height: 64px; min-width: 96px; font-size: 22px; font-weight: 800;
+  background: var(--pop, #FF7AC6); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  transition: transform .25s ease-out;
+}
+.ap-sq-tile.held { background: var(--star, #FFC93C); transform: scale(1.08); }
+.ap-sq-tiles.squeezing .ap-sq-tile { animation: apSqueeze .4s ease-in-out forwards; }
+.ap-sq-tiles.squeezing .ap-sq-tile:first-child { animation-name: apSqueezeLeft; }
+.ap-sq-tiles.squeezing .ap-sq-tile:last-child { animation-name: apSqueezeRight; }
+@keyframes apSqueezeLeft { 100% { transform: translateX(30px); } }
+@keyframes apSqueezeRight { 100% { transform: translateX(-30px); } }
+.ap-sq-result { font-family: Fredoka, system-ui, sans-serif; font-weight: 800; font-size: 30px; color: var(--star, #FFC93C); min-height: 40px; }
+.ap-sq-result.pop { animation: wfPop .4s cubic-bezier(.2, .9, .3, 1.2); }
+@media (prefers-reduced-motion: reduce) {
+  .ap-sign.shine, .ap-track.driving .ap-sign, .ap-slot.boing, .ap-sq-tiles.squeezing .ap-sq-tile, .ap-sq-result.pop { animation: none; }
+}
