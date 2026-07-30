@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run19c-20260730';  // Repair wave (Alex's live QA): readable panels (cream-on-cream fixed), no repeated round items, transform-style B2/B4 orders, Rhymes on the Toddler hub.
+const BUILD_STAMP = 'run20-20260731';  // RUN19 Z2-Z7 + RUN20: living requests, announced moments, the object model (planes/surfaces/resize/dressings), Bounce build-the-answer, wish life for all sixty wishes.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

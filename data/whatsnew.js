@@ -25,7 +25,7 @@ export const WHATSNEW = [
   // ends up deploying, so its `version` is set at the deploy gate, not here — the branch has
   // deliberately not bumped BUILD_STAMP. Everything below is child-facing and reachable.
   {
-    version: 'run20-PENDING',
+    version: 'run20-20260731',
     entries: [
       { icon: '🦋', title: 'Wishes come to LIFE!', blurb: 'Bees buzz, kites fly, rockets launch — every wish does something now.', route: 'town', params: { area: 'meadow' } },
       { icon: '🗺️', title: 'Every corner has a secret', blurb: 'Tap around the Meadow, the Beach, the Riverside… things happen!', route: 'worldmap' },
