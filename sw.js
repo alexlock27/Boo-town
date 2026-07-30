@@ -107,6 +107,8 @@ const ASSETS = [
   'js/encouragement.js',
   'js/ack.js',
   'js/cameo.js',
+  'data/dressings.js',
+  'data/surfaces.js',
   'js/feelings.js',
   'data/feelingsLines.js',
   'js/whatsnew.js',

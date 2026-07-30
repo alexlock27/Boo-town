@@ -1757,6 +1757,88 @@ export function renderIslandMap({ w = 100, h = 100 } = {}) {
 // badges used to show — emoji-as-art is forbidden in game scenes (CLAUDE.md art contract),
 // and it made the map read as a menu of chips rather than a place. Each glyph is drawn on
 // the same 0..24 box so every badge sits identically inside its 88px circle.
+// ---- RUN19 Z6: room dressings ----------------------------------------------
+// Nine wallpapers and nine floors, drawn as SVG PATTERN FILLS so one small tile repeats over
+// a whole wall or floor band at any viewport size with no image files (hard law: everything
+// ships in the repo, nothing is fetched). Each dressing in data/dressings.js names a pattern
+// plus a base and an accent from the house palette; the pattern itself is the drawing.
+//
+// Returned as a `<defs><pattern>` + a full-bleed `<rect>` inside one <svg> the scene can drop
+// straight into a band, so callers never build SVG by hand.
+const DRESSING_TILES = {
+  // A flat wash — the free defaults, and the honest baseline the others are judged against.
+  plain: () => '',
+  // Broad soft stripes. Vertical on a wall reads as wallpaper; the caller does not rotate.
+  stripes: (a) => `<rect x="0" y="0" width="16" height="32" fill="${a}" opacity="0.55"/>`,
+  // A gingham check: two half-opacity bands crossing, so the overlap darkens by itself.
+  checks: (a) => `<rect x="0" y="0" width="16" height="32" fill="${a}" opacity="0.3"/>` +
+                 `<rect x="0" y="0" width="32" height="16" fill="${a}" opacity="0.3"/>`,
+  // Polka spots, offset on the second row so it does not read as a grid.
+  spots: (a) => `<circle cx="8" cy="8" r="4.5" fill="${a}" opacity="0.7"/>` +
+                `<circle cx="24" cy="24" r="4.5" fill="${a}" opacity="0.7"/>`,
+  // Little four-point stars, the house's own star shape, two per tile.
+  stars: (a) => `<path d="M10 2 L12 8 L18 10 L12 12 L10 18 L8 12 L2 10 L8 8 Z" fill="${a}" opacity="0.9"/>` +
+                `<path d="M24 18 L25.4 22.2 L29.6 23.6 L25.4 25 L24 29.2 L22.6 25 L18.4 23.6 L22.6 22.2 Z" fill="${a}" opacity="0.75"/>`,
+  // Tiles: a grouted grid, the grout drawn as the accent at low opacity.
+  tiles: (a) => `<rect x="0" y="0" width="32" height="32" fill="none" stroke="${a}" stroke-width="2.5" opacity="0.55"/>` +
+                `<rect x="0" y="0" width="16" height="16" fill="${a}" opacity="0.12"/>`,
+  // Floorboards: long planks with a seam and a hint of grain.
+  boards: (a) => `<rect x="0" y="0" width="32" height="2.5" fill="${a}" opacity="0.5"/>` +
+                 `<rect x="0" y="16" width="32" height="2.5" fill="${a}" opacity="0.5"/>` +
+                 `<rect x="14" y="2.5" width="2" height="13.5" fill="${a}" opacity="0.3"/>` +
+                 `<rect x="26" y="18.5" width="2" height="13.5" fill="${a}" opacity="0.3"/>`,
+  // A woven rug: a basket weave of short dashes both ways.
+  weave: (a) => `<rect x="0" y="2" width="14" height="5" rx="2" fill="${a}" opacity="0.5"/>` +
+                `<rect x="18" y="2" width="14" height="5" rx="2" fill="${a}" opacity="0.5"/>` +
+                `<rect x="2" y="9" width="5" height="14" rx="2" fill="${a}" opacity="0.5"/>` +
+                `<rect x="25" y="9" width="5" height="14" rx="2" fill="${a}" opacity="0.5"/>` +
+                `<rect x="0" y="25" width="14" height="5" rx="2" fill="${a}" opacity="0.5"/>` +
+                `<rect x="18" y="25" width="14" height="5" rx="2" fill="${a}" opacity="0.5"/>`,
+  // Rounded pebbles / a looped carpet pile, scattered at three sizes.
+  pebbles: (a) => `<ellipse cx="9" cy="10" rx="7" ry="5.5" fill="${a}" opacity="0.45"/>` +
+                  `<ellipse cx="24" cy="7" rx="5" ry="4" fill="${a}" opacity="0.35"/>` +
+                  `<ellipse cx="20" cy="23" rx="8" ry="6" fill="${a}" opacity="0.45"/>` +
+                  `<ellipse cx="5" cy="26" rx="4.5" ry="3.5" fill="${a}" opacity="0.3"/>`,
+  // Herringbone: two mirrored diagonal blocks, the classic V.
+  herring: (a) => `<path d="M0 12 L12 0 L16 4 L4 16 Z" fill="${a}" opacity="0.45"/>` +
+                  `<path d="M16 4 L28 16 L24 20 L12 8 Z" fill="${a}" opacity="0.45"/>` +
+                  `<path d="M0 28 L12 16 L16 20 L4 32 Z" fill="${a}" opacity="0.45"/>`,
+  // Fat soft clouds, two per tile at different heights.
+  clouds: (a) => `<ellipse cx="10" cy="11" rx="9" ry="5.5" fill="${a}" opacity="0.85"/>` +
+                 `<ellipse cx="16" cy="12" rx="6" ry="4" fill="${a}" opacity="0.85"/>` +
+                 `<ellipse cx="26" cy="25" rx="7" ry="4.5" fill="${a}" opacity="0.7"/>`,
+  // A rainbow rug: five arcs of the house's own brights.
+  rainbow: () => ['#FF7AC6', '#FFC93C', '#5FBF7A', '#8FC7FF', '#B9A6F5']
+    .map((c, i) => `<rect x="0" y="${i * 6.4}" width="32" height="6.4" fill="${c}" opacity="0.55"/>`).join('')
+};
+export const DRESSING_PATTERNS = Object.keys(DRESSING_TILES);
+
+// One dressing, as a self-contained <svg> that fills whatever box it is given.
+export function renderDressing(dressing, { cls = '' } = {}) {
+  if (!dressing) return '';
+  const tile = DRESSING_TILES[dressing.pattern] || DRESSING_TILES.plain;
+  const id = 'dp-' + dressing.id;
+  const inner = tile(dressing.accent);
+  return `<svg class="dressing-fill ${cls}" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">` +
+    (inner ? `<defs><pattern id="${id}" width="32" height="32" patternUnits="userSpaceOnUse">${inner}</pattern></defs>` : '') +
+    `<rect x="0" y="0" width="100%" height="100%" fill="${dressing.base}"/>` +
+    (inner ? `<rect x="0" y="0" width="100%" height="100%" fill="url(#${id})"/>` : '') +
+    `</svg>`;
+}
+// A small square swatch for the Decorate tab and the shop shelf — the same drawing, boxed.
+export function renderDressingSwatch(dressing, { size = 56 } = {}) {
+  if (!dressing) return '';
+  const tile = DRESSING_TILES[dressing.pattern] || DRESSING_TILES.plain;
+  const id = 'dps-' + dressing.id;
+  const inner = tile(dressing.accent);
+  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}" class="dressing-swatch" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">` +
+    (inner ? `<defs><pattern id="${id}" width="32" height="32" patternUnits="userSpaceOnUse">${inner}</pattern></defs>` : '') +
+    `<rect x="2" y="2" width="60" height="60" rx="10" fill="${dressing.base}" stroke="${INK}" stroke-width="3"/>` +
+    (inner ? `<rect x="4" y="4" width="56" height="56" rx="8" fill="url(#${id})"/>` : '') +
+    `<rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="${INK}" stroke-width="3"/>` +
+    `</svg>`;
+}
+
 export function renderAreaGlyph(key, { size = 44 } = {}) {
   const ink = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"`;
   const G = {

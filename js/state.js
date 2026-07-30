@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 22;  // v22: Sprinkle (sparkles: {placementId -> dayStamp}; RUN19 Z5 gives stardust a second, cheaper spend that lives in the town where the result is visible). NOTE for RUN19 Z6: its pack text says "VERSION 18" — stale; Z6 must claim 23. v21: Boo requests become a list (request.actives; RUN19 Z2 raises MAX_ACTIVE to 2 and its five verbs each name a specific item or friend, which RUN3's single `active` object had no room for). v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 23;  // v23: the RUN19 Z6 object model — placements gain `plane` (floor|wall|surface|sky; absent = floor), wall items gain a dragged `y` in the 0.18-0.42 band instead of one fixed height, a surface child carries `parent`+`slot`, and each Boo House room remembers its `dressings`. (Z6's pack text says "VERSION 18" — stale by five bumps; corrected here.) v22: Sprinkle (sparkles: {placementId -> dayStamp}; RUN19 Z5 gives stardust a second, cheaper spend that lives in the town where the result is visible). NOTE for RUN19 Z6: its pack text says "VERSION 18" — stale; Z6 must claim 23. v21: Boo requests become a list (request.actives; RUN19 Z2 raises MAX_ACTIVE to 2 and its five verbs each name a specific item or friend, which RUN3's single `active` object had no room for). v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -83,6 +83,13 @@ function freshSave() {
     request: { actives: [], lastResolvedAt: 0, treatFor: null, thanking: [] },
     routines: {},               // Dance Stage choreography per stage: 'zone:x' -> [moveId] (RUN3 C8)
     disco: { roster: [] },      // Boo ids she invited to the Disco Hall; [] = everyone/first 16 (v20, Alex 2026-07-30)
+    // v23 (RUN19 Z6): per-room wallpaper + floor. { roomId: { walls: dressingId, floors: id } }.
+    // Absent or unset = the room's own original palette, which is the free default and always
+    // remains choosable, so a child who buys nothing has a complete room.
+    dressings: {},
+    // v23: which dressings she has bought. Owning one is permanent; APPLYING it is free and
+    // repeatable forever, because the stars buy the option, never the act of decorating.
+    dressingsOwned: {},
     age: 0,                     // her age (job 4): local save only, used only for the tier mapping
     ageAsked: false,            // the age question is asked exactly once (onboarding or one-time card)
     threeStars: {},             // 'game:cat:rank' -> 3-star round count (comfort levels, RUN4 C3)
@@ -462,6 +469,23 @@ export function migrate(obj) {
   // before the feature existed. Idempotent: only written when the key is missing.
   if ((o.version || 0) < 22) {
     if (!merged.sparkles || typeof merged.sparkles !== 'object') merged.sparkles = {};
+  }
+  // v23 (RUN19 Z6): the object model. TWO ADDITIVE KEYS AND NOTHING ELSE.
+  //
+  // It is worth saying what this deliberately does NOT do. The first cut walked every existing
+  // placement and wrote `plane:'floor'` / `plane:'wall'` onto it, reasoning that RUN10 P4's
+  // row-3 sentinel conflated "which plane" with "which depth row" and should be untangled.
+  // r8p1-migrations rightly failed it: the pack's own words are "all new keys optional, old
+  // saves byte-preserved", and rewriting every placement in every area is the opposite of
+  // byte-preserved. It was also pointless — `planeOf()` in town.js already reads an absent
+  // plane as 'floor' and the row-3 sentinel as 'wall', and an absent `y` as the fixed height a
+  // wall item has always hung at. The default IS the migration.
+  //
+  // So a pre-v23 save reaches v23 with its placements untouched, renders pixel-identically, and
+  // only gains a `plane` on a placement she actually moves or seats after the upgrade.
+  if ((o.version || 0) < 23) {
+    if (!merged.dressings || typeof merged.dressings !== 'object') merged.dressings = {};
+    if (!merged.dressingsOwned || typeof merged.dressingsOwned !== 'object') merged.dressingsOwned = {};
   }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);

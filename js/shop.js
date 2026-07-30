@@ -9,7 +9,11 @@
 import { el, clear, backControl, confetti, sparkleAt, dialog, REDUCED } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { createDrawer } from './drawer.js';
-import { renderItem, renderGuide } from './art.js';
+import { renderItem, renderGuide, renderDressingSwatch } from './art.js';
+// RUN19 Z6: the room dressings share the House shelf (creative stars), grouped under room-name
+// chips. They are not catalogue items — they are never placed, they are APPLIED — so they get
+// their own listing rather than being forced into the item-card shape.
+import { DRESSINGS_FOR_SALE, DRESSING_ROOMS, DRESSING_BY_ID } from '../data/dressings.js';
 import { BY_ID } from '../data/catalogue.js';
 import { SHELVES, priceOf, isUnlockOnly, UNLOCK_ONLY_RIBBON, WELCOME_PURSE } from '../data/shop.js';
 import { STAR_TYPES, typeByKey, spendableOf, spendableAll, canAfford, planPayment, LEGACY_KEY, LEGACY_LABEL } from '../data/startypes.js';
@@ -68,6 +72,31 @@ export const SHOP_INTRO = [
 // Returns { ok, reason?, paid? }. Every refusal is a reason, never a silent no-op.
 // RUN18B Y14: at or above this, a purchase is confirmed before it is spent.
 export const CONFIRM_AT_STARS = 10;
+
+// RUN19 Z6 — buying a room dressing. Deliberately the same shape as buyItem below: the same
+// planPayment, the same SPENDING-ledger-only rule (lifetime totals are never touched), the same
+// goal clear. It writes `dressingsOwned` rather than `inventory`, because a dressing is not a
+// thing you own one of and place — it is an option you unlock and can apply as often as you like.
+export function buyDressing(dressingId) {
+  const d = DRESSING_BY_ID[dressingId];
+  if (!d) return { ok: false, reason: 'notForSale' };
+  if (d.cost === 0) return { ok: false, reason: 'alreadyFree' };
+  const s = getState();
+  if ((s.dressingsOwned || {})[dressingId]) return { ok: false, reason: 'alreadyOwned' };
+  const plan = planPayment(s, 'creative', d.cost);
+  if (!plan) return { ok: false, reason: 'cannotAfford' };
+  mutate(st => {
+    st.stars.spent = st.stars.spent || {};
+    st.stars.spent.creative = (st.stars.spent.creative || 0) + plan.fromType;
+    st.stars.spent[LEGACY_KEY] = (st.stars.spent[LEGACY_KEY] || 0) + plan.fromLegacy;
+    st.dressingsOwned = st.dressingsOwned || {};
+    st.dressingsOwned[dressingId] = true;
+    if (st.shop && st.shop.goal === dressingId) st.shop.goal = null;
+  });
+  commit();
+  stampJournal('firstPurchase');
+  return { ok: true, paid: plan, price: { cost: d.cost, currency: 'creative' } };
+}
 
 export function buyItem(itemId) {
   // The unlock-only gate is asked FIRST so the refusal carries the true reason — a Boo is
@@ -190,6 +219,80 @@ export function mount(container, params, ctx) {
     }
   }
 
+  // RUN19 Z6: the dressings listing. One block per room, walls and floors together.
+  function dressingSection(s, shelf) {
+    const t = typeByKey(shelf.currency);
+    const wrap = el('section', { class: 'shop-dressings' }, [
+      el('h3', { class: 'sd-title', text: '🎨 Room decorating' }),
+      el('p', { class: 'sd-blurb', text: 'Wallpaper and floors for the rooms of the Boo House. Once one is yours you can switch back and forth as often as you like, for free.' })
+    ]);
+    for (const room of DRESSING_ROOMS) {
+      const mine = DRESSINGS_FOR_SALE.filter(d => d.room === room.id);
+      if (!mine.length) continue;
+      const grid = el('div', { class: 'shop-grid sd-grid' });
+      for (const d of mine) {
+        const owned = !!(s.dressingsOwned || {})[d.id];
+        const afford = canAfford(s, shelf.currency, d.cost);
+        const card = el('div', { class: 'shop-card sd-card' + (owned ? ' owned' : '') + (!owned && !afford ? ' saving' : ''), dataset: { dressing: d.id } }, [
+          el('div', { class: 'sc-art', html: renderDressingSwatch(d, { size: 76 }) }),
+          el('div', { class: 'sc-name', text: d.name }),
+          el('div', { class: 'sd-slot', text: d.slot === 'walls' ? 'Wallpaper' : 'Floor' }),
+          owned
+            ? el('div', { class: 'sc-owned', text: '✓ Yours' })
+            : el('div', { class: 'sc-price' }, [
+                el('span', { class: 'sc-ic', text: t.icon }),
+                el('span', { class: 'sc-cost', text: String(d.cost) })
+              ])
+        ]);
+        if (!owned) {
+          card.appendChild(el('button', {
+            class: 'btn sc-buy' + (afford ? '' : ' soft'),
+            text: afford ? 'Buy' : 'Save up',
+            'aria-label': afford ? `Buy ${d.name} for ${d.cost} ${t.name}` : `Save up for ${d.name}`,
+            onclick: () => { if (afford) buyDressingHere(d, shelf); }
+          }));
+        }
+        grid.appendChild(card);
+      }
+      wrap.appendChild(el('div', { class: 'sd-room' }, [
+        el('div', { class: 'sd-room-chip', text: room.name }),
+        grid
+      ]));
+    }
+    return wrap;
+  }
+  // Buying a dressing. Y14's confirm rule applies at CONFIRM_AT_STARS exactly as it does for
+  // an item — a 10-star dressing is a 10-star decision — and the spend goes through the same
+  // ledger, so the purse and the shop's own totals cannot disagree.
+  async function buyDressingHere(d, shelf) {
+    if (d.cost >= CONFIRM_AT_STARS) {
+      const t = typeByKey(shelf.currency) || { name: 'Stars' };
+      const typeWord = String(t.name).replace(/\s*Stars$/, '');
+      const yes = await dialog({
+        title: `Spend ${d.cost} ${typeWord} Stars on ${d.name}?`,
+        buttons: [{ label: 'Yes please!', value: true }, { label: 'Not yet', value: false, kind: 'soft' }]
+      });
+      if (!yes) { sfx.tap(); return; }
+    }
+    const r = buyDressing(d.id);
+    if (!r.ok) { sfx.oops(); return; }
+    sfx.star();
+    if (!REDUCED) confetti({ count: 42, power: 0.8 });
+    renderPurse(); renderShelves();
+    const wrap = el('div', { class: 'shop-bought' }, [
+      el('div', { class: 'sb-card', role: 'status' }, [
+        el('div', { class: 'sb-art', html: renderDressingSwatch(d, { size: 96 }) }),
+        el('p', { class: 'sb-line', text: `${d.name} is yours! Put it up in the ${roomNameOf(d.room)} — tap Build, then Decorate.` })
+      ])
+    ]);
+    root.querySelectorAll('.shop-bought').forEach(old => old.remove());
+    root.appendChild(wrap);
+    speakMaybe(`${d.name} is yours!`);
+    setTimeout(() => wrap.remove(), 5200);
+    wrap.addEventListener('click', () => wrap.remove());
+  }
+  const roomNameOf = (id) => (DRESSING_ROOMS.find(r => r.id === id) || {}).name || 'Boo House';
+
   function renderShelves() {
     const s = getState();
     const goal = currentGoal();
@@ -232,6 +335,9 @@ export function mount(container, params, ctx) {
         grid.appendChild(card);
       }
       node.appendChild(grid);
+      // RUN19 Z6 — the room dressings, on the Creative (House) shelf, grouped under room-name
+      // chips exactly as the pack's addendum describes.
+      if (shelf.id === 'house') node.appendChild(dressingSection(s, shelf));
       // The shelf always says what boxes are still for — the shop must never read as
       // "buy the fun", and boxes must never look pointless.
       node.appendChild(el('p', { class: 'shelf-ribbon', text: `🎁 ${UNLOCK_ONLY_RIBBON} Every Boo, every costume set, shoes and shinies.` }));
@@ -373,6 +479,21 @@ export function mount(container, params, ctx) {
     sfx.star();
     if (!REDUCED) confetti({ count: 70, power: 1 });
   }
+  // RUN19 Z6 — the Decorate tab's deep-link. A locked wallpaper swatch in a room sends her
+  // HERE, so "tap to see it in the shop" has to actually land on the right shelf with the right
+  // thing ringed, or the swatch is telling her something the shop does not do.
+  if (params && (params.shelf || params.highlight)) {
+    const wanted = params.shelf || 'house';
+    if (SHELVES.some(sh => sh.id === wanted)) { try { drawerApi.showTab(wanted); } catch {} }
+    if (params.highlight) requestAnimationFrame(() => {
+      const card = root.querySelector(`.shop-card[data-dressing="${params.highlight}"]`)
+        || root.querySelector(`.shop-card[data-item="${params.highlight}"]`);
+      if (!card) return;
+      card.classList.add('sc-highlight');
+      card.scrollIntoView({ block: 'center', behavior: REDUCED ? 'auto' : 'smooth' });
+      setTimeout(() => card.classList.remove('sc-highlight'), 2600);
+    });
+  }
   maybeIntro('shop', SHOP_INTRO);
 
   if (typeof window !== 'undefined') window.__shop = {
@@ -390,7 +511,11 @@ export function mount(container, params, ctx) {
       return SHELVES.reduce((n, sh) => n + sh.items.filter(([id, cost]) =>
         !(s.inventory && s.inventory[id]) && canAfford(s, sh.currency, cost)).length, 0);
     },
-    welcomed: () => !!(getState().shop || {}).welcomed
+    welcomed: () => !!(getState().shop || {}).welcomed,
+    // RUN19 Z6
+    dressingCards: () => [...root.querySelectorAll('.sd-card')].map(c => c.dataset.dressing),
+    highlighted: () => { const n = root.querySelector('.sc-highlight'); return n ? (n.dataset.dressing || n.dataset.item) : null; },
+    currentShelf: () => { const t = root.querySelector('.bd-tab.sel, .bd-tab[aria-selected="true"]'); return t ? t.textContent : null; }
   };
   return { unmount() { timers.dispose(); delete window.__shop; } };
 }

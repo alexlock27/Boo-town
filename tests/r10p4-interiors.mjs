@@ -152,19 +152,37 @@ console.log('== Boo House: furniture tray and useful resize controls ==');
   assert(tabs.Furniture === true, 'Furniture has its own visible tray indoors');
   assert(tabs.Landscape === false, 'outdoor Landscape tools stay hidden indoors');
 
+  // AMENDED BY RUN19 Z6. This block used to click "Make bigger" and expect scale 1.15 — the
+  // ± / % buttons RUN10 P4 shipped. Z6 retires all three for DIRECT MANIPULATION: a 28px
+  // corner handle on the selected item that you drag (or pinch on touch). Three taps and a
+  // percentage to do what one drag does was the thing being fixed, so asserting the buttons
+  // still exist would be asserting the defect. The contract restated: selecting shows a
+  // handle, dragging it grows the item, the new size is saved, and the ± buttons are GONE.
   await page.click('.t-item[data-item="deco_bed"]');
-  await page.waitForSelector('.plot-menu [aria-label="Make bigger"]');
+  await page.waitForSelector('.t-resize');
   const before = await page.$eval('.t-item[data-item="deco_bed"]', n => n.getBoundingClientRect().width);
   await page.screenshot({ path: 'screenshots/r10p4/build-furniture-controls-1024x700.png' });
-  await page.click('.plot-menu [aria-label="Make bigger"]');
+  const gone = await page.evaluate(() => {
+    const menu = document.querySelector('.plot-menu');
+    return menu ? [...menu.querySelectorAll('button')].map(b => b.getAttribute('aria-label') || b.textContent) : [];
+  });
+  assert(!gone.some(l => /Make bigger|Make smaller|Reset size/.test(l || '')),
+    `the ± / % buttons are retired (menu now: ${JSON.stringify(gone)})`);
+  // Drag the handle outward. The gesture is pointer events, not a click, so it has to be
+  // driven as one — which is also the only way to prove the drag actually resizes anything.
+  const ringBox = await page.$eval('.t-resize', n => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(ringBox.x, ringBox.y);
+  await page.mouse.down();
+  await page.mouse.move(ringBox.x + 60, ringBox.y + 60, { steps: 8 });
+  await page.mouse.up();
   await sleep(550); // state.js deliberately debounces persistence by 400ms
   const resized = await page.evaluate(() => {
     const item = JSON.parse(localStorage.getItem('bootown.save.v1')).town.areas.boohouse.items.find(t => t.item === 'deco_bed');
     const width = document.querySelector('.t-item[data-item="deco_bed"]').getBoundingClientRect().width;
     return { scale: item.scale, width };
   });
-  assert(resized.scale === 1.15, `the larger size is saved (${Math.round(resized.scale * 100)}%)`);
-  assert(resized.width > before * 1.1, `the furniture visibly grows (${before.toFixed(1)}px → ${resized.width.toFixed(1)}px)`);
+  assert(resized.scale > 1.05, `dragging the handle saves a larger size (${Math.round(resized.scale * 100)}%)`);
+  assert(resized.width > before * 1.05, `the furniture visibly grows (${before.toFixed(1)}px → ${resized.width.toFixed(1)}px)`);
   await ctx.close();
 }
 
