@@ -222,6 +222,10 @@ console.log('== 5. a pre-reader solves it with every caption hidden ==');
     await page.evaluate(() => window.__story.solveOrder());
     await page.waitForFunction(() => window.__story.state().phase === 'question', null, { timeout: 30000 });
     await page.evaluate(() => window.__story.answerCorrect());
+    // RUN19 explanation pass: a right answer now confirms itself in a panel she reads at
+    // her own pace — tap its Next to move to the following story.
+    await page.waitForSelector('.explain-panel .explain-next', { timeout: 8000 });
+    await page.evaluate(() => window.__story.tapNext());
   }
   await page.waitForSelector('.screen.results', { timeout: 20000 });
   await page.waitForTimeout(300);
@@ -259,11 +263,15 @@ console.log('== 6. randomised options, and a wrong answer that does not end anyt
   const shown = await page.evaluate(() => window.__story.options());
   assert(shown.length === 3, 'three picture options on screen');
   await page.evaluate(() => window.__story.answerWrong());
-  await page.waitForTimeout(350);
-  const after = await page.evaluate(() => ({ phase: window.__story.state().phase, bubble: document.querySelector('.peek-bubble').textContent, collected: window.__story.collected() }));
-  assert(after.phase === 'question', 'a wrong answer leaves her on the question — nothing is over');
-  assert(after.bubble.includes('pictures'), `and the guide sends her back to the pictures: "${after.bubble}"`);
+  // RUN19 explanation pass: the nudge now lands in a persistent panel behind "Got it ›"
+  // (options locked while she reads) instead of a vanishing toast.
+  await page.waitForSelector('.explain-panel .explain-next', { timeout: 6000 });
+  const after = await page.evaluate(() => ({ phase: window.__story.state().phase, line: (document.querySelector('.explain-panel .explain-line') || {}).textContent || '', collected: window.__story.collected() }));
+  assert(after.phase === 'explain', 'a wrong answer pauses on the explanation — nothing is over');
+  assert(after.line.includes('pictures'), `and the guide sends her back to the pictures: "${after.line}"`);
   assert(after.collected === 1, 'the miss reaches the Tricky Pile with its own three pictures');
+  await page.evaluate(() => window.__story.tapNext());
+  await page.waitForFunction(() => window.__story.state().phase === 'question', null, { timeout: 6000 });
   await page.evaluate(() => window.__story.answerCorrect());
   await page.waitForTimeout(300);
   assert(await page.evaluate(() => window.__story.state().done) === 1, 'and she can still get it right');

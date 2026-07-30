@@ -209,6 +209,9 @@ console.log('== 5. both ways in: a real pointer drag, and the Blend button ==');
 }
 
 // ---- 6. a wrong picture explains, collects, and never ends the round ------------------
+// RUN19 explanation pass (Alex, 2026-07-30): the sound walk now lands in a persistent
+// .explain-panel locked behind "Got it ›" instead of a vanishing toast — she reads it,
+// taps Got it, and the pictures come back. The round still never moves on without her.
 console.log('== 6. a wrong picture is a soft wobble with an explanation ==');
 {
   const { ctx, page } = await open('blendit');
@@ -217,16 +220,19 @@ console.log('== 6. a wrong picture is a soft wobble with an explanation ==');
   await page.waitForFunction(() => window.__blend.phase() === 'pick', null, { timeout: 12000 });
   const word = await page.evaluate(() => window.__blend.word());
   await page.evaluate(() => window.__blend.pickWrong());
-  await page.waitForTimeout(400);
+  await page.waitForSelector('.explain-panel .explain-next', { timeout: 6000 });
   const r = await page.evaluate(() => ({
-    bubble: document.querySelector('.peek-bubble').textContent,
+    line: (document.querySelector('.explain-panel .explain-line') || {}).textContent || '',
     phase: window.__blend.phase(), collected: window.__blend.collected(),
     stillThere: !!document.querySelector('.bl-picks')
   }));
-  assert(r.bubble.includes(word), `the guide sounds it out again: "${r.bubble}"`);
-  assert(r.phase === 'pick' && r.stillThere, 'the round does not move on — she can still find it');
+  assert(r.line.includes(word), `the guide sounds it out again, in a panel she can read: "${r.line}"`);
+  assert(r.phase === 'explain' && r.stillThere, 'the round waits behind Got it — it never moves on without her');
   assert(r.collected === 1, 'and the miss goes to the Tricky Pile as a picture item');
   await page.screenshot({ path: SHOTS + '/wrong-picture.png' });
+  await page.evaluate(() => window.__blend.tapNext());
+  await page.waitForFunction(() => window.__blend.phase() === 'pick', null, { timeout: 6000 });
+  assert(true, 'Got it › hands the pictures back so she can still find it');
   await ctx.close();
 }
 

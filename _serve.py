@@ -16,7 +16,7 @@ see is always what is on disk.
 
 import sys
 from functools import partial
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 
 class NoCacheHandler(SimpleHTTPRequestHandler):
@@ -37,7 +37,10 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     handler = partial(NoCacheHandler, directory='.')
-    server = HTTPServer(('', port), handler)
+    # ThreadingHTTPServer, not HTTPServer: the single-threaded server wedges the moment a
+    # client holds a keep-alive connection open (one hung socket = every later request
+    # times out). Found 2026-07-30 when Playwright suites froze it twice in one session.
+    server = ThreadingHTTPServer(('', port), handler)
     print(f'Boo Town review server (no-store) on http://localhost:{port}')
     print('Ctrl+C to stop.')
     try:
