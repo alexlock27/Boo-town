@@ -4124,12 +4124,17 @@ export function mount(container, params, ctx) {
   // RUN19 Z5: the puddle stomp, completed to the pack's numbers — at most SPLASH_MAX
   // particles, SPLASH_MS long, and an actual sound, which it never had. The sfx goes through
   // sfx.js like everything else, so it obeys the mutes.
+  // SPLASH_MAX is the CAP, not the count. Z5's pack says "at most SPLASH_MAX particles" and I
+  // read that as "emit SPLASH_MAX" — but RUN10 P3 already fixed the stomp at three droplets and
+  // r10p13-slots asserts exactly that (drops === bursts * 3). Three, under a cap of six, honours
+  // both; doubling an existing authored number was never part of this run's brief.
+  const SPLASH_PER_STOMP = 3;
   function spawnWellieSplash(a) {
     a.wellieBursts++;
     if (!REDUCED) {
-      for (let i = 0; i < SPLASH_MAX; i++) {
+      for (let i = 0; i < SPLASH_PER_STOMP; i++) {
         const drop = el('i', { class: 'wellie-drop' });
-        const spread = (i - (SPLASH_MAX - 1) / 2) / ((SPLASH_MAX - 1) / 2);   // -1 .. 1
+        const spread = (i - (SPLASH_PER_STOMP - 1) / 2) / ((SPLASH_PER_STOMP - 1) / 2);   // -1 .. 1
         drop.style.setProperty('--wx', `${spread * 26}px`);
         drop.style.setProperty('--wy', `${-14 - (1 - Math.abs(spread)) * 16}px`);   // an arc, highest in the middle
         drop.style.animationDuration = SPLASH_MS + 'ms';
