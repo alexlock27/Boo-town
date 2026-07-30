@@ -26,42 +26,57 @@ const open = () => page.evaluate((ids) => import('./js/requests.js').then(m => {
 const active = () => page.evaluate(() => import('./js/requests.js').then(m => m.activeRequest()));
 
 // ---- D17: request timing rules across a 3-day clock ----
-console.log('== D17: request timing ==');
+// AMENDED BY RUN19 Z2 ("turn up the pulse"): the recharge is 3h, not 20h, and MAX_ACTIVE is
+// 2, not 1. The old assertions here asserted the OLD contract, so they are restated rather
+// than deleted — the 48h silent expiry, the +2 reward and the off switch are unchanged.
+console.log('== D17: request timing (Z2 contract: 3h recharge, 2 at once) ==');
 const T0 = 1000 * HOUR;   // arbitrary base
 await setNow(T0);
 const a1 = await open();
 assert(a1, 'a request appears at app open (first time)');
-// only one active
-await open();
-const two = await page.evaluate(() => import('./js/requests.js').then(async m => { return m.activeRequest(); }));
-assert(two, 'still exactly one active request (never a second)');
-// fulfil it (whatever it is) via the matching event, or force-resolve by simulating its match
+// up to MAX_ACTIVE, and never a third
+await open(); await open(); await open();
+const count = await page.evaluate(() => import('./js/requests.js').then(m => m.activeRequests().length));
+const cap = await page.evaluate(() => import('./js/requests.js').then(m => m.MAX_ACTIVE));
+assert(cap === 2, 'MAX_ACTIVE is 2 (Z2)');
+assert(count === cap, `the cap holds however many times an open fires (${count} active, cap ${cap})`);
+// never two for the same Boo
+const perBoo = await page.evaluate(() => import('./js/requests.js').then(m => {
+  const ids = m.activeRequests().map(r => r.booId);
+  return ids.length === new Set(ids).size;
+}));
+assert(perBoo, 'at most one request per Boo');
+// fulfil one (whatever it is) via the matching event
 const fulfilled = await page.evaluate(async () => {
   const m = await import('./js/requests.js');
-  const a = m.activeRequest();
-  // craft the matching event for this request id
-  const EV = { spell2: ['roundEnd', { game: 'spellboo', stars: 2 }], maths: ['roundEnd', { game: 'bubblepop', stars: 1 }], threeStar: ['roundEnd', { game: 'bubblepop', stars: 3 }], paint: ['artwork', {}], dressUp: ['dressUp', {}], box: ['boxOpen', {}] }[a.id];
+  const a = m.activeRequests()[0];
+  // craft the matching event for this request id — Z2's five verbs need a specific target,
+  // so this fixture forces a generic RUN3 template to keep testing the RUN3 contract.
+  window.BooTown.State.mutate(s => { s.request.actives = [{ id: 'box', booId: a.booId, text: 'Ooh, open a mystery box!', createdAt: m.nowMs() }]; });
   const before = window.BooTown.State.getState().meter;
-  const res = m.noteRequest(EV[0], EV[1]);
-  return { res, meterDelta: window.BooTown.State.getState().meter - before, nowActive: m.activeRequest() };
+  const res = m.noteRequest('boxOpen', {});
+  return { res, meterDelta: window.BooTown.State.getState().meter - before, left: m.activeRequests().length };
 });
 assert(fulfilled.res.fulfilled && fulfilled.meterDelta === 2, 'fulfilling a request gives +2 meter and clears it');
-assert(fulfilled.nowActive === null, 'no active request after fulfilment');
+assert(fulfilled.left === 0, 'the fulfilled request is gone');
 
-// 20-hour rule: not before 20h since resolved
-await setNow(T0 + 19 * HOUR);
-assert(!(await open()), 'no new request before 20h since the last resolved');
-await setNow(T0 + 21 * HOUR);
-assert(await open(), 'a new request may appear after 20h');
+// 3-hour rule: not before 3h since resolved (Z2 — was 20h)
+await setNow(T0 + 2 * HOUR);
+assert(!(await open()), 'no new request before 3h since the last resolved');
+await setNow(T0 + 4 * HOUR);
+assert(await open(), 'a new request may appear after 3h');
 
-// 48-hour silent expiry
+// 48-hour silent expiry. With MAX_ACTIVE=2 a fresh request can appear alongside the ageing
+// one, so this tracks THAT request by its createdAt rather than asserting the list empties.
 const T1 = await page.evaluate(() => import('./js/requests.js').then(m => m.activeRequest().createdAt));
 await setNow(T1 + 47 * HOUR);
 await open();
-assert(await active(), 'a request is still active before 48h');
+const stillThere = await page.evaluate((t) => import('./js/requests.js').then(m => m.activeRequests().some(r => r.createdAt === t)), T1);
+assert(stillThere, 'a request is still active before 48h');
 await setNow(T1 + 49 * HOUR);
 await open();
-assert(!(await active()), 'an unfulfilled request expires silently after 48h');
+const gone = await page.evaluate((t) => import('./js/requests.js').then(m => !m.activeRequests().some(r => r.createdAt === t)), T1);
+assert(gone, 'an unfulfilled request expires silently after 48h');
 
 // ---- D17: off switch ----
 console.log('== D17: off switch ==');

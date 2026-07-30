@@ -83,10 +83,34 @@ export function booOfTheDay() {
   return item ? { id, item, acc, accArt: acc && BY_ID[acc] ? BY_ID[acc].art : null } : null;
 }
 
+// RUN19 Z2: the wild background Boo no longer belongs to dusk alone — it ALSO turns up at
+// one random daytime hour, picked once per local day at first mount and persisted here (the
+// same "pick once a day, remember it" shape as ensureHide above, deliberately reused rather
+// than reinvented). The window is the waking day before dusk begins: town.js sleeps Boos
+// from 21:00 and wakes them at 07:00, and duskVisitor's own band starts at 18:00.
+export const DAY_VISIT_HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
+export function ensureDayVisitHour() {
+  const s = getState();
+  if (!s) return null;
+  const d = s.delights || {};
+  const day = todayKey();
+  if (d.visitDay === day && d.visitHour != null) return d.visitHour;
+  const hour = DAY_VISIT_HOURS[(Math.random() * DAY_VISIT_HOURS.length) | 0];
+  mutate(st => { st.delights = st.delights || {}; st.delights.visitDay = day; st.delights.visitHour = hour; });
+  return hour;
+}
+export function dayVisitHour() {
+  const d = (getState() || {}).delights || {};
+  return (d.visitDay === todayKey() && d.visitHour != null) ? d.visitHour : null;
+}
+
 // A dusk visitor is scenery, not a reward or collectible.  The stored timestamp makes
 // its cadence deterministic across reloads and ensures one curious tap stays one sparkle.
 export function duskVisitor(area, hour, now = Date.now()) {
-  const s = getState(); if (!s || hour < 18 || hour > 21) return null;
+  const s = getState(); if (!s) return null;
+  const inDusk = hour >= 18 && hour <= 21;
+  const inDay = hour === dayVisitHour();
+  if (!inDusk && !inDay) return null;
   const d = s.delights || {}, existing = d.visitor;
   if (existing && existing.area === area && now - existing.at < 12000) return existing;
   if (existing && now - existing.at < VISITOR_GAP_H * 3600000) return null;

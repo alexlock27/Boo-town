@@ -227,5 +227,37 @@ export const LINES = {
     "You picked a tough one and saw it out.",
     "That was a proper challenge. Good on you.",
     "Difficult, that one. And here you still are."
-  ]
+  ],
+
+  // ---- RUN19 Z2: the five Boo requests (authored verbatim — never paraphrase) --------
+  // {booName} is the asking Boo (its nickname when set, Z4), {item}/{accessory}/{friend}
+  // the thing or friend it names. One line per key on purpose: a request that reworded
+  // itself between the bubble and the card would read as two different asks.
+  request_sit: ["{booName} would love a go on the {item}!"],
+  request_wear: ["{booName} keeps eyeing that {accessory} in your collection…"],
+  request_visit: ["{booName} misses {friend} — could they be neighbours?"],
+  request_dance: ["{booName} has a wiggle that needs music!"],
+  request_try: ["{booName} wants to try the new {item}!"],
+  // The card's own guide line for the one verb that cannot jump anywhere (Z2 addendum).
+  request_visit_hint: ["pop them side by side!"],
+
+  // ---- RUN19 Z3: announced moments -------------------------------------------------
+  socketClaim: ["Best seat in the {areaName}!"],
+  napCamping: ["Somebody's camping!"],
+
+  // ---- RUN19 Z4: the acknowledgement pass (authored verbatim) -----------------------
+  ackRestyle: ["Ooh — do you like my new look? I love it."],
+  ackEasel: ["I do like the painting by the easel. One of yours, isn't it?"],
+  ackPath: ["{booName} loves the {style} path you made!"],
+
+  // ---- RUN19 Z5: stardust, surfaced ------------------------------------------------
+  stardustExplain: ["Stardust comes from doubles — 10 makes a Boo shiny, 5 makes anything sparkle!"],
+
+  // ---- RUN20 W1: the wish behaviours that speak (each capped at its authored rate) ---
+  wishRoyal: ["Royal Boo {booName}!"],
+  wishEggWobble: ["Was that a wobble?"],
+  wishMapX: ["X marks the spot… somewhere!"],
+  wishKey: ["What might it open?"],
+  wishFoodNoBoo: ["Pop a Boo nearby first!"],
+  wishChefYum: ["Delicious!"]
 };

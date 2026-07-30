@@ -40,4 +40,4 @@ export const CATCHPHRASES = {
   musical: 'La la laaa!',
   sporty: 'Race you!'
 };
-export const CATCHPHRASE_RATE = 0.2;   // 20% of taps
+export const CATCHPHRASE_RATE = 0.45;  // 45% of taps (RUN19 Z2: was 0.2 — a Boo you tap should mostly say something)

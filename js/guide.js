@@ -7,25 +7,30 @@ import * as tts from './tts.js';
 import { music } from './sfx.js';
 import { el } from './ui.js';
 
-function subst(str) {
+// {name} = the child, {guide} = the guide's name, plus any caller-supplied vars
+// (RUN19 Z2: {booName} / {item} / {accessory} / {friend} / {areaName} / {style}).
+// Caller vars are substituted literally, so an authored line keeps its exact wording.
+function subst(str, vars = null) {
   const s = getState();
   const name = (s && s.name) || 'friend';
   const guide = (s && s.guide && s.guide.name) || 'Twiggy';
-  return str.replace(/\{name\}/g, name).replace(/\{guide\}/g, guide);
+  let out = str.replace(/\{name\}/g, name).replace(/\{guide\}/g, guide);
+  if (vars) for (const [k, v] of Object.entries(vars)) out = out.split('{' + k + '}').join(v == null ? '' : String(v));
+  return out;
 }
 
 // Pick a random line from a key, with substitutions.
-export function guideLine(key) {
+export function guideLine(key, vars = null) {
   const arr = LINES[key];
   if (!arr || !arr.length) return '';
-  return subst(arr[(Math.random() * arr.length) | 0]);
+  return subst(arr[(Math.random() * arr.length) | 0], vars);
 }
 
 // Deterministic pick (e.g. first-hello sequence) by index.
-export function guideLineAt(key, i) {
+export function guideLineAt(key, i, vars = null) {
   const arr = LINES[key];
   if (!arr || !arr.length) return '';
-  return subst(arr[i % arr.length]);
+  return subst(arr[i % arr.length], vars);
 }
 
 // Render the guide SVG into a container.
