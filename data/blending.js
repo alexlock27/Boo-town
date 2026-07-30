@@ -92,3 +92,9 @@ export function blendEntry(word) {
 // The word's graphemes must spell the word back exactly — a split that drops or invents a
 // letter would teach a child to read a word that is not on the card. Tested, not assumed.
 export function splitSpellsWord(entry) { return entry.g.join('') === entry.w; }
+
+// RUN19 explanation pass (Alex, 2026-07-30: "explanation even if you got it right").
+// The explanation for a decoding game IS the sound walk — the graphemes, then the word.
+// Authored here, filled in the game, never composed there.
+export function blendRightLine(entry) { return `Well done! ${entry.g.join(', ')} — slide them together and they say ${entry.w}!`; }
+export function blendWrongLine(entry, picked) { return `That's ${picked}. Listen again — ${entry.g.join(', ')} — ${entry.w}!`; }

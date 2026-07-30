@@ -22,7 +22,7 @@
 // and a colour pulse only. Nothing is DELETED — every line is still spoken, every counter
 // still ticks, every explanation still arrives. Calm is not less.
 
-import { REDUCED } from './ui.js';
+import { REDUCED, el } from './ui.js';
 import { sfx } from './sfx.js';
 import { speakMaybe } from './guide.js';
 
@@ -108,6 +108,30 @@ export function explainWrong(node, line, { say = null, speak = true, sound = 'oo
     window.__explanations.push({ at: Date.now(), line: line || null });
   }
   return { line };
+}
+
+/**
+ * The Explanation Standard, part two (Alex, 2026-07-30): explanations arrive on RIGHT
+ * answers as well as wrong, in a panel she reads at her own pace, gated by a Next button —
+ * never a toast racing her on a timer. Returns the panel node; the caller appends it where
+ * the game wants it. `line` is authored copy with its placeholders already filled — this
+ * never composes copy. Pass `onNext: null` for a panel that persists without gating (a
+ * wrong answer she can immediately retry, e.g. Blend It's picture pick).
+ */
+export function explainPanel(line, onNext, { speak = true, correct = false, label = 'Next ›' } = {}) {
+  if (speak && line) speakMaybe(line);
+  if (typeof window !== 'undefined') {
+    window.__explanations = window.__explanations || [];
+    window.__explanations.push({ at: Date.now(), line: line || null, panel: true, correct });
+  }
+  let used = false;
+  return el('div', { class: 'explain-panel' + (correct ? ' correct' : '') }, [
+    el('p', { class: 'explain-line', text: line }),
+    ...(onNext ? [el('button', {
+      class: 'btn big explain-next', text: label,
+      onclick: (e) => { if (used) return; used = true; sfx.tap(); onNext(e); }
+    })] : [])
+  ]);
 }
 
 // QA: what the last action produced, so a suite can check the beats without frame-sampling

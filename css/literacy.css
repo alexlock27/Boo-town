@@ -424,6 +424,17 @@
 .wf-stamped-word { display: inline-block; animation: wfPop .4s cubic-bezier(.2, .9, .3, 1.2); }
 @keyframes wfThunk { 0% { transform: scale(1); } 40% { transform: scale(.94) translateY(4px); } 100% { transform: scale(1); } }
 @keyframes wfPop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+/* The join as the teaching moment: parts meet at a seam, the leaving letters strike and
+   puff away, the arriving letters land bright. Same type size as the plate itself. */
+.wf-join { display: inline-flex; align-items: baseline; }
+.wf-join-plus { color: var(--star, #FFC93C); margin: 0 10px; animation: wfPop .3s ease-out; }
+.wf-join-out {
+  color: #FF9B8E; text-decoration: line-through; text-decoration-thickness: 3px;
+  display: inline-block; animation: wfOut .9s ease forwards;
+}
+@keyframes wfOut { 0%, 55% { opacity: 1; transform: none; } 100% { opacity: .18; transform: translateY(-10px) scale(.7); } }
+.wf-join-in { color: var(--star, #FFC93C); display: inline-block; animation: wfPop .4s cubic-bezier(.2, .9, .3, 1.2); }
+.wf-next { min-height: 56px; min-width: 140px; background: var(--star, #FFC93C); font-weight: 700; }
 .wf-rule {
   background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
   padding: 8px 14px; text-align: center; max-width: 460px;
@@ -453,6 +464,8 @@
 @keyframes wfPuff { 0%, 100% { transform: translateY(0); opacity: .6; } 50% { transform: translateY(-6px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .wf-plate.stamping, .wf-stamped-word, .wf-tile.sneeze, .wf-gauge-puff { animation: none; }
+  .wf-join-plus, .wf-join-in { animation: none; }
+  .wf-join-out { animation: none; opacity: .35; }   /* struck letters stay readable, no motion */
 }
 
 /* ======================= RUN18E L3: Twin Trouble ======================= */
@@ -486,6 +499,7 @@
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
 .tt-explain-line { margin: 0; }
+.tt-explain.correct { border-color: var(--star, #FFC93C); }   /* a right answer's panel wears gold */
 .tt-next { min-height: 56px; min-width: 140px; background: var(--star, #FFC93C); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
   .tt-word.culprit-glow, .tt-word.whoosh { animation: none; }

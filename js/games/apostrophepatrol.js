@@ -17,7 +17,8 @@ import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { buildSmartMix } from '../smartmix.js';
-import { SQUEEZE, POSSESSION, NO_COMMA_DECOYS, VAN_PX_S } from '../../data/apostrophe.js';
+import { SQUEEZE, POSSESSION, NO_COMMA_DECOYS, VAN_PX_S, commaWhyLine, commaRightLine, squeezeRightLine } from '../../data/apostrophe.js';
+import { explainPanel } from '../celebrate.js';
 
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -124,8 +125,7 @@ export function mount(container, params, ctx) {
         el('button', { class: 'btn ap-slot', dataset: { slot: 'after' }, text: afterForm, onclick: () => flick('after') })
       );
       if (van) options.appendChild(el('button', { class: 'btn ap-slot ap-none', dataset: { slot: 'none' }, text: 'No comma needed', onclick: () => flick('none') }));
-      const explainEl = el('div', { class: 'ap-explain', style: { display: 'none' } });
-      stage.append(badge, track, options, explainEl);
+      stage.append(badge, track, options);
       shell.setProgress(idx);
       if (van && !REDUCED) {
         const dur = Math.max(3, Math.round(360 / VAN_PX_S));
@@ -144,20 +144,24 @@ export function mount(container, params, ctx) {
       const item = cur();
       const right = slot === correctSlot(item);
       if (right) {
+        // Alex, 2026-07-30: a RIGHT flick explains itself too — the mended sentence AND
+        // the why, in a panel she reads at her pace, gated by Next (not a 1500ms timer).
         phase = 'done';
         sfx.correct();
         const signEl = stage.querySelector('.ap-sign');
         signEl.classList.add('shine');
-        const build = item.kind === 'possession' ? item.build : item.word;
-        const full = item.kind === 'possession' ? item.sentence.replace('___', build) : item.sentence;
-        shell.react(`Sorted! ${full}`, { voice: false, hold: 1800 });
-        speakMaybe(full);
+        signEl.textContent = (item.kind === 'possession' ? item.sentence.replace('___', item.build) : item.sentence).toUpperCase();
         recordResult('apostrophepatrol:' + item.id, true);
         if (!REDUCED) { const r = signEl.getBoundingClientRect(); sparkleAt(r.left + r.width / 2, r.top + r.height / 2); }
-        shell.advance();
-        idx++;
-        shell.timeout(() => (idx >= items.length ? finish() : renderItem()), 1500);
+        stage.appendChild(explainPanel(commaRightLine(item), () => {
+          shell.advance();
+          idx++;
+          if (idx >= items.length) finish(); else renderItem();
+        }, { correct: true }));
       } else {
+        // A wrong flick locks the slots behind "Got it ›" so the explanation is read, not
+        // tapped past — the brute-force route through two or three buttons taught nothing.
+        phase = 'explain';
         wrong++;
         shell.dimHeart();
         sfx.oops();
@@ -165,12 +169,14 @@ export function mount(container, params, ctx) {
         if (btn) { btn.classList.remove('boing'); void btn.offsetWidth; btn.classList.add('boing'); }
         recordResult('apostrophepatrol:' + item.id, false);
         collector.addAttempted(commaMiss(item));
-        const line = item.kind === 'decoy'
-          ? `${capitalize(item.word)} already owns it — no flying comma needed!`
-          : (item.note || `${item.count} — ${item.form === 'after' ? 'more than one' : 'only one'}! The apostrophe goes ${item.form === 'after' ? 'AFTER' : 'BEFORE'} the s.`);
-        const explainEl = stage.querySelector('.ap-explain');
-        explainEl.style.display = ''; explainEl.textContent = line;
-        speakMaybe(line);
+        const slots = [...stage.querySelectorAll('.ap-slot')];
+        slots.forEach(b => b.disabled = true);
+        const panel = explainPanel(commaWhyLine(item), () => {
+          panel.remove();
+          slots.forEach(b => b.disabled = false);
+          phase = 'flick';
+        }, { label: 'Got it ›' });
+        stage.appendChild(panel);
       }
     }
 
@@ -201,6 +207,7 @@ export function mount(container, params, ctx) {
       item: () => ({ ...cur() }),
       flickCorrect: () => flick(correctSlot(cur())),
       flickWrong: () => { const wrongOpts = ['before', 'after', 'none'].filter(o => o !== correctSlot(cur()) && (o !== 'none' || van)); flick(wrongOpts[0]); },
+      tapNext: () => { const b = stage.querySelector('.explain-next'); if (b) b.click(); },
       hint: () => useHint(),
       collected: () => collector.items().length
     } };
@@ -263,13 +270,14 @@ export function mount(container, params, ctx) {
         resultEl.textContent = item.build;
         resultEl.classList.add('pop');
         sfx.star();
-        const line = item.note ? `${item.build}! ${capitalize(item.note)}` : `${item.a} and ${item.b} squeeze together — ${item.build}!`;
-        shell.react(line, { voice: false, hold: 1800 });
-        speakMaybe(line);
         recordResult('apostrophepatrol:sq:' + item.id, true);
-        shell.advance();
-        idx++;
-        shell.timeout(() => (idx >= items.length ? finish() : renderItem()), 1500);
+        // Alex, 2026-07-30: the squeeze explains itself in a panel behind Next — what
+        // popped out and why the apostrophe stands there — not a vanishing toast.
+        stage.appendChild(explainPanel(squeezeRightLine(item), () => {
+          shell.advance();
+          idx++;
+          if (idx >= items.length) finish(); else renderItem();
+        }, { correct: true }));
       }, REDUCED ? 150 : 400);
     }
 
@@ -297,6 +305,7 @@ export function mount(container, params, ctx) {
       state: () => ({ idx, wrong, hintsUsed, total: items.length, phase }),
       item: () => ({ ...cur() }),
       tapA: () => tapWord('a'), tapB: () => tapWord('b'),
+      tapNext: () => { const b = stage.querySelector('.explain-next'); if (b) b.click(); },
       hint: () => useHint(),
       collected: () => collector.items().length
     };

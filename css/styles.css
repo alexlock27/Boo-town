@@ -6409,6 +6409,18 @@ html.bigger-text { --vz: 1.125; }
   .cel-tick { animation: celFlash 240ms ease-out; }
 }
 
+/* The Explanation Standard, part two (Alex, 2026-07-30): the shared explanation panel —
+   right answers as well as wrong, read at her own pace, gated by Next. Same face as Twin
+   Trouble's .tt-explain, the shipped original of the pattern. */
+.explain-panel {
+  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 14px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 auto;
+}
+.explain-panel.correct { border-color: var(--star, #FFC93C); }
+.explain-line { margin: 0; }
+.explain-next { min-height: 56px; min-width: 140px; background: var(--star, #FFC93C); font-weight: 700; }
+
 /* RUN18D D11 — Build-a-Boo's seal: the card she has just made flips over, which is what
    "sealed" looks like. 400ms, transform-only, and reduced motion skips the flip and keeps
    the sparkle-free line and the chime (js/buildaboo.js gates it on REDUCED). */

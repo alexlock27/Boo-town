@@ -69,6 +69,12 @@ export const INTRO_SCRIPTS = {
     { text: 'Cat, hat, mat! Tap the two that rhyme.' },
     { text: 'Some words look alike but do NOT rhyme — careful!' }
   ],
+  // RUN18E L2 (Word Factory rework): the game must teach itself, and the join is the lesson.
+  wordfactory: [
+    { text: 'Boos are queuing up with word orders!' },
+    { text: 'Tap the word parts in order to build each one.' },
+    { text: 'Watch the join — sometimes letters change!' }
+  ],
   storyorder: [
     { text: 'These story pictures got muddled up!' },
     { text: 'Tap one, then tap where it should go.' },

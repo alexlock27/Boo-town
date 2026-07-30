@@ -27,7 +27,8 @@ import { buildSmartMix } from '../smartmix.js';
 import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { filterLevels } from '../content.js';
 import { renderWordArt } from '../wordart.js';
-import { BLEND_LEVELS, BLEND_LEVEL_NUMBERS, blendLevel, blendEntry, ALL_BLEND_WORDS } from '../../data/blending.js';
+import { BLEND_LEVELS, BLEND_LEVEL_NUMBERS, blendLevel, blendEntry, ALL_BLEND_WORDS, blendRightLine, blendWrongLine } from '../../data/blending.js';
+import { explainPanel } from '../celebrate.js';
 import { FACTORY_LEVEL_NUMBERS, factoryLevel, ALL_FACTORY_ITEMS, factoryItem } from '../../data/wordfactory.js';
 import { contentTier } from '../content.js';
 
@@ -244,8 +245,12 @@ export function mount(container, params, ctx) {
         }, i * PART_MS));
       }
 
+      // The explanation pass (Alex, 2026-07-30): the sound walk lands in a panel she reads
+      // at her own pace — on a RIGHT pick gated by Next; on a wrong pick behind "Got it ›"
+      // so the sound walk is read before the next guess, not brute-forced past.
       function choose(opt, node) {
         if (phase !== 'pick') return;
+        const old = stage.querySelector('.explain-panel'); if (old) old.remove();
         if (opt === item.w) {
           phase = 'done';
           right++;
@@ -254,11 +259,11 @@ export function mount(container, params, ctx) {
           recordResult('blendit:' + item.w, true);
           const r = node.getBoundingClientRect();
           if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
-          shell.react(`${item.w}! You read it! 🌟`, { voice: false, hold: 1500 });
-          speakMaybe(`${item.w}. You read it!`);
-          shell.advance();
-          idx++;
-          shell.timeout(() => (idx >= items.length ? finish() : renderItem()), 1300);
+          stage.appendChild(explainPanel(blendRightLine(item), () => {
+            shell.advance();
+            idx++;
+            if (idx >= items.length) finish(); else renderItem();
+          }, { correct: true }));
         } else {
           wrong++;
           shell.dimHeart();
@@ -266,9 +271,15 @@ export function mount(container, params, ctx) {
           node.classList.remove('wrong'); void node.offsetWidth; node.classList.add('wrong');
           recordResult('blendit:' + item.w, false);
           collector.addAttempted(blendMiss(item));
-          const line = `That's ${opt}. Listen again — ${item.g.join(', ')} — ${item.w}!`;
-          shell.react(line, { voice: false, hold: 2800 });
-          speakMaybe(line);
+          phase = 'explain';
+          const pickBtns = [...stage.querySelectorAll('.bl-pick')];
+          pickBtns.forEach(b => b.disabled = true);
+          const panel = explainPanel(blendWrongLine(item, opt), () => {
+            panel.remove();
+            pickBtns.forEach(b => { if (!b.classList.contains('dimmed')) b.disabled = false; });
+            phase = 'pick';
+          }, { label: 'Got it ›' });
+          stage.appendChild(panel);
         }
       }
 
@@ -315,6 +326,7 @@ export function mount(container, params, ctx) {
       pick: (w) => { const n = [...stage.querySelectorAll('.bl-pick')].find(b => b.dataset.word === w); if (n) n.click(); },
       pickCorrect: () => window.__blend.pick(cur().w),
       pickWrong: () => { const w = cur().options.find(o => o !== cur().w); window.__blend.pick(w); },
+      tapNext: () => { const b = stage.querySelector('.explain-next'); if (b) b.click(); },
       hint: () => useHint(),
       collected: () => collector.items().length
     };
@@ -345,6 +357,25 @@ export function buildShelf(item, levelItems) {
   const nDecoy = Math.min(pool.length, 2 + rand(3));   // 2-4
   const decoys = pool.slice(0, nDecoy).map((k, i) => ({ id: item.id + ':d' + i, k, correct: false }));
   return shuffle([...correct, ...decoys]);
+}
+
+// The join, as data: what the tiles spell when they simply meet, what the stamp corrects
+// it to, and exactly which letters leave/arrive. Suffix is matched first so the pieces
+// read the way the rules are worded ("gentl[e]ly": the e leaves, the ly stays).
+export function joinDiff(item) {
+  const raw = item.parts.map(p => p.k).join('');
+  const build = item.build;
+  let s = 0;
+  while (s < raw.length && s < build.length && raw[raw.length - 1 - s] === build[build.length - 1 - s]) s++;
+  let p = 0;
+  while (p < raw.length - s && p < build.length - s && raw[p] === build[p]) p++;
+  return {
+    raw, build, changed: raw !== build,
+    prefix: build.slice(0, p),
+    out: raw.slice(p, raw.length - s),
+    added: build.slice(p, build.length - s),
+    suffix: s ? build.slice(build.length - s) : ''
+  };
 }
 
 export function buildFactoryRound(level, n = FACTORY_ROUND) {
@@ -444,7 +475,6 @@ export function mountFactory(container, params, ctx) {
     function serveTicket() { queueDepth = Math.max(1, queueDepth - 1); paintGauge(); }
 
     renderItem();
-    armTicket();
     function cur() { return items[idx]; }
 
     function renderItem() {
@@ -476,19 +506,23 @@ export function mountFactory(container, params, ctx) {
       stage.append(rail, plate, ruleCard, shelf);
       shell.setProgress(idx);
       speakMaybe(item.order);
+      // The gauge measures BUILD speed only: it re-arms per ticket and pauses at the join,
+      // so time spent reading the rule never costs her gold (no guilt mechanics).
+      armTicket();
     }
 
     function tapTile(tile, node) {
       if (phase !== 'build') return;
       const need = cur().parts[placed];
       if (tile.k === need.k && tile.correct) {
-        // right part: seats onto the plate; the seam join (if any) shows as the tile lands
+        // right part: seats onto the plate, showing exactly what the tile says — if the
+        // spelling has to change at the join, the JOIN shows it changing (never a silent swap)
         sfx.tap();
         node.disabled = true; node.classList.add('placed');
         const slot = stage.querySelectorAll('.wf-slot')[placed];
-        if (slot) slot.textContent = need.l;
+        if (slot) slot.textContent = need.k;
         placed++;
-        if (placed >= cur().parts.length) shell.timeout(stamp, 220);
+        if (placed >= cur().parts.length) shell.timeout(showJoin, 220);
       } else {
         // wrong part: sneezes back, the rule line fires, the order never leaves
         wrong++; combo = 0; itemHadWrong = true;
@@ -504,9 +538,62 @@ export function mountFactory(container, params, ctx) {
       }
     }
 
+    // The join IS the teaching moment (Alex: "I can put gentle and ly together but it's
+    // not actually correct is it"). Every item: the parts meet at a seam, the letters that
+    // must leave are struck and puff away, the corrected word lands with the new letters
+    // bright — and the rule card explains it EVERY time, not only after a wrong tap.
+    // She reads at her own pace and taps Next (same pattern as Twin Trouble's .tt-next).
+    function showJoin() {
+      phase = 'join';
+      shell.cancel(ticketTimer);            // reading time never pressures the gauge
+      const item = cur();
+      const d = joinDiff(item);
+      const plate = stage.querySelector('.wf-plate');
+      const shelf = stage.querySelector('.wf-shelf');
+      if (shelf) shelf.style.display = 'none';
+      plate.classList.add('joining');
+      clear(plate);
+      plate.appendChild(el('span', { class: 'wf-join' }, item.parts.flatMap((p, i) => [
+        ...(i ? [el('span', { class: 'wf-join-plus', text: '+' })] : []),
+        el('span', { class: 'wf-join-part', text: p.k })
+      ])));
+      const rc = stage.querySelector('.wf-rule');
+      rc.style.visibility = '';
+      rc.querySelector('.wf-rule-line').textContent = item.rule;
+      if (!itemHadWrong) speakMaybe(item.rule);   // a wrong tap already spoke it
+      shell.timeout(() => {
+        if (!d.changed) return landJoin(d);
+        // the raw join, with the letters that must leave struck out
+        clear(plate);
+        plate.appendChild(el('span', { class: 'wf-join' }, [
+          ...(d.prefix ? [el('span', { text: d.prefix })] : []),
+          el('span', { class: 'wf-join-out', text: d.out }),
+          ...(d.suffix ? [el('span', { text: d.suffix })] : [])
+        ]));
+        sfx.tap();
+        shell.timeout(() => landJoin(d), REDUCED ? 80 : 950);
+      }, REDUCED ? 80 : 950);
+    }
+
+    function landJoin(d) {
+      const plate = stage.querySelector('.wf-plate');
+      clear(plate);
+      plate.appendChild(el('span', { class: 'wf-join' }, [
+        ...(d.prefix ? [el('span', { text: d.prefix })] : []),
+        ...(d.added ? [el('span', { class: 'wf-join-in', text: d.added })] : []),
+        ...(d.suffix ? [el('span', { text: d.suffix })] : [])
+      ]));
+      const next = el('button', {
+        class: 'btn big wf-next', text: 'Next ›',
+        onclick: () => { sfx.tap(); next.remove(); stamp(); }
+      });
+      stage.appendChild(next);
+    }
+
     function stamp() {
       phase = 'stamping';
       const plate = stage.querySelector('.wf-plate');
+      plate.classList.remove('joining');
       plate.classList.add('stamping');
       sfx.correct();
       shell.timeout(() => {
@@ -564,7 +651,9 @@ export function mountFactory(container, params, ctx) {
       shelf: () => curShelf.map(t => ({ id: t.id, k: t.k, correct: t.correct })),
       tapCorrect: () => { const need = cur().parts[placed]; const t = curShelf.find(x => x.k === need.k && x.correct); if (t) tapTile(t, curNodes[t.id]); },
       tapWrong: () => { const need = cur().parts[placed]; const t = curShelf.find(x => !(x.k === need.k && x.correct)); if (t) tapTile(t, curNodes[t.id]); },
-      finishItem: () => { while (placed < cur().parts.length) window.__factory.tapCorrect(); },
+      finishItem: () => { while (placed < cur().parts.length) window.__factory.tapCorrect(); },   // fills the plate; the join then wants tapNext()
+      tapNext: () => { const b = stage.querySelector('.wf-next'); if (b) b.click(); },
+      join: () => joinDiff(cur()),
       gaugeStage: () => gaugeStage, goldBlocked: () => goldBlocked, queueDepth: () => queueDepth,
       forceTicket: () => { queueDepth = Math.min(4, queueDepth + 1); paintGauge(); },
       rushVisible: () => !!stage.querySelector('.wf-rush'), acceptRush: () => { const b = stage.querySelector('.wf-rush'); if (b) b.click(); },
