@@ -1944,7 +1944,18 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* Fulfilment: the double happy bounce, then the +2 on its way to the meter. */
 .rq-thanks { animation: rq-thanks-bounce 0.6s ease-in-out 2; transform-origin: 50% 100%; }
 @keyframes rq-thanks-bounce { 0%,100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-18%) scale(1.06, 0.94); } }
-.rq-fly { left: 50%; transform: translateX(-50%); color: var(--pop); font-family: var(--font-display); font-weight: 700; }
+/* The +2 has to be SEEN. It shared an anchor with .catchphrase-bubble (z-index 6) and had
+   no z-index of its own, so it started underneath the bubble and only cleared it at 0.39
+   opacity — invisible in every sampled frame at 1024x768 and at 390x844. Above the bubble,
+   and offset to the right so it flies past it rather than through it. */
+.rq-fly {
+  /* Clear of the bubble ENTIRELY, not just above it in z-order. The bubble is centred and up
+     to 180px wide over a ~74px wrap, so it overhangs both sides; anything inside the wrap's
+     own width lands on top of the words. This flies up the right-hand side instead. */
+  left: calc(100% + 6px); transform: none; bottom: 55%;
+  color: var(--pop); font-family: var(--font-display); font-weight: 700; font-size: 20px;
+  z-index: 9; text-shadow: 0 0 3px var(--card), 0 1px 0 var(--card);
+}
 @media (prefers-reduced-motion: reduce) {
   .request-thought { animation: none !important; }
   .rq-glow, .rq-thanks, .rq-fly { animation: none !important; }
@@ -4503,7 +4514,11 @@ body.care-teaching .intro-overlay { z-index: 12500; }
      Ink on a cream halo instead, so it reads on any wall the room dressings can put behind
      it (Z6 adds nine more). Contrast law, against the REAL rendered background. */
   color: var(--ink); letter-spacing: 2px;
-  text-shadow: 0 0 3px var(--cream), 0 0 6px var(--cream), 0 1px 0 var(--cream);
+  /* --card, not --cream: --cream is not defined in this stylesheet at all, so the halo was
+     an invalid declaration and computed to text-shadow:none in every room. The ink is legible
+     on today's walls either way (~8.3:1 on the Bedroom's #C9B7E0), but the halo is what has
+     to hold up against Z6's nine new wallpapers, so it needs to actually exist. */
+  text-shadow: 0 0 3px var(--card), 0 0 6px var(--card), 0 1px 0 var(--card);
   animation: zzz-drift 2.6s ease-in-out infinite;
 }
 /* Z3's per-2s puff: one "z" that rises, fades and is REMOVED, rather than one permanent
