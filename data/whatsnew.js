@@ -22,6 +22,19 @@
 
 export const WHATSNEW = [
   {
+    // RUN19 (the Disco rewire + the repair/explanation pass), shipping together with
+    // RUN18E under one stamp. ONE entry: the Disco Hall is the only thing here that is
+    // genuinely NEW to look at — the explanation panels, the Word Factory's teaching join
+    // and the Joke Boo's timing are improvements to features announced below (the RUN18D
+    // precedent: polish is not news, she will simply find those things better).
+    version: 'run19-20260730',
+    entries: [
+      { icon: '🕺', title: 'The Disco Hall really dances!',
+        blurb: 'Real songs, a move on every beat, a spotlight — and Routine Night.',
+        route: 'discohall' }
+    ]
+  },
+  {
     // RUN18E (The Literacy Re-pitch v2). The pack's own gate text named three entries;
     // Apostrophe Patrol is a fourth genuinely new, standalone card and CLAUDE.md's own
     // rule ("a feature nobody finds may as well not have been built") binds over an
