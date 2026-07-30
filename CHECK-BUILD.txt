@@ -22,6 +22,24 @@ It says plainly whether you are on the RUN19+RUN20 branch build or a stale cache
 })();
 ------------------------------------------------------------------------------
 
+IF THE PAGE IS BLANK / NOTHING OPENS AT ALL, it is almost never the code. In order:
+
+  1. Is a server actually running? The terminal you started it in must still be open and
+     must be showing "Boo Town review server ... Serving: ...Boo-town".
+     If it printed "ERROR: something is ALREADY serving port 8000", an OLD server from an
+     earlier session is answering instead — that one may be serving the wrong folder.
+     Stop it, or use another port:  python _serve.py 8001
+  2. Does http://localhost:8000/index.html (with the /index.html) load?
+     If that works but http://localhost:8000 does not, you are looking at a cached root.
+  3. Do you see a "Directory listing for /" page? Then the server root is wrong.
+     _serve.py now fixes this itself, so make sure you are running the CURRENT one
+     (git pull), not an old copy.
+  4. Still blank? A stale service worker can serve a broken shell before any of our code
+     runs, which no reload will fix:
+       F12 -> Application -> Service Workers -> Unregister, then Storage -> Clear site data.
+     Or just use a different port (localhost:8001) — a new port is a new origin, so no
+     service worker and no cache can follow you there.
+
 If it says STALE:
   1. Ctrl+Shift+R (hard reload). If still stale:
   2. F12 -> Application -> Storage -> "Clear site data" -> reload.

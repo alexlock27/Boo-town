@@ -14,6 +14,8 @@ see is always what is on disk.
     python _serve.py 8080     # different port
 """
 
+import os
+import socket
 import sys
 from functools import partial
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -36,12 +38,38 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    handler = partial(NoCacheHandler, directory='.')
+
+    # Serve THIS SCRIPT'S folder, never the shell's current directory.
+    #
+    # Why: SimpleHTTPRequestHandler serves the cwd, so `python _serve.py` run from the project
+    # ROOT (one level up, where three copies of the app sit side by side) quietly served an
+    # empty directory listing instead of the app — "nothing is opening", with no error anywhere.
+    # The script knows where it lives; the shell does not need to.
+    root = os.path.dirname(os.path.abspath(__file__))
+    if not os.path.exists(os.path.join(root, 'index.html')):
+        print('ERROR: no index.html next to _serve.py — this is not the Boo Town folder.')
+        sys.exit(1)
+    os.chdir(root)
+
+    # ...and say plainly if the port is already taken, rather than dying in a traceback nobody
+    # reads and leaving a stale server from an earlier session answering instead.
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.settimeout(0.4)
+    if probe.connect_ex(('127.0.0.1', port)) == 0:
+        probe.close()
+        print(f'ERROR: something is ALREADY serving port {port}.')
+        print(f'  That is probably an old server from an earlier session, serving old files.')
+        print(f'  Stop it, or run:  python _serve.py {port + 1}')
+        sys.exit(1)
+    probe.close()
+
+    handler = partial(NoCacheHandler, directory=root)
     # ThreadingHTTPServer, not HTTPServer: the single-threaded server wedges the moment a
     # client holds a keep-alive connection open (one hung socket = every later request
     # times out). Found 2026-07-30 when Playwright suites froze it twice in one session.
     server = ThreadingHTTPServer(('', port), handler)
     print(f'Boo Town review server (no-store) on http://localhost:{port}')
+    print(f'Serving: {root}')
     print('Ctrl+C to stop.')
     try:
         server.serve_forever()
