@@ -3234,11 +3234,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .disco-roster-grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:6px 2px; }
 .disco-roster-chip {
   display:grid; justify-items:center; gap:2px; min-width:76px; min-height:76px; padding:6px 8px;
-  border:3px solid var(--ink,#2A1B4E); border-radius:14px; background:var(--card,#6A4FD0);
+  border:3px solid var(--ink,#2A1B4E); border-radius:14px; background:var(--card,#FFF8F0);
   opacity:.45; filter:saturate(.4); transition:opacity .2s ease, filter .2s ease;
 }
 .disco-roster-chip.in { opacity:1; filter:none; box-shadow:0 0 0 3px var(--star,#FFC93C); }
-.disco-roster-chip .drc-name { font:700 11px var(--font-display); color:var(--cream,#FFF8F0); max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.disco-roster-chip .drc-name { font:700 11px var(--font-display); color:var(--ink,#2A1B4E); max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .disco-roster-hint { font:700 14px var(--font-display); color:var(--ink,#2A1B4E); }
 @media (prefers-reduced-motion: reduce) { .disco-roster-chip { transition:none; } }
 /* RUN19 Z1: moves chain per BEAT — each animation's duration IS the current track's beat
@@ -6435,13 +6435,18 @@ html.bigger-text { --vz: 1.125; }
 /* The Explanation Standard, part two (Alex, 2026-07-30): the shared explanation panel —
    right answers as well as wrong, read at her own pace, gated by Next. Same face as Twin
    Trouble's .tt-explain, the shipped original of the pattern. */
+/* CAUGHT LIVE (Alex, 2026-07-30): --card is CREAM (#FFF8F0), not the purple the literacy
+   panels assumed — cream text on var(--card) was cream-on-cream, i.e. invisible. The
+   panel is the house readable-card pattern now: cream card, INK text, ink border (same as
+   .wf-ticket / .tt-sentence). Never pair var(--card) with var(--cream) text. */
 .explain-panel {
-  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
-  padding: 14px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+  background: var(--card, #FFF8F0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 14px 16px; max-width: 480px; text-align: center; color: var(--ink, #2A1B4E); font-weight: 600;
   display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 auto;
+  box-shadow: 0 4px 0 rgba(42, 27, 78, .35);
 }
 .explain-panel.correct { border-color: var(--star, #FFC93C); }
-.explain-line { margin: 0; }
+.explain-line { margin: 0; color: var(--ink, #2A1B4E); }
 .explain-next { min-height: 56px; min-width: 140px; background: var(--star, #FFC93C); font-weight: 700; }
 
 /* RUN18D D11 — Build-a-Boo's seal: the card she has just made flips over, which is what

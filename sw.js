@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run19b-20260730';  // Addendum wave: the Disco guest list (v20), PC rail scroll, routines wall hidden until owned. Same-day follow-up to run19-20260730.
+const BUILD_STAMP = 'run19c-20260730';  // Repair wave (Alex's live QA): readable panels (cream-on-cream fixed), no repeated round items, transform-style B2/B4 orders, Rhymes on the Toddler hub.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

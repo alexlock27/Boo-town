@@ -115,6 +115,7 @@ const FIXTURES = {
   // RUN18E L1: the Toddler hub's restricted doors into Sound Sorter / Story Order.
   soundsorter: [["the Toddler door (initial sounds only)", "({ toddler: true })"]],
   storyorder: [["the Toddler door (two shortest stories)", "({ toddler: true })"]],
+  rhymetime: [["the Toddler door (level 1, six sets)", "({ toddler: true })"]],
   echoboos: [
     ["resume standard", "({ resume: true, lightning: false })"],
     ["resume lightning", "({ resume: true, lightning: true })"]

@@ -381,12 +381,16 @@ export function joinDiff(item) {
 export function buildFactoryRound(level, n = FACTORY_ROUND) {
   const lvl = factoryLevel(level);
   const items = lvl.items;
-  const out = []; let guard = 0;
-  while (out.length < Math.min(n, items.length * 3) && guard++ < n * 20) {
+  // CAUGHT LIVE (Alex, 2026-07-30: "3 questions repeated twice in my first and only
+  // 8 question run"): this used to sample WITH replacement — a shuffled deal now, so a
+  // round never repeats an item while the level has enough. Only a pool smaller than the
+  // round reuses items, and never back-to-back.
+  const out = shuffle(items.slice()).slice(0, n);
+  let guard = 0;
+  while (out.length < n && items.length > 0 && guard++ < n * 20) {
     const it = items[rand(items.length)];
-    if (out.length && out[out.length - 1].id === it.id && items.length > 1) continue;
+    if (out[out.length - 1].id === it.id && items.length > 1) continue;
     out.push(it);
-    if (out.length >= n) break;
   }
   return out.map(it => ({ ...it, shelf: buildShelf(it, items), rush: level >= 3 && Math.random() < RUSH_CHANCE }));
 }
@@ -613,8 +617,12 @@ export function mountFactory(container, params, ctx) {
       scoreUnits += (perfect ? units : units * 0.5);
       recordResult('wordfactory:' + item.id, perfect);
       const comboNote = combo >= 8 ? ' 🎉' : combo >= 5 ? ' 🚩' : combo >= 3 ? ' ✨' : '';
-      shell.react(`${item.build}! Stamped and done!${comboNote}`, { voice: false, hold: 1500 });
-      speakMaybe(`${item.build}! Stamped and done!`);
+      // Alex, 2026-07-30: the same "Stamped and done!" after every single word wore thin
+      // fast — the factory has a few things to say now, rotating so no two in a row match.
+      const DONE_LINES = ['Stamped and done!', 'Order up!', 'Out the hatch it goes!', 'Another happy Boo!'];
+      const doneLine = DONE_LINES[idx % DONE_LINES.length];
+      shell.react(`${item.build}! ${doneLine}${comboNote}`, { voice: false, hold: 1500 });
+      speakMaybe(`${item.build}! ${doneLine}`);
       serveTicket();
       shell.advance();
       idx++;

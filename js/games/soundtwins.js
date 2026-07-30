@@ -53,20 +53,27 @@ export function buildCase(poolItem) {
   return { ...poolItem, guilty, displayed: guilty ? other : poolItem.answer, culprit: other };
 }
 
+// CAUGHT LIVE (Alex, 2026-07-30): both branches sampled WITH replacement, so the same
+// sentence could come up twice (or more) in one round. Level 1 deliberately drills ONE
+// pair, so its small pool must recycle — but now in shuffled cycles (every sentence seen
+// equally, never the same one twice running). Levels 2/3 have a big pool and simply deal.
 export function buildTwinTroubleRound(level) {
   if (level === 1) {
     const set = PAIR_SETS[rand(PAIR_SETS.length)];
     const items = flatten([set]);
     const n = 8;
     const out = [];
-    while (out.length < n) out.push(buildCase(items[rand(items.length)]));
+    while (out.length < n) {
+      const cycle = shuffle(items.slice());
+      if (out.length && cycle.length > 1 && cycle[0].sentence === out[out.length - 1].sentence) cycle.push(cycle.shift());
+      for (const it of cycle) if (out.length < n) out.push(buildCase(it));
+    }
     return { cases: out, toldSet: set };
   }
   const items = flatten(PAIR_SETS);
   const n = level === 3 ? 10 : 8;
-  const out = [];
-  let guard = 0;
-  while (out.length < n && guard++ < n * 10) out.push(buildCase(items[rand(items.length)]));
+  const out = shuffle(items.slice()).slice(0, n).map(buildCase);
+  while (out.length < n && items.length) out.push(buildCase(items[rand(items.length)]));
   return { cases: out, toldSet: null };
 }
 
