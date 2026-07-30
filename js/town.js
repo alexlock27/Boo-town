@@ -16,6 +16,7 @@ import { voiceBooIds, playVoice } from './voices.js';
 import { checkRequestOpen, activeRequest, activeRequests, takeTreat, takeThanks, noteRequest, pruneImpossible, VERB_BY_KIND, nowMs, REQUEST_REWARD } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
+import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
 import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
@@ -137,7 +138,21 @@ const ACT_MULT_KEY = { deco_trampoline: 'trampoline', deco_bench: 'bench', deco_
 // alive, not just a static sticker peeking out.
 const HIDE_WIGGLE_MIN_MS = 8000, HIDE_WIGGLE_MAX_MS = 14000;
 const SETTLE_MS = 180;           // arrival settle: drop + squash (RUN10 P2)
-const SHRUG_MS = 300;            // no free socket → a small shrug, then wander off (RUN10 P2)
+// RUN19 Z3 — announced moments.
+const SEAT_HOP_MS = 350;         // hop onto a claimed seat: a translateY arc on the wrap
+const WAIT_MS = 8000;            // seat full → wait beside it patiently this long, then wander
+const WAIT_SHIFT_MS = 1500;      // the patient pose's weight-shift period
+const MAX_WAITERS_PER_SEAT = 1;  // a second arrival wanders off rather than forming a crowd
+const NAP_CHANCE = 0.5;          // indoors: odds a qualifying pause becomes a real bed nap
+const NAP_MIN_MS = 20000, NAP_MAX_MS = 40000;   // a nap lasts 20-40s, then she gets up herself
+const NAP_Z_MS = 2000;           // a drifting "z" every 2s
+const NAP_SNORE_MS = 4000;       // a soft snore every 4s
+const NAP_STRETCH_MS = 600;      // wake-on-tap: a 600ms stretch + a yawn
+// Every SOCKETS[].row in data/sockets.js was authored for an item standing in row 2, so a
+// socket's row is read as a delta from this base (see give()).
+const SOCKET_ROW_BASE = 2;
+// RUN10 P2's 300ms shrug is RETIRED by Z3 — a Boo that walks to a full bench now waits
+// beside it (see waitBesideSeat), which is what a child does and what a shrug never read as.
 const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
 // items whose socket cools down after a visit rather than instantly refilling (RUN10 P3: pond joins the bench)
 const COOLDOWN_ITEMS = new Set(['deco_bench', 'deco_pond']);
@@ -1445,6 +1460,7 @@ export function mount(container, params, ctx) {
     .sort((p, q) => Math.abs(curX(p) - t.x) - Math.abs(curX(q) - t.x));
   const give = (a, role) => {
     if (actors.filter(x => x.role).length >= MAX_ACTIVE_ROLES) return false;
+    endWait(a);   // RUN19 Z3: the seat it was waiting for just came free
     a.goal = null; a.dx = 0; a.depth = 0; a.depthTarget = 0;   // claimed → drop any goal + wander offset (C1)
     a.role = Object.assign({ t: Math.random() * 500 }, role);
     // Socket offset (RUN10 P2): x = fraction of the item's rendered WIDTH from its
@@ -1460,7 +1476,16 @@ export function mount(container, params, ctx) {
     const dw = role.decoWrap || wrapFor(role.deco);
     if (dw) {
       if (a._homeTop == null) { a._homeTop = a.wrap.style.top; a._homeZ = a.wrap.style.zIndex; }
-      const socketRow = (role.socket && role.socket.row != null) ? role.socket.row : itemRow;
+      // RUN19 Z3 — a socket's `row` is a DELTA, not an absolute row. It used to be read
+      // absolutely, which silently assumed every socketed item is placed in row 2 (where
+      // outdoor rides usually are). Indoors it is not: a bed at row 1 got a seat anchored to
+      // row 2's ground line, ~76px BELOW the bed, so the sleeper poked out from underneath
+      // it. Every authored value was written for an item at row 2 (SOCKET_ROW_BASE), so
+      // `socket.row - 2` is the offset that was always meant: 0 for a bench or a bed (same
+      // row as the item), -1 for the trampoline's middle seat, which town.js's own comment
+      // already described as "one row further back". Items at row 2 are byte-identical.
+      const socketDelta = (role.socket && role.socket.row != null) ? (role.socket.row - SOCKET_ROW_BASE) : 0;
+      const socketRow = Math.max(0, Math.min(DEPTH_ROWS - 1, itemRow + socketDelta));
       // yFrac: fraction of the ITEM's rendered height the seat surface sits above its own
       // ground line (fine-tuned per item against real screenshots — see data/sockets.js).
       // Row-independent (unlike a raw px yNudge) since it scales with the item's own size.
@@ -1468,7 +1493,12 @@ export function mount(container, params, ctx) {
       const yNudge = role.socket && role.socket.yFrac ? role.socket.yFrac * itemH : 0;
       const rowGroundPx = viewH * ROW_GROUND[socketRow];
       a.wrap.style.top = (rowGroundPx - a.wrap.offsetHeight + 8 + yNudge) + 'px';
-      a.wrap.style.zIndex = String(Math.round(rowGroundPx));
+      // RUN19 Z3: a sleeper goes BEHIND its bed, so the duvet drawn in the bed's own SVG
+      // genuinely covers its body and only its head shows above the pillow. Every other
+      // seat sits in FRONT, as it always has.
+      const behind = role.socket && role.socket.role === 'nap';
+      const dwZ = behind ? parseInt(dw.style.zIndex || '0', 10) : 0;
+      a.wrap.style.zIndex = behind ? String((dwZ || Math.round(rowGroundPx)) - 1) : String(Math.round(rowGroundPx));
     }
     if (role.kind === 'sleep' && !a.wrap.querySelector('.t-zzz')) {
       a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
@@ -1480,6 +1510,7 @@ export function mount(container, params, ctx) {
     // RUN19 Z2's `sit` request and Z3's announced moment hang off. One choke point, so
     // neither can be wired at one call site and forgotten at the other.
     if (role.socketArrKey && role.deco) onSocketClaimed(a, role);
+    if (a.role && a.role.socket && a.role.socket.role === 'nap') beginNap(a, a.role);   // RUN19 Z3
     return true;
   };
   // Claim ANY free socket on a placed activity item, or return false (RUN10 P2). Used
@@ -1494,13 +1525,38 @@ export function mount(container, params, ctx) {
     if (ok) arr[i] = a;
     return ok;
   }
-  // No free socket → a small shrug (300ms), then back to free wandering (RUN10 P2). The
-  // shrug plays on the outer wrap (not the svg) so it composes with, rather than fights,
-  // the wander loop's own per-frame transform on the svg once wandering resumes.
-  function shrugAndEndGoal(a) {
-    if (!REDUCED) { a.wrap.classList.remove('t-shrug'); void a.wrap.offsetWidth; a.wrap.classList.add('t-shrug'); }
-    a.goal = null; a.dx = 0; a.next = SHRUG_MS + Math.random() * 200;
+  // RUN19 Z3 — the seat is full, so WAIT for it. RUN10 P2 played a 300ms shrug and walked
+  // away, which read as a glitch: the Boo arrived, twitched, and left for no visible reason.
+  // Now it stands beside the seat in a patient pose (a tiny weight-shift every 1.5s) for up
+  // to WAIT_MS, and takes the seat the moment it frees — assignRoles' own sweep does that,
+  // because a waiting Boo has no role and is standing well inside ACT_RADIUS.
+  // At most ONE waiter per seat; a second arrival wanders off rather than forming a queue.
+  const seatWaiters = new Map();   // itemKey -> the actor currently waiting for it
+  function waitersFor(t) {
+    const key = itemKeyOf(t);
+    const held = seatWaiters.get(key);
+    // self-heal: an actor that has since been given a role or wandered off is not waiting
+    if (held && (held.role || held.waitUntil == null || !actors.includes(held))) { seatWaiters.delete(key); return 0; }
+    return held ? 1 : 0;
   }
+  function waitBesideSeat(a, t) {
+    if (t && waitersFor(t) >= MAX_WAITERS_PER_SEAT) { endWait(a); a.goal = null; a.dx = 0; a.next = 400 + Math.random() * 400; return false; }
+    if (t) seatWaiters.set(itemKeyOf(t), a);
+    a.goal = null; a.dx = 0;
+    a.waitUntil = performance.now() + WAIT_MS;
+    a.waitKey = t ? itemKeyOf(t) : null;
+    if (!REDUCED) a.wrap.classList.add('t-waiting');
+    a.next = 400;
+    return true;
+  }
+  function endWait(a) {
+    if (a.waitKey && seatWaiters.get(a.waitKey) === a) seatWaiters.delete(a.waitKey);
+    a.waitUntil = null; a.waitKey = null;
+    a.wrap.classList.remove('t-waiting');
+  }
+  // Kept as the single name every caller already uses, so the retirement is one edit here
+  // rather than five call sites that could disagree.
+  function shrugAndEndGoal(a, t = null) { waitBesideSeat(a, t); }
   function assignRoles() {
     const st = getState();
     const now = performance.now();
@@ -1558,6 +1614,10 @@ export function mount(container, params, ctx) {
     }
   }
   function clearRole(a) {
+    // RUN19 Z3: whatever ends a nap — a tap, the 20-40s timer, daylight rules, a rebuild —
+    // the eyes open again. Doing it here rather than in wakeNap means no caller can leave a
+    // wide-awake Boo walking around with its eyes shut.
+    if (a.role && a.role.kind === 'housenap') setSleepingEyes(a, false);
     if (a.role && a.role.finishTimer) clearTimeout(a.role.finishTimer);
     releaseSocket(a);   // RUN10 P2: free the seat for the next Boo
     a.role = null;
@@ -1581,12 +1641,23 @@ export function mount(container, params, ctx) {
         break;
       }
       // ---- RUN13 T3: the three room-appropriate house behaviours ----------------------
-      // NAP (Bedroom). A bed is a socket, so she lies ON the mattress rather than beside
-      // it, and she breathes. Nobody is tired; she simply likes the bed.
+      // NAP (Bedroom). A bed is a socket, so she lies ON the bedding rather than beside it,
+      // and she breathes. Nobody is tired; she simply likes the bed.
+      // RUN19 Z3 made it a real nap: eyes genuinely shut (the authored `eyes:'closed'` pose
+      // from RUN18B Y4, re-rendered — not a CSS trick), a "z" that DRIFTS away every 2s
+      // instead of one permanent glyph, a soft snore every 4s, and it ends by itself after
+      // 20-40s. The lying scale is 0.68 so the bed still reads as a bed underneath.
       case 'housenap': {
         const breathe = 1 + Math.sin(t / 950) * 0.03;
-        svg.style.transform = `translate(${r.offX.toFixed(1)}px, 6px) rotate(-90deg) scale(0.86, ${(0.88 * breathe).toFixed(3)})`;
-        if (!a.wrap.querySelector('.t-zzz')) a.wrap.appendChild(el('div', { class: 't-zzz', text: 'z Z z' }));
+        // UPRIGHT, head on the pillow, at 0.62 so the bed still reads as a bed. RUN13 T3's
+        // rotate(-90deg) is gone: see the note in data/sockets.js — a round Boo turned on
+        // its side reads as fallen over, not asleep.
+        svg.style.transform = `translate(${r.offX.toFixed(1)}px, 0px) scale(0.62, ${(0.62 * breathe).toFixed(3)})`;
+        if (!REDUCED) {
+          if (t - (r.lastZ || -9999) >= NAP_Z_MS) { r.lastZ = t; puffNapZ(a); }
+          if (t - (r.lastSnore || -9999) >= NAP_SNORE_MS) { r.lastSnore = t; sfx.snore(); }
+        }
+        if (r.napUntil != null && t >= r.napUntil) { wakeNap(a, { tapped: false }); }
         break;
       }
       // SNACK (Kitchen). A nibble cycle at the table: lean in, munch, sit back, a crumb
@@ -1977,11 +2048,83 @@ export function mount(container, params, ctx) {
   function noteSocketClaim(booId, t) {
     fireRequest('socketClaim', { booId, itemId: t.item, area: STORE_KEY, x: t.x });
   }
-  // Called from give() the moment a Boo actually takes a seat. Z3 adds the hop and the
-  // spoken line here; Z2 only needs the request to notice.
+  // Called from give() the moment a Boo actually takes a seat.
+  // RUN19 Z3 — the announced moment: taking a seat is a state change the child caused and
+  // would care about, so it lands as motion + a line + a place to look, never as silent
+  // state. The hop is a translateY arc on the outer wrap (the role's own per-frame
+  // transform owns the svg, so putting it on the wrap composes instead of fighting).
+  // The line is BUDGETED through js/ack.js: lovely once, grating the fourth time.
   function onSocketClaimed(a, role) {
     if (!a || !a.place || !role || !role.deco) return;
+    if (!REDUCED) { a.wrap.classList.remove('t-seat-hop'); void a.wrap.offsetWidth; a.wrap.classList.add('t-seat-hop'); setTimeout(() => a.wrap.classList.remove('t-seat-hop'), SEAT_HOP_MS + 60); }
+    // "Best seat in the «area name»!" already supplies "the", and four of the eight area
+    // names begin with "The" — so the raw name reads "in the The Meadow". Strip the article.
+    const rawName = ROOM ? ROOM.name : AREA.name;
+    const line = acknowledge('socketClaim', { areaName: rawName.replace(/^The\s+/i, '') });
+    if (line) {
+      const bubble = el('div', { class: 'catchphrase-bubble', text: line });
+      a.wrap.appendChild(bubble); speakMaybe(line);
+      setTimeout(() => bubble.remove(), 2400);
+    }
     noteSocketClaim(a.place.item, role.deco);
+  }
+
+  // ---- RUN19 Z3: the bed nap ---------------------------------------------------------
+  // The seat's authored `role` is what makes a claim a NAP, not the item id. data/sockets.js
+  // marks both bed sockets `role:'nap'` and, before Z3, nothing read that field at all —
+  // it was dead data. Reading it here means a future nap seat gets the behaviour for free.
+  function beginNap(a, role) {
+    // `napUntil`, NOT `until`: deco_bench already uses role.until, and it stores an ABSOLUTE
+    // performance.now() deadline while this is elapsed role.t. One field, two units, is a
+    // cross-wiring bug waiting to happen the first time a bench and a bed share a code path.
+    role.napUntil = NAP_MIN_MS + Math.random() * (NAP_MAX_MS - NAP_MIN_MS);
+    role.lastZ = -9999; role.lastSnore = -9999;
+    setSleepingEyes(a, true);
+  }
+  // Eyes genuinely SHUT, using the authored closed-eye pose (RUN18B Y4's `eyes:'closed'`
+  // for catalogue Boos, the `sleepy` eye shape for custom ones) rather than a CSS squash —
+  // so a sleeping Boo looks the same here as anywhere else it is ever drawn.
+  function setSleepingEyes(a, on) {
+    const wrapSvg = a.wrap.querySelector('svg');
+    if (!wrapSvg || !a.item) return;
+    const base = a.item;
+    const posed = !on ? base
+      : (base.custom ? { ...base, custom: { ...base.custom, eyes: 'sleepy' } } : { ...base, eyes: 'closed' });
+    const keep = wrapSvg.getAttribute('style') || '';
+    const cls = [...wrapSvg.classList].join(' ');
+    const holder = el('div', { html: renderItem(posed, { size: booSizeFor(a), equipArt: equippedArt(base.id) }) });
+    const next = holder.querySelector('svg');
+    if (!next) return;
+    if (cls) next.setAttribute('class', cls);
+    if (keep) next.setAttribute('style', keep);
+    next.classList.toggle('t-eyes-shut', !!on);   // a real marker, for CSS and for the suite
+    wrapSvg.replaceWith(next);
+  }
+  function booSizeFor(a) {
+    const svg = a.wrap.querySelector('svg');
+    const w = svg && svg.getAttribute('width');
+    return w ? parseFloat(w) : 92;
+  }
+  // A "z" that DRIFTS AWAY and is gone, every NAP_Z_MS — one permanent glyph parked over a
+  // Boo's ear read as a sticker, not as breathing. Capped by construction: one node alive
+  // for the drift's duration, never a queue.
+  function puffNapZ(a) {
+    if (REDUCED) return;
+    const z = el('div', { class: 't-zzz t-zzz-drift', text: 'z' });
+    a.wrap.appendChild(z);
+    setTimeout(() => z.remove(), 2100);
+  }
+  // Waking is gentle, always (rule 1, no grumpiness): a stretch, and — when it was HER tap
+  // that woke it — a yawn to say the tap did something.
+  function wakeNap(a, { tapped }) {
+    if (!a.role || a.role.kind !== 'housenap') return false;
+    a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
+    clearRole(a);   // opens the eyes (see clearRole)
+    a.wakeUntil = performance.now() + WAKE_MS;   // no instant re-nap
+    const svg = a.wrap.querySelector('svg');
+    if (svg && !REDUCED) { svg.classList.remove('t-nap-stretch'); void svg.offsetWidth; svg.classList.add('t-nap-stretch'); setTimeout(() => svg.classList.remove('t-nap-stretch'), NAP_STRETCH_MS + 60); }
+    if (tapped) sfx.yawn();
+    return true;
   }
   function noteItemTap(place) {
     const booIds = areaItems(getState()).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item);
@@ -2433,8 +2576,10 @@ export function mount(container, params, ctx) {
 
   function onTap(wrap, place, item) {
     if (item.kind === 'boo') {
+      const napper = actors.find(x => x.wrap === wrap);
+      const wasNapping = !!(napper && napper.role && napper.role.kind === 'housenap');
       squeak(wrap, item);
-      showCareArc(wrap, place, item);
+      if (!wasNapping) showCareArc(wrap, place, item);   // Z3: waking it IS the moment
       return;
     }
     // RUN19 Z2: "«name» wants to try the new «item»!" is fulfilled by a tap on that exact
@@ -2688,10 +2833,17 @@ export function mount(container, params, ctx) {
   }
 
   function squeak(wrap, item) {
+    // RUN19 Z3: a NAPPING Boo ignores everything except being woken. A tap wakes it with a
+    // stretch and a yawn and that is the whole interaction — no squeak, no catchphrase, no
+    // care arc on top, because "I woke it up" is the moment and stacking three more
+    // reactions on it buries that.
+    const napper = actors.find(x => x.wrap === wrap);
+    if (napper && napper.role && napper.role.kind === 'housenap') { wakeNap(napper, { tapped: true }); return; }
     wakeIfSleeping(wrap);
     // a tap always interrupts a chosen behaviour (C1) — including a claimed activity
     // socket (RUN10 P2): the Boo drops what it was doing and the seat frees for the next.
     const a = actors.find(x => x.wrap === wrap);
+    if (a && a.waitUntil != null) endWait(a);
     if (a && a.goal) endGoal(a);
     if (a && a.role && a.role.kind !== 'sleep') clearRole(a);
     // her own recorded voice plays instead of the squeak, only on tap (never ambient)
@@ -2870,6 +3022,18 @@ export function mount(container, params, ctx) {
       // at bedtime, near a house, drop a non-nap act so the sleep role can take over (C1)
       if (a.goal && a.goal.kind !== 'nap' && isSleepTime(currentHour()) && nearBoohouse(a) && !(a.wakeUntil && now < a.wakeUntil)) endGoal(a);
       if (a.goal) { stepGoal(a, dt, now); continue; }   // a chosen behaviour (C1): visit/approach/chase/watch/nap
+      // RUN19 Z3: waiting beside a full seat. A patient pose — a tiny weight-shift, no
+      // wandering — held for up to WAIT_MS. assignRoles' own sweep hands the seat over the
+      // instant it frees, because a waiting Boo has no role and is standing right there.
+      if (a.waitUntil != null) {
+        if (now >= a.waitUntil) { endWait(a); a.next = 300; }
+        else {
+          const svgW = a.wrap.querySelector('svg');
+          const shift = Math.sin(now / (WAIT_SHIFT_MS / (2 * Math.PI))) * 2.5;
+          if (svgW) svgW.style.transform = `translate(${a.dx.toFixed(1)}px, 0px) rotate(${shift.toFixed(2)}deg)`;
+          continue;
+        }
+      }
       if (a.t >= a.next) {
         a.t = 0;
         if (maybePickBehaviour(a, now)) continue;        // sometimes pick a richer act than a micro-wander
@@ -3011,7 +3175,14 @@ export function mount(container, params, ctx) {
     cands.push(['watch', 1.3 * personalityMult(booId, 'watch')]);
     // a just-woken Boo stays up (no instant re-nap); mirrors the sleep-role wake rule
     const recentlyWoken = a.wakeUntil && performance.now() < a.wakeUntil;
-    if (night && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6 * personalityMult(booId, 'nap')]);
+    // RUN19 Z3 — THE CAUSE of "the bed nap never happens": the nap GOAL, the only thing
+    // that ever WALKS a Boo to a bed, was gated on `night` (21:00-07:00). A child plays in
+    // the daytime, so unless she happened to park a Boo within ACT_RADIUS (12% of the room's
+    // width) of the bed, no Boo ever went to bed at all. Indoors the gate is now the
+    // authored NAP_CHANCE per qualifying pause instead: any hour, a bed is for napping in.
+    // Outdoors it stays night-only — a Boo dozing under a tree at noon is a different thing.
+    const napAllowed = night || (isInterior && Math.random() < NAP_CHANCE);
+    if (napAllowed && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6 * personalityMult(booId, 'nap')]);
     if (!a.riding && pickBoardableRide(a)) cands.push(['board', 3.2]);   // funfair: hop on a ride (C1b)
     // musical (RUN10 P5): drawn to a placed Dance Stage, or the funfair bandstand while
     // already standing in the funfair — a genuine walk-there-and-watch goal, not a label.
@@ -3264,10 +3435,11 @@ export function mount(container, params, ctx) {
     if (g.kind === 'approach') {
       svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
       if (Math.abs(a.dx - g.targetDx) < zoneW * 0.03) {
-        // arrived: claim a free socket right away — none free → a small shrug (RUN10 P2)
+        // arrived: claim a free socket right away — none free → wait beside it (RUN19 Z3;
+        // RUN10 P2's 300ms shrug-and-leave is retired, it read as a glitch)
         const deco = g.deco; const claimed = tryClaimActivity(a, deco);
         endGoal(a);
-        if (!claimed) shrugAndEndGoal(a);
+        if (!claimed) shrugAndEndGoal(a, deco);
       }
       else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
       return;
@@ -3485,6 +3657,33 @@ export function mount(container, params, ctx) {
       roleCount: () => actors.filter(a => a.role).length,
       tick: (ms) => { const now = performance.now(); for (const a of actors) { if (a.goal) stepGoal(a, ms, now); } },
       assignRoles: () => assignRoles(),
+      // ---- RUN19 Z3: announced moments ------------------------------------------------
+      // Walk actor i to a named placed item REGARDLESS of whether its seats are free. The
+      // patient wait only happens on a race — the seat was free when the Boo set off and
+      // taken by the time it arrived — and pickFreeActivity deliberately never sets up that
+      // race itself, so a suite needs this seam to reproduce it.
+      forceApproach: (i, itemId) => {
+        const a = actors[i]; if (!a) return null;
+        const d = areaItems(getState()).find(t => t.item === itemId);
+        if (!d) return null;
+        clearRole(a); endWait(a);
+        a.goal = { kind: 'approach', deco: d, targetDx: (d.x - a.place.x) * zoneW, start: performance.now() };
+        return a.goal.targetDx;
+      },
+      waitingCount: () => actors.filter(a => a.waitUntil != null).length,
+      waitersForSeat: () => seatWaiters.size,
+      napOf: (i) => {
+        const a = actors[i]; if (!a || !a.role || a.role.kind !== 'housenap') return null;
+        const svg = a.wrap.querySelector('svg');
+        return { until: Math.round(a.role.napUntil), t: Math.round(a.role.t), eyesShut: !!(svg && svg.classList.contains('t-eyes-shut')) };
+      },
+      // Skip to the end of a nap without waiting out its real 20-40s (which no suite should).
+      endNapNow: (i) => { const a = actors[i]; if (a && a.role && a.role.kind === 'housenap') { a.role.napUntil = 0; return true; } return false; },
+      tapActor: (i) => { const a = actors[i]; if (!a) return false; onTap(a.wrap, a.place, a.item); return true; },
+      seatHopped: () => ground.querySelectorAll('.t-seat-hop').length,
+      napZ: () => ground.querySelectorAll('.t-zzz-drift').length,
+      stretching: () => ground.querySelectorAll('.t-nap-stretch').length,
+      eyesShut: () => ground.querySelectorAll('svg.t-eyes-shut').length,
       // ambient life
       season: () => currentSeasonName,
       weather: () => { const l = viewport.querySelector('.t-weather'); return l ? { season: [...l.classList].find(c => ['spring', 'summer', 'autumn', 'winter', 'rain'].includes(c)), particles: l.querySelectorAll('.t-wp').length, sunrays: l.querySelectorAll('.t-sunrays').length } : null; },

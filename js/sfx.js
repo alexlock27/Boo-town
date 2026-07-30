@@ -131,6 +131,33 @@ export const sfx = {
   chime(step = 0) { play(t => envTone(523.25 * Math.pow(2, (step % 8) / 12), t, 0.22, 'sine', 0.22, sfxGain, 'chime')); },
   ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); },
   hum() { play(t => { envTone(220, t, .34, 'sine', .12, sfxGain, 'wish-hum'); envTone(330, t + .04, .3, 'sine', .08, sfxGain, 'wish-hum'); }); },
+  // The bed nap (RUN19 Z3). A snore has to be SOFT — this is a cosy scene, not a gag — so
+  // it is a low sine that swells and falls once, well under the tap sounds in level.
+  snore() { play(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(115, t);
+      o.frequency.linearRampToValueAtTime(148, t + 0.34);
+      o.frequency.linearRampToValueAtTime(104, t + 0.72);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.075, t + 0.22);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.78);
+      o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.8);
+      if (audioLog) logEvent({ kind: 'note', t, freq: 115, dur: 0.78, bus: 'sfx', tag: 'snore' });
+    }); },
+  // ...and the waking yawn: a rising open vowel that tails off, paired with the stretch.
+  yawn() { play(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(210, t);
+      o.frequency.linearRampToValueAtTime(330, t + 0.26);
+      o.frequency.linearRampToValueAtTime(240, t + 0.62);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.14, t + 0.14);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.66);
+      o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + 0.68);
+      if (audioLog) logEvent({ kind: 'note', t, freq: 210, dur: 0.66, bus: 'sfx', tag: 'yawn' });
+    }); },
   // Pond fishing (RUN10 P3): a happy little triplet on a catch...
   giggle() { play(t => { [700, 880, 660, 940].forEach((f, i) => envTone(f, t + i * 0.07, 0.09, 'triangle', 0.3, sfxGain, 'giggle')); }); },
   whirr() { play(t => { [180, 240, 210].forEach((f, i) => envTone(f, t + i * .045, .08, 'sawtooth', .07, sfxGain, 'wheel-whirr')); }); },

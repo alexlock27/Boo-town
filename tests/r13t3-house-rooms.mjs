@@ -164,15 +164,38 @@ console.log('== room-appropriate behaviour: the bed is a NAP socket with pixel c
     const bed = document.querySelector('.t-item[data-item="deco_bed"]');
     const boo = [...document.querySelectorAll('.t-item.boo')][0];
     if (!bed || !boo) return null;
-    const br = bed.getBoundingClientRect(), r = boo.getBoundingClientRect();
-    return { itemTop: br.top, itemH: br.height, booBottom: r.top + r.height };
+    const br = bed.getBoundingClientRect();
+    // The sleeper's VISIBLE extent, not its wrap: the nap scales the svg down, so the wrap
+    // box is a good deal taller than the Boo a child sees.
+    const svg = boo.querySelector('svg');
+    const r = (svg || boo).getBoundingClientRect();
+    const z = (n) => parseInt((n.style.zIndex || getComputedStyle(n).zIndex || '0'), 10) || 0;
+    return {
+      itemTop: br.top, itemH: br.height,
+      booTop: r.top, booBottom: r.top + r.height,
+      booZ: z(boo), bedZ: z(bed),
+      eyesShut: !!(svg && svg.classList.contains('t-eyes-shut'))
+    };
   });
   ok(!!contact, 'the bed and the sleeping Boo both render');
+  // AMENDED BY RUN19 Z3, and the old assertion here was measuring the wrong thing.
+  //
+  // It asserted the Boo's wrap BOTTOM sat within 4px of the bed-frame line (y=78) — which
+  // passed while the actual picture, screenshotted, was a round Boo rotated -90deg at 0.86
+  // scale lying across the bed and hiding almost all of it. Box-bottom-on-a-line is the
+  // right law for a Boo SITTING on a bench; it says nothing useful about one in a bed.
+  //
+  // Z3's contract is what a child would actually check: the head shows ABOVE the pillow,
+  // the body OVERLAPS the bedding rather than floating over it, and the sleeper is drawn
+  // BEHIND the bed so the duvet covers it. All three, or it is not a Boo in a bed.
   if (contact) {
-    // The mattress surface sits at y=78 in the shared 0 0 120 130 deco viewBox (art.js 'bed').
-    const seatPx = contact.itemTop + (78 / 130) * contact.itemH;
-    const gap = Math.abs(contact.booBottom - seatPx);
-    ok(gap <= 4, `the Boo lies ON the mattress, not above it (gap ${gap.toFixed(1)}px)`);
+    const pillowTop = contact.itemTop + (66 / 130) * contact.itemH;   // pillow 26..50 x 66..86
+    const bedBottom = contact.itemTop + contact.itemH;
+    ok(contact.booTop < pillowTop, `the sleeper's head shows above the pillow (head ${Math.round(contact.booTop)} < pillow ${Math.round(pillowTop)})`);
+    ok(contact.booBottom > pillowTop, `and its body is IN the bedding, not floating over it (body reaches ${Math.round(contact.booBottom)})`);
+    ok(contact.booBottom < bedBottom + 6, `and it does not hang out below the bed (${Math.round(contact.booBottom)} vs ${Math.round(bedBottom)})`);
+    ok(contact.booZ < contact.bedZ, `the sleeper is drawn BEHIND the bed so the duvet covers it (z ${contact.booZ} < ${contact.bedZ})`);
+    ok(contact.eyesShut, 'and its eyes are genuinely shut — the authored closed-eye pose, re-rendered');
   }
   const frames = [];
   for (let k = 0; k < 8; k++) { frames.push(await page.evaluate(() => window.__townLife.transform(0))); await sleep(340); }
