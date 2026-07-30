@@ -3,7 +3,7 @@ title Boo Town - local review server
 cd /d "%~dp0"
 echo.
 echo   Starting Boo Town...
-echo   Your browser should open at http://localhost:8000
+echo   Your browser will open by itself in a moment.
 echo.
 echo   Leave THIS WINDOW OPEN while you play.
 echo   Close it (or press Ctrl+C) when you are finished.

@@ -30,6 +30,16 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
         self.send_header('Expires', '0')
         super().end_headers()
 
+    def log_message(self, fmt, *args):
+        # Only say something when something is WRONG. A successful request is not news, and a
+        # screenful of "GET /js/ui.js 200" hides the messages that actually matter.
+        try:
+            status = str(args[1]) if len(args) > 1 else ''
+        except Exception:
+            status = ''
+        if status and not status.startswith('2') and not status.startswith('3'):
+            sys.stderr.write('  problem: ' + (fmt % args) + '\n')
+
     def send_header(self, keyword, value):
         # SimpleHTTPRequestHandler adds Last-Modified, which lets Chrome apply a
         # heuristic freshness lifetime and serve from cache without revalidating.
@@ -55,17 +65,37 @@ def main():
         sys.exit(1)
     os.chdir(root)
 
-    # ...and say plainly if the port is already taken, rather than dying in a traceback nobody
-    # reads and leaving a stale server from an earlier session answering instead.
-    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    probe.settimeout(0.4)
-    if probe.connect_ex(('127.0.0.1', port)) == 0:
+    # A port already in use almost always means a stale server from an earlier session is
+    # answering — and it will be serving OLD FILES, which looks exactly like a caching bug.
+    #
+    # The double-click launcher must never dead-end on that: it just moves to the next free
+    # port and says so. Only an explicitly requested port refuses, because if you asked for
+    # 8000 by name you want to know 8000 is taken rather than be quietly moved.
+    def taken(p):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.settimeout(0.4)
+        busy = probe.connect_ex(('127.0.0.1', p)) == 0
         probe.close()
-        print(f'ERROR: something is ALREADY serving port {port}.')
-        print(f'  That is probably an old server from an earlier session, serving old files.')
-        print(f'  Stop it, or run:  python _serve.py {port + 1}')
-        sys.exit(1)
-    probe.close()
+        return busy
+
+    if taken(port):
+        asked_explicitly = bool(args)
+        if asked_explicitly:
+            print(f'ERROR: something is ALREADY serving port {port}.')
+            print(f'  That is probably an old server from an earlier session, serving old files.')
+            print(f'  Stop it, or run:  python _serve.py {port + 1}')
+            sys.exit(1)
+        original = port
+        for candidate in range(port + 1, port + 12):
+            if not taken(candidate):
+                port = candidate
+                break
+        else:
+            print(f'ERROR: ports {original}-{original + 11} are all in use. Close some windows and try again.')
+            sys.exit(1)
+        print(f'  NOTE: port {original} was busy (an old server from an earlier session).', flush=True)
+        print(f'        Using port {port} instead - nothing is wrong, just a different number.', flush=True)
+        print(flush=True)
 
     handler = partial(NoCacheHandler, directory=root)
     # ThreadingHTTPServer, not HTTPServer: the single-threaded server wedges the moment a
@@ -73,13 +103,16 @@ def main():
     # times out). Found 2026-07-30 when Playwright suites froze it twice in one session.
     server = ThreadingHTTPServer(('', port), handler)
     url = f'http://localhost:{port}'
-    print(f'Boo Town review server (no-store) on {url}')
-    print(f'Serving: {root}')
+    print('  ' + '-' * 52, flush=True)
+    print(f'  Boo Town is running at:  {url}', flush=True)
+    print(f'  Serving: {root}', flush=True)
+    print('  ' + '-' * 52, flush=True)
+    print(flush=True)
     # --open: bring the browser up once the server is actually listening, so the double-click
     # launcher never lands on a "can't connect" page a second before the server is ready.
     if '--open' in sys.argv:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
-    print('Ctrl+C to stop.')
+    print('  (Only problems are shown below - silence is good.)', flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
