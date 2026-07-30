@@ -1870,7 +1870,55 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes reqpop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 .request-treat { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; color: var(--pop); font-size: 16px; animation: flyup 2.2s ease-out forwards; z-index: 7; pointer-events: none; }
 /* bubbles step aside while an item menu is open (they could visually cover it) */
-.t-ground.menu-open .request-bubble { opacity: 0.15; }
+.t-ground.menu-open .request-bubble, .t-ground.menu-open .request-thought { opacity: 0.15; }
+
+/* ---- RUN19 Z2: the thought bubble is a real, tappable 44px object ---------------
+   RUN3's bubble was a nowrap strip of text with pointer-events:none — unreadable at a
+   glance and impossible to act on. This one shows a PICTURE of what is wanted, bobs so it
+   reads as a thought rather than a label, and opens the request card when tapped. */
+.request-thought {
+  position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+  /* The pack asks for ≥40px; house law's tap-target floor is 56px and it is the stricter
+     of the two, so 56 it is — it satisfies both and a nine-year-old's finger hits it. */
+  width: 56px; height: 56px; min-width: 56px; min-height: 56px; padding: 0; margin-bottom: 8px;
+  display: grid; place-items: center; cursor: pointer;
+  background: var(--card); border: 2px solid var(--ink); border-radius: 50%;
+  box-shadow: var(--card-shadow); z-index: 8;
+  animation: rq-bob 2s ease-in-out infinite;
+}
+/* The tail: two shrinking dots, so it reads as a THOUGHT and not a speech bubble. */
+.request-thought::after {
+  content: ''; position: absolute; left: 50%; bottom: -12px; width: 8px; height: 8px;
+  transform: translateX(-50%); border-radius: 50%; background: var(--card); border: 2px solid var(--ink);
+}
+.request-thought .rq-pic { width: 38px; height: 38px; display: grid; place-items: center; pointer-events: none; }
+.request-thought .rq-pic svg { width: 100%; height: 100%; display: block; }
+.request-thought .rq-ask { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--pop); line-height: 1; }
+.request-thought:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
+@keyframes rq-bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+
+/* The request card */
+.request-card { max-width: 360px; padding: 20px; text-align: center; }
+.request-card .rq-card-pic { width: 48px; height: 48px; margin: 0 auto 10px; }
+.request-card .rq-card-pic svg { width: 100%; height: 100%; display: block; }
+.request-card .rq-card-line { font-size: 17px; color: var(--ink); margin: 0 0 6px; }
+.request-card .rq-card-hint { font-size: 15px; color: var(--ink); opacity: 0.85; margin: 0 0 4px; }
+
+/* The target pulses twice while the card is open — "look HERE" without a word of copy. */
+.rq-glow { animation: rq-glow-pulse 1.2s ease-in-out 2; }
+@keyframes rq-glow-pulse {
+  0%,100% { filter: none; }
+  50% { filter: drop-shadow(0 0 10px var(--star)) drop-shadow(0 0 20px var(--star)); }
+}
+/* Fulfilment: the double happy bounce, then the +2 on its way to the meter. */
+.rq-thanks { animation: rq-thanks-bounce 0.6s ease-in-out 2; transform-origin: 50% 100%; }
+@keyframes rq-thanks-bounce { 0%,100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-18%) scale(1.06, 0.94); } }
+.rq-fly { left: 50%; transform: translateX(-50%); color: var(--pop); font-family: var(--font-display); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .request-thought { animation: none !important; }
+  .rq-glow, .rq-thanks, .rq-fly { animation: none !important; }
+}
+.reduced .request-thought, .reduced .rq-glow, .reduced .rq-thanks { animation: none !important; }
 
 /* the 8 dance moves (applied one per beat to a Boo svg) */
 .move-bounce { animation: mv-bounce 0.6s ease-in-out; transform-origin: 50% 100%; }

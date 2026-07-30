@@ -14,6 +14,7 @@ import { audioClockMs, music, sfx } from './sfx.js';
 import { applyMove, MOVES } from './choreographer.js';
 import { VENUE_SOCKETS, BOO_FOOT_FRAC } from '../data/sockets.js';
 import { startBandWatch, listJams, jamEvents } from './band.js';
+import { noteRequest } from './requests.js';
 
 // RUN13 T5 — ten named moves on the floor, not six. Every personality still has a signature
 // (DISCO_MOVES, kept so nothing that reads it breaks), but now PREFERS three, picked fresh
@@ -134,6 +135,9 @@ export function layoutFloor(count) {
 
 export function mount(container, params, ctx) {
   music.stop();
+  // RUN19 Z2: "«name» has a wiggle that needs music!" — ANY visit here fulfils it, because
+  // she brings everyone. A child is never asked to steer one particular Boo to the door.
+  noteRequest('disco', {});
   const state = getState();
   const root = el('div', { class: `screen disco-hall${REDUCED ? ' reduced' : ''}` });
   const header = el('header', { class: 'disco-header' }, [

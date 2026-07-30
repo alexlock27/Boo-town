@@ -13,14 +13,14 @@ import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
 import { idbGet } from './idb.js';
 import { voiceBooIds, playVoice } from './voices.js';
-import { checkRequestOpen, activeRequest, takeTreat } from './requests.js';
+import { checkRequestOpen, activeRequest, activeRequests, takeTreat, takeThanks, noteRequest, pruneImpossible, VERB_BY_KIND, nowMs, REQUEST_REWARD } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
 import { sfx, music, ambient } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
-import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor } from './delights.js';
+import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
@@ -89,7 +89,7 @@ const IDLE_BLINK = 'blink-look';
 const IDLE_MIN_GAP_MS = 14000;    // per Boo: never twice inside this window
 const IDLE_MAX_PER_MIN = 3;       // per Boo: rolling-minute ceiling (rule 2, hard cap)
 const IDLE_SCENE_CAP = 4;         // per scene: never more than this many idling at once
-const IDLE_CHANCE = 0.35;         // odds a qualifying pause becomes an idle
+const IDLE_CHANCE = 0.6;          // odds a qualifying pause becomes an idle (RUN19 Z2: was 0.35 — the cooldowns and caps above are what keep it calm, not this)
 const IDLE_MS = 1100;             // how long an idle plays
 const SNACK_BITE_MS = 1500;      // one nibble cycle at the table
 
@@ -264,10 +264,26 @@ export function mount(container, params, ctx) {
   // so renderHide() below only shows something on the area it actually landed in — graceful
   // no-op elsewhere. A world-map "someone's hiding over here" chip is P5's job.
   ensureHide();
+  ensureDayVisitHour();   // RUN19 Z2: the wild Boo's one daytime hour, picked at first mount today
   let voiceIds = new Set();  // Boo ids with a recorded voice (RUN3 C7)
   voiceBooIds().then(s => { voiceIds = s; }).catch(() => {});
   // Occasional Boo requests (RUN3 C8): check at app open (town is an "open").
-  checkRequestOpen(areaItems(getState()).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item));
+  // RUN19 Z2 makes AREA ENTRY a trigger too (not just app open), and passes the storage key
+  // so the five verbs can name something that is actually standing here.
+  checkRequestOpen(requestableBooIds(), STORE_KEY);
+  // Boos that may be asked to ask for something. Excludes the day's hide-and-seek Boo:
+  // renderHide() sets display:none on the hider's wrap and draws a peeking stand-in
+  // instead, so a bubble parented to it would be a 0x0 invisible button — a request the
+  // child could never open. A Boo that is hiding is not standing there asking for a turn
+  // on the swings either, so this is the honest reading, not a workaround.
+  function requestableBooIds() {
+    const hiding = currentHide();
+    const hider = hiding ? hiding.boo : null;
+    return areaItems(getState())
+      .filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:'))
+      .map(t => t.item)
+      .filter(id => id !== hider);
+  }
 
   // Area-scoped item storage (RUN10 P1): save.town.areas[AREA.key] = {items:[],paths:[]}.
   // Every item carries a redundant `.zone` field (always === AREA.key) so the zone-
@@ -920,6 +936,10 @@ export function mount(container, params, ctx) {
     renderHide();
     decorateEasels();
     renderRequestBubble();
+    // A request fulfilled on ANOTHER screen (the wardrobe, the Disco Hall) still owes the
+    // child its moment. takeThanks() drains the flag, so this is a no-op when there is
+    // nothing owed and never plays the same thank-you twice (announced-moments law).
+    playThanks();
   }
 
   // ---- hide-and-seek Boo 2.0 (RUN10 P5): a specific hidePoint, giggle+wiggle alive ----
@@ -1456,6 +1476,10 @@ export function mount(container, params, ctx) {
     // Arrival settle (RUN10 P2): 180ms ease drop + one squash, via a one-shot CSS class
     // on the outer wrap (composes fine with the per-frame role transform on the svg).
     if (!REDUCED) { a.wrap.classList.remove('role-settle'); void a.wrap.offsetWidth; a.wrap.classList.add('role-settle'); }
+    // A real SEAT claim (not sleep, not the campfire circle) is the single event both
+    // RUN19 Z2's `sit` request and Z3's announced moment hang off. One choke point, so
+    // neither can be wired at one call site and forgotten at the other.
+    if (role.socketArrKey && role.deco) onSocketClaimed(a, role);
     return true;
   };
   // Claim ANY free socket on a placed activity item, or return false (RUN10 P2). Used
@@ -1802,6 +1826,9 @@ export function mount(container, params, ctx) {
       }
     }
     startRoutineLoop();
+    // RUN19 Z2: a stage routine playing in this area is one of the two ways a 'dance'
+    // request is satisfied — the other is any visit to the Disco Hall.
+    if (actors.some(a => a.dancing && a.routine && a.routine.length)) fireRequest('routine', { area: STORE_KEY });
   }
   function startRoutineLoop() {
     if (routineTimer) { clearInterval(routineTimer); routineTimer = null; }
@@ -1813,15 +1840,153 @@ export function mount(container, params, ctx) {
     }, STEP_MS);
   }
 
-  // Show the active request's thought bubble over its Boo, and a treat if one was just fulfilled.
+  // ---- Boo requests (RUN3 C8, rebuilt by RUN19 Z2) ---------------------------------
+  // The bubble is no longer a wall of text pinned over a Boo's head: it is a ≥40px thought
+  // bubble showing a PICTURE of what is wanted, which bobs, and which OPENS when tapped.
+  // The words live in the card, where there is room to read them and something to do.
+
+  // What each request names, resolved for display. Returns null for RUN3's generic
+  // templates, which name no object at all (their bubble draws a question mark instead).
+  function requestTarget(r) {
+    if (!r || !r.kind) return null;
+    if (r.accId) return resolveItem(r.accId) || BY_ID[r.accId] || null;
+    if (r.itemId) return resolveItem(r.itemId) || BY_ID[r.itemId] || null;
+    if (r.targetBooId) return resolveItem(r.targetBooId) || null;
+    if (r.kind === 'dance') return BY_ID['deco_stage'] || null;   // the wiggle needs music
+    return null;
+  }
+  // The authored line, with its «placeholders» filled from the save (Z4's displayName).
+  function requestLine(r) {
+    if (!r) return '';
+    if (!r.kind) return r.text || '';
+    const verb = VERB_BY_KIND[r.kind];
+    if (!verb) return r.text || '';
+    const target = requestTarget(r);
+    return guideLine(verb.line, {
+      booName: getDisplayName(r.booId),
+      item: target ? target.name : 'thing',
+      accessory: target ? target.name : 'accessory',
+      friend: r.targetBooId ? getDisplayName(r.targetBooId) : 'a friend'
+    });
+  }
+  // The node in THIS area a request points at, if any — used for the glow and for the
+  // 'try' tap. Matched on id + x so two of the same item never confuse each other.
+  function requestTargetNode(r) {
+    if (!r || !r.kind) return null;
+    if (r.itemId) return [...ground.querySelectorAll('.t-item')].find(n => n.dataset.item === r.itemId && Math.abs(+n.dataset.x - r.itemX) < 0.001) || null;
+    if (r.targetBooId) return [...ground.querySelectorAll('.t-item.boo')].find(n => n.dataset.item === r.targetBooId) || null;
+    if (r.kind === 'dance') return root.querySelector('.ff-disco-door') || null;
+    return null;
+  }
+
   function renderRequestBubble() {
-    ground.querySelectorAll('.request-bubble, .request-treat').forEach(n => n.remove());
-    const a = activeRequest();
-    if (a) { const w = [...ground.querySelectorAll('.t-item.boo')].find(x => x.dataset.item === a.booId); if (w) w.appendChild(el('div', { class: 'request-bubble', text: a.text })); }
+    ground.querySelectorAll('.request-bubble, .request-treat, .request-thought').forEach(n => n.remove());
+    // Bubbles never appear during build mode (Z2 addendum) — she is arranging, not being asked.
+    if (!buildMode) for (const r of activeRequests()) {
+      const w = [...ground.querySelectorAll('.t-item.boo')].find(x => x.dataset.item === r.booId);
+      if (!w) continue;
+      // Never parent a bubble to a hidden wrap: a Boo seated on a funfair ride, or the
+      // day's hider, has display:none, and the bubble would render as a 0x0 button the
+      // child can see nothing of and tap nowhere. It comes back when the Boo does.
+      if (w.style.display === 'none') continue;
+      const target = requestTarget(r);
+      const art = target
+        ? el('div', { class: 'rq-pic', html: renderItem(target, { size: 38 }) })
+        : el('div', { class: 'rq-pic rq-ask', text: '?' });
+      const bubble = el('button', {
+        class: 'request-thought', 'aria-label': requestLine(r),
+        onclick: (e) => { e.stopPropagation(); openRequestCard(r); }
+      }, [art]);
+      w.appendChild(bubble);
+    }
     const treatBoo = takeTreat();
     if (treatBoo) { const w = [...ground.querySelectorAll('.t-item')].find(x => x.dataset.item === treatBoo); if (w) { const t = el('div', { class: 'request-treat', text: '💖 Thank you!' }); w.appendChild(t); if (!REDUCED) confetti({ count: 24, power: 0.6, origin: pointFor(w) }); setTimeout(() => t.remove(), 2200); } }
   }
   function pointFor(node) { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top }; }
+
+  // The request card: the line (spoken), a 48px picture of the wanted thing, and — for the
+  // verbs that live on another screen — one button that takes her straight there.
+  function openRequestCard(r) {
+    sfx.tap();
+    const line = requestLine(r);
+    const target = requestTarget(r);
+    const ov = el('div', { class: 'overlay show request-card-ov' });
+    const card = el('div', { class: 'card request-card' });
+    if (target) card.appendChild(el('div', { class: 'rq-card-pic', html: renderItem(target, { size: 48 }) }));
+    card.appendChild(el('p', { class: 'rq-card-line', text: line }));
+    const btns = el('div', { class: 'dialog-btns' });
+    const dismiss = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
+    if (r.kind === 'wear') {
+      btns.appendChild(el('button', {
+        class: 'btn', text: 'Open the wardrobe',
+        onclick: () => {
+          dismiss();
+          const boo = resolveItem(r.booId);
+          if (boo) openDressUp(boo, { highlight: r.accId, highlightLabel: 'the one they keep eyeing', onDone: () => { renderPlaced(); } });
+        }
+      }));
+    } else if (r.kind === 'dance') {
+      // Cross-screen like `wear`: any visit to the Disco Hall fulfils it, so the card
+      // offers the door rather than leaving her to remember where the music is.
+      btns.appendChild(el('button', { class: 'btn', text: 'To the Disco Hall', onclick: () => { dismiss(); ctx.go('discohall'); } }));
+    } else if (r.kind === 'visit') {
+      card.appendChild(el('p', { class: 'rq-card-hint', text: guideLine('request_visit_hint') }));
+    }
+    btns.appendChild(el('button', { class: 'btn soft', text: 'Okay!', onclick: () => { sfx.tap(); dismiss(); } }));
+    card.appendChild(btns);
+    ov.appendChild(card);
+    ov.addEventListener('click', e => { if (e.target === ov) dismiss(); });
+    document.body.appendChild(ov);
+    speakMaybe(line);
+    // The target pulses a soft glow twice while the card is open — or nothing at all if
+    // what she needs is on another screen, which is exactly what the pack asks for.
+    const tn = requestTargetNode(r);
+    if (tn && !REDUCED) { tn.classList.remove('rq-glow'); void tn.offsetWidth; tn.classList.add('rq-glow'); setTimeout(() => tn.classList.remove('rq-glow'), 2400); }
+  }
+
+  // ---- fulfilment: the ceremony every verb shares ----------------------------------
+  // double bounce → "Thank you!" → the +2 flying to the meter → treat chime (Z2 addendum).
+  function playThanks() {
+    const thanked = takeThanks();
+    if (!thanked.length) return;
+    for (const booId of thanked) {
+      const w = [...ground.querySelectorAll('.t-item')].find(x => x.dataset.item === booId);
+      if (!w) continue;
+      const svg = w.querySelector('svg');
+      if (svg && !REDUCED) { svg.classList.remove('rq-thanks'); void svg.offsetWidth; svg.classList.add('rq-thanks'); setTimeout(() => svg.classList.remove('rq-thanks'), 1300); }
+      const say = el('div', { class: 'catchphrase-bubble', text: 'Thank you!' });
+      w.appendChild(say); speakMaybe('Thank you!'); setTimeout(() => say.remove(), 2200);
+      // the round-end fly, reused: the points visibly LEAVE the Boo and head for the meter
+      const fly = el('div', { class: 'fly-star rq-fly', text: '+' + REQUEST_REWARD });
+      w.appendChild(fly); setTimeout(() => fly.remove(), 1200);
+    }
+    sfx.star();
+    renderRequestBubble();
+  }
+  // Every fulfilment event funnels through here so the ceremony can never be forgotten at
+  // one call site and remembered at another.
+  function fireRequest(event, data) {
+    const res = noteRequest(event, data);
+    if (res.fulfilled) playThanks(); else renderRequestBubble();
+    return res;
+  }
+  function notePlacement() {
+    pruneImpossible();                                    // the friend may have been put away
+    fireRequest('placement', { area: STORE_KEY });
+  }
+  function noteSocketClaim(booId, t) {
+    fireRequest('socketClaim', { booId, itemId: t.item, area: STORE_KEY, x: t.x });
+  }
+  // Called from give() the moment a Boo actually takes a seat. Z3 adds the hop and the
+  // spoken line here; Z2 only needs the request to notice.
+  function onSocketClaimed(a, role) {
+    if (!a || !a.place || !role || !role.deco) return;
+    noteSocketClaim(a.place.item, role.deco);
+  }
+  function noteItemTap(place) {
+    const booIds = areaItems(getState()).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => t.item);
+    fireRequest('itemTap', { itemId: place.item, area: STORE_KEY, x: place.x, booIds });
+  }
 
   // ---- scrolling (momentum) ----------------------------------------------
   function applyScroll() {
@@ -2050,21 +2215,26 @@ export function mount(container, params, ctx) {
       const wallX = wallSpotTaken(x) ? nearestLegalWallSpot(x) : x;
       if (wallX == null) { spotWobble(); return; }
       const id = holding;
-      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id, scale: holdingScale }); });
+      // `at` (RUN19 Z2): when this thing was put here. The 'try' request needs "placed
+      // within the last day" and nothing in the save recorded that before now. Absent on
+      // every pre-Z2 placement, which reads correctly as "not new".
+      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id, scale: holdingScale, at: nowMs() }); });
       holdingScale = 1;
       holding = null; placeMode = false;
       renderPlaced(); renderDrawer(); updateHint();
       sfx.pop();
+      notePlacement();
       return;
     }
     const row = rowAtClient(cy);
     const landing = spotTaken(zi, x, row) ? nearestLegalSpot(zi, x, row) : { x, row };
     if (!landing) { spotWobble(); return; }
     const id = holding;
-    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id, scale: holdingScale }); });
+    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id, scale: holdingScale, at: nowMs() }); });
     holdingScale = 1;
     holding = null; placeMode = false;
     renderPlaced(); renderDrawer(); updateHint();
+    notePlacement();
     if (landing.x !== x || landing.row !== row) hint.textContent = 'Tucked into the nearest free spot!';
     sfx.pop();
   }
@@ -2249,6 +2419,7 @@ export function mount(container, params, ctx) {
         if (canPlaceIn(zi) && landing && landing.x != null) {
           mutate(st => { const items = areaItems(st); const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +landing.x.toFixed(3); t.row = landing.row; } });
           if (taken) hint.textContent = 'Tucked into the nearest free spot!';
+          notePlacement();   // a 'visit' request may have just become true (RUN19 Z2)
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
         }
@@ -2266,6 +2437,9 @@ export function mount(container, params, ctx) {
       showCareArc(wrap, place, item);
       return;
     }
+    // RUN19 Z2: "«name» wants to try the new «item»!" is fulfilled by a tap on that exact
+    // item while «name» is in the area — before anything else this tap might open.
+    noteItemTap(place);
     if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
     if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)

@@ -142,6 +142,7 @@ export function equip(booId, accId) {
   });
   noteQuest('dressUp');   // daily quest: dress up a Boo (RUN3 C4)
   noteRequest('dressUp'); // occasional request (RUN3 C8)
+  noteRequest('equip', { booId, accId });   // RUN19 Z2: the 'wear' request names this pair
   return true;
 }
 export function equipSet(booId, setId) {
@@ -227,7 +228,10 @@ export function openEquipPicker(accItem, { onDone } = {}) {
 // marked — arriving at a bare-headed Boo and a closed drawer answered the card's question
 // with a shrug. (Found by the playtest critic: 4 taps and 3.46s to worn, against 1.16s for
 // the build route, and at 390px the bought item was not on screen at all.)
-export function openDressUp(booItem, { onDone, highlight = null } = {}) {
+// `highlight` opens the wardrobe already at that accessory's slot and rings it. Its label
+// used to hard-code "the one you just bought", which became a lie the moment RUN19 Z2's
+// `wear` request started jumping here for a different reason — hence highlightLabel.
+export function openDressUp(booItem, { onDone, highlight = null, highlightLabel = 'the one you just bought' } = {}) {
   const s = getState();
   const owned = ACCESSORIES.filter(a => s.inventory[a.id] > 0);
   const shiny = ((s.shinies && s.shinies[booItem.id]) || 0) > 0;
@@ -293,7 +297,7 @@ export function openDressUp(booItem, { onDone, highlight = null } = {}) {
           : worn[slot] === acc.id;
         const tile = el('button', {
           class: `acc-drawer-item${selected ? ' sel' : ''}${highlight === acc.id ? ' just-bought' : ''}`,
-          'aria-label': highlight === acc.id ? `${acc.name} — the one you just bought` : acc.name,
+          'aria-label': highlight === acc.id ? `${acc.name} — ${highlightLabel}` : acc.name,
           onclick: () => {
             if (refuses(booItem.id, acc.id)) { note.textContent = guideLine('djRefuse'); speakMaybe(note.textContent); return; }
             sfx.tap();
