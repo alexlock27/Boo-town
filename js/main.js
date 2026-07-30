@@ -33,10 +33,10 @@ const registry = {
   oddboo:     () => import('./games/oddboo.js'),        // RUN10 P19
   flashboos:  () => import('./games/flashboos.js'),     // RUN10 P19
   soundsorter: () => import('./games/soundsorter.js'),  // Sound Sorter (RUN16 W1)
-  blendit:    () => import('./games/blendit.js'),       // Blend It (RUN16 W2)
+  blendit:    () => import('./games/blendit.js?v=1'),       // Blend It (RUN16 W2)
   rhymetime:  () => import('./games/rhymetime.js'),     // Rhyme Time (RUN16 W3)
-  storyorder: () => import('./games/storyorder.js'),    // Story Order (RUN16 W4)
-  soundtwins: () => import('./games/soundtwins.js?v=1'),    // Twin Trouble (RUN18E L3)
+  storyorder: () => import('./games/storyorder.js?v=1'),    // Story Order (RUN16 W4)
+  soundtwins: () => import('./games/soundtwins.js?v=2'),    // Twin Trouble (RUN18E L3)
   apostrophepatrol: () => import('./games/apostrophepatrol.js?v=2'),   // Apostrophe Patrol (RUN18E L4)
   shop:       () => import('./shop.js'),         // the Boo Shop (RUN15 V4)
   golden:     () => import('./golden.js'),
@@ -61,7 +61,7 @@ const registry = {
   'band-xylophone': () => import('./band/xylophone.js'),
   'band-songs': () => import('./band/songs.js'),
   'band-jams': () => import('./band/jams.js'),
-  discohall:  () => import('./discohall.js'),   // RUN10 P18: Funfair Disco Hall
+  discohall:  () => import('./discohall.js?v=1'),   // RUN10 P18: Funfair Disco Hall
   expedition:      () => import('./expedition/trail.js'),    // RUN10 P15: Boo Expedition
   expeditionpuzzle: () => import('./expedition/puzzle.js'),  // RUN10 P16: the four puzzles
   caper:      () => import('./caper/notebook.js'),           // RUN10 P17: Snaffle's First Caper
