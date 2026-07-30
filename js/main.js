@@ -16,7 +16,7 @@ let audioInited = false;
 // Lazy screen registry (dynamic import → build incrementally, lighter first paint).
 const registry = {
   onboarding: () => import('./onboarding.js'),
-  hub:        () => import('./hub.js?v=9'),
+  hub:        () => import('./hub.js?v=10'),
   bubblepop:  () => import('./games/bubblepop.js'),
   feedboos:   () => import('./games/feedboos.js'),
   spellboo:   () => import('./games/spellboo.js'),
@@ -61,7 +61,7 @@ const registry = {
   'band-xylophone': () => import('./band/xylophone.js'),
   'band-songs': () => import('./band/songs.js'),
   'band-jams': () => import('./band/jams.js'),
-  discohall:  () => import('./discohall.js?v=3'),   // RUN10 P18: Funfair Disco Hall
+  discohall:  () => import('./discohall.js?v=4'),   // RUN10 P18: Funfair Disco Hall
   expedition:      () => import('./expedition/trail.js'),    // RUN10 P15: Boo Expedition
   expeditionpuzzle: () => import('./expedition/puzzle.js'),  // RUN10 P16: the four puzzles
   caper:      () => import('./caper/notebook.js'),           // RUN10 P17: Snaffle's First Caper

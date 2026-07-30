@@ -1192,16 +1192,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .d2-props, .d2-gates { position: absolute; inset: 0; pointer-events: none; }
 .d2-prop { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform; }
 /* gates: one per lane, always all three; doors swing open on the correct tap */
-.d2-gate, .d2-gate-geo {
+.d2-gate {
   position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform;
   border: none; background: transparent; padding: 0; cursor: pointer; pointer-events: auto;
   display: flex; flex-direction: column; align-items: center; width: min(132px, calc(24vw / var(--vz)));
 }
-/* RUN19 Z7: the fence takes the gate's GEOMETRY (place() moves it exactly like a gate) but is
-   not a .d2-gate — it is not an answer, it is not a button, and a screen reader must not offer
-   it as one. It gets its own class so nothing that enumerates gates ever picks it up. */
-.d2-fence { pointer-events: none; cursor: default; }
-.d2-fence .g-top, .d2-fence .g-post { background: #8A5A44; }
 .g-frame { position: relative; width: 100%; height: 92px; }
 .g-post { position: absolute; bottom: 0; width: 11px; height: 78px; background: #B9793F; border: 3px solid var(--ink); border-radius: 5px; }
 .g-post.left { left: 0; } .g-post.right { right: 0; }
@@ -6795,8 +6790,6 @@ html.bigger-text { --vz: 1.125; }
    sit under the build drawer — which, in build mode, it very often does. */
 .t-resize.up { bottom: auto; top: -14px; cursor: nesw-resize; }
 .t-resize.up::after { transform: rotate(45deg) translate(1px, 1px); }
-/* RUN19 Z7: a two-gate estimation row makes the middle lane a solid section of fence, so there
-   is never an invisible gap between the two choices to run through. */
 
 
 /* RUN19 Z7: Boo Bounce's build-the-answer target. Underscores show how many digits the answer

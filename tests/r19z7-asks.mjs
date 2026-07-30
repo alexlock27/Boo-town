@@ -1,8 +1,9 @@
 // tests/r19z7-asks.mjs — RUN19 Z7: differentiated asks.
 //
 // Two games get a different KIND of question about work they already set:
-//   · BOO DASH — the gates become ESTIMATION. The two nearest multiples of ten (three at level
-//     3), never a tie, labelled with just the numbers, prompt "Which is «expr» nearer?".
+//   · BOO DASH — Z7's estimation half was REVERTED at Alex's decision; this guards that the
+//     classic answer gates are back, and covers the pre-existing wrong-answer bug the revert
+//     uncovered (RUN18D's explanation had never once reached a child in Boo Dash).
 //   · BOO BOUNCE — BUILD THE ANSWER. The wall carries digits 0-9 and she breaks them biggest
 //     place first; a wrong-order hit wobbles and hands the ball back.
 // Question SOURCES are untouched in both — same generators, same keys, same ledger.
@@ -35,8 +36,14 @@ async function boot() {
   return { ctx, page };
 }
 
-// ---- Boo Dash: the estimation generator, exhaustively ------------------------------
-console.log('== the estimation gates are the two nearest tens, and never a tie ==');
+// ---- Boo Dash: classic gates, and the wrong-answer explanation ------------------------
+// Z7's ESTIMATION half was REVERTED at Alex's decision (2026-07-30). Measured over 600 real
+// questions per level, the rule the pack authored produced a poor question a large part of the
+// time: 25% of Level 1 answers are already multiples of ten ("is 80 nearer 80 or 90?"), and
+// 30% of Level 3 answers are under 11 ("is 6 nearer 0, 10 or 20?"). Dash keeps its classic
+// answer gates. What this block now guards is that the revert is COMPLETE, and the real
+// pre-existing bug the revert uncovered.
+console.log('== Boo Dash keeps its classic answer gates ==');
 {
   const { ctx, page } = await boot();
   await page.evaluate(() => window.BooTown.go('dash'));
@@ -44,75 +51,36 @@ console.log('== the estimation gates are the two nearest tens, and never a tie =
   await page.click('.picker-levels .level-btn');
   await page.waitForSelector('.d2-scene', { timeout: 10000 });
   await page.waitForFunction(() => window.__dash, { timeout: 8000 });
-  await sleep(900);
-
-  const gen = await page.evaluate(() => {
-    const g = (a, lv) => window.__dash.estimationGates(a, lv);
-    const out = { two: {}, three: {}, ties: [], sweep: { ok: 0, tie: 0, bad: [] } };
-    out.two[62] = g(62, 1); out.two[68] = g(68, 1); out.two[61] = g(61, 2); out.two[70] = g(70, 1);
-    out.three[62] = g(62, 3); out.three[47] = g(47, 3);
-    for (const a of [5, 15, 25, 65, 95, 105]) if (g(a, 1) === null) out.ties.push(a);
-    // every whole answer 0..200: two gates, in order, exactly one correct, and it really is
-    // the nearer of the two.
-    for (let a = 0; a <= 200; a++) {
-      const r = g(a, 1);
-      if (!r) { out.sweep.tie++; continue; }
-      const nearest = r.find(x => x.correct);
-      const other = r.find(x => !x.correct);
-      const ok = r.length === 2 && r.filter(x => x.correct).length === 1
-        && r[1].v - r[0].v === 10 && r[0].v % 10 === 0
-        && Math.abs(a - nearest.v) < Math.abs(a - other.v)
-        && a >= r[0].v && a <= r[1].v;
-      if (ok) out.sweep.ok++; else out.sweep.bad.push({ a, r });
-    }
-    return out;
-  });
-  assert(JSON.stringify(gen.two[62].map(g => [g.v, g.correct])) === JSON.stringify([[60, true], [70, false]]),
-    `62 offers 60 and 70, nearer 60 (${JSON.stringify(gen.two[62])})`);
-  assert(JSON.stringify(gen.two[68].map(g => [g.v, g.correct])) === JSON.stringify([[60, false], [70, true]]),
-    `68 offers 60 and 70, nearer 70 (${JSON.stringify(gen.two[68])})`);
-  assert(gen.three[62].length === 3, `level 3 offers three consecutive multiples (${JSON.stringify(gen.three[62].map(g => g.v))})`);
-  assert(gen.three[62].filter(g => g.correct).length === 1 && gen.three[62].find(g => g.correct).v === 60,
-    'and exactly one of the three is the nearest');
-  assert(JSON.stringify(gen.ties) === JSON.stringify([5, 15, 25, 65, 95, 105]),
-    `an answer exactly halfway is refused so it can be regenerated — it has no nearer gate (${JSON.stringify(gen.ties)})`);
-  assert(gen.sweep.bad.length === 0,
-    `every whole answer 0-200 gets a correct, ordered, in-range pair (${gen.sweep.ok} ok, ${gen.sweep.tie} ties, bad: ${JSON.stringify(gen.sweep.bad.slice(0, 3))})`);
-
-  console.log('== ...and the round shows them ==');
-  const live = await page.evaluate(() => ({
-    est: window.__dash.estimation(), gates: window.__dash.gates(), labels: window.__dash.gateLabels(),
-    fences: window.__dash.fences(), prompt: window.__dash.prompt(), answer: window.__dash.correct()
+  await page.waitForFunction(() => window.__dash.state().phase === 'wait', { timeout: 12000 });
+  const row = await page.evaluate(() => ({
+    gates: document.querySelectorAll('.d2-gate').length,
+    fences: document.querySelectorAll('.d2-fence').length,
+    labels: [...document.querySelectorAll('.d2-gate .g-label')].map(n => n.textContent),
+    aria: [...document.querySelectorAll('.d2-gate')].map(n => n.getAttribute('aria-label')),
+    prompt: (document.querySelector('.dash-fact') || {}).textContent,
+    answer: window.__dash.correct()
   }));
-  assert(live.est, 'the round is an estimation round');
-  assert(live.labels.every(l => /^\d+$/.test(l)), `gate labels are just the numbers (${JSON.stringify(live.labels)})`);
-  assert(live.labels.length === live.gates.length, 'one label per gate');
-  assert(live.gates.length === 2 ? live.fences === 1 : live.fences === 0,
-    `a two-gate row fills the middle lane with fence, so there is no invisible gap (${live.gates.length} gates, ${live.fences} fence)`);
-  assert(/^Which is .+ nearer\?$/.test(live.prompt), `the prompt is the authored one (${live.prompt})`);
-  assert(!/=\s*\?/.test(live.prompt), `and does not carry the display's trailing "= ?" (${live.prompt})`);
+  assert(row.gates === 3, `three gates, one per lane, as Dash always had (${row.gates})`);
+  assert(row.fences === 0, 'and no estimation fence anywhere');
+  assert(row.labels.includes(String(row.answer)), `one gate carries the real answer (${JSON.stringify(row.labels)} for ${row.answer})`);
+  assert(!/nearer/i.test(row.prompt || ''), `the prompt is the plain question again (${row.prompt})`);
+  assert(row.aria.every(a => /answer gate/.test(a || '')), `and a screen reader hears "answer gate" (${row.aria[0]})`);
 
-  console.log('== the nearer gate opens; the other explains itself ==');
-  await page.waitForFunction(() => window.__dash && window.__dash.state().phase === 'wait', { timeout: 12000 });
+  console.log('== the wrong-answer explanation, which had NEVER worked ==');
+  // PRE-EXISTING, found while reverting and verified on main: tapGate's wrong branch threw
+  // every single time, so RUN18D's explanation never once reached a child in Boo Dash.
+  //   1. `fmt` was not declared in tapGate's scope at all — ReferenceError on every wrong tap.
+  //   2. `question.options[question.correct]` does not exist on a Dash question; it comes from
+  //      genQuestion() as { display, answer, key, distractors, fmt }.
   const wrong = await page.evaluate(async () => {
-    const before = window.__dash.state();
-    window.__dash.tapWrong();
-    await new Promise(r => setTimeout(r, 300));
-    return { before: before.gate, after: window.__dash.state().gate, bonks: window.__dash.state().bonks, react: (document.querySelector('.guide-peek.show .peek-bubble') || {}).textContent };
-  });
-  assert(wrong.after === wrong.before, 'the wrong gate does not open');
-  assert(wrong.bonks >= 1, 'it is a soft bonk, like any wrong gate');
-  assert(/ is \d+ — nearer \d+!$/.test(wrong.react || ''), `and it says the value and which multiple it is nearer (${wrong.react})`);
-  await page.waitForFunction(() => window.__dash && window.__dash.state().phase === 'wait', { timeout: 12000 });
-  const right = await page.evaluate(async () => {
-    const before = window.__dash.state().gate;
-    window.__dash.tapNearest();
+    const answer = window.__dash.correct();
+    window.__dash.tap(false);
     await new Promise(r => setTimeout(r, 400));
-    return { before, after: window.__dash.state().gate, react: (document.querySelector('.guide-peek.show .peek-bubble') || {}).textContent };
+    return { answer, line: (document.querySelector('.guide-peek.show .peek-bubble') || {}).textContent, bonks: window.__dash.state().bonks };
   });
-  assert(right.after === right.before + 1, `the nearer gate opens and the run continues (gate ${right.before} → ${right.after})`);
-  assert(/ is \d+ — nearer \d+!$/.test(right.react || ''),
-    `and it explains on the RIGHT answer too — the number she estimated is the one she never saw (${right.react})`);
+  assert(wrong.bonks === 1, 'a wrong gate is a soft bonk');
+  assert(new RegExp(`^That gate said .+ — the answer was ${wrong.answer}!$`).test(wrong.line || ''),
+    `and it now SAYS what the answer was, in RUN18D's authored words (${wrong.line})`);
   await ctx.close();
 }
 

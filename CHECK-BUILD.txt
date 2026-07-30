@@ -1,0 +1,31 @@
+Paste this into the browser console (F12 -> Console) on http://localhost:8000
+It says plainly whether you are on the RUN19+RUN20 branch build or a stale cached one.
+
+------------------------------------------------------------------------------
+(async () => {
+  const probe = async (p) => (await fetch(p + '?t=' + Date.now(), {cache:'no-store'})).ok;
+  const css = await (await fetch('css/styles.css?t=' + Date.now(), {cache:'no-store'})).text();
+  const live = getComputedStyle(document.documentElement);
+  const sw = (await navigator.serviceWorker?.getRegistrations?.() || []).length;
+  const rows = {
+    'new module: js/wishlife.js'   : await probe('js/wishlife.js'),
+    'new module: js/ack.js'        : await probe('js/ack.js'),
+    'new data: data/dressings.js'  : await probe('data/dressings.js'),
+    'CSS ON DISK has RUN20'        : /RUN20 W1 . wish life/.test(css),
+    'CSS THE PAGE IS USING has it' : !![...document.styleSheets].some(s => { try { return [...s.cssRules].some(r => /request-thought|t-slot-glow|amb-meadow/.test(r.cssText)); } catch { return false; } }),
+    'service workers registered'   : sw
+  };
+  console.table(rows);
+  console.log(rows['CSS THE PAGE IS USING has it']
+    ? '%c OK - you are on the branch build. ' : '%c STALE - the page is using OLD CSS. Hard-reload: Ctrl+Shift+R ',
+    'font-size:16px;background:' + (rows['CSS THE PAGE IS USING has it'] ? '#5FBF7A' : '#FF7AC6') + ';color:#2A1B4E');
+})();
+------------------------------------------------------------------------------
+
+If it says STALE:
+  1. Ctrl+Shift+R (hard reload). If still stale:
+  2. F12 -> Application -> Storage -> "Clear site data" -> reload.
+  3. Check you started the server with:  python _serve.py   (NOT python -m http.server)
+  4. Check you are serving the RIGHT FOLDER. There are three copies of this app on
+     the machine. You want:  C:\Users\Alexl\Documents\Bootown-Project\Boo-town
+     Run `git branch --show-current` there - it must say review-19z2-20.
