@@ -246,7 +246,17 @@ export function mount(container, params, ctx) {
         if (cur && reachable(cur)) { cur.correct = isCorrect; continue; }
         const free = shuffle(bricks.filter(x => x.alive && x.label == null));
         const rpool = free.filter(reachable);
-        const pool = rpool.length ? rpool : free;
+        let pool = rpool.length ? rpool : free;
+        // The CORRECT text never settles for "best effort". Classic mode never hit this (3
+        // labels on a 24-brick wall always found a reachable free brick), but digit mode puts
+        // ten labels up, and when the needed digit's brick gets buried there is often no FREE
+        // reachable brick left — while a wrong digit sits on a perfectly reachable one. Evict
+        // it: a wrong label she cannot reach costs nothing, a needed one she cannot reach is
+        // an unfinishable round.
+        if (isCorrect && !rpool.length) {
+          const victim = shuffle(bricks.filter(x => x.alive && x.label != null && !x.correct && reachable(x)))[0];
+          if (victim) { delete placed[victim.label]; victim.label = null; victim.correct = false; pool = [victim]; }
+        }
         if (!pool.length) { if (cur) cur.correct = isCorrect; continue; }  // best effort: no free home
         const t = pool[0];
         if (cur && cur !== t) { if (hop) spawnHop(cur.x + cur.w / 2, cur.y + cur.h / 2, t, text, isCorrect); cur.label = null; cur.correct = false; }
@@ -389,6 +399,13 @@ export function mount(container, params, ctx) {
     function killIncidental(b) {
       if (!b || !b.alive || ended) return;
       destroyBrick(b);
+      // Re-home labels after ANY destruction, not only after a correct tap. The ball breaks
+      // bricks on its own, and if the brick it happens to smash is the one carrying the digit
+      // she currently needs, that digit was simply gone from the wall — she could bounce
+      // forever with no way to answer. r8p0-bounce's invariant ("at no moment is the correct
+      // answer absent or unhittable") exists precisely for this, and it is a law of the game,
+      // not of any particular question model.
+      ensureReachableLabels();
       if (bricks.every(x => !x.alive)) onWallCleared();
     }
     function correctAnswer(b) {

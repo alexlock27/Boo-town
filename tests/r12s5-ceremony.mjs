@@ -135,7 +135,9 @@ console.log('== a scripted grant of one item of each kind says the right thing =
           badge: document.querySelector('.reveal-rarity')?.textContent ?? null,
           guide: document.querySelector('.reveal-guide-bubble')?.textContent ?? null,
           oneLiner: document.querySelector('.reveal-oneliner')?.textContent ?? null,
-          buttons: [...document.querySelectorAll('.reveal-btns button')].map(b => b.textContent.trim())
+          buttons: [...document.querySelectorAll('.reveal-btns button')].map(b => b.textContent.trim()),
+          // RUN19 Z3: the display name the button uses — the nickname when one exists
+          dispName: (() => { try { const st = JSON.parse(localStorage.getItem('bootown.save.v1')); return (st.nicknames && it && st.nicknames[it.id]) || clean; } catch (e) { return clean; } })()
         };
       });
       if (seen.kind === kind) got = seen;
@@ -145,7 +147,10 @@ console.log('== a scripted grant of one item of each kind says the right thing =
     await page.screenshot({ path: `${SHOTS}/reveal-${kind}.png` });
     assert(got.banner === KIND_BANNER[kind], `${kind}: banner is "${KIND_BANNER[kind]}" (got "${got.banner}")`);
     assert(got.oneLiner === KIND_ONELINER[kind], `${kind}: one-liner names the right home (got "${got.oneLiner}")`);
-    assert(got.buttons[0] === KIND_ACTION[kind], `${kind}: the action button says "${KIND_ACTION[kind]}" (got "${got.buttons[0]}")`);
+    // RUN19 Z3: placeable kinds jump straight into build mode holding the item, so their
+    // button reads "Put «name» somewhere?"; wearables keep the authored KIND_ACTION verb.
+    const wantAction = (kind === 'accessory' || kind === 'costume') ? KIND_ACTION[kind] : `Put ${got.dispName} somewhere?`;
+    assert(got.buttons[0] === wantAction, `${kind}: the action button says "${wantAction}" (got "${got.buttons[0]}")`);
     if (kind !== 'boo') {
       assert(got.guide === GUIDE_LINES[KIND_GUIDE_LINE[kind]][0],
         `${kind}: the guide says "${GUIDE_LINES[KIND_GUIDE_LINE[kind]][0]}" (got "${got.guide}")`);

@@ -81,10 +81,14 @@ console.log('== sparkle-hop re-home when a labelled brick is destroyed incidenta
 {
   const { ctx, page } = await open();
   // incidentally destroy a WRONG labelled brick (not an answer-hit)
-  const killed = await page.evaluate(() => { const info = window.__bounce.killWrongBrick(); return { info, hops: window.__bounce.hopCount(), sum: window.__bounce.labelSummary() }; });
+  const killed = await page.evaluate(() => { const B = window.__bounce; const info = B.killWrongBrick(); return { info, hops: B.hopCount(), sum: B.labelSummary(), digitMode: !!(B.needed && B.needed() != null), alive: B.wallCount() }; });
   assert(!!killed.info, 'a wrong labelled brick was destroyed incidentally');
   assert(killed.hops >= 1, `the destroyed label re-homes with a visible sparkle-hop (${killed.hops} hop(s) in flight)`);
-  assert(killed.sum.total === 3 && killed.sum.correct === 1, `still exactly three labels, one correct after re-home (${killed.sum.total}/${killed.sum.correct})`);
+  // RUN19 Z7: a multi-digit answer runs in digit mode, where the wall carries all ten digits
+  // rather than three whole answers. Either way there is exactly ONE correct label after the
+  // re-home — that is the invariant this case exists for; the label count follows the mode.
+  const expectLabels = killed.digitMode ? Math.min(10, killed.alive) : 3;
+  assert(killed.sum.total === expectLabels && killed.sum.correct === 1, `label count matches the mode (${killed.sum.total}/${expectLabels}), one correct after re-home (${killed.sum.correct})`);
   await page.screenshot({ path: 'screenshots/r8p0/hop-wrong-900x680.png' });
   // and when the CORRECT brick is destroyed incidentally, the correct answer re-homes and stays hittable
   const killC = await page.evaluate(() => { const info = window.__bounce.killCorrectBrick(); return { info, hops: window.__bounce.hopCount(), sum: window.__bounce.labelSummary() }; });
@@ -115,7 +119,13 @@ console.log('== the wall tops back up to >= MIN_WALL with a restack animation on
   await page.evaluate(() => window.__bounce.depleteTo(4));
   const low = await page.evaluate(() => window.__bounce.wallCount());
   assert(low <= 4, `wall depleted below the floor before the new question (${low})`);
-  await page.evaluate(() => window.__bounce.breakCorrect());
+  // RUN19 Z7: in digit mode one breakCorrect fills ONE digit of the answer; the new-question
+  // restack only comes when the whole mask is full. Repeat until the question turns over.
+  await page.evaluate(async () => {
+    const B = window.__bounce; const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const key0 = B.question().key;
+    for (let k = 0; k < 6; k++) { B.breakCorrect(); await sleep(60); if (B.question().key !== key0) break; }
+  });
   const after = await page.evaluate(() => ({ wall: window.__bounce.wallCount(), restacking: window.__bounce.restacking() }));
   assert(after.wall >= min, `the wall tops back up to at least ${min} bricks (${after.wall})`);
   assert(after.restacking > 0, `revived bricks are mid-restack animation (${after.restacking} animating)`);
@@ -156,9 +166,19 @@ console.log('== the 88-case: an active question never lacks a present, hittable 
   const strike = await page.evaluate(async () => {
     const B = window.__bounce; const sleep = ms => new Promise(r => setTimeout(r, ms));
     const before = B.state().questionsAnswered;
+    // RUN19 Z7: in digit mode a strike on the needed digit "registers" as the mask advancing
+    // (filled goes up), and clearing the last brick rebuilds the wall at once — so a brick
+    // being alive again at the same (c,r) is a NEW brick, not a miss. Watch the things that
+    // can only move forward: questionsAnswered and filled.
+    const filled0 = B.digitMode && B.digitMode() ? B.filled() : null;
     const info = B.labelInfo().find(l => l.correct); if (!info) return { ok: false };
     B.serveAtLabel(info.label);
-    for (let k = 0; k < 40; k++) { if (B.state().questionsAnswered > before || !B.brickAliveAt(info.c, info.r)) return { ok: true }; await sleep(60); }
+    for (let k = 0; k < 40; k++) {
+      if (B.state().questionsAnswered > before) return { ok: true };
+      if (filled0 != null && B.filled() > filled0) return { ok: true };
+      if (filled0 == null && !B.brickAliveAt(info.c, info.r)) return { ok: true };
+      await sleep(60);
+    }
     return { ok: false };
   });
   assert(strike.ok, 'a serve up the single brick strikes it and registers the answer');
@@ -173,12 +193,23 @@ console.log('== no stale labels survive into the next question ==');
     const B = window.__bounce; const sleep = ms => new Promise(r => setTimeout(r, ms));
     const problems = [];
     for (let q = 0; q < 4; q++) {
+      // RUN19 Z7: a multi-digit answer runs in digit mode — the wall carries digits 0-9, and
+      // the label that must be present is the digit currently NEEDED, not a whole option.
+      // "No stale labels" means: classic labels come from THIS question's options; digit
+      // labels are single digits. Either way yesterday's texts never linger.
+      const digit = B.needed && B.needed() != null;
       const opts = (window.__booQuestion.options || []).slice();
       const labels = B.labelInfo().map(l => l.label);
-      // every visible label belongs to the CURRENT question's options
-      for (const l of labels) if (opts.indexOf(l) < 0) problems.push('stale "' + l + '" not in Q' + q + ' options');
-      if (!labels.some(l => l === B.question().correctText)) problems.push('correct missing in Q' + q);
-      B.breakCorrect(); await sleep(60);
+      for (const l of labels) {
+        const ok = digit ? /^[0-9]$/.test(String(l)) : opts.indexOf(l) >= 0;
+        if (!ok) problems.push('stale "' + l + '" not in Q' + q + (digit ? ' digits' : ' options'));
+      }
+      const mustShow = digit ? B.needed() : B.question().correctText;
+      if (!labels.some(l => String(l) === String(mustShow))) problems.push('correct missing in Q' + q);
+      // breakCorrect answers a classic round outright; in digit mode it fills ONE digit, so
+      // repeat until the question actually turns over (key changes) and the next wall is up.
+      const beforeKey = B.question().key;
+      for (let guard = 0; guard < 6; guard++) { B.breakCorrect(); await sleep(60); if (B.question().key !== beforeKey) break; }
     }
     return problems;
   });

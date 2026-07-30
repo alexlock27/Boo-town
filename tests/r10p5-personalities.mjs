@@ -2,7 +2,8 @@
 // Acceptance: 200 seeded days always attach to a real placed item's point, never bare
 // coordinates; peek sprite bbox intersects item bbox (pixel test); giggle/wiggle cadence
 // within bounds; act distribution across 500 choices per temperament shifts in the
-// specified directions (chi-square vs uniform, reported below); catchphrase rate 20%±5
+// specified directions (chi-square vs uniform, reported below); catchphrase rate 45%±5
+// (RUN19 Z2 raised CATCHPHRASE_RATE 0.2 -> 0.45: a Boo you tap should mostly say something)
 // over 400 taps; the 👀 map chip shows only on the hiding area.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
@@ -191,7 +192,7 @@ async function visitStandoffPx(temperament) {
   assert(Math.abs((shy.gapToFriendPx - control.gapToFriendPx) - 20) < 3, `the extra standoff is ~20px, matching SHY_GREET_DIST_PX (measured ${(shy.gapToFriendPx - control.gapToFriendPx).toFixed(1)}px)`);
 }
 
-// ==================== catchphrase rate: 20%±5 over 400 taps ====================
+// ==================== catchphrase rate: 45%±5 over 400 taps (RUN19 Z2) ====================
 console.log('== catchphrase: ~20% of taps, exact authored line ==');
 {
   const booId = pick('bouncy');
@@ -203,7 +204,7 @@ console.log('== catchphrase: ~20% of taps, exact authored line ==');
   }, 400);
   const rate = texts.length / 400;
   console.log(`    ${texts.length}/400 taps showed the catchphrase (${(rate * 100).toFixed(1)}%)`);
-  assert(rate >= 0.15 && rate <= 0.25, `catchphrase rate is 20%±5 (${(rate * 100).toFixed(1)}%)`);
+  assert(rate >= 0.40 && rate <= 0.50, `catchphrase rate is 45%±5 (${(rate * 100).toFixed(1)}%)`);
   assert(texts.length > 0 && texts.every(t => t === 'Boing boing BOING!'), `every shown bubble is bouncy's exact authored line ("${texts[0]}")`);
   await ctx.close();
 }

@@ -57,12 +57,20 @@ console.log('== real physics plays ==');
 await enterBounce();
 const phys = await page.evaluate(async () => {
   const B = window.__bounce; const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // RUN19 Z7: a multi-digit answer runs in digit mode, where a wrong-digit hit WOBBLES the
+  // brick and hands the ball back by design — free demolition is a classic-round behaviour.
+  // This case is about raw physics, so pin it to a classic (single-digit) round.
+  for (let k = 0; k < 60 && B.digitMode && B.digitMode(); k++) B.nextQuestion();
+  // Sample the mode NOW: play can answer the pinned question and roll into a digit one,
+  // which is fine — the physics measurement started on a classic round.
+  const startedClassic = !(B.digitMode && B.digitMode());
   B.autoPaddle(true); B.launch();
   const a0 = B.state().alive;
   await sleep(2500);
   const s = B.state();
-  return { before: a0, after: s.alive, ended: s.ended };
+  return { before: a0, after: s.alive, ended: s.ended, digit: !startedClassic };
 });
+assert(!phys.digit, 'found a classic round to test physics on');
 assert(phys.after < phys.before, 'the ball actually breaks bricks in play (' + phys.before + ' -> ' + phys.after + ')');
 
 // ---- wrong-brick path: label rehomes, stays 3 labels ----
@@ -70,6 +78,8 @@ console.log('== wrong brick rehomes label ==');
 await enterBounce();
 const wrongTest = await page.evaluate(async () => {
   const B = window.__bounce; const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // RUN19 Z7: pin a classic round here too — digit mode carries ten labels, not three.
+  for (let k = 0; k < 60 && B.digitMode && B.digitMode(); k++) B.nextQuestion();
   const l0 = B.state().labels; B.breakWrong(); await sleep(60);
   const s = B.state();
   return { l0, labels: s.labels, wrong: s.wrongBricks };

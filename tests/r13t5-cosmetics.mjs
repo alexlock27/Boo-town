@@ -281,7 +281,9 @@ console.log('== the two costume sets equip atomically, with their ceremony ==');
     await ctx.close();
   }
   // …and the idle actually plays in town.
-  for (const [setId, cls] of [['acc_set_astronaut', 'costume-moon-bounce'], ['acc_set_pirate', 'costume-hearty-wave']]) {
+  // RUN20 W3 changed the pirate's authored idle from the hearty wave to a spyglass scan
+  // (data/catalogue.js: idle 'spyglass'); its catchphrase is "Yarr!" at the same rate.
+  for (const [setId, cls] of [['acc_set_astronaut', 'costume-moon-bounce'], ['acc_set_pirate', 'costume-spyglass']]) {
     const items = [{ zone: 'meadow', x: .06, row: 1, item: BOOS[0] }];
     const save = SAVE({
       equips: { [BOOS[0]]: Object.fromEntries(Object.entries({ astronaut: { hat: 'astrohelmet', feet: 'astroboots' }, pirate: { hat: 'piratehat', face: 'eyepatch' } }[setId.split('_').pop()]).map(([s, art]) => [s, `set:${setId}:${art}`])) },

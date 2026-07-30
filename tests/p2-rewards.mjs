@@ -72,7 +72,12 @@ async function revealCase(rand, expectKind) {
     const name = (document.querySelector('.reveal-name')?.textContent || '').replace(/^Another /, '').replace(/!$/, '');
     const item = [...CATALOGUE, ...ACCESSORIES].find(i => i.name === name);
     const kind = item ? dropKind(item) : null;
-    return { kind, wantBanner: KIND_BANNER[kind], wantAction: KIND_ACTION[kind] };
+    // RUN19 Z3: placeable kinds (boo / furniture / town) get "Put «name» somewhere?" — a
+    // one-tap jump into build mode holding the item. Wearables keep the authored KIND_ACTION.
+    const wearable = kind === 'accessory' || kind === 'costume';
+    const nick = (() => { try { const st = JSON.parse(localStorage.getItem('bootown.save.v1')); return st.nicknames && item && st.nicknames[item.id]; } catch (e) { return null; } })();
+    const wantAction = wearable ? KIND_ACTION[kind] : `Put ${nick || name} somewhere?`;
+    return { kind, wantBanner: KIND_BANNER[kind], wantAction };
   });
   const banner = await page.$eval('.reveal-banner', e => e.textContent);
   const oneliner = await page.$eval('.reveal-oneliner', e => e.textContent);
