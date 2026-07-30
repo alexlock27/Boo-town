@@ -27,6 +27,10 @@ import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair,
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
+import { SURFACE_SLOTS, slotsFor, surfaceYFor, isSmall, clampWallY, WALL_Y_MIN, WALL_Y_MAX,
+         CHILD_SCALE, CHILD_MAX_WIDTH_FRAC, SLOT_SNAP_PX } from '../data/surfaces.js';
+import { DRESSINGS, DRESSING_BY_ID, DEFAULT_DRESSING, dressingsFor } from '../data/dressings.js';
+import { renderDressing, renderDressingSwatch } from './art.js';
 import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
 import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions, heartsMarkup } from './care.js';
@@ -50,7 +54,26 @@ const INTERIOR_WALL_FRAC = 0.55;   // room backdrop: wall band = top 55%, floor 
 const WALL_ROW = 3;                // sentinel row value for wall-hung items (floor uses 0-2)
 const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no depth variation
 const ITEM_SCALE_MIN = 0.70, ITEM_SCALE_MAX = 1.60, ITEM_SCALE_STEP = 0.15;
-const itemScaleOf = (t) => Math.max(ITEM_SCALE_MIN, Math.min(ITEM_SCALE_MAX, Number(t && t.scale) || 1));
+// RUN19 Z6 — drag-handle resize replaces the +/- buttons. The range is the same 0.70-1.60 the
+// buttons stepped through, except that furniture indoors (and a bed anywhere) may go to 2.0,
+// because a double bed and a bedside lamp are not the same size of thing.
+const ITEM_SCALE_MAX_FURNITURE = 2.0;
+const RESIZE_RING_PX = 28;       // the handle's own size
+const RESIZE_DRAG_SPAN = 180;    // px of drag that covers the whole clamp range
+const scaleMaxFor = (item, interior) => ((item && (item.id === 'deco_bed' || (interior && item.kind === 'furniture'))) ? ITEM_SCALE_MAX_FURNITURE : ITEM_SCALE_MAX);
+// RUN19 Z6: the clamp is per-item now (a bed and a bedside lamp are not the same size of
+// thing), so the ceiling is passed in. Absent = the old shared 1.60, which keeps every caller
+// that does not care about furniture behaving exactly as before.
+const itemScaleOf = (t, max = ITEM_SCALE_MAX) => Math.max(ITEM_SCALE_MIN, Math.min(max, Number(t && t.scale) || 1));
+// Z6: a placement's plane. Absent means 'floor' — that is the whole compatibility story for
+// every placement made before this run. RUN10 P4's row-3 sentinel is still honoured for any
+// save the v23 migration has not touched.
+const planeOf = (t) => (t && t.plane) || (t && t.row === WALL_ROW ? 'wall' : 'floor');
+const isWallPlane = (t) => planeOf(t) === 'wall';
+// The stable identity of a placement, used as a surface child's `parent`. Deliberately the
+// same shape as town.js's own itemKeyOf and Z5's placementIdOf, so there is one answer to
+// "which placement is this" rather than three.
+const placeKey = (t) => `${t.zone}:${t.x}:${t.item}`;
 const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
 // RUN13 T4: every lamp carries a night state, not just the original table lamp.
 const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp']);
@@ -98,6 +121,13 @@ const BAND_TOP = 0.62, BAND_BOTTOM = 0.92;   // usable ground runs 62%→92% of 
 const GROUND_FRAC = BAND_TOP;          // the grass band starts at the top of the placement band
 // three depth rows: feet-line (fraction of viewH), and a size scale (smaller toward the back)
 const ROW_GROUND = [0.67, 0.79, 0.91];
+// RUN19 Z6 — the BACK-WALL LANE. Indoors the three ground lines are re-spaced so the back row's
+// feet-line meets the rendered interior wall base (0.585) instead of floating 8% of the
+// viewport in front of it — which is why big furniture never read as being AGAINST the wall.
+// Same three rows, moved: existing indoor placements keep their row indices and shift up a
+// little, which the pack calls out as an acceptable one-time visual change with no migration of
+// positions. Outdoor rows are untouched.
+const ROW_GROUND_INDOOR = [0.585, 0.72, 0.86];
 const ROW_SCALE = [0.80, 1.0, 1.16];
 const DEPTH_ROWS = ROW_GROUND.length;
 const MIN_SPACING = 0.06;              // min x-gap (zone fraction) between items in a zone+row — no piling
@@ -286,6 +316,9 @@ export function mount(container, params, ctx) {
   // Interior scene mode (RUN10 P4): only the Boo House reaches town.js as kind:'interior'
   // — the Gallery is routed to its own screen (js/gallerymuseum.js) from the world map.
   const isInterior = AREA.kind === 'interior';
+  // Z6: which ground-line table this area uses. Read through ROWS everywhere below, never
+  // ROW_GROUND directly, or the back-wall lane silently reverts indoors.
+  const ROWS = isInterior ? ROW_GROUND_INDOOR : ROW_GROUND;
   // RUN13 T3: the Boo House is three rooms. `params.room` chooses one; everything below
   // stores and reads through STORE_KEY rather than AREA.key, so each room is genuinely its
   // own placeable scene while still being ONE area on the world map.
@@ -424,7 +457,10 @@ export function mount(container, params, ctx) {
     { id: 'furniture', label: 'Furniture', test: (it) => it.kind === 'furniture' },
     { id: 'special', label: 'Special', test: (it) => it.kind === 'deco' && !it.act && it.rarity === 'ultra' },
     { id: 'landscape', label: 'Landscape', test: (it) => it.kind === 'landscape' },
-    { id: 'wishes', label: 'Wishes', test: (it) => it.kind === 'wish' }
+    { id: 'wishes', label: 'Wishes', test: (it) => it.kind === 'wish' },
+    // RUN19 Z6: not an item tab at all — it holds the room's wallpaper and floor swatches, so
+    // its `test` never matches anything and renderDrawer leaves its strip alone.
+    { id: 'decorate', label: 'Decorate', test: () => false }
   ];
   const drawerStrips = {};
   const drawerTabsNodes = DRAWER_TABS_SPEC.map(spec => {
@@ -663,6 +699,7 @@ export function mount(container, params, ctx) {
       pathCommitTimer = setInterval(commitPaths, 10000);   // "commit on exit or every 10s" (spec)
       buildTool = 'place';
       toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === buildTool));
+      renderDecorateTab();   // RUN19 Z6 — the room's wallpaper + floor swatches
       drawerApi.showTab(isInterior ? 'furniture' : 'boos');
       drawerApi.open();
     } else {
@@ -708,7 +745,10 @@ export function mount(container, params, ctx) {
     if (!wishesVisible && drawerApi.activeTab() === 'wishes') drawerApi.showTab('deco');
     const furnitureVisible = AREA.kind === 'interior';
     const furnitureTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'furniture')];
+    const decorateTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'decorate')];   // RUN19 Z6
     if (furnitureTabBtn) furnitureTabBtn.style.display = furnitureVisible ? '' : 'none';
+    // RUN19 Z6: Decorate is a ROOM thing — there is no wallpaper in the Meadow.
+    if (decorateTabBtn) decorateTabBtn.style.display = (isInterior && ROOM) ? '' : 'none';
     if (!furnitureVisible && drawerApi.activeTab() === 'furniture') drawerApi.showTab('deco');
   }
 
@@ -830,6 +870,9 @@ export function mount(container, params, ctx) {
     floor.style.left = '0'; floor.style.top = wallH + 'px';
     floor.style.width = worldW + 'px'; floor.style.height = (viewH - wallH) + 'px';
     ground.appendChild(floor);
+    // RUN19 Z6: her chosen wallpaper and floor go in FIRST, behind the built-ins and the
+    // skirting, so a new wallpaper never covers the window or the fireplace.
+    renderDressings();
   }
 
   // RUN13 T4 — the photo frame shows a REAL Boo she owns. The best friend wins when there
@@ -854,7 +897,158 @@ export function mount(container, params, ctx) {
     return `<span class="t-photo-frame" data-photo-boo="${booId || ''}">${frame}<span class="t-photo-inner">${art}</span></span>`;
   }
 
+  // ---- RUN19 Z6: room dressings ---------------------------------------------------------
+  // Each Boo House room remembers a wallpaper and a floor. Unset means the room's OWN original
+  // palette, which is the free default and stays choosable forever — so a child who buys
+  // nothing has a complete room, and one who buys everything can always go back.
+  //
+  // Applying is free and repeatable: the stars buy the OPTION, never the act of decorating.
+  const roomIdOfArea = () => (ROOM ? ROOM.id : null);
+  function dressingApplied(slot) {
+    const rid = roomIdOfArea();
+    if (!rid) return null;
+    const chosen = ((getState().dressings || {})[rid] || {})[slot];
+    const fallback = (DEFAULT_DRESSING[rid] || {})[slot];
+    return DRESSING_BY_ID[chosen] || DRESSING_BY_ID[fallback] || null;
+  }
+  function dressingOwned(id) {
+    const d = DRESSING_BY_ID[id];
+    if (!d) return false;
+    if (d.cost === 0) return true;                       // the free defaults are always hers
+    return !!(getState().dressingsOwned || {})[id];
+  }
+  // Paint the applied dressings into the room's wall and floor bands. The bands are the two
+  // scene layers the interior already draws; the dressing is a pattern fill laid over them, so
+  // nothing about the room's structure (the window, the skirting) has to be re-authored.
+  function renderDressings() {
+    if (!isInterior || !ROOM) return;
+    for (const [slot, sel] of [['walls', '.t-interior-wall'], ['floors', '.t-interior-floor']]) {
+      const band = viewport.querySelector(sel);
+      if (!band) continue;
+      const d = dressingApplied(slot);
+      band.querySelectorAll('.t-dressing').forEach(n => n.remove());
+      if (!d) continue;
+      const layer = el('div', { class: 't-dressing', html: renderDressing(d) });
+      band.insertBefore(layer, band.firstChild);
+    }
+  }
+  function applyDressing(id) {
+    const d = DRESSING_BY_ID[id];
+    const rid = roomIdOfArea();
+    if (!d || !rid || d.room !== rid) return false;
+    if (!dressingOwned(id)) return false;
+    mutate(st => {
+      st.dressings = st.dressings || {};
+      st.dressings[rid] = Object.assign({}, st.dressings[rid], { [d.slot]: id });
+    });
+    commit();
+    // A 300ms wash, per the pack: the room changes in front of her rather than blinking.
+    const band = viewport.querySelector(d.slot === 'walls' ? '.t-interior-wall' : '.t-interior-floor');
+    renderDressings();
+    if (band && !REDUCED) { band.classList.remove('dressing-wash'); void band.offsetWidth; band.classList.add('dressing-wash'); setTimeout(() => band.classList.remove('dressing-wash'), 340); }
+    hint.textContent = `${d.name}!`;
+    sfx.tap();
+    return true;
+  }
+  // The Decorate tab: two rows of swatches, Walls and Floors. Owned ones apply instantly;
+  // unowned ones show their price with a lock and deep-link to the shop's House shelf.
+  function renderDecorateTab() {
+    const strip = drawerStrips.decorate;
+    if (!strip) return;
+    clear(strip);
+    const rid = roomIdOfArea();
+    if (!rid) { strip.appendChild(el('div', { class: 'drawer-empty', text: 'Decorating is for the rooms of the Boo House.' })); return; }
+    for (const [slot, label] of [['walls', 'Walls'], ['floors', 'Floors']]) {
+      const applied = dressingApplied(slot);
+      const row = el('div', { class: 'decorate-row' });
+      row.appendChild(el('div', { class: 'decorate-row-label', text: label }));
+      const swatches = el('div', { class: 'decorate-swatches' });
+      for (const d of dressingsFor(rid, slot)) {
+        const owned = dressingOwned(d.id);
+        const on = applied && applied.id === d.id;
+        const btn = el('button', {
+          class: 'decorate-swatch' + (on ? ' on' : '') + (owned ? '' : ' locked'),
+          'aria-label': owned ? `${d.name}${on ? ' — on now' : ''}` : `${d.name} — costs ${d.cost} creative stars, tap to see it in the shop`,
+          onclick: () => {
+            if (owned) { applyDressing(d.id); renderDecorateTab(); return; }
+            sfx.tap();
+            ctx.go('shop', { shelf: 'house', highlight: d.id });
+          }
+        }, [
+          el('div', { class: 'decorate-swatch-art', html: renderDressingSwatch(d, { size: 56 }) }),
+          el('span', { class: 'decorate-swatch-name', text: d.name }),
+          owned ? null : el('span', { class: 'decorate-swatch-cost', text: `🔒 ${d.cost}★` })
+        ]);
+        swatches.appendChild(btn);
+      }
+      row.appendChild(swatches);
+      strip.appendChild(row);
+    }
+  }
+
+  // ---- RUN19 Z6: surfaces --------------------------------------------------------------
+  // Where a surface child actually sits, in on-screen pixels, derived from its PARENT. Returns
+  // null if the parent has gone — the caller then grounds the child rather than leaving it
+  // floating (see groundOrphans), because a thing she put somewhere is never deleted.
+  function surfaceSeatFor(child, st) {
+    const parent = (areaItems(st) || []).find(p => placeKey(p) === child.parent);
+    if (!parent) return null;
+    const slots = slotsFor(parent.item);
+    if (!slots) return null;
+    const idx = Math.max(0, Math.min(slots.length - 1, Number(child.slot) || 0));
+    const pItem = resolveItem(parent.item);
+    const pRow = rowOf(parent);
+    const pWidth = (ACT_SIZE[parent.item] || 92) * ROW_SCALE[pRow] * itemScaleOf(parent, scaleMaxFor(pItem, isInterior));
+    const pHeight = pWidth * 130 / 120;                        // one shared 120x130 deco viewBox
+    const pGround = viewH * ROWS[pRow];
+    const pCentreX = (ZONE_INDEX[parent.zone] ?? 0) * zoneW + clamp01(parent.x) * zoneW;
+    return {
+      x: pCentreX + slots[idx].x * pWidth,
+      y: pGround - surfaceYFor(parent.item, idx) * pHeight,     // the surface, above the parent's own ground line
+      parentWidth: pWidth,
+      z: Math.round(pGround)
+    };
+  }
+  // Every free slot in this area, as screen-space points — what a held small item is tested
+  // against while she is dragging it.
+  function freeSurfaceSlots(st, exclude) {
+    const items = areaItems(st);
+    const out = [];
+    for (const p of items) {
+      const slots = slotsFor(p.item);
+      if (!slots) continue;
+      const key = placeKey(p);
+      for (let i = 0; i < slots.length; i++) {
+        if (items.some(c => c !== exclude && c.parent === key && Number(c.slot) === i)) continue;   // taken
+        const seat = surfaceSeatFor({ parent: key, slot: i }, st);
+        if (seat) out.push({ parentKey: key, parentItem: p.item, slot: i, x: seat.x, y: seat.y });
+      }
+    }
+    return out;
+  }
+  // A child whose parent has been put away is GROUNDED at the parent's x, on the floor, in the
+  // same row — never deleted. Called before every render, so it holds however the parent went.
+  function groundOrphans() {
+    const st = getState();
+    const items = areaItems(st);
+    const keys = new Set(items.map(placeKey));
+    const orphans = items.filter(t => t.parent && !keys.has(t.parent));
+    if (!orphans.length) return false;
+    mutate(stt => {
+      for (const t of areaItems(stt)) {
+        if (!t.parent || keys.has(t.parent)) continue;
+        // the parent's x is baked into its own key, so the child lands where the parent stood
+        const px = parseFloat(String(t.parent).split(':')[1]);
+        if (Number.isFinite(px)) t.x = +px.toFixed(3);
+        t.plane = 'floor';
+        delete t.parent; delete t.slot;
+      }
+    });
+    return true;
+  }
+
   function renderPlaced() {
+    groundOrphans();   // RUN19 Z6: nothing she placed is ever lost when its table goes away
     const existing = Array.from(ground.querySelectorAll('.t-item'));
     // clear any orphaned zone-behaviour props (RUN7 C2) so a re-render never leaves them stranded
     ground.querySelectorAll('.t-kite-wrap, .t-skip-stone, .t-skim-ring, .t-sandcastle, .t-towel').forEach(n => n.remove());
@@ -874,13 +1068,15 @@ export function mount(container, params, ctx) {
       const zi = ZONE_INDEX[t.zone] ?? 0;
       const x = clamp01(t.x);
       const px = zi * zoneW + x * zoneW;
-      // Wall-hung items (RUN10 P4): a fixed row, no depth variation, drawn behind the
+      // Wall-hung items (RUN10 P4): their own lane, no depth variation, drawn behind the
       // floor's own items (lower z) — a bookshelf never blocks a Boo standing in front of it.
-      const onWall = t.row === WALL_ROW;
+      // RUN19 Z6: a wall item's height is now its own dragged `y` within the authored
+      // 0.18-0.42 band, not one fixed WALL_Y_FRAC for every wall item in the game.
+      const onWall = isWallPlane(t);
       const row = onWall ? WALL_ROW : rowOf(t);
-      const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
+      const rowGroundPx = onWall ? viewH * clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : viewH * ROWS[row];
       const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
-      const size = baseSize * itemScaleOf(t);
+      const size = baseSize * itemScaleOf(t, scaleMaxFor(item, isInterior));
       
       let wrapIndex = existing.findIndex(w => w._placeRef === t);
       // Fallback if re-loaded from string or manual DOM insertion
@@ -900,30 +1096,49 @@ export function mount(container, params, ctx) {
       wrap._placeRef = t;
       
       const bff = item.kind === 'boo' && isBestFriend(item.id, st);
-      const newClass = 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '') + (bff ? ' care-bff' : '');
+      const onSurface = planeOf(t) === 'surface';
+      const newClass = 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '')
+        + (onSurface ? ' on-surface' : '') + (bff ? ' care-bff' : '');
       if (wrap.className !== newClass) wrap.className = newClass;
-      
+
       wrap.dataset.zone = t.zone;
       wrap.dataset.x = String(t.x);
       wrap.dataset.item = t.item;
       wrap.dataset.row = String(row);
-      wrap.dataset.scale = String(itemScaleOf(t));
-      
-      wrap.style.left = (px - size / 2) + 'px';
-      wrap.style.top = (rowGroundPx - size + 8) + 'px';
-      wrap.style.zIndex = onWall ? '1' : String(Math.round(rowGroundPx));
+      wrap.dataset.plane = planeOf(t);
+      wrap.dataset.scale = String(itemScaleOf(t, scaleMaxFor(item, isInterior)));
+
+      // RUN19 Z6 — a SURFACE CHILD is positioned from its PARENT, not from a ground line: it
+      // sits on the parent's own surface, moves when the parent moves, shrinks so it can never
+      // be wider than 45% of what it stands on, and draws one z-index in front of it.
+      let placedSize = size, placedLeft = px - size / 2, placedTop = rowGroundPx - size + 8, placedZ = onWall ? 1 : Math.round(rowGroundPx);
+      if (onSurface) {
+        const seat = surfaceSeatFor(t, st);
+        if (seat) {
+          placedSize = Math.min(size * CHILD_SCALE, seat.parentWidth * CHILD_MAX_WIDTH_FRAC);
+          placedLeft = seat.x - placedSize / 2;
+          placedTop = seat.y - placedSize + 8;
+          placedZ = seat.z + 1;
+        }
+      }
+      wrap.style.left = placedLeft + 'px';
+      wrap.style.top = placedTop + 'px';
+      wrap.style.zIndex = String(placedZ);
       
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
       if (LAMP_IDS.has(t.item) && isNight(currentHour())) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
       
+      // NOTE: `placedSize`, not `size` — a surface child is drawn at its clamped size, so the
+      // art and the box agree. Using `size` here rendered a lamp at full size inside a box
+      // 45% of a table's width and it spilled out of both.
       const newHTML = t.item === 'deco_bffportrait' && t.portraitBoo
-        ? renderBffPortrait(t.portraitBoo, size)
+        ? renderBffPortrait(t.portraitBoo, placedSize)
         : t.item === 'deco_photoframe'
-          ? renderPhotoFrame(photoBooFor(t, st), size)
+          ? renderPhotoFrame(photoBooFor(t, st), placedSize)
           : renderItem(item, {
-              size,
+              size: placedSize,
               equipArt: item.kind === 'boo' ? equippedArt(item.id) : null,
               // RUN13 T4: a placed wall clock shows the DEVICE time. Passed in rather than
               // read inside art.js so the minute tick below and the suites drive the same path.
@@ -999,7 +1214,7 @@ export function mount(container, params, ctx) {
     const zi = ZONE_INDEX[h.spot.zone] ?? 0;
     const row = hp.row != null ? hp.row : 1;
     const itemPx = zi * zoneW + clamp01(h.spot.x) * zoneW;
-    const rowGroundPx = viewH * ROW_GROUND[row];
+    const rowGroundPx = viewH * ROWS[row];
     const itemH = (ACT_SIZE[h.spot.item] || 92) * ROW_SCALE[row] * 130 / 120;
     const hiderItem = resolveItem(h.boo);
     if (!hiderItem) { hiderWrap.style.display = ''; return; }
@@ -1518,7 +1733,7 @@ export function mount(container, params, ctx) {
       // Row-independent (unlike a raw px yNudge) since it scales with the item's own size.
       const itemH = itemW * 130 / 120;   // every deco shares one 120x130 viewBox (art.js)
       const yNudge = role.socket && role.socket.yFrac ? role.socket.yFrac * itemH : 0;
-      const rowGroundPx = viewH * ROW_GROUND[socketRow];
+      const rowGroundPx = viewH * ROWS[socketRow];
       a.wrap.style.top = (rowGroundPx - a.wrap.offsetHeight + 8 + yNudge) + 'px';
       // RUN19 Z3: a sleeper goes BEHIND its bed, so the duvet drawn in the bed's own SVG
       // genuinely covers its body and only its head shows above the pillow. Every other
@@ -2134,7 +2349,7 @@ export function mount(container, params, ctx) {
     const xFrac = (c.cx + 0.5) * PATH_CELL;
     const yPx = bandTopPx + (c.cy + 0.5) * cellH;
     let row = 0, best = Infinity;
-    ROW_GROUND.forEach((g, i) => { const d = Math.abs(yPx - viewH * g); if (d < best) { best = d; row = i; } });
+    ROWS.forEach((g, i) => { const d = Math.abs(yPx - viewH * g); if (d < best) { best = d; row = i; } });
     return { xFrac, row, style: c.style };
   }
   const PATH_ACK_X = 0.03;   // "within ±3% of any painted path tile" (Z4 addendum)
@@ -2308,6 +2523,9 @@ export function mount(container, params, ctx) {
   });
   viewport.addEventListener('pointermove', e => {
     if (painting) { paintAtClient(e.clientX, e.clientY); return; }
+    // RUN19 Z6: while she is holding a small item, the slot under her finger glows, so the
+    // surface announces itself BEFORE she commits — the pack's "the slot glows; release seats it".
+    if (placeMode && holding && isSmall(holding)) showSlotGlow(nearestFreeSlot(e.clientX, e.clientY));
     if (!dragScroll) return;
     const dx = e.clientX - sx;
     if (Math.abs(dx) > 4) movedScroll = true;
@@ -2350,7 +2568,7 @@ export function mount(container, params, ctx) {
     const r = viewport.getBoundingClientRect();
     const yf = (cy - r.top) / (r.height || 1);
     let best = 1, bd = Infinity;
-    ROW_GROUND.forEach((g, i) => { const d = Math.abs(yf - g); if (d < bd) { bd = d; best = i; } });
+    ROWS.forEach((g, i) => { const d = Math.abs(yf - g); if (d < bd) { bd = d; best = i; } });
     return best;
   }
   // Minimum spacing (C3): no piling two items on top of each other in a zone+row.
@@ -2359,7 +2577,10 @@ export function mount(container, params, ctx) {
   }
   // Wall-hung items (RUN10 P4) live in their own lane — never compared against floor rows.
   function wallSpotTaken(x, except) {
-    return areaItems(getState()).some(t => t !== except && t.row === WALL_ROW && Math.abs(t.x - x) < MIN_SPACING);
+    // RUN19 Z6: keyed off the PLANE now. Two wall items at the same x but different heights are
+    // no longer a collision — that is the whole point of a draggable y — so the comparison also
+    // needs their y bands to overlap before it calls the spot taken.
+    return areaItems(getState()).some(t => t !== except && isWallPlane(t) && Math.abs(t.x - x) < MIN_SPACING);
   }
   function spotWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
@@ -2434,7 +2655,7 @@ export function mount(container, params, ctx) {
     if (legal) { dropGhost.classList.remove('show'); return; }
     const spot = nearestLegalSpot(zi, x, row, except);
     if (!spot) { dropGhost.classList.remove('show'); return; }
-    const rowGroundPx = viewH * ROW_GROUND[spot.row];
+    const rowGroundPx = viewH * ROWS[spot.row];
     dropGhost.style.left = (zi * zoneW + spot.x * zoneW) + 'px';
     dropGhost.style.top = rowGroundPx + 'px';
     dropGhost.classList.add('show');
@@ -2462,7 +2683,7 @@ export function mount(container, params, ctx) {
       // `at` (RUN19 Z2): when this thing was put here. The 'try' request needs "placed
       // within the last day" and nothing in the save recorded that before now. Absent on
       // every pre-Z2 placement, which reads correctly as "not new".
-      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id, scale: holdingScale, at: nowMs() }); });
+      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, plane: 'wall', y: clampWallY(WALL_Y_FRAC), item: id, scale: holdingScale, at: nowMs() }); });
       holdingScale = 1;
       holding = null; placeMode = false;
       renderPlaced(); renderDrawer(); updateHint();
@@ -2470,18 +2691,62 @@ export function mount(container, params, ctx) {
       notePlacement();
       return;
     }
+    // RUN19 Z6 — SURFACE DROP. A small item released within SLOT_SNAP_PX of a free slot seats
+    // itself ON that surface rather than on the floor beside it. Anywhere else places on the
+    // floor exactly as before, so nothing about the old behaviour changes.
+    if (isSmall(holding)) {
+      const near = nearestFreeSlot(cx, cy);
+      if (near) {
+        const id = holding;
+        mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, plane: 'surface', parent: near.parentKey, slot: near.slot, item: id, scale: holdingScale, at: nowMs() }); });
+        holdingScale = 1; holding = null; placeMode = false;
+        clearSlotGlow();
+        renderPlaced(); renderDrawer(); updateHint();
+        notePlacement();
+        hint.textContent = `On the ${resolveItem(near.parentItem)?.name || 'shelf'}!`;
+        sfx.pop();
+        return;
+      }
+    }
     const row = rowAtClient(cy);
     const landing = spotTaken(zi, x, row) ? nearestLegalSpot(zi, x, row) : { x, row };
     if (!landing) { spotWobble(); return; }
     const id = holding;
-    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id, scale: holdingScale, at: nowMs() }); });
+    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, plane: 'floor', item: id, scale: holdingScale, at: nowMs() }); });
     holdingScale = 1;
     holding = null; placeMode = false;
+    clearSlotGlow();
     renderPlaced(); renderDrawer(); updateHint();
     notePlacement();
     if (landing.x !== x || landing.row !== row) hint.textContent = 'Tucked into the nearest free spot!';
     sfx.pop();
   }
+
+  // ---- RUN19 Z6: slot targeting while dragging ------------------------------------------
+  // The nearest FREE slot to a client point, or null. Screen-space, because that is what a
+  // finger is in — the same reason drop previews are computed in pixels rather than fractions.
+  function nearestFreeSlot(cx, cy, exclude) {
+    const r = viewport.getBoundingClientRect();
+    const worldX = (cx - r.left) + scrollX, worldY = cy - r.top;
+    let best = null, bestD = Infinity;
+    for (const s of freeSurfaceSlots(getState(), exclude)) {
+      const d = Math.hypot(s.x - worldX, s.y - worldY);
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    if (!best || bestD > SLOT_SNAP_PX) return null;
+    const parent = areaItems(getState()).find(p => placeKey(p) === best.parentKey);
+    return { ...best, xFrac: parent ? parent.x : 0, row: parent ? rowOf(parent) : 1 };
+  }
+  // The soft --star ring on the slot she is hovering. One node, reused, never a queue.
+  let slotGlow = null;
+  function showSlotGlow(slot) {
+    if (!slot) { clearSlotGlow(); return; }
+    if (!slotGlow) { slotGlow = el('div', { class: 't-slot-glow' }); air.appendChild(slotGlow); }
+    slotGlow.style.left = (slot.x - 22) + 'px';
+    slotGlow.style.top = (slot.y - 22) + 'px';
+    slotGlow.classList.add('show');
+  }
+  function clearSlotGlow() { if (slotGlow) slotGlow.classList.remove('show'); }
 
   function renderDrawer() {
     const st = getState();
@@ -2512,13 +2777,18 @@ export function mount(container, params, ctx) {
     const ids = Object.keys(free);
     if (holding && !ids.includes(holding)) ids.unshift(holding);
     const tabButtons = drawer.querySelectorAll('.bd-tabs .bd-tab');
-    for (const strip of Object.values(drawerStrips)) clear(strip);
+    // RUN19 Z6: every strip EXCEPT decorate. That one holds wallpaper swatches, not inventory
+    // chips, so renderDrawer has nothing to say about it — clearing it here wiped the tab
+    // every time an item was placed.
+    for (const [id, strip] of Object.entries(drawerStrips)) { if (id !== 'decorate') clear(strip); }
     // Landscape items don't count toward "she hasn't collected anything yet" — that empty
     // state is about Boos/decorations she's still working to win.
     const nonLandscapeIds = ids.filter(id => { const it = resolveItem(id); return !it || it.kind !== 'landscape'; });
     if (!nonLandscapeIds.length && !holding) {
       DRAWER_TABS_SPEC.forEach((spec, i) => {
-        drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
+        // ...but not Decorate (RUN19 Z6): wallpaper is not something she has to win first, and
+        // "win games to collect Boos" is simply untrue there.
+        if (spec.id !== 'decorate') drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
         if (tabButtons[i]) tabButtons[i].textContent = spec.label;
       });
       return;
@@ -2734,13 +3004,19 @@ export function mount(container, params, ctx) {
       }
       if (moved) {
         const { zi, x } = zoneAndXAt(clientToWorld(e.clientX));
-        // Wall items (RUN10 P4) never leave the wall row — only x moves.
+        // RUN19 Z6 — a WALL item's vertical drag. RUN10 P4 pinned every wall item to one fixed
+        // height; the pack retires that. Horizontal as before, vertical clamped LIVE to the
+        // authored 0.18-0.42 band so she can feel the ends of it rather than discovering them.
+        const wallY = onWall ? clampWallY((e.clientY - viewport.getBoundingClientRect().top) / (viewH || 1)) : null;
         const row = onWall ? WALL_ROW : rowAtClient(e.clientY);
-        const rowGroundPx = onWall ? viewH * WALL_Y_FRAC : viewH * ROW_GROUND[row];
+        const rowGroundPx = onWall ? viewH * wallY : viewH * ROWS[row];
         wrap.style.left = (zi * zoneW + x * zoneW - wrap.offsetWidth / 2) + 'px';
         wrap.style.top = (rowGroundPx - wrap.offsetHeight + 8) + 'px';   // preview the depth row
         wrap.style.zIndex = onWall ? '1' : String(Math.round(rowGroundPx));
         wrap.dataset._zi = zi; wrap.dataset._x = x; wrap.dataset._row = String(row);
+        if (onWall) wrap.dataset._y = String(wallY);
+        // ...and a small item being moved gets the same slot glow a newly-held one does.
+        if (isSmall(place.item)) showSlotGlow(nearestFreeSlot(e.clientX, e.clientY, place));
         if (!onWall) {
           const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
           showDropPreview(wrap, zi, x, row, cur);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
@@ -2755,19 +3031,48 @@ export function mount(container, params, ctx) {
       if (moved) {
         const zi = +wrap.dataset._zi, x = +wrap.dataset._x, row = +wrap.dataset._row;
         const cur = onWall
-          ? areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === WALL_ROW)
+          ? areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && isWallPlane(t))
           : areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+        // RUN19 Z6 — released over a free slot? Then it SEATS there rather than landing on the
+        // floor. Checked before the floor logic, and only for a small item, so nothing else
+        // about dragging changes.
+        const seat = isSmall(place.item) ? nearestFreeSlot(e.clientX, e.clientY, cur) : null;
+        if (seat && canPlaceIn(zi)) {
+          mutate(st => {
+            const items = areaItems(st);
+            const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001);
+            if (t) { t.zone = ZONES[zi].key; t.x = +seat.xFrac.toFixed(3); t.row = seat.row; t.plane = 'surface'; t.parent = seat.parentKey; t.slot = seat.slot; delete t.y; }
+          });
+          clearSlotGlow();
+          hint.textContent = `On the ${resolveItem(seat.parentItem)?.name || 'shelf'}!`;
+          notePlacement();
+          renderPlaced();
+          return;
+        }
         const taken = onWall ? wallSpotTaken(x, cur) : spotTaken(zi, x, row, cur);
         const landing = onWall
           ? { x: taken ? nearestLegalWallSpot(x, cur) : x, row: WALL_ROW }
           : (taken ? nearestLegalSpot(zi, x, row, cur) : { x, row });
         if (canPlaceIn(zi) && landing && landing.x != null) {
-          mutate(st => { const items = areaItems(st); const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (t) { t.zone = ZONES[zi].key; t.x = +landing.x.toFixed(3); t.row = landing.row; } });
+          const wallY = onWall ? clampWallY(+wrap.dataset._y) : null;
+          mutate(st => {
+            const items = areaItems(st);
+            const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001);
+            if (t) {
+              t.zone = ZONES[zi].key; t.x = +landing.x.toFixed(3); t.row = landing.row;
+              // Z6: dragging a thing off a surface makes it a floor item again — it stops being
+              // anyone's child, or it would keep rendering at its old parent's shelf.
+              if (onWall) { t.plane = 'wall'; t.y = wallY; }
+              else { t.plane = 'floor'; delete t.y; }
+              delete t.parent; delete t.slot;
+            }
+          });
           if (taken) hint.textContent = 'Tucked into the nearest free spot!';
           notePlacement();   // a 'visit' request may have just become true (RUN19 Z2)
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
         }
+        clearSlotGlow();
         renderPlaced();
       } else {
         onTap(wrap, place, item);
@@ -2903,7 +3208,7 @@ export function mount(container, params, ctx) {
   function wishPuffAt(spot) {
     if (REDUCED) return;
     // Same geometry renderPlaced uses, so the puff happens exactly where the thing lands.
-    const px = spot.x * zoneW, py = viewH * ROW_GROUND[spot.row];
+    const px = spot.x * zoneW, py = viewH * ROWS[spot.row];
     const puff = el('div', { class: 'wish-puff' });
     puff.style.left = `${px}px`; puff.style.top = `${py}px`;
     for (let i = 0; i < WISH_PUFF_PARTICLES; i++) {
@@ -3085,21 +3390,124 @@ export function mount(container, params, ctx) {
   }
 
   let openPopover = null;
+  // RUN19 Z6: the clamp ceiling is per item now, and an ABSOLUTE scale can be written (which
+  // is what a drag produces). 'reset' still means 100%.
   function setPlacementScale(place, mode) {
-    const current = itemScaleOf(place);
-    const next = mode === 'reset'
-      ? 1
-      : Math.max(ITEM_SCALE_MIN, Math.min(ITEM_SCALE_MAX, current + mode * ITEM_SCALE_STEP));
-    mutate(st => {
-      const items = areaItems(st);
-      const target = items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === place.row);
-      if (target) target.scale = +next.toFixed(2);
-    });
+    const item = resolveItem(place.item);
+    const max = scaleMaxFor(item, isInterior);
+    const current = itemScaleOf(place, max);
+    const next = mode === 'reset' ? 1
+      : (typeof mode === 'number' && Math.abs(mode) > 1.0001) ? Math.max(ITEM_SCALE_MIN, Math.min(max, mode))
+      : Math.max(ITEM_SCALE_MIN, Math.min(max, current + mode * ITEM_SCALE_STEP));
+    writeScale(place, next);
     commit();   // a deliberate town edit: persist now, not on the 2s debounce (RUN11 Q9)
     closeMenu();
     renderPlaced();
     hint.textContent = `${resolveItem(place.item)?.name || getDisplayName(place.item)} size: ${Math.round(next * 100)}%`;
     sfx.tap();
+    return next;
+  }
+  function writeScale(place, next) {
+    mutate(st => {
+      const items = areaItems(st);
+      const target = items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && t.row === place.row);
+      if (target) target.scale = +next.toFixed(2);
+    });
+  }
+  // ---- RUN19 Z6: the resize handle ------------------------------------------------------
+  // A RESIZE_RING_PX ring at the item's bottom-right while it is selected. Drag it, or pinch
+  // the item itself with two fingers; RESIZE_DRAG_SPAN px of travel covers the whole clamp
+  // range, so the gesture is the same length whatever an individual item's limits are.
+  // Reduced motion is unaffected on purpose: this is direct manipulation, not animation.
+  function attachResizeHandle(wrap, place, item) {
+    wrap.querySelectorAll('.t-resize').forEach(n => n.remove());
+    const max = scaleMaxFor(item, isInterior);
+    const clampTo = (v) => Math.max(ITEM_SCALE_MIN, Math.min(max, v));
+    const label = resolveItem(place.item) ? resolveItem(place.item).name : 'item';
+    const ring = el('button', { class: 't-resize', type: 'button', 'aria-label': `Resize ${label} — drag, or double-tap to reset` });
+    let dragging = false, startScale = 1, sx = 0, sy = 0;
+    ring.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      dragging = true; startScale = itemScaleOf(place, max); sx = e.clientX; sy = e.clientY;
+      try { ring.setPointerCapture(e.pointerId); } catch {}
+      ring.classList.add('dragging');
+    });
+    ring.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      e.stopPropagation();
+      // Away from the item's centre = bigger. The two axes are summed so either one works,
+      // which matters on a phone where a diagonal drag off a corner is awkward.
+      const d = (e.clientX - sx) + (e.clientY - sy);
+      const next = clampTo(startScale + (d / RESIZE_DRAG_SPAN) * (max - ITEM_SCALE_MIN));
+      writeScale(place, next);
+      applyLiveSize(wrap, place, next);
+      hint.textContent = `${label} size: ${Math.round(next * 100)}%`;
+    });
+    const finish = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      ring.classList.remove('dragging');
+      try { ring.releasePointerCapture(e.pointerId); } catch {}
+      commit();
+      renderPlaced();   // re-clamps anything sitting on this surface
+      sfx.tap();
+    };
+    ring.addEventListener('pointerup', finish);
+    ring.addEventListener('pointercancel', finish);
+    ring.addEventListener('dblclick', e => { e.stopPropagation(); setPlacementScale(place, 'reset'); });
+    // Two-finger pinch on the ITEM, not on the ring: hunting for a 28px target with two
+    // fingertips is not something a nine-year-old should have to do.
+    const active = new Map();
+    let pinchStart = 0;
+    wrap.addEventListener('pointerdown', e => { if (buildMode && e.pointerType === 'touch') active.set(e.pointerId, e); }, true);
+    wrap.addEventListener('pointermove', e => {
+      if (!active.has(e.pointerId)) return;
+      active.set(e.pointerId, e);
+      if (active.size < 2) return;
+      const two = [...active.values()];
+      const d = Math.hypot(two[0].clientX - two[1].clientX, two[0].clientY - two[1].clientY);
+      if (!pinchStart) { pinchStart = d; startScale = itemScaleOf(place, max); return; }
+      const next = clampTo(startScale * (d / pinchStart));
+      writeScale(place, next);
+      applyLiveSize(wrap, place, next);
+    }, true);
+    const endPinch = (e) => {
+      if (!active.has(e.pointerId)) return;
+      active.delete(e.pointerId);
+      if (active.size < 2 && pinchStart) { pinchStart = 0; commit(); renderPlaced(); }
+    };
+    wrap.addEventListener('pointerup', endPinch, true);
+    wrap.addEventListener('pointercancel', endPinch, true);
+    wrap.appendChild(ring);
+    // ...and then FLIP IT UP if the bottom-right corner falls under the build drawer. It
+    // usually does: build mode always has the drawer open across the bottom of the screen, and
+    // anything in the front rows sits behind it, so the authored bottom-right position was a
+    // handle a child could see and never touch. Same precedent as openMenu, which already
+    // flips itself below the item when it would clip the top edge.
+    requestAnimationFrame(() => {
+      const r = ring.getBoundingClientRect();
+      // The drawer's ROOT sits low; what actually covers things is its open TRAY, which starts
+      // much higher up. Take whichever is higher, or the check passes while the tray is over
+      // the handle (measured: root top 708, tray top 531, handle bottom 582).
+      const parts = [drawer, drawer.querySelector('.bd-tray'), drawer.querySelector('.bd-tabs')].filter(Boolean);
+      const boxes = parts.map(n => n.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0);
+      const covered = boxes.some(d => r.bottom > d.top + 4 && r.right > d.left && r.left < d.right);
+      ring.classList.toggle('up', covered);
+    });
+  }
+  // Resize this one wrap in place, without re-rendering the area, so the drag stays smooth.
+  function applyLiveSize(wrap, place, scale) {
+    const onWall = isWallPlane(place);
+    const row = onWall ? WALL_ROW : rowOf(place);
+    const base = onWall ? (ACT_SIZE[place.item] || 92) : (ACT_SIZE[place.item] || 92) * ROW_SCALE[row];
+    const size = base * scale;
+    const groundPx = onWall ? viewH * clampWallY(place.y != null ? place.y : WALL_Y_FRAC) : viewH * ROWS[row];
+    const px = (ZONE_INDEX[place.zone] ?? 0) * zoneW + clamp01(place.x) * zoneW;
+    wrap.style.left = (px - size / 2) + 'px';
+    wrap.style.top = (groundPx - size + 8) + 'px';
+    const svg = wrap.querySelector('svg');
+    if (svg) { svg.setAttribute('width', String(size)); svg.setAttribute('height', String(size * 130 / 120)); }
+    wrap.dataset.scale = String(scale.toFixed(2));
   }
   function openMenu(wrap, place, item) {
     closeMenu();
@@ -3111,11 +3519,12 @@ export function mount(container, params, ctx) {
       // the Parade (RUN4 C9): hidden while no Boos are placed; no reward — it exists to be shown off
       if (actors.length) btns.push(el('button', { class: 'btn soft', text: 'Parade 🎺', onclick: (e) => { e.stopPropagation(); closeMenu(); sfx.fanfare(); startParade(); } }));
     }
-    if (buildMode) {
-      btns.push(el('button', { class: 'btn soft size-btn', 'aria-label': 'Make smaller', text: '− Size', disabled: itemScaleOf(place) <= ITEM_SCALE_MIN, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, -1); } }));
-      btns.push(el('button', { class: 'btn soft size-reset', 'aria-label': 'Reset size', text: `${Math.round(itemScaleOf(place) * 100)}%`, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, 'reset'); } }));
-      btns.push(el('button', { class: 'btn soft size-btn', 'aria-label': 'Make bigger', text: 'Size +', disabled: itemScaleOf(place) >= ITEM_SCALE_MAX, onclick: (e) => { e.stopPropagation(); setPlacementScale(place, 1); } }));
-    }
+    // RUN19 Z6 — the three ± / % buttons are GONE. Resizing is direct manipulation now: a
+    // corner handle appears on the selected item and she drags it (or pinches on touch). The
+    // buttons were three taps and a number to do what one drag does, and they had to be read
+    // first. The one thing they did that a drag cannot — snap back to 100% — survives as a
+    // double-tap on the handle.
+    if (buildMode) attachResizeHandle(wrap, place, item);
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
     if (item.id !== 'deco_bffportrait') btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
@@ -3882,7 +4291,7 @@ export function mount(container, params, ctx) {
       minSpacingPx: () => MIN_SPACING * zoneW,
       screenXForFraction: (x) => { const r = viewport.getBoundingClientRect(); return r.left + (x * zoneW) - scrollX; },
       groundY: () => { const r = viewport.getBoundingClientRect(); return r.top + groundY; },
-      screenYForRow: (row) => { const r = viewport.getBoundingClientRect(); return r.top + viewH * ROW_GROUND[row] - 6; },
+      screenYForRow: (row) => { const r = viewport.getBoundingClientRect(); return r.top + viewH * ROWS[row] - 6; },
       free: () => actors.filter(a => !a.role && !a.dancing && !a.goal).length,
       // force actor i into a behaviour; returns the goal kind (or a claimed role kind), else null
       force: (i, kind) => { const a = actors[i]; if (!a) return null; clearRole(a); a.goal = null; a.depthLock = false; startBehaviour(a, kind, performance.now()); return a.goal ? a.goal.kind : null; },
@@ -3895,6 +4304,18 @@ export function mount(container, params, ctx) {
       roleCount: () => actors.filter(a => a.role).length,
       tick: (ms) => { const now = performance.now(); for (const a of actors) { if (a.goal) stepGoal(a, ms, now); } },
       assignRoles: () => assignRoles(),
+      rerender: () => renderPlaced(),
+      // The ground-line table this area is actually using, and the CLAMPED y a wall item
+      // renders at — both read straight from the renderer, so a suite tests the rule rather
+      // than reverse-engineering it out of pixels and viewport rounding.
+      rowFracs: () => ROWS.slice(),
+      wallYOf: (itemId) => { const t = areaItems(getState()).find(x => x.item === itemId); return t && isWallPlane(t) ? clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : null; },
+      // ---- RUN19 Z6 --------------------------------------------------------------------
+      planeOf: (itemId) => { const t = areaItems(getState()).find(x => x.item === itemId); return t ? planeOf(t) : null; },
+      freeSlots: () => freeSurfaceSlots(getState()).map(s2 => ({ parentItem: s2.parentItem, slot: s2.slot, x: Math.round(s2.x), y: Math.round(s2.y) })),
+      slotGlowing: () => !!(ground.parentElement && ground.parentElement.querySelector('.t-slot-glow.show')) || !!document.querySelector('.t-slot-glow.show'),
+      dressingApplied: (slot) => { const d = dressingApplied(slot); return d ? d.id : null; },
+      renderDecorate: () => renderDecorateTab(),
       // ---- RUN19 Z3: announced moments ------------------------------------------------
       // Walk actor i to a named placed item REGARDLESS of whether its seats are free. The
       // patient wait only happens on a race — the seat was free when the Boo set off and

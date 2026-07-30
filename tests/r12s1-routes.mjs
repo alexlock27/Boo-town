@@ -97,7 +97,12 @@ const FIXTURES = {
   ],
   // RUN18B Y2: the shop's handoff. It remembers the area she came in from, and sends her
   // back to it in build mode with the bought item already selected in its own drawer tab.
-  shop: [["entered from an area", "({ fromArea: 'hilltop' })"]],
+  shop: [
+    ["entered from an area", "({ fromArea: 'hilltop' })"],
+    // RUN19 Z6: a locked wallpaper swatch in a room's Decorate tab deep-links here, naming the
+    // shelf to open and the dressing to ring.
+    ["deep-linked from a room's Decorate tab", "({ shelf: 'house', highlight: 'lounge_walls_starry' })"]
+  ],
   // RUN18A H3: the Joke Boo has two doors, and Back must return her to the one she used.
   // The in-world stage says so; the hub card and What's New send nothing and get the hub.
   jokeboo: [
