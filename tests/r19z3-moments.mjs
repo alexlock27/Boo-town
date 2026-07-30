@@ -118,11 +118,48 @@ console.log('== the bed nap is real at 13:00, not only after 21:00 ==');
   });
   assert(zColour && zColour !== 'rgb(201, 186, 247)',
     `the "z" is not the old #C9BAF7, which was the Bedroom wall to within 2% — invisible (${zColour})`);
-  // a tap wakes it: a stretch and a yawn, and nothing else piles on top
-  const woke = await page.evaluate(() => {
-    window.__townLife.tapActor(0);
-    return { role: window.__townLife.goalOf(0), stretching: window.__townLife.stretching(), eyesShut: window.__townLife.eyesShut(), careOpen: !!document.querySelector('.care-arc, .t-care-arc') };
+  // The sleeper has to be SEEN. It is drawn behind the bed on purpose so the duvet covers its
+  // body, which means a bounding-box overlap check says "99% hidden" and tells you nothing —
+  // the bed's own SVG is transparent above the pillow (y=66 of its 120x130 viewBox), and that
+  // gap is where the head shows. Measure against the PILLOW LINE, and check the eyes clear it,
+  // because under reduced motion the closed eyes are the only sleep signal there is.
+  const seen = await page.evaluate(() => {
+    const bed = [...document.querySelectorAll('.t-item')].find(n => n.dataset.item === 'deco_bed');
+    const boo = [...document.querySelectorAll('.t-item.boo')][0];
+    const svg = boo.querySelector('svg');
+    const br = svg.getBoundingClientRect(), dr = bed.getBoundingClientRect();
+    const pillowTop = dr.top + (66 / 130) * dr.height;
+    const visible = Math.max(0, Math.min(br.bottom, pillowTop) - br.top);
+    return { pct: Math.round(100 * visible / br.height), eyeY: br.top + (80 / 130) * br.height, pillowTop };
   });
+  assert(seen.pct >= 60, `most of the sleeper shows above the pillow (${seen.pct}% visible)`);
+  assert(seen.eyeY < seen.pillowTop - 8, `and its face clears the pillow by a real margin (eyes ${Math.round(seen.eyeY)}, pillow ${Math.round(seen.pillowTop)})`);
+
+  // A REAL MOUSE CLICK, not the tapActor seam. The first cut of this suite used the seam and
+  // therefore never noticed that every pixel of the sleeper hit-tests as the BED (it is drawn
+  // behind it), so a finger could not wake a napping Boo at all and the bed's Move/Put away
+  // menu opened instead. Driving a seam is not the same as being tappable.
+  const hitTarget = await page.evaluate(() => {
+    const boo = [...document.querySelectorAll('.t-item.boo')][0];
+    const r = boo.querySelector('svg').getBoundingClientRect();
+    const el = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height * 0.4));
+    const item = el && el.closest('.t-item');
+    return item ? item.dataset.item : null;
+  });
+  const clickPt = await page.evaluate(() => {
+    const r = [...document.querySelectorAll('.t-item.boo')][0].querySelector('svg').getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height * 0.4) };
+  });
+  await page.mouse.click(clickPt.x, clickPt.y);
+  await sleep(260);
+  const woke = await page.evaluate(() => ({
+    role: window.__townLife.goalOf(0), stretching: window.__townLife.stretching(),
+    eyesShut: window.__townLife.eyesShut(),
+    careOpen: !!document.querySelector('.care-arc, .t-care-arc'),
+    itemMenu: !!document.querySelector('.plot-menu')
+  }));
+  console.log(`  · the tap actually landed on: ${hitTarget}`);
+  assert(!woke.itemMenu, 'and it does NOT open the bed’s Move / Put away menu over the top');
   assert(!/housenap/.test(woke.role || ''), `a tap wakes it (${woke.role})`);
   assert(woke.stretching >= 1, 'waking plays the stretch');
   assert(woke.eyesShut === 0, 'and the eyes open again');
@@ -175,6 +212,22 @@ console.log('== a full seat is waited for, not shrugged at ==');
   });
   assert(waiting.roles.some(r => /role:swing/.test(r || '')), `one Boo takes the single swing seat (${JSON.stringify(waiting.roles)})`);
   assert(waiting.waitingCount >= 1, `an arriving Boo WAITS beside the full seat (${waiting.waitingCount} waiting)`);
+  // BESIDE it, in pixels. waitingCount alone was true while the waiter stood 464px away: the
+  // first cut zeroed a.dx, which snapped it back to its home x in a single 491px frame — worse
+  // than the shrug it replaced. A state flag is not evidence of a position.
+  const nearness = await page.evaluate(() => {
+    const swing = [...document.querySelectorAll('.t-item')].find(n => n.dataset.item === 'deco_swings');
+    const sr = swing.getBoundingClientRect();
+    const out = [];
+    for (const n of document.querySelectorAll('.t-item.boo')) {
+      const svg = n.querySelector('svg'); if (!svg) continue;
+      const r = svg.getBoundingClientRect();
+      out.push({ item: n.dataset.item, gap: Math.round(Math.max(0, Math.max(sr.left - r.right, r.left - sr.right))) });
+    }
+    return out;
+  });
+  const closest = Math.min(...nearness.map(n => n.gap));
+  assert(closest <= 160, `and it waits WITHIN REACH of the seat, not across the field (closest gap ${closest}px: ${JSON.stringify(nearness)})`);
   assert(waiting.seatsWaited <= 1, `at most one waiter per seat — a second arrival wanders off (${waiting.seatsWaited})`);
   assert(waiting.shrugs === 0, 'RUN10 P2\'s 300ms shrug is retired — nothing shrugs');
   // and the waiter takes the seat the moment it frees

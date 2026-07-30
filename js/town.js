@@ -159,6 +159,7 @@ const STOMP_GAP_MS = 240;        // min gap between stomps for one Boo
 const SPRINKLE_COST = 5;         // stardust per sprinkle (the shiny upgrade stays at 10)
 const LONG_PRESS_MS = 500;       // play-mode long press (shared with RUN20 W1's catching)
 const SPARKLE_SCENE_CAP = 6;     // never more than this many sparkling at once (particle caps)
+const THANKS_FLY_DELAY_MS = 700;  // Z2: the +2 follows the thank-you, it does not share its frame
 // RUN10 P2's 300ms shrug is RETIRED by Z3 — a Boo that walks to a full bench now waits
 // beside it (see waitBesideSeat), which is what a child does and what a shrug never read as.
 const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
@@ -1566,9 +1567,14 @@ export function mount(container, params, ctx) {
     return held ? 1 : 0;
   }
   function waitBesideSeat(a, t) {
-    if (t && waitersFor(t) >= MAX_WAITERS_PER_SEAT) { endWait(a); a.goal = null; a.dx = 0; a.next = 400 + Math.random() * 400; return false; }
+    // NOTE: a.dx is DELIBERATELY kept. The first cut zeroed it, copying endGoal's habit, and
+    // since the wait's per-frame transform renders translate(a.dx) that snapped the Boo back
+    // to its home x the instant it arrived — measured as a 491px single-frame jump, after
+    // which it stood "patiently waiting" 464px from the seat. Strictly worse than the 300ms
+    // shrug this replaced, and the whole point was to stop reading as a glitch.
+    if (t && waitersFor(t) >= MAX_WAITERS_PER_SEAT) { endWait(a); a.goal = null; a.next = 400 + Math.random() * 400; return false; }
     if (t) seatWaiters.set(itemKeyOf(t), a);
-    a.goal = null; a.dx = 0;
+    a.goal = null;
     a.waitUntil = performance.now() + WAIT_MS;
     a.waitKey = t ? itemKeyOf(t) : null;
     if (!REDUCED) a.wrap.classList.add('t-waiting');
@@ -2001,8 +2007,12 @@ export function mount(container, params, ctx) {
       }, [art]);
       w.appendChild(bubble);
     }
+    // RUN3's treat float used to carry the words '💖 Thank you!' itself. Z2's ceremony now
+    // SPEAKS those words in the Boo's own bubble, so this printed them a second time — and
+    // clipped, as a 33x38px two-line pink fragment stacked above the bubble. It keeps the
+    // confetti (the treat really did arrive) and loses the duplicate line.
     const treatBoo = takeTreat();
-    if (treatBoo) { const w = [...ground.querySelectorAll('.t-item')].find(x => x.dataset.item === treatBoo); if (w) { const t = el('div', { class: 'request-treat', text: '💖 Thank you!' }); w.appendChild(t); if (!REDUCED) confetti({ count: 24, power: 0.6, origin: pointFor(w) }); setTimeout(() => t.remove(), 2200); } }
+    if (treatBoo) { const w = [...ground.querySelectorAll('.t-item')].find(x => x.dataset.item === treatBoo); if (w && !REDUCED) confetti({ count: 24, power: 0.6, origin: pointFor(w) }); }
   }
   function pointFor(node) { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top }; }
 
@@ -2054,15 +2064,23 @@ export function mount(container, params, ctx) {
     for (const booId of thanked) {
       const w = [...ground.querySelectorAll('.t-item')].find(x => x.dataset.item === booId);
       if (!w) continue;
-      const svg = w.querySelector('svg');
-      if (svg && !REDUCED) { svg.classList.remove('rq-thanks'); void svg.offsetWidth; svg.classList.add('rq-thanks'); setTimeout(() => svg.classList.remove('rq-thanks'), 1300); }
+      // On the WRAP, not the svg. A CSS animation beats an inline style, and the actor loop
+      // rewrites the svg's transform every frame — so putting the bounce there discarded the
+      // walk offset for 1.2s and then snapped the Boo 60px sideways when it ended. Z3's seat
+      // hop already avoided exactly this; the same reasoning belongs here.
+      if (!REDUCED) { w.classList.remove('rq-thanks'); void w.offsetWidth; w.classList.add('rq-thanks'); setTimeout(() => w.classList.remove('rq-thanks'), 1300); }
       const say = el('div', { class: 'catchphrase-bubble', text: 'Thank you!' });
       w.appendChild(say); speakMaybe('Thank you!'); setTimeout(() => say.remove(), 2200);
-      // the round-end fly, reused: the points visibly LEAVE the Boo and head for the meter
-      const fly = el('div', { class: 'fly-star rq-fly', text: '+' + REQUEST_REWARD });
-      w.appendChild(fly); setTimeout(() => fly.remove(), 1200);
+      // The round-end fly, reused: the points visibly LEAVE the Boo. STAGGERED, because the
+      // pack authors this as a sequence — bounce, then the thank-you, THEN the points — and
+      // firing them together crowded the +2 against the bubble's own words.
+      setTimeout(() => {
+        if (!w.isConnected) return;
+        const fly = el('div', { class: 'fly-star rq-fly', text: '+' + REQUEST_REWARD });
+        w.appendChild(fly); setTimeout(() => fly.remove(), 1200);
+        sfx.star();
+      }, THANKS_FLY_DELAY_MS);
     }
-    sfx.star();
     renderRequestBubble();
   }
   // Every fulfilment event funnels through here so the ceremony can never be forgotten at
@@ -2090,6 +2108,9 @@ export function mount(container, params, ctx) {
     if (!REDUCED) { a.wrap.classList.remove('t-seat-hop'); void a.wrap.offsetWidth; a.wrap.classList.add('t-seat-hop'); setTimeout(() => a.wrap.classList.remove('t-seat-hop'), SEAT_HOP_MS + 60); }
     // "Best seat in the «area name»!" already supplies "the", and four of the eight area
     // names begin with "The" — so the raw name reads "in the The Meadow". Strip the article.
+    // ...but NOT for a bed. "Best seat in the Bedroom!" as a Boo climbs in to sleep describes
+    // something that did not happen; the nap has its own announced moment.
+    if (role.socket && role.socket.role === 'nap') { noteSocketClaim(a.place.item, role.deco); return; }
     const rawName = ROOM ? ROOM.name : AREA.name;
     const line = acknowledge('socketClaim', { areaName: rawName.replace(/^The\s+/i, '') });
     if (line) {
@@ -2763,6 +2784,14 @@ export function mount(container, params, ctx) {
       if (!wasNapping) showCareArc(wrap, place, item);   // Z3: waking it IS the moment
       return;
     }
+    // RUN19 Z3 — a tap anywhere on a bed with somebody asleep in it WAKES THEM. The sleeper
+    // is drawn behind the bed on purpose (the duvet covers it), which means every pixel of it
+    // hit-tests as the bed: a real finger could never wake a napping Boo, and the bed's
+    // Move/Put away menu opened over the top instead. The suite missed it by calling the
+    // tapActor seam rather than clicking. Waking is the moment here, so nothing else runs.
+    const sleeper = actors.find(a => a.role && a.role.kind === 'housenap' && a.role.deco
+      && a.role.deco.item === place.item && Math.abs(a.role.deco.x - place.x) < 0.001);
+    if (sleeper) { wakeNap(sleeper, { tapped: true }); return; }
     // RUN19 Z2: "«name» wants to try the new «item»!" is fulfilled by a tap on that exact
     // item while «name» is in the area — before anything else this tap might open.
     noteItemTap(place);

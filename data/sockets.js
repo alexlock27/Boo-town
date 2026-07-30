@@ -44,8 +44,8 @@ export const SOCKETS = {
   //
   // `role:'nap'` was dead data until Z3 — nothing anywhere read the field. give() reads it
   // now, so it is the marker that turns a seat claim into a real nap.
-  deco_bed:        [{ x: -0.183, row: 2, yFrac: -0.216, role: 'nap' }],                                  // sits up at the pillow (x=38), body behind the bedding
-  deco_bunkbed:    [{ x: -0.183, row: 2, yFrac: -0.139, role: 'nap' }, { x: -0.183, row: 2, yFrac: -0.493, role: 'nap' }],  // lower bunk, upper bunk
+  deco_bed:        [{ x: -0.183, row: 2, yFrac: -0.262, role: 'nap' }],                                  // sits up at the pillow (x=38); ~18px of head clears the pillow line at 390/768/1024
+  deco_bunkbed:    [{ x: -0.183, row: 2, yFrac: -0.185, role: 'nap' }, { x: -0.183, row: 2, yFrac: -0.539, role: 'nap' }],  // lower bunk, upper bunk
   // Kitchen - SNACK: a Boo stands AT the table (feet on the floor line, y=102), nibbling.
   deco_table:      [{ x: -0.30, row: 2, yFrac: -0.138 }, { x: 0.30, row: 2, yFrac: -0.138 }],            // legs meet the floor at y=102
   deco_kitchentable: [{ x: -0.32, row: 2, yFrac: -0.138 }, { x: 0.32, row: 2, yFrac: -0.138 }],
