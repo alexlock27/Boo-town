@@ -656,6 +656,11 @@ function mountToddlerHub(container, params, ctx) {
   cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Stories', onclick: () => {
     sfx.tap(); speakMaybe('Stories'); ctx.go('storyorder', { toddler: true });
   } }, [el('span', { class: 'tc-icon', text: '📖' }), el('span', { class: 'tc-word', text: 'Stories' })]));
+  // Alex, 2026-07-30: Rhyme Time suits a pre-reader too (pictures + sound, G14) — its
+  // toddler door opens level 1 directly, no picker (rhymetime.js reads params.toddler).
+  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Rhymes', onclick: () => {
+    sfx.tap(); speakMaybe('Rhymes'); ctx.go('rhymetime', { toddler: true });
+  } }, [el('span', { class: 'tc-icon', text: '🎩' }), el('span', { class: 'tc-word', text: 'Rhymes' })]));
 
   // bottom bar: Town, Collection, Studio + the cog behind its long-press, as ever
   const say = (word, fn) => () => { sfx.tap(); speakMaybe(word); fn(); };

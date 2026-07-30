@@ -435,12 +435,14 @@
 @keyframes wfOut { 0%, 55% { opacity: 1; transform: none; } 100% { opacity: .18; transform: translateY(-10px) scale(.7); } }
 .wf-join-in { color: var(--star, #FFC93C); display: inline-block; animation: wfPop .4s cubic-bezier(.2, .9, .3, 1.2); }
 .wf-next { min-height: 56px; min-width: 140px; background: var(--star, #FFC93C); font-weight: 700; }
+/* CAUGHT LIVE (Alex, 2026-07-30): --card is CREAM, not purple — cream text on var(--card)
+   was invisible. Cream card + INK text, the house readable-card pattern, throughout. */
 .wf-rule {
-  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
-  padding: 8px 14px; text-align: center; max-width: 460px;
+  background: var(--card, #FFF8F0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 8px 14px; text-align: center; max-width: 460px; box-shadow: 0 4px 0 rgba(42, 27, 78, .35);
 }
-.wf-rule-type { display: block; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--star, #FFC93C); }
-.wf-rule-line { display: block; font-weight: 600; color: var(--cream, #FFF8F0); font-size: 15px; margin-top: 2px; }
+.wf-rule-type { display: block; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--ink, #2A1B4E); opacity: .75; }
+.wf-rule-line { display: block; font-weight: 600; color: var(--ink, #2A1B4E); font-size: 15px; margin-top: 2px; }
 .wf-shelf { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
 .wf-tile {
   min-width: 56px; min-height: 56px; padding: 8px 16px;
@@ -494,9 +496,11 @@
 .tt-innocent, .tt-guilty { min-height: 56px; min-width: 140px; font-size: 18px; font-weight: 700; }
 .tt-guilty { background: #E4695E; color: var(--cream, #FFF8F0); }
 .tt-explain {
-  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
-  padding: 14px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+  /* CAUGHT LIVE: was cream-on-cream (--card is CREAM, not the assumed purple). */
+  background: var(--card, #FFF8F0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 14px 16px; max-width: 480px; text-align: center; color: var(--ink, #2A1B4E); font-weight: 600;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
+  box-shadow: 0 4px 0 rgba(42, 27, 78, .35);
 }
 .tt-explain-line { margin: 0; }
 .tt-explain.correct { border-color: var(--star, #FFC93C); }   /* a right answer's panel wears gold */
@@ -524,12 +528,13 @@
 @keyframes apDrive { 0% { transform: translateX(-30%); } 100% { transform: translateX(30%); } }
 .ap-options { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
 .ap-slot { min-height: 56px; min-width: 96px; font-size: 20px; font-weight: 700; }
-.ap-slot.ap-none { background: var(--card, #6A4FD0); color: var(--cream, #FFF8F0); }
+.ap-slot.ap-none { background: var(--card, #FFF8F0); color: var(--ink, #2A1B4E); }   /* was cream-on-cream: invisible label */
 .ap-slot.boing { animation: apBoing .4s ease-in-out; }
 @keyframes apBoing { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-14px); } 70% { transform: translateY(3px); } }
 .ap-explain {
-  background: var(--card, #6A4FD0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
-  padding: 10px 16px; max-width: 480px; text-align: center; color: var(--cream, #FFF8F0); font-weight: 600;
+  /* unused since the shared .explain-panel took over, but kept honest: ink on cream */
+  background: var(--card, #FFF8F0); border: 3px solid var(--ink, #2A1B4E); border-radius: 14px;
+  padding: 10px 16px; max-width: 480px; text-align: center; color: var(--ink, #2A1B4E); font-weight: 600;
 }
 .ap-sq-rail { display: flex; align-items: center; gap: 10px; }
 .ap-sq-prompt { font-weight: 700; color: var(--cream, #FFF8F0); }

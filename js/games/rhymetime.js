@@ -94,11 +94,16 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
+  // Alex, 2026-07-30: the Toddler hub's "Rhymes" card jumps straight into level 1 — all
+  // pictures and sound, no picker a pre-reader cannot read (same shape as Sound Sorter's
+  // toddler door). Six sets, matching the other toddler rounds.
+  const toddlerMode = !!(params && params.toddler);
   const rz = params && params.resume;
-  if (rz && rz.mix) playMix();
+  if (toddlerMode) startRound(buildRhymeRound(1, 6), { badgeKey: 'L1', level: 1, title: 'Rhyme Time' });
+  else if (rz && rz.mix) playMix();
   else if (rz && rz.level) play(rz.level);
   else startCard();
-  maybeIntro('rhymetime');
+  if (!toddlerMode) maybeIntro('rhymetime');
 
   function startCard() {
     clear(root);
@@ -321,7 +326,7 @@ export function mount(container, params, ctx) {
       ctx.go('results', {
         game: 'rhymetime', gameName: mix ? 'Smart Mix' : 'Rhyme Time', stars, level,
         cat: mix ? null : badgeKey, mix, tricky: collector.items(),
-        replay: () => ctx.go('rhymetime')
+        replay: () => ctx.go('rhymetime', toddlerMode ? { toddler: true } : undefined)
       });
     }
 

@@ -44,23 +44,27 @@ export const B1 = [
 export const B1_PREFIXES = [...new Set(B1.map(i => i.parts[0].k))];
 
 // ---- B2: suffixes — "-ly, and what happens at the join" ----
+// Orders re-derived 2026-07-30 (Alex: the meaning lines gave the answer away — "IN A
+// GENTLE WAY" → gently). Now the transform system he praised in B3 ("Make 'play' already
+// done!"): the ROOT is given, the work is choosing the right ending and surviving the
+// join. A HOW word is the KS2-friendly name for an adverb.
 export const B2 = [
-  { id: 'sadly', parts: [{ k: 'sad', l: 'sad' }, { k: 'ly', l: 'ly' }], build: 'sadly', rule: RULE_DESC.JUST_ADD_LY, order: 'I need something that means IN A SAD WAY!', ruleType: 'JUST ADD' },
-  { id: 'slowly', parts: [{ k: 'slow', l: 'slow' }, { k: 'ly', l: 'ly' }], build: 'slowly', rule: RULE_DESC.JUST_ADD_LY, order: 'I need something that means IN A SLOW WAY!', ruleType: 'JUST ADD' },
-  { id: 'quietly', parts: [{ k: 'quiet', l: 'quiet' }, { k: 'ly', l: 'ly' }], build: 'quietly', rule: RULE_DESC.JUST_ADD_LY, order: 'I need something that means IN A QUIET WAY!', ruleType: 'JUST ADD' },
-  { id: 'completely', parts: [{ k: 'complete', l: 'complete' }, { k: 'ly', l: 'ly' }], build: 'completely', rule: RULE_DESC.JUST_ADD_LY + ' Keep the e!', order: 'I need something that means ALL THE WAY, NOTHING LEFT!', ruleType: 'JUST ADD' },
-  { id: 'usually', parts: [{ k: 'usual', l: 'usual' }, { k: 'ly', l: 'ly' }], build: 'usually', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s meet!', order: 'I need something that means MOST OF THE TIME!', ruleType: 'JUST ADD' },
-  { id: 'finally', parts: [{ k: 'final', l: 'final' }, { k: 'ly', l: 'ly' }], build: 'finally', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s again!', order: 'I need something that means AT LAST!', ruleType: 'JUST ADD' },
-  { id: 'happily', parts: [{ k: 'happy', l: 'happy' }, { k: 'ly', l: 'ily' }], build: 'happily', rule: 'happy + ly → happily. ' + RULE_DESC.Y_TO_I_LY, order: 'I need something that means IN A HAPPY WAY!', ruleType: 'Y TURNS TO I' },
-  { id: 'angrily', parts: [{ k: 'angry', l: 'angry' }, { k: 'ly', l: 'ily' }], build: 'angrily', rule: 'angry + ly → angrily. ' + RULE_DESC.Y_TO_I_LY, order: 'I need something that means IN AN ANGRY WAY!', ruleType: 'Y TURNS TO I' },
-  { id: 'easily', parts: [{ k: 'easy', l: 'easy' }, { k: 'ly', l: 'ily' }], build: 'easily', rule: 'easy + ly → easily. ' + RULE_DESC.Y_TO_I_LY, order: 'I need something that means WITHOUT ANY TROUBLE!', ruleType: 'Y TURNS TO I' },
-  { id: 'gently', parts: [{ k: 'gentle', l: 'gentle' }, { k: 'ly', l: 'ly' }], build: 'gently', rule: 'gentle + ly → gently. ' + RULE_DESC.LE_TO_LY, order: 'I need something that means IN A GENTLE WAY!', ruleType: 'LE TURNS TO LY' },
-  { id: 'simply', parts: [{ k: 'simple', l: 'simple' }, { k: 'ly', l: 'ly' }], build: 'simply', rule: 'simple + ly → simply. ' + RULE_DESC.LE_TO_LY, order: 'I need something that means IN A SIMPLE WAY!', ruleType: 'LE TURNS TO LY' },
-  { id: 'humbly', parts: [{ k: 'humble', l: 'humble' }, { k: 'ly', l: 'ly' }], build: 'humbly', rule: 'humble + ly → humbly. ' + RULE_DESC.LE_TO_LY, order: 'I need something that means IN A HUMBLE WAY, NOT SHOWING OFF!', ruleType: 'LE TURNS TO LY' },
-  { id: 'basically', parts: [{ k: 'basic', l: 'basic' }, { k: 'ally', l: 'ally' }], build: 'basically', rule: 'basic + ally → basically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means AT ITS MOST BASIC, REALLY!', ruleType: 'IC TAKES ALLY' },
-  { id: 'comically', parts: [{ k: 'comic', l: 'comic' }, { k: 'ally', l: 'ally' }], build: 'comically', rule: 'comic + ally → comically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means IN A FUNNY WAY!', ruleType: 'IC TAKES ALLY' },
-  { id: 'dramatically', parts: [{ k: 'dramatic', l: 'dramatic' }, { k: 'ally', l: 'ally' }], build: 'dramatically', rule: 'dramatic + ally → dramatically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means IN A BIG, DRAMATIC WAY!', ruleType: 'IC TAKES ALLY' },
-  { id: 'frantically', parts: [{ k: 'frantic', l: 'frantic' }, { k: 'ally', l: 'ally' }], build: 'frantically', rule: 'frantic + ally → frantically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means IN A PANICKED RUSH!', ruleType: 'IC TAKES ALLY' }
+  { id: 'sadly', parts: [{ k: 'sad', l: 'sad' }, { k: 'ly', l: 'ly' }], build: 'sadly', rule: RULE_DESC.JUST_ADD_LY, order: 'Turn ‘sad’ into a HOW word!', ruleType: 'JUST ADD' },
+  { id: 'slowly', parts: [{ k: 'slow', l: 'slow' }, { k: 'ly', l: 'ly' }], build: 'slowly', rule: RULE_DESC.JUST_ADD_LY, order: 'Make ‘slow’ tell us HOW!', ruleType: 'JUST ADD' },
+  { id: 'quietly', parts: [{ k: 'quiet', l: 'quiet' }, { k: 'ly', l: 'ly' }], build: 'quietly', rule: RULE_DESC.JUST_ADD_LY, order: 'Turn ‘quiet’ into a HOW word!', ruleType: 'JUST ADD' },
+  { id: 'completely', parts: [{ k: 'complete', l: 'complete' }, { k: 'ly', l: 'ly' }], build: 'completely', rule: RULE_DESC.JUST_ADD_LY + ' Keep the e!', order: 'Make ‘complete’ tell us HOW!', ruleType: 'JUST ADD' },
+  { id: 'usually', parts: [{ k: 'usual', l: 'usual' }, { k: 'ly', l: 'ly' }], build: 'usually', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s meet!', order: 'Turn ‘usual’ into a HOW word!', ruleType: 'JUST ADD' },
+  { id: 'finally', parts: [{ k: 'final', l: 'final' }, { k: 'ly', l: 'ly' }], build: 'finally', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s again!', order: 'Make ‘final’ tell us HOW!', ruleType: 'JUST ADD' },
+  { id: 'happily', parts: [{ k: 'happy', l: 'happy' }, { k: 'ly', l: 'ily' }], build: 'happily', rule: 'happy + ly → happily. ' + RULE_DESC.Y_TO_I_LY, order: 'Turn ‘happy’ into a HOW word!', ruleType: 'Y TURNS TO I' },
+  { id: 'angrily', parts: [{ k: 'angry', l: 'angry' }, { k: 'ly', l: 'ily' }], build: 'angrily', rule: 'angry + ly → angrily. ' + RULE_DESC.Y_TO_I_LY, order: 'Make ‘angry’ tell us HOW!', ruleType: 'Y TURNS TO I' },
+  { id: 'easily', parts: [{ k: 'easy', l: 'easy' }, { k: 'ly', l: 'ily' }], build: 'easily', rule: 'easy + ly → easily. ' + RULE_DESC.Y_TO_I_LY, order: 'Turn ‘easy’ into a HOW word!', ruleType: 'Y TURNS TO I' },
+  { id: 'gently', parts: [{ k: 'gentle', l: 'gentle' }, { k: 'ly', l: 'ly' }], build: 'gently', rule: 'gentle + ly → gently. ' + RULE_DESC.LE_TO_LY, order: 'Make ‘gentle’ tell us HOW!', ruleType: 'LE TURNS TO LY' },
+  { id: 'simply', parts: [{ k: 'simple', l: 'simple' }, { k: 'ly', l: 'ly' }], build: 'simply', rule: 'simple + ly → simply. ' + RULE_DESC.LE_TO_LY, order: 'Turn ‘simple’ into a HOW word!', ruleType: 'LE TURNS TO LY' },
+  { id: 'humbly', parts: [{ k: 'humble', l: 'humble' }, { k: 'ly', l: 'ly' }], build: 'humbly', rule: 'humble + ly → humbly. ' + RULE_DESC.LE_TO_LY, order: 'Make ‘humble’ tell us HOW!', ruleType: 'LE TURNS TO LY' },
+  { id: 'basically', parts: [{ k: 'basic', l: 'basic' }, { k: 'ally', l: 'ally' }], build: 'basically', rule: 'basic + ally → basically. ' + RULE_DESC.IC_ALLY, order: 'Turn ‘basic’ into a HOW word!', ruleType: 'IC TAKES ALLY' },
+  { id: 'comically', parts: [{ k: 'comic', l: 'comic' }, { k: 'ally', l: 'ally' }], build: 'comically', rule: 'comic + ally → comically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘comic’ tell us HOW!', ruleType: 'IC TAKES ALLY' },
+  { id: 'dramatically', parts: [{ k: 'dramatic', l: 'dramatic' }, { k: 'ally', l: 'ally' }], build: 'dramatically', rule: 'dramatic + ally → dramatically. ' + RULE_DESC.IC_ALLY, order: 'Turn ‘dramatic’ into a HOW word!', ruleType: 'IC TAKES ALLY' },
+  { id: 'frantically', parts: [{ k: 'frantic', l: 'frantic' }, { k: 'ally', l: 'ally' }], build: 'frantically', rule: 'frantic + ally → frantically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘frantic’ tell us HOW!', ruleType: 'IC TAKES ALLY' }
 ];
 
 // ---- B3: -ing/-ed double or drop ----
@@ -90,17 +94,20 @@ export const B3PLUS = [
 ];
 
 // ---- B4: -ation and -ous (harder shelf) ----
+// Orders re-derived 2026-07-30 (Alex: "FULL OF COURAGE → courageous is too obvious").
+// Same transform system as B3: root given, the ending and the join are the work.
+// A naming word is a noun; a describing word is an adjective (KS2-friendly names).
 export const B4 = [
-  { id: 'information', parts: [{ k: 'inform', l: 'inform' }, { k: 'ation', l: 'ation' }], build: 'information', rule: RULE_DESC.JUST_ADD, order: 'I need something that means WHAT YOU ARE TOLD!', ruleType: 'JUST ADD' },
-  { id: 'preparation', parts: [{ k: 'prepare', l: 'prepare' }, { k: 'ation', l: 'ation' }], build: 'preparation', rule: RULE_DESC.DROP_E, order: 'I need something that means GETTING READY!', ruleType: 'DROP THE E' },
-  { id: 'admiration', parts: [{ k: 'admire', l: 'admire' }, { k: 'ation', l: 'ation' }], build: 'admiration', rule: RULE_DESC.DROP_E, order: 'I need something that means LOOKING UP TO SOMEONE!', ruleType: 'DROP THE E' },
-  { id: 'sensation', parts: [{ k: 'sense', l: 'sense' }, { k: 'ation', l: 'ation' }], build: 'sensation', rule: RULE_DESC.DROP_E, order: 'I need something that means A BIG FEELING!', ruleType: 'DROP THE E' },
-  { id: 'dangerous', parts: [{ k: 'danger', l: 'danger' }, { k: 'ous', l: 'ous' }], build: 'dangerous', rule: RULE_DESC.JUST_ADD, order: 'I need something that means FULL OF DANGER!', ruleType: 'JUST ADD' },
-  { id: 'poisonous', parts: [{ k: 'poison', l: 'poison' }, { k: 'ous', l: 'ous' }], build: 'poisonous', rule: RULE_DESC.JUST_ADD, order: 'I need something that means FULL OF POISON!', ruleType: 'JUST ADD' },
-  { id: 'famous', parts: [{ k: 'fame', l: 'fame' }, { k: 'ous', l: 'ous' }], build: 'famous', rule: RULE_DESC.DROP_E, order: 'I need something that means FULL OF FAME!', ruleType: 'DROP THE E' },
-  { id: 'various', parts: [{ k: 'vary', l: 'vary' }, { k: 'ous', l: 'ious' }], build: 'various', rule: 'vary + ous → various. ' + RULE_DESC.Y_TO_I_LY.replace('-ly', '-ous'), order: 'I need something that means MANY DIFFERENT KINDS!', ruleType: 'Y TURNS TO I' },
-  { id: 'courageous', parts: [{ k: 'courage', l: 'courage' }, { k: 'ous', l: 'eous' }], build: 'courageous', rule: 'KEEP the e — it keeps the g soft!', order: 'I need something that means FULL OF COURAGE!', ruleType: 'KEEP THE E' },
-  { id: 'outrageous', parts: [{ k: 'outrage', l: 'outrage' }, { k: 'ous', l: 'eous' }], build: 'outrageous', rule: 'Keep the e again. Outrageous!', order: 'I need something that means SHOCKINGLY BAD!', ruleType: 'KEEP THE E' }
+  { id: 'information', parts: [{ k: 'inform', l: 'inform' }, { k: 'ation', l: 'ation' }], build: 'information', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘inform’ into a naming word!', ruleType: 'JUST ADD' },
+  { id: 'preparation', parts: [{ k: 'prepare', l: 'prepare' }, { k: 'ation', l: 'ation' }], build: 'preparation', rule: RULE_DESC.DROP_E, order: 'Make ‘prepare’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'admiration', parts: [{ k: 'admire', l: 'admire' }, { k: 'ation', l: 'ation' }], build: 'admiration', rule: RULE_DESC.DROP_E, order: 'Turn ‘admire’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'sensation', parts: [{ k: 'sense', l: 'sense' }, { k: 'ation', l: 'ation' }], build: 'sensation', rule: RULE_DESC.DROP_E, order: 'Make ‘sense’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'dangerous', parts: [{ k: 'danger', l: 'danger' }, { k: 'ous', l: 'ous' }], build: 'dangerous', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘danger’ into a describing word!', ruleType: 'JUST ADD' },
+  { id: 'poisonous', parts: [{ k: 'poison', l: 'poison' }, { k: 'ous', l: 'ous' }], build: 'poisonous', rule: RULE_DESC.JUST_ADD, order: 'Make ‘poison’ into a describing word!', ruleType: 'JUST ADD' },
+  { id: 'famous', parts: [{ k: 'fame', l: 'fame' }, { k: 'ous', l: 'ous' }], build: 'famous', rule: RULE_DESC.DROP_E, order: 'Turn ‘fame’ into a describing word!', ruleType: 'DROP THE E' },
+  { id: 'various', parts: [{ k: 'vary', l: 'vary' }, { k: 'ous', l: 'ious' }], build: 'various', rule: 'vary + ous → various. ' + RULE_DESC.Y_TO_I_LY.replace('-ly', '-ous'), order: 'Make ‘vary’ into a describing word!', ruleType: 'Y TURNS TO I' },
+  { id: 'courageous', parts: [{ k: 'courage', l: 'courage' }, { k: 'ous', l: 'eous' }], build: 'courageous', rule: 'KEEP the e — it keeps the g soft!', order: 'Turn ‘courage’ into a describing word!', ruleType: 'KEEP THE E' },
+  { id: 'outrageous', parts: [{ k: 'outrage', l: 'outrage' }, { k: 'ous', l: 'eous' }], build: 'outrageous', rule: 'Keep the e again. Outrageous!', order: 'Make ‘outrage’ into a describing word!', ruleType: 'KEEP THE E' }
 ];
 
 export const FACTORY_LEVELS = {
