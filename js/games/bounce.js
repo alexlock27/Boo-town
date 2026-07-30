@@ -35,7 +35,8 @@ const COLS = 6, ROWS = 4;
 const QUESTIONS = 8;           // round ends after 8 questions answered
 const MAX_WALL_CLEARS = 2;     // ...or the wall fully cleared twice
 const MIN_WALL = 12;           // every new question tops the wall back up to >= this many bricks (C0)
-const MAX_LABELS = 3;          // exactly three labelled bricks while bricks allow (C0)
+const MAX_LABELS = 3;
+const WOBBLE_MS = 420;         // RUN19 Z7: a wrong-order brick shakes for this long          // exactly three labelled bricks while bricks allow (C0)
 const BRICK_COLORS = ['#FF7AC6', '#35D0BA', '#8FC7FF', '#C6A9F0', '#FFC93C', '#7FD8C3'];
 // Aim-and-launch (RUN6 C4): the serve rests on the paddle; a drag aims within an
 // upward cone; a dotted preview shows the path incl. its first wall bounce; release fires.
@@ -115,9 +116,46 @@ export function mount(container, params, ctx) {
     let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 9, speed: 0, stuck: true };
     let aiming = false, aimAngle = AIM_DEFAULT;   // aim-and-launch (C4)
 
+    // ---- RUN19 Z7: BUILD THE ANSWER ----------------------------------------------------
+    // The wall stops offering three whole answers to choose between and offers the DIGITS 0-9
+    // instead: she reads the sum, works the answer out, and then builds it a digit at a time,
+    // biggest place first. The question sources are untouched — same generators, same keys,
+    // same ledger — so this is a different KIND of ask about work she already does.
+    //
+    // Order is the lesson. "Tens first!" is not a rule of the game for its own sake; it is
+    // place value, and hitting the 2 of 62 before the 6 is exactly the misconception worth
+    // catching. A wrong-order hit therefore costs nothing but the ball: it wobbles, returns,
+    // and says which digit it wanted.
+    let answerDigits = '';     // '62' — the digits she has to break, left to right
+    let filled = 0;            // how many are already broken
+    const digitMode = () => answerDigits.length >= 2;
+    const neededDigit = () => (digitMode() && filled < answerDigits.length) ? answerDigits[filled] : null;
+    // The masked target: '6_' before the first hit, '62' after the last. Underscores, not blanks,
+    // so she can SEE how many digits the answer has before she starts.
+    const maskedAnswer = () => answerDigits.split('').map((d, i) => (i < filled ? d : '_')).join('');
+    // The place-value word for a position, counted from the left of THIS answer.
+    const placeWord = (i) => {
+      const fromRight = answerDigits.length - 1 - i;
+      return ['ones', 'tens', 'hundreds', 'thousands'][fromRight] || 'digits';
+    };
+
     // Split the current question into correct + wrong option texts (deduped, correct kept).
+    // In digit mode `correctText` becomes the digit she needs NEXT, which lets every existing
+    // invariant in reconcile() — the correct label is placed first, and is always alive and
+    // reachable — carry straight over with no new machinery.
     function setQuestionTexts() {
       const opts = question.options || [];
+      const answer = String(opts[question.correct] == null ? '' : opts[question.correct]);
+      // Digit mode only for a plain multi-digit NUMBER. A worded or formatted answer (a time, a
+      // fraction, "half of 8") has no place-value digits to build, and the classic three-label
+      // round is the honest thing to show for it.
+      answerDigits = /^\d{2,4}$/.test(answer) ? answer : '';
+      filled = 0;
+      if (digitMode()) {
+        correctText = neededDigit();
+        wrongTexts = '0123456789'.split('').filter(d => d !== correctText);
+        return;
+      }
       correctText = opts[question.correct];
       const seen = new Set([correctText]);
       wrongTexts = [];
@@ -184,7 +222,10 @@ export function mount(container, params, ctx) {
     function wantedTexts() {
       const alive = bricks.filter(b => b.alive).length;
       if (alive <= 0) return [];
-      const want = Math.min(MAX_LABELS, alive);
+      // RUN19 Z7: in digit mode the wall carries all ten digits, each once, rather than three
+      // whole answers — so the CAP is ten, not MAX_LABELS. When the wall runs low the needed
+      // digit still comes first, which is what keeps the round finishable.
+      const want = Math.min(digitMode() ? 10 : MAX_LABELS, alive);
       const out = [correctText];
       for (const w of wrongTexts) { if (out.length >= want) break; out.push(w); }
       return out;
@@ -226,6 +267,10 @@ export function mount(container, params, ctx) {
     function renderQuestion() {
       clear(qCard);
       qCard.appendChild(el('div', { class: 'bounce-prompt', text: question.prompt }));
+      // RUN19 Z7: the target panel. Underscores show how many digits the answer has, and each
+      // one fills as she breaks it, so the thing she is building is always on screen.
+      if (digitMode()) qCard.appendChild(el('div', { class: 'bounce-target', 'aria-label': `Building the answer: ${maskedAnswer()}` },
+        answerDigits.split('').map((d, i) => el('span', { class: 'bt-digit' + (i < filled ? ' on' : ''), text: i < filled ? d : '_' }))));
       if (question.speak) speakMaybe(question.speak);
       if (typeof window !== 'undefined') window.__booQuestion = question;
     }
@@ -286,6 +331,44 @@ export function mount(container, params, ctx) {
     }
     function onBrickHit(b) {
       if (ended || !b.alive) return;
+      // RUN19 Z7 — digit mode. The needed digit bursts and fills the mask; anything else wobbles
+      // and hands the ball back. The round is answered only when the mask is full.
+      if (digitMode() && b.label != null) {
+        const need = neededDigit();
+        if (b.label === need) {
+          b.alive = false; b.label = null; b.correct = false;
+          filled++;
+          sfx.correct();
+          if (!REDUCED) { const rc = canvas.getBoundingClientRect(); confetti({ count: 14, power: 0.45, origin: { x: rc.left + b.x + b.w / 2, y: rc.top + b.y } }); }
+          renderQuestion();
+          if (filled >= answerDigits.length) { destroyBrick(b); correctAnswer(b); return; }
+          // more digits to go: re-home the labels around the NEW needed digit and hand the ball
+          // back so she aims for it deliberately rather than hoping the bounce finds it.
+          correctText = neededDigit();
+          wrongTexts = '0123456789'.split('').filter(d => d !== correctText);
+          destroyBrick(b);
+          ensureReachableLabels();
+          resetBall();
+          if (bricks.every(x => !x.alive)) onWallCleared();
+          return;
+        }
+        // wrong digit, or the right digit in the wrong ORDER.
+        wrongBricks++; sfx.oops();
+        recordResult(question.key, false);
+        collector.addAttempted(choiceMiss({ id: question.key, game: 'bounce', prompt: question.prompt, options: question.options, answer: question.options[question.correct] }));
+        wobbleBrick(b);
+        // The authored line when she has gone for a LATER digit first — the place-value
+        // misconception this mechanic exists to catch. "Tens first!" is authored for the
+        // two-digit case; a longer answer names its own place rather than inventing a line.
+        const laterIdx = answerDigits.indexOf(b.label, filled + 1);
+        const line = (laterIdx > filled)
+          ? (placeWord(filled) === 'tens' ? 'Tens first!' : `${placeWord(filled)[0].toUpperCase()}${placeWord(filled).slice(1)} first!`)
+          : `Not ${b.label} — we need ${need}!`;
+        shell.react(line, { voice: false, hold: 2200 });
+        shell.dimHeart();
+        resetBall();     // the ball comes back: a wrong order costs a turn, never the round
+        return;
+      }
       if (b.label != null && b.correct) {                 // the correct brick's answer-hit
         b.alive = false; b.label = null; b.correct = false;
         correctAnswer(b); return;
@@ -398,15 +481,24 @@ export function mount(container, params, ctx) {
       return line;
     }
 
+    // RUN19 Z7: a wrong-order hit WOBBLES the brick. RUN18D noted that the wobble half of the
+    // Explanation Standard "has nowhere to live" on a canvas rect — it does now: drawBrick
+    // already carries a per-brick transform for the restack, so the wobble rides the same path.
+    function wobbleBrick(b) { if (!REDUCED && b) b.wobbleAt = animNow; }
     function drawBrick(b) {
-      let sc = 1, dy = 0;
+      let sc = 1, dy = 0, dx = 0;
       if (!REDUCED && b.bornAt != null) {
         const t = Math.min(1, (animNow - b.bornAt) / RESTACK_MS);
         if (t < 1) { const e = 1 - Math.pow(1 - t, 3); sc = 0.3 + 0.7 * e; dy = -(1 - e) * 16; }
       }
+      if (!REDUCED && b.wobbleAt != null) {
+        const t = (animNow - b.wobbleAt) / WOBBLE_MS;
+        if (t < 1) dx = Math.sin(t * Math.PI * 4) * (1 - t) * 7;
+        else b.wobbleAt = null;
+      }
       const midx = b.x + b.w / 2, midy = b.y + b.h / 2;
       cx.save();
-      if (sc !== 1 || dy !== 0) { cx.translate(midx, midy + dy); cx.scale(sc, sc); cx.translate(-midx, -midy); }
+      if (sc !== 1 || dy !== 0 || dx !== 0) { cx.translate(midx + dx, midy + dy); cx.scale(sc, sc); cx.translate(-midx, -midy); }
       cx.fillStyle = b.color;
       roundRect(cx, b.x, b.y, b.w, b.h, 6); cx.fill();
       cx.lineWidth = 2.5; cx.strokeStyle = '#2A1B4E'; cx.stroke();
@@ -501,6 +593,25 @@ export function mount(container, params, ctx) {
       restacking: () => bricks.filter(b => b.alive && b.bornAt != null && (animNow - b.bornAt) < RESTACK_MS).length,
       hopCount: () => hops.length,
       question: () => ({ prompt: question.prompt, key: question.key, correctText }),
+      // ---- RUN19 Z7 -------------------------------------------------------------------
+      digitMode: () => digitMode(),
+      // Skip to the next question WITHOUT scoring one — the digit rules only exist for a
+      // multi-digit answer, and a suite must be able to find one without playing ten rounds.
+      nextQuestion: () => { question = autoMix ? autoQuestion(question.key, 3) : makeQuestion(category, level, question.key, 3); setQuestionTexts(); renderQuestion(); placeLabels(); return window.__bounce.digitMode(); },
+      answerDigits: () => answerDigits,
+      masked: () => maskedAnswer(),
+      filled: () => filled,
+      needed: () => neededDigit(),
+      digitsOnWall: () => [...new Set(labelBricks().map(b => b.label))].sort(),
+      // Hit the brick carrying a given digit, as the ball would. Returns what happened, so a
+      // suite can drive the ORDER rule without simulating physics for a minute.
+      hitDigit: (d) => {
+        const b = labelBricks().find(x => String(x.label) === String(d));
+        if (!b) return { missing: true };
+        const before = filled;
+        onBrickHit(b);
+        return { filled, advanced: filled > before, masked: maskedAnswer(), needed: neededDigit(), wobbling: labelBricks().some(x => x.wobbleAt != null) };
+      },
       // incidental (non-answer) destruction — for the integrity scenario (C0)
       killBrickAt: (c, r) => { const b = bricks.find(x => x.c === c && x.r === r && x.alive); if (!b) return null; killIncidental(b); return { c, r }; },
       killCorrectBrick: () => { const b = labelBricks().find(x => x.correct); if (!b) return null; const info = { c: b.c, r: b.r }; killIncidental(b); return info; },

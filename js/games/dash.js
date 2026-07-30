@@ -100,6 +100,10 @@ export function mount(container, params, ctx) {
     let stopZ = SPAWN;            // where the current gate row's stop line is
     let runFromZ = 0, runT = 0, runDur = RUN_MS, lastRunMs = 0;
     let boLane = 0;               // which lane the Boo is drifting through (-1/0/1)
+    // RUN19 Z7: the estimation gates for the CURRENT question, or null for a classic round.
+    // Declared here with the other round-scoped state — it was originally declared below
+    // newQuestion(), which put the first call straight into its temporal dead zone.
+    let estGates = null;
 
     shell = createGameShell({ title: mix ? 'Smart Mix' : 'Boo Dash', rounds: GATES, accent: 'var(--pop)', bank: () => ({ correct: gate, of: GATES }),
       onBack: (b) => { stop(); if (b && b.stars > 0) ctx.go('results', { game: 'dash', gameName: mix ? 'Smart Mix' : 'Boo Dash', stars: b.stars, level, cat: mix ? null : catKey, mix, tricky: collector.items(), partial: b, replay: () => ctx.go('dash') }); else ctx.go('hub'); },
@@ -161,16 +165,83 @@ export function mount(container, params, ctx) {
         const k = DASH_CATS[rand(DASH_CATS.length)];
         const lv = BUBBLE_BY_KEY[k].levels[rand(BUBBLE_BY_KEY[k].levels.length)];
         const q = genQuestion(k, lv, question && question.key);
+        // RUN19 Z7: remember the level this question came from. Dash mixes levels per gate, and
+        // whether the row shows two multiples or three depends on it.
+        q.level = lv;
         if (!best) best = q;
         if (ledgerClass(q.key) === cls) return q;
       }
       return best;
     }
     function newQuestion() {
-      question = nextQ(gate);
-      factCard.textContent = question.display;
-      if (typeof window !== 'undefined') window.__dashCorrect = question.answer;
+      const picked = questionWithGates(nextQ(gate), levelOfQuestion());
+      question = picked.q;
+      estGates = picked.gates;
+      // RUN19 Z7: the card asks which way it leans, not what it equals.
+      factCard.textContent = estGates ? nearerPrompt(question) : question.display;
+      if (typeof window !== 'undefined') {
+        window.__dashCorrect = question.answer;
+        window.__dashGates = estGates ? estGates.map(g => g.v) : null;
+        window.__dashNearest = estGates ? (estGates.find(g => g.correct) || {}).v : null;
+      }
     }
+    // Dash mixes categories and levels per gate, so the level that decides two-gates-or-three is
+    // the one the CURRENT question came from.
+    function levelOfQuestion() {
+      const lv = question && question.level;
+      if (Number.isFinite(lv)) return lv;
+      return (level && Number.isFinite(level)) ? level : 1;
+    }
+    // ---- RUN19 Z7: ESTIMATION ------------------------------------------------------------
+    // The gates stop being "which of these three IS the answer" and become "which is it
+    // NEARER". The question sources are untouched — the same category items, the same keys, the
+    // same ledger — only what the gates offer changes, which is the whole point: the child is
+    // asked a different KIND of question about work she already knows how to do.
+    //
+    // Gates are the two nearest multiples of ten, and a tie is regenerated rather than shipped:
+    // "is 65 nearer 60 or 70" has no answer, and offering it would teach her that the game
+    // sometimes lies. At level 3 there are three consecutive multiples, so "nearest" needs a
+    // real comparison rather than a coin toss between two.
+    function estimationGates(answer, level) {
+      const a = Number(answer);
+      if (!Number.isFinite(a)) return null;
+      const lo = Math.floor(a / 10) * 10;
+      if (level >= 3) {
+        // three CONSECUTIVE multiples, centred on the nearest one so the answer is inside them
+        const near = Math.round(a / 10) * 10;
+        const start = Math.max(0, near - 10);
+        const three = [start, start + 10, start + 20];
+        const dists = three.map(g => Math.abs(a - g));
+        const best = Math.min(...dists);
+        if (dists.filter(d => d === best).length > 1) return null;    // a tie: regenerate
+        return three.map(v => ({ v, correct: Math.abs(a - v) === best }));
+      }
+      const two = [lo, lo + 10];
+      const d0 = Math.abs(a - two[0]), d1 = Math.abs(a - two[1]);
+      if (d0 === d1) return null;                                     // exactly halfway: regenerate
+      return two.map(v => ({ v, correct: Math.abs(a - v) === Math.min(d0, d1) }));
+    }
+    // A question whose answer sits exactly halfway between two tens has no nearer gate, so ask
+    // the source for another one. Bounded, and it falls back to the last question rather than
+    // looping — the run must never stall on the generator.
+    function questionWithGates(q, level) {
+      let cur = q, gates = estimationGates(cur.answer, level);
+      for (let i = 0; i < 8 && !gates; i++) {
+        cur = nextQ(gate);
+        gates = estimationGates(cur.answer, level);
+      }
+      return { q: cur, gates };
+    }
+    // "Which is «expr» nearer?" — the prompt the pack authors, spoken once.
+    // Function DECLARATIONS, not const arrows: newQuestion() is called during setup, which runs
+    // before this line would, and a const would put that first call in its temporal dead zone.
+    // The «expr», not the whole card text: a display reads "10 x 3 = ?", and
+    // "Which is 10 x 3 = ? nearer?" is two questions wearing one sentence. Trailing "= ?" goes.
+    function nearerPrompt(q) { return `Which is ${String(q.display).replace(/\s*=\s*\?\s*$/, '')} nearer?`; }
+    // "«expr» is «A» — nearer «correct»!" — the explanation, on right answers as well as wrong,
+    // because this mechanic is NEW and the number it is teaching is the one she did not see.
+    function nearerExplain(q, correct) { return `${String(q.display).replace(/\s*=\s*\?\s*$/, '')} is ${q.answer} — nearer ${correct}!`; }
+
     function pickWrong(q) {
       const pool = q.distractors.filter(x => x !== q.answer);
       return shuffle(pool.slice()).slice(0, 2);
@@ -185,9 +256,24 @@ export function mount(container, params, ctx) {
     // Every lane always carries a gate: answer + 2 distractors, shuffled across lanes.
     function spawnRow() {
       const fmt = question.fmt || String;
-      const opts = shuffle([{ v: question.answer, correct: true }, ...pickWrong(question).map(x => ({ v: x, correct: false }))]);
+      // RUN19 Z7 — the gates are the estimation multiples, IN ORDER (60 then 70 reads as a
+      // number line; shuffling them would make the child hunt rather than compare). Two gates
+      // take the outer lanes and the middle becomes a solid section of fence, so there is never
+      // an invisible gap to run through. Three gates fill all three lanes at level 3.
+      const opts = estGates
+        ? (estGates.length === 2 ? [estGates[0], null, estGates[1]] : estGates.slice())
+        : shuffle([{ v: question.answer, correct: true }, ...pickWrong(question).map(x => ({ v: x, correct: false }))]);
       const row = { z: stopZ, open: false, passed: false, gates: [] };
       opts.forEach((o, lane) => {
+        if (!o) {
+          // the middle: fence, not a gate. Not a button, so it can never be tapped or focused.
+          const wallNode = el('div', { class: 'd2-gate d2-fence lane' + lane, 'aria-hidden': 'true' }, [
+            el('div', { class: 'g-frame' }, [el('div', { class: 'g-top' }), el('div', { class: 'g-post left' }), el('div', { class: 'g-post right' })])
+          ]);
+          gatesEl.appendChild(wallNode);
+          row.gates.push({ v: null, correct: false, node: wallNode, fence: true });
+          return;
+        }
         // RUN12 S13.4: the gate says which answer it IS
         const g = el('button', { class: 'd2-gate lane' + lane, 'aria-label': nameWithValue('answer gate', fmt(o.v)) }, [
           el('div', { class: 'g-frame' }, [
@@ -199,7 +285,7 @@ export function mount(container, params, ctx) {
         ]);
         g.onclick = () => tapGate(row, lane);
         gatesEl.appendChild(g);
-        row.gates.push({ node: g, correct: o.correct, lane });
+        row.gates.push({ node: g, correct: o.correct, lane, v: o.v });   // RUN19 Z7: the explanation names the value
       });
       rows.push(row);
       if (steady) { worldZ = row.z; phase = 'wait'; setTrot('jog'); layout(); }
@@ -209,10 +295,15 @@ export function mount(container, params, ctx) {
     function tapGate(row, lane) {
       if (ended || phase !== 'wait' || row.open || row.passed) return;
       const g = row.gates[lane];
+      if (g.fence) return;   // RUN19 Z7: the middle section of fence is not an answer
       if (g.correct) {
         row.open = true;
         recordResult(question.key, true);
         sfx.correct(); streak++;
+        // RUN19 Z7 — the estimation explanation, on the RIGHT answer too. The number she was
+        // estimating is the one she never saw, so saying it is the entire lesson; a chime alone
+        // would confirm the guess and teach nothing.
+        if (estGates) shell.react(nearerExplain(question, g.v), { voice: false, hold: 1800 });
         g.node.classList.add('open');
         if (!REDUCED) { const r = g.node.getBoundingClientRect(); sparkleAt(r.left + r.width / 2, r.top + r.height * 0.35); }
         boLane = lane - 1;               // drift through the opened gate
@@ -232,7 +323,14 @@ export function mount(container, params, ctx) {
         // RUN18D, the EXPLANATION STANDARD. Line verbatim from the pack: the gate she ran
         // into is named, and so is the answer — a generic "oops" told her neither, on a
         // screen where the two numbers are the entire question.
-        shell.react(dashWrongLine((g.node.querySelector('.g-label') || {}).textContent, fmt(question.options[question.correct].v != null ? question.options[question.correct].v : question.options[question.correct])), { voice: false, hold: 2400 });
+        // RUN19 Z7: an estimation round explains itself in the pack's own words — the value, and
+        // which multiple it is nearer. The classic gate keeps RUN18D's line.
+        if (estGates) {
+          const right = (estGates.find(x => x.correct) || {}).v;
+          shell.react(nearerExplain(question, right), { voice: false, hold: 2600 });
+        } else {
+          shell.react(dashWrongLine((g.node.querySelector('.g-label') || {}).textContent, fmt(question.options[question.correct].v != null ? question.options[question.correct].v : question.options[question.correct])), { voice: false, hold: 2400 });
+        }
         setTimeout(() => booInner.classList.remove('bonk'), 450);
       }
     }
@@ -345,10 +443,30 @@ export function mount(container, params, ctx) {
     // test hook (invisible). Kept shape-compatible with p8-frames: tap() no-ops unless waiting.
     if (typeof window !== 'undefined') window.__dash = {
       correct: () => question.answer,
+      // ---- RUN19 Z7 ---------------------------------------------------------------------
+      estimation: () => !!estGates,
+      gates: () => (estGates ? estGates.map(g => ({ v: g.v, correct: !!g.correct })) : null),
+      gateLabels: () => [...gatesEl.querySelectorAll('.d2-gate .g-label')].map(n => n.textContent),
+      fences: () => gatesEl.querySelectorAll('.d2-fence').length,
+      prompt: () => factCard.textContent,
+      estimationGates: (a, lv) => estimationGates(a, lv),
+      nearerExplain: (q, c) => nearerExplain(q || question, c),
+      tapNearest: () => {
+        const row = rows.find(r => !r.open && !r.passed); if (!row || phase !== 'wait') return false;
+        const g = row.gates.find(x => x.correct); if (!g) return false;
+        g.node.click(); return true;
+      },
+      tapWrong: () => {
+        const row = rows.find(r => !r.open && !r.passed); if (!row || phase !== 'wait') return false;
+        const g = row.gates.find(x => !x.correct && !x.fence); if (!g) return false;
+        g.node.click(); return true;
+      },
+      // RUN19 Z7: skips the FENCE (it has no .g-label, and reading one crashed this hook), and
+      // asks the gate's own `correct` flag rather than matching its label against the answer —
+      // in an estimation round the right gate is the NEARER multiple, never the answer itself.
       tap: (wantCorrect) => {
         const row = rows.find(r => !r.open && !r.passed); if (!row || phase !== 'wait') return;
-        const fmt = question.fmt || String;
-        const g = row.gates.find(x => (x.node.querySelector('.g-label').textContent === String(fmt(question.answer))) === wantCorrect);
+        const g = row.gates.find(x => !x.fence && !!x.correct === !!wantCorrect);
         if (g) g.node.click();
       },
       state: () => ({ gate, bonks, streak, ended, phase, worldZ: +worldZ.toFixed(1), stopZ, lastRunMs: Math.round(lastRunMs), speedy: scene.classList.contains('speedy'), steady }),
