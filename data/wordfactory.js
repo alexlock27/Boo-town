@@ -45,22 +45,22 @@ export const B1_PREFIXES = [...new Set(B1.map(i => i.parts[0].k))];
 
 // ---- B2: suffixes — "-ly, and what happens at the join" ----
 export const B2 = [
-  { id: 'sadly', parts: [{ k: 'sad', l: 'sad' }, { k: 'ly', l: 'ly' }], build: 'sadly', rule: RULE_DESC.JUST_ADD_LY, order: 'Make ‘sad’ happen in a sad way!', ruleType: 'JUST ADD' },
-  { id: 'slowly', parts: [{ k: 'slow', l: 'slow' }, { k: 'ly', l: 'ly' }], build: 'slowly', rule: RULE_DESC.JUST_ADD_LY, order: 'Make ‘slow’ happen in a slow way!', ruleType: 'JUST ADD' },
-  { id: 'quietly', parts: [{ k: 'quiet', l: 'quiet' }, { k: 'ly', l: 'ly' }], build: 'quietly', rule: RULE_DESC.JUST_ADD_LY, order: 'Make ‘quiet’ happen quietly!', ruleType: 'JUST ADD' },
-  { id: 'completely', parts: [{ k: 'complete', l: 'complete' }, { k: 'ly', l: 'ly' }], build: 'completely', rule: RULE_DESC.JUST_ADD_LY + ' Keep the e!', order: 'Make ‘complete’ happen completely!', ruleType: 'JUST ADD' },
-  { id: 'usually', parts: [{ k: 'usual', l: 'usual' }, { k: 'ly', l: 'ly' }], build: 'usually', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s meet!', order: 'Make ‘usual’ happen usually!', ruleType: 'JUST ADD' },
-  { id: 'finally', parts: [{ k: 'final', l: 'final' }, { k: 'ly', l: 'ly' }], build: 'finally', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s again!', order: 'Make ‘final’ happen finally!', ruleType: 'JUST ADD' },
-  { id: 'happily', parts: [{ k: 'happy', l: 'happy' }, { k: 'ly', l: 'ily' }], build: 'happily', rule: 'happy + ly → happily. ' + RULE_DESC.Y_TO_I_LY, order: 'Make ‘happy’ happen happily!', ruleType: 'Y TURNS TO I' },
-  { id: 'angrily', parts: [{ k: 'angry', l: 'angry' }, { k: 'ly', l: 'ily' }], build: 'angrily', rule: 'angry + ly → angrily. ' + RULE_DESC.Y_TO_I_LY, order: 'Make ‘angry’ happen angrily!', ruleType: 'Y TURNS TO I' },
-  { id: 'easily', parts: [{ k: 'easy', l: 'easy' }, { k: 'ly', l: 'ily' }], build: 'easily', rule: 'easy + ly → easily. ' + RULE_DESC.Y_TO_I_LY, order: 'Make ‘easy’ happen easily!', ruleType: 'Y TURNS TO I' },
-  { id: 'gently', parts: [{ k: 'gentle', l: 'gentle' }, { k: 'ly', l: 'ly' }], build: 'gently', rule: 'gentle + ly → gently. ' + RULE_DESC.LE_TO_LY, order: 'Make ‘gentle’ happen gently!', ruleType: 'LE TURNS TO LY' },
-  { id: 'simply', parts: [{ k: 'simple', l: 'simple' }, { k: 'ly', l: 'ly' }], build: 'simply', rule: 'simple + ly → simply. ' + RULE_DESC.LE_TO_LY, order: 'Make ‘simple’ happen simply!', ruleType: 'LE TURNS TO LY' },
-  { id: 'humbly', parts: [{ k: 'humble', l: 'humble' }, { k: 'ly', l: 'ly' }], build: 'humbly', rule: 'humble + ly → humbly. ' + RULE_DESC.LE_TO_LY, order: 'Make ‘humble’ happen humbly!', ruleType: 'LE TURNS TO LY' },
-  { id: 'basically', parts: [{ k: 'basic', l: 'basic' }, { k: 'ally', l: 'ally' }], build: 'basically', rule: 'basic + ally → basically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘basic’ happen basically!', ruleType: 'IC TAKES ALLY' },
-  { id: 'comically', parts: [{ k: 'comic', l: 'comic' }, { k: 'ally', l: 'ally' }], build: 'comically', rule: 'comic + ally → comically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘comic’ happen comically!', ruleType: 'IC TAKES ALLY' },
-  { id: 'dramatically', parts: [{ k: 'dramatic', l: 'dramatic' }, { k: 'ally', l: 'ally' }], build: 'dramatically', rule: 'dramatic + ally → dramatically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘dramatic’ happen dramatically!', ruleType: 'IC TAKES ALLY' },
-  { id: 'frantically', parts: [{ k: 'frantic', l: 'frantic' }, { k: 'ally', l: 'ally' }], build: 'frantically', rule: 'frantic + ally → frantically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘frantic’ happen frantically!', ruleType: 'IC TAKES ALLY' }
+  { id: 'sadly', parts: [{ k: 'sad', l: 'sad' }, { k: 'ly', l: 'ly' }], build: 'sadly', rule: RULE_DESC.JUST_ADD_LY, order: 'I need something that means IN A SAD WAY!', ruleType: 'JUST ADD' },
+  { id: 'slowly', parts: [{ k: 'slow', l: 'slow' }, { k: 'ly', l: 'ly' }], build: 'slowly', rule: RULE_DESC.JUST_ADD_LY, order: 'I need something that means IN A SLOW WAY!', ruleType: 'JUST ADD' },
+  { id: 'quietly', parts: [{ k: 'quiet', l: 'quiet' }, { k: 'ly', l: 'ly' }], build: 'quietly', rule: RULE_DESC.JUST_ADD_LY, order: 'I need something that means IN A QUIET WAY!', ruleType: 'JUST ADD' },
+  { id: 'completely', parts: [{ k: 'complete', l: 'complete' }, { k: 'ly', l: 'ly' }], build: 'completely', rule: RULE_DESC.JUST_ADD_LY + ' Keep the e!', order: 'I need something that means ALL THE WAY, NOTHING LEFT!', ruleType: 'JUST ADD' },
+  { id: 'usually', parts: [{ k: 'usual', l: 'usual' }, { k: 'ly', l: 'ly' }], build: 'usually', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s meet!', order: 'I need something that means MOST OF THE TIME!', ruleType: 'JUST ADD' },
+  { id: 'finally', parts: [{ k: 'final', l: 'final' }, { k: 'ly', l: 'ly' }], build: 'finally', rule: RULE_DESC.JUST_ADD_LY + ' Two l’s again!', order: 'I need something that means AT LAST!', ruleType: 'JUST ADD' },
+  { id: 'happily', parts: [{ k: 'happy', l: 'happy' }, { k: 'ly', l: 'ily' }], build: 'happily', rule: 'happy + ly → happily. ' + RULE_DESC.Y_TO_I_LY, order: 'I need something that means IN A HAPPY WAY!', ruleType: 'Y TURNS TO I' },
+  { id: 'angrily', parts: [{ k: 'angry', l: 'angry' }, { k: 'ly', l: 'ily' }], build: 'angrily', rule: 'angry + ly → angrily. ' + RULE_DESC.Y_TO_I_LY, order: 'I need something that means IN AN ANGRY WAY!', ruleType: 'Y TURNS TO I' },
+  { id: 'easily', parts: [{ k: 'easy', l: 'easy' }, { k: 'ly', l: 'ily' }], build: 'easily', rule: 'easy + ly → easily. ' + RULE_DESC.Y_TO_I_LY, order: 'I need something that means WITHOUT ANY TROUBLE!', ruleType: 'Y TURNS TO I' },
+  { id: 'gently', parts: [{ k: 'gentle', l: 'gentle' }, { k: 'ly', l: 'ly' }], build: 'gently', rule: 'gentle + ly → gently. ' + RULE_DESC.LE_TO_LY, order: 'I need something that means IN A GENTLE WAY!', ruleType: 'LE TURNS TO LY' },
+  { id: 'simply', parts: [{ k: 'simple', l: 'simple' }, { k: 'ly', l: 'ly' }], build: 'simply', rule: 'simple + ly → simply. ' + RULE_DESC.LE_TO_LY, order: 'I need something that means IN A SIMPLE WAY!', ruleType: 'LE TURNS TO LY' },
+  { id: 'humbly', parts: [{ k: 'humble', l: 'humble' }, { k: 'ly', l: 'ly' }], build: 'humbly', rule: 'humble + ly → humbly. ' + RULE_DESC.LE_TO_LY, order: 'I need something that means IN A HUMBLE WAY, NOT SHOWING OFF!', ruleType: 'LE TURNS TO LY' },
+  { id: 'basically', parts: [{ k: 'basic', l: 'basic' }, { k: 'ally', l: 'ally' }], build: 'basically', rule: 'basic + ally → basically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means AT ITS MOST BASIC, REALLY!', ruleType: 'IC TAKES ALLY' },
+  { id: 'comically', parts: [{ k: 'comic', l: 'comic' }, { k: 'ally', l: 'ally' }], build: 'comically', rule: 'comic + ally → comically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means IN A FUNNY WAY!', ruleType: 'IC TAKES ALLY' },
+  { id: 'dramatically', parts: [{ k: 'dramatic', l: 'dramatic' }, { k: 'ally', l: 'ally' }], build: 'dramatically', rule: 'dramatic + ally → dramatically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means IN A BIG, DRAMATIC WAY!', ruleType: 'IC TAKES ALLY' },
+  { id: 'frantically', parts: [{ k: 'frantic', l: 'frantic' }, { k: 'ally', l: 'ally' }], build: 'frantically', rule: 'frantic + ally → frantically. ' + RULE_DESC.IC_ALLY, order: 'I need something that means IN A PANICKED RUSH!', ruleType: 'IC TAKES ALLY' }
 ];
 
 // ---- B3: -ing/-ed double or drop ----
