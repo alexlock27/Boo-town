@@ -949,7 +949,7 @@ export function mount(container, params, ctx) {
     renderGrowth();
     renderFunfair();
     renderHide();
-    decorateEasels();
+    decorateEasels().then(maybeAckEasel);   // RUN19 Z4 — after the art is actually in the DOM
     renderRequestBubble();
     // A request fulfilled on ANOTHER screen (the wardrobe, the Disco Hall) still owes the
     // child its moment. takeThanks() drains the flag, so this is a no-op when there is
@@ -1897,9 +1897,14 @@ export function mount(container, params, ctx) {
       }
     }
     startRoutineLoop();
+    const performing = actors.some(a => a.dancing && a.routine && a.routine.length);
     // RUN19 Z2: a stage routine playing in this area is one of the two ways a 'dance'
     // request is satisfied — the other is any visit to the Disco Hall.
-    if (actors.some(a => a.dancing && a.routine && a.routine.length)) fireRequest('routine', { area: STORE_KEY });
+    if (performing) fireRequest('routine', { area: STORE_KEY });
+    // RUN19 Z4: the first time a saved routine is actually PERFORMED. There was already a
+    // `firstRoutine` stamp for SAVING one in the choreographer, which is a different moment —
+    // saving is a plan, performing is the thing she made happening in front of her.
+    if (performing) stampJournal('routine_first');
   }
   function startRoutineLoop() {
     if (routineTimer) { clearInterval(routineTimer); routineTimer = null; }
@@ -2067,6 +2072,55 @@ export function mount(container, params, ctx) {
       setTimeout(() => bubble.remove(), 2400);
     }
     noteSocketClaim(a.place.item, role.deco);
+  }
+
+  // ---- RUN19 Z4: the acknowledgement pass -------------------------------------------
+  // Three lines in which the town notices what SHE made. All three share the ≤2-per-session
+  // budget in js/ack.js, so the town is observant rather than chatty.
+
+  // A path tile's own zone-x fraction and depth row, so a wanderer's landing spot can be
+  // compared with it. Cells are PATH_CELL of each axis's extent (see cellGeom): across, cx
+  // maps straight to a fraction; down, the cell's centre y maps to whichever ROW_GROUND
+  // line it is nearest, which is the "same row band" the pack asks for.
+  function pathTileAt(c) {
+    const { bandTopPx, cellH } = cellGeom();
+    const xFrac = (c.cx + 0.5) * PATH_CELL;
+    const yPx = bandTopPx + (c.cy + 0.5) * cellH;
+    let row = 0, best = Infinity;
+    ROW_GROUND.forEach((g, i) => { const d = Math.abs(yPx - viewH * g); if (d < best) { best = d; row = i; } });
+    return { xFrac, row, style: c.style };
+  }
+  const PATH_ACK_X = 0.03;   // "within ±3% of any painted path tile" (Z4 addendum)
+  const PATH_STYLE_WORD = { stone: 'stone', sand: 'sandy', flower: 'flowery' };
+  // Called on a wanderer's arrival. Cheap by design: a handful of numeric comparisons, and
+  // it stops at the first hit — the budget declines almost every call anyway.
+  function maybeAckPath(a) {
+    const paths = currentPaths();
+    if (!paths.length || !a || !a.item) return;
+    const landing = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    const row = rowOf(a.place);
+    for (const c of paths) {
+      const t = pathTileAt(c);
+      if (t.row !== row || Math.abs(t.xFrac - landing) > PATH_ACK_X) continue;
+      const line = acknowledge('path', { booName: getDisplayName(a.item.id), style: PATH_STYLE_WORD[t.style] || t.style });
+      if (!line) return;                                  // budget said no: silence, no retry
+      const bubble = el('div', { class: 'catchphrase-bubble', text: line });
+      a.wrap.appendChild(bubble); speakMaybe(line);
+      setTimeout(() => bubble.remove(), 2600);
+      return;
+    }
+  }
+  // Her painting, on the easel, noticed. Only ever for CUSTOM art — the easel's default
+  // pattern is not "one of yours" and saying so would be a lie.
+  function maybeAckEasel() {
+    if (!getState().easelArt) return;
+    if (!ground.querySelector('.t-item[data-item="deco_easel"] image.easel-photo')) return;
+    const line = acknowledge('easel');
+    if (!line) return;
+    const easel = ground.querySelector('.t-item[data-item="deco_easel"]');
+    const bubble = el('div', { class: 'catchphrase-bubble', text: line });
+    easel.appendChild(bubble); speakMaybe(line);
+    setTimeout(() => bubble.remove(), 3000);
   }
 
   // ---- RUN19 Z3: the bed nap ---------------------------------------------------------
@@ -3038,6 +3092,10 @@ export function mount(container, params, ctx) {
         a.t = 0;
         if (maybePickBehaviour(a, now)) continue;        // sometimes pick a richer act than a micro-wander
         const roll = Math.random();
+        // RUN19 Z4: this is "arrival" for a wanderer — it has stopped walking and is about to
+        // stand still. If it happens to have landed on a path she painted, the town notices
+        // (once or twice a session at most, per the shared budget).
+        if (a.state === 'walk') maybeAckPath(a);
         if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.next = 700 + Math.random() * 1600; }
         else if (roll < 0.85) { a.state = 'walk'; a.vx = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.01); a.next = 500 + Math.random() * 900; }
         else { a.state = 'hop'; a.hopT = 0; a.next = 500 + Math.random() * 900; }
@@ -3669,6 +3727,19 @@ export function mount(container, params, ctx) {
         clearRole(a); endWait(a);
         a.goal = { kind: 'approach', deco: d, targetDx: (d.x - a.place.x) * zoneW, start: performance.now() };
         return a.goal.targetDx;
+      },
+      // RUN19 Z4: run the painted-path check for actor i, and report what it saw. The live
+      // trigger is a wanderer's arrival, which is random by design — a suite must be able to
+      // test the RULE (does a Boo standing on her path earn the line?) without waiting for
+      // the dice. `tiles` is what the geometry actually computed, so a miss is diagnosable.
+      ackPathNow: (i) => {
+        const a = actors[i]; if (!a) return null;
+        const landing = a.place.x + ((a.dx || 0) / (zoneW || 1));
+        const tiles = currentPaths().map(pathTileAt);
+        const row = rowOf(a.place);
+        const hit = tiles.find(t => t.row === row && Math.abs(t.xFrac - landing) <= PATH_ACK_X) || null;
+        maybeAckPath(a);
+        return { landing: +landing.toFixed(4), row, hit, tileRows: [...new Set(tiles.map(t => t.row))], tileXs: tiles.map(t => +t.xFrac.toFixed(3)).slice(0, 14) };
       },
       waitingCount: () => actors.filter(a => a.waitUntil != null).length,
       waitersForSeat: () => seatWaiters.size,

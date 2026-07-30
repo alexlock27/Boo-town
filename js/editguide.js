@@ -14,7 +14,12 @@ export function mount(container, params, ctx) {
     doneLabel: 'Save ✨',
     onDone(guide) {
       const speciesChanged = guide.species !== before.species;
-      mutate(s => { s.guide = { ...guide }; });
+      // RUN19 Z4: a restyle is anything she changed about her guide's LOOK, not only the
+      // species — recolouring it is just as much a new look to the child who did it. The flag
+      // is session-only (module state in js/ack.js is not enough: the hub has not mounted
+      // yet), so it lives in `seen` and is cleared the moment the line is said or declined.
+      const restyled = JSON.stringify({ ...guide, name: '' }) !== JSON.stringify({ ...before, name: '' });
+      mutate(s => { s.guide = { ...guide }; if (restyled) s.seen = Object.assign(s.seen || {}, { guideRestyled: true }); });
       // Returning to the hub after a species change earns the special line.
       if (back === 'hub' && speciesChanged) ctx.go('hub', { greeting: 'speciesChange' });
       else ctx.go(back);

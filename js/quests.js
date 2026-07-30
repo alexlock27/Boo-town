@@ -97,7 +97,10 @@ export const JOURNAL_CATALOG = [
   { prefix: 'allQuests', label: 'All quests done', icon: '🎯' },
   { prefix: 'trophy_', label: 'Trophy Room', icon: '🏆' },   // RUN4 C4 earnables
   { prefix: 'joke_', label: 'Joke book', icon: '😄' },   // RUN17 X1: a joke she chose to keep
-  { key: 'expedition_postcard', label: 'Postcard from the trail', icon: '🥾' }   // RUN18C C4
+  { key: 'expedition_postcard', label: 'Postcard from the trail', icon: '🥾' },   // RUN18C C4
+  // RUN19 Z4. Distinct from `firstRoutine` above, which stamps SAVING a routine in the
+  // choreographer: saving is a plan, performing is the thing she made actually happening.
+  { key: 'routine_first', label: 'First dance routine performed!', icon: '🕺' }
 ];
 
 // ---- RUN18D D12: dates a child can read, and dates that cannot lie -------------------

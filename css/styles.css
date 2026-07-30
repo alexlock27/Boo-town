@@ -2238,6 +2238,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .coll-art { height: 84px; display: flex; align-items: center; justify-content: center; }
 .coll-art.mystery { filter: brightness(0) saturate(0); opacity: 0.28; }
 .coll-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); text-align: center; }
+/* RUN19 Z4: the nickname as a SECOND line under the species name, so a renamed Boo is still
+   findable by what it is. Ink at 80% on the tile's cream, which keeps the contrast law. */
+.coll-nick { font-size: 12.5px; color: var(--ink); opacity: 0.8; text-align: center; margin-top: -2px; font-style: italic; }
+.coll-tile.locked .coll-nick { display: none; }
 .coll-tile.locked .coll-name { color: rgba(255,255,255,0.45); }
 .coll-badge { position: absolute; top: 6px; right: 8px; background: var(--pop); color: var(--ink); font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
 .coll-season { position: absolute; top: 6px; left: 8px; font-size: 18px; filter: grayscale(0) brightness(1.1); }
