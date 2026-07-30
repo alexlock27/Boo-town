@@ -6744,6 +6744,14 @@ html.bigger-text { --vz: 1.125; }
 /* The pattern fill sits at the very back of its band, behind the built-ins and the skirting,
    so a new wallpaper never covers the window or the fireplace. */
 .t-dressing { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+/* A dressing is a full-bleed layer INSIDE the wall/floor band, so it paints over that band's
+   OWN background — including the `.town2.night` background the bedroom relies on to go dark.
+   The floor survived by luck: its night rule is a `filter`, and filters inherit to children.
+   The wall's is a `background`, which a dressing hides completely, leaving the night bedroom
+   as bright as it is by day. Dimming the layer itself makes every dressing, bought ones
+   included, answer to nightfall — which is what the room's night rules already mean.
+   Matched to the authored night wall (#877299 -> #695693 against a #CDBCE5 -> #B5A1D6 day). */
+.town2.night .t-dressing { filter: brightness(0.66) saturate(0.92); }
 .t-dressing svg { display: block; width: 100%; height: 100%; }
 .t-interior-wall > .t-room-builtins, .t-interior-wall > .t-interior-skirting { position: relative; z-index: 1; }
 /* Applying one washes in over 300ms — the room changes in front of her rather than blinking. */
