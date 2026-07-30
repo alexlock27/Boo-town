@@ -267,7 +267,7 @@ export function mount(container, params, ctx) {
       opts.forEach((o, lane) => {
         if (!o) {
           // the middle: fence, not a gate. Not a button, so it can never be tapped or focused.
-          const wallNode = el('div', { class: 'd2-gate d2-fence lane' + lane, 'aria-hidden': 'true' }, [
+          const wallNode = el('div', { class: 'd2-gate-geo d2-fence lane' + lane, 'aria-hidden': 'true' }, [
             el('div', { class: 'g-frame' }, [el('div', { class: 'g-top' }), el('div', { class: 'g-post left' }), el('div', { class: 'g-post right' })])
           ]);
           gatesEl.appendChild(wallNode);
@@ -275,7 +275,10 @@ export function mount(container, params, ctx) {
           return;
         }
         // RUN12 S13.4: the gate says which answer it IS
-        const g = el('button', { class: 'd2-gate lane' + lane, 'aria-label': nameWithValue('answer gate', fmt(o.v)) }, [
+        // RUN19 Z7: in an estimation round the gate is not an ANSWER, it is a "nearer" choice,
+        // and a screen reader calling it "answer gate, 20" would say something the game does
+        // not mean. RUN12 S13.4's rule — a gate says which one it IS — is kept either way.
+        const g = el('button', { class: 'd2-gate lane' + lane, 'aria-label': nameWithValue(estGates ? 'nearer gate' : 'answer gate', fmt(o.v)) }, [
           el('div', { class: 'g-frame' }, [
             el('div', { class: 'g-top' }),
             el('div', { class: 'g-door left' }), el('div', { class: 'g-door right' }),

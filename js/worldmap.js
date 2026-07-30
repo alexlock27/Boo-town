@@ -6,6 +6,10 @@
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate, todayKey } from './state.js';
 import { AREAS, MAP_POS, AREA_UNLOCK_STARS } from './areas.js';
+
+// RUN20 W4: how many nodes each badge's flourish needs. Capped at three by the pack; most want
+// one or two, and the CSS drives all of them off one shared 6s loop.
+const FLOURISH_NODES = { meadow: 2, riverside: 2, hilltop: 1, beach: 1, funfair: 2, playground: 1, boohouse: 1, gallery: 1 };
 import { renderIslandMap, renderAreaGlyph, renderItem } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
@@ -80,7 +84,13 @@ export function mount(container, params, ctx) {
         unlocked ? null : el('div', { class: 'mb-chip', text: `${threshold}⭐` }),
         // hide-and-seek 2.0 (RUN10 P5): a tiny peek chip so the hunt spans the world
         // without turning into a chore — only the area actually hiding someone gets one.
-        hiding ? el('div', { class: 'mb-hide-chip', text: '👀' }) : null
+        hiding ? el('div', { class: 'mb-hide-chip', text: '👀' }) : null,
+        // RUN20 W4: one tiny LIVE flourish per unlocked badge, on a shared 6s loop with
+        // per-area content — grass sways, the river ripples, a leaf drifts, a wave laps, a
+        // fair light twinkles, a ball rolls, a window glows, a spotlight breathes. At most
+        // three nodes per badge, transform-only, and static under reduced motion.
+        unlocked ? el('div', { class: 'mb-flourish f-' + a.key, 'aria-hidden': 'true' },
+          Array.from({ length: FLOURISH_NODES[a.key] || 1 }, () => el('i'))) : null
       ]);
       badge.addEventListener('click', () => {
         if (unlocked) enterArea(a.key);

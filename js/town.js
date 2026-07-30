@@ -36,6 +36,11 @@ import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHP
 import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions, heartsMarkup } from './care.js';
 import { openWishWell } from './wishwell.js';
 import { wishId, wishItem, LIVING_WISHES } from '../data/wishes.js';
+// RUN20 W1 — wish life. The table says which of the nine classes each of the sixty wishes
+// gets; js/wishlife.js is the machinery they share.
+import { WISH_LIFE, lifeFor, classOf, isOutdoorOnly, INDOOR_TIP, SKY_BAND, CATCHABLE } from '../data/wishlife.js';
+import { wordOfWishId, isWish, wishClass, wishLife, wishNeedsSky, createSoundBudget, newVisit,
+         maydaySay, skyYFor, skyDriftX, bandOfHour, bandAllows, chooseDiner, tallestNear, crownPick } from './wishlife.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -301,7 +306,24 @@ function currentMinute() {
 }
 function currentHour() {
   if (typeof window !== 'undefined' && window.__bootownHour != null) return window.__bootownHour | 0;
+  // RUN20 W4 — the daylight proof needs to photograph 10:00, 17:00 and 21:00 in one run. A
+  // `?hour=N` query override does that, GATED on the same QA flag every other test seam uses,
+  // so it can never be reached in normal child use: a URL a child could type must not be able
+  // to change what time of day her town thinks it is.
+  const q = qaHourOverride();
+  if (q != null) return q;
   try { return new Date().getHours(); } catch { return 12; }
+}
+// null unless the QA flag is set AND ?hour= is a whole 0-23.
+function qaHourOverride() {
+  if (typeof window === 'undefined' || !window.location) return null;
+  try {
+    if (!window.__bootownQA) return null;
+    const v = new URLSearchParams(window.location.search).get('hour');
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return (Number.isInteger(n) && n >= 0 && n <= 23) ? n : null;
+  } catch { return null; }
 }
 const isNight = (h) => h >= 19 || h < 7;
 
@@ -339,6 +361,7 @@ export function mount(container, params, ctx) {
   // no-op elsewhere. A world-map "someone's hiding over here" chip is P5's job.
   ensureHide();
   ensureDayVisitHour();   // RUN19 Z2: the wild Boo's one daytime hour, picked at first mount today
+  newVisit();             // RUN20 W1: "once per visit" means once per AREA MOUNT
   let voiceIds = new Set();  // Boo ids with a recorded voice (RUN3 C7)
   voiceBooIds().then(s => { voiceIds = s; }).catch(() => {});
   // Occasional Boo requests (RUN3 C8): check at app open (town is an "open").
@@ -739,7 +762,8 @@ export function mount(container, params, ctx) {
     const landscapeTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'landscape')];
     if (landscapeTabBtn) landscapeTabBtn.style.display = landscapeVisible ? '' : 'none';
     if (!landscapeVisible && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
-    const wishesVisible = buildMode && AREA.kind === 'outdoor' && Object.keys(((getState().wishes || {}).unlocked) || {}).length > 0;
+    // RUN20 W1: the Wishes tab is no longer outdoors-only — most wishes place in a room now.
+    const wishesVisible = buildMode && Object.keys(((getState().wishes || {}).unlocked) || {}).length > 0;
     const wishesTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'wishes')];
     if (wishesTabBtn) wishesTabBtn.style.display = wishesVisible ? '' : 'none';
     if (!wishesVisible && drawerApi.activeTab() === 'wishes') drawerApi.showTab('deco');
@@ -895,6 +919,231 @@ export function mount(container, params, ctx) {
     const boo = booId ? resolveItem(booId) : null;
     const art = boo ? renderItem(boo, { size: size * 0.42, equipArt: equippedArt(booId) }) : '';
     return `<span class="t-photo-frame" data-photo-boo="${booId || ''}">${frame}<span class="t-photo-inner">${art}</span></span>`;
+  }
+
+  // ---- RUN20 W2: AREA CHARACTER ----------------------------------------------------------
+  // One AMBIENT and one SIGNATURE per area. The ambient runs by itself and asks nothing of her;
+  // the signature is a secret she finds by tapping the right part of the scene. Both are capped
+  // per area MOUNT (a "visit"), both are transform-only, and reduced motion keeps a static
+  // flavour tint rather than removing the area's character altogether.
+  //
+  // Session flags live in memory, per mount, and are never persisted: whether she has already
+  // seen today's train is not something the save should carry forever.
+  const areaSeen = { train: false, seed: false, ball: false };
+
+  // The ambient: mounted once, then left alone.
+  function renderAreaAmbient() {
+    viewport.querySelectorAll('.t-ambient').forEach(n => n.remove());
+    if (isInterior) {
+      // Interiors get their own quiet life and NEVER mount weather (T7's rule, restated here
+      // because W2 adds a second reason to be in this code path).
+      const room = ROOM ? ROOM.id : null;
+      const layer = el('div', { class: 't-ambient amb-room amb-' + (room || 'lounge'), 'aria-hidden': 'true' });
+      if (room === 'lounge') layer.appendChild(el('i', { class: 'amb-motes' }));
+      if (room === 'kitchen') layer.appendChild(el('i', { class: 'amb-steam' }));
+      if (room === 'bedroom') layer.appendChild(el('i', { class: 'amb-nightlight' }));
+      viewport.appendChild(layer);
+      return;
+    }
+    const layer = el('div', { class: 't-ambient amb-' + AREA.key, 'aria-hidden': 'true' });
+    switch (AREA.key) {
+      case 'meadow':     layer.append(el('i', { class: 'amb-grass g1' }), el('i', { class: 'amb-grass g2' }), el('i', { class: 'amb-seed' })); break;
+      case 'riverside':  layer.append(el('i', { class: 'amb-shimmer s1' }), el('i', { class: 'amb-shimmer s2' }), el('i', { class: 'amb-ducks' })); break;
+      case 'hilltop':    layer.append(el('i', { class: 'amb-leaf' })); break;
+      case 'beach':      layer.append(el('i', { class: 'amb-wave' })); break;
+      case 'playground': layer.append(el('i', { class: 'amb-strayball' })); break;
+      case 'funfair':    layer.append(el('i', { class: 'amb-lights' })); break;
+      default: break;
+    }
+    // The dusk/night bands are when the fair's string lights are worth having.
+    if (AREA.key === 'funfair') layer.classList.toggle('amb-dark', ['dusk', 'night'].includes(bandOfHour(currentHour())));
+    viewport.appendChild(layer);
+  }
+
+  // The signature: a tap on the RIGHT part of the scene, once per visit, with its own beat.
+  // Returns true when it fired, so the viewport tap handler knows to stop there.
+  function areaSignature(clientX, clientY) {
+    if (buildMode || isInterior) return false;
+    const r = viewport.getBoundingClientRect();
+    const yFrac = (clientY - r.top) / (r.height || 1);
+    const worldX = (clientX - r.left) + scrollX;
+    const put = (node, ms) => { air.appendChild(node); setTimeout(() => node.remove(), ms); };
+    switch (AREA.key) {
+      case 'riverside': {
+        // the river band, read off the scene art (riversideScenery draws it at y 30-42%)
+        if (yFrac < 0.30 || yFrac > 0.58) return false;
+        for (let i = 0; i < 3; i++) {
+          const st = el('i', { class: 't-skip', style: { left: (worldX + i * 46) + 'px', top: (r.height * 0.46) + 'px', animationDelay: (i * 160) + 'ms' } });
+          put(st, 900 + i * 160);
+        }
+        if (wishSound.allow('sig:riverside', { tapped: true })) sfx.pop();
+        hint.textContent = 'Plop, plop, plop!';
+        return true;
+      }
+      case 'beach': {
+        if (yFrac < 0.62) return false;
+        for (let i = 0; i < 3; i++) {
+          const f = el('i', { class: 't-footprint', style: { left: (worldX + i * 30) + 'px', top: (r.height * (0.74 + i * 0.02)) + 'px', animationDelay: (i * 120) + 'ms' } });
+          put(f, 4000 + i * 120);
+        }
+        return true;
+      }
+      case 'hilltop': {
+        if (yFrac > 0.42) return false;
+        if (areaSeen.train || REDUCED) return false;   // once per visit; never under reduced motion
+        areaSeen.train = true;
+        const train = el('i', { class: 't-train', style: { top: (r.height * 0.34) + 'px' } });
+        put(train, 4200);
+        if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.chime(4);
+        return true;
+      }
+      case 'meadow': {
+        // the flower patch: 8 petals burst, and an owned bee or butterfly flies to it
+        const flower = areaItems(getState()).find(t => /flower/.test(t.item));
+        if (!flower) return false;
+        const fx = (ZONE_INDEX[flower.zone] ?? 0) * zoneW + flower.x * zoneW;
+        if (Math.abs(fx - worldX) > 90) return false;
+        for (let i = 0; i < 8; i++) put(el('i', { class: 't-petal', style: { left: fx + 'px', top: (r.height * 0.72) + 'px', '--pa': (i * 45) + 'deg' } }), 1200);
+        if (wishSound.allow('sig:meadow', { tapped: true })) sfx.pop();
+        return true;
+      }
+      case 'playground': {
+        const frame = areaItems(getState()).find(t => /slide|frame|climb/.test(t.item));
+        if (!frame) return false;
+        const fx2 = (ZONE_INDEX[frame.zone] ?? 0) * zoneW + frame.x * zoneW;
+        if (Math.abs(fx2 - worldX) > 90 || yFrac > 0.7) return false;
+        for (const a of actors) if (a.role) { const svg = a.wrap.querySelector('svg'); if (svg && !REDUCED) { svg.classList.remove('costume-hearty-wave'); void svg.offsetWidth; svg.classList.add('costume-hearty-wave'); setTimeout(() => svg.classList.remove('costume-hearty-wave'), 1400); } }
+        return true;
+      }
+      case 'funfair': {
+        // the popcorn cart: three kernels arc out, and a nearby Boo catches one (a FOOD chomp)
+        const cart = ground.querySelector('.ff-scenery-wrap, .ff-consite');
+        if (!cart) return false;
+        const cr = cart.getBoundingClientRect();
+        if (Math.abs((cr.left + cr.width / 2) - clientX) > 100) return false;
+        for (let i = 0; i < 3; i++) put(el('i', { class: 't-kernel', style: { left: (worldX + (i - 1) * 14) + 'px', top: (r.height * 0.6) + 'px', animationDelay: (i * 110) + 'ms' } }), 1100 + i * 110);
+        if (wishSound.allow('sig:funfair', { tapped: true })) sfx.pop();
+        return true;
+      }
+      default: return false;
+    }
+  }
+
+  // ---- RUN20 W1: wish life ---------------------------------------------------------------
+  // Sixty wished things, nine classes, one table. What lives here is the wiring into THIS
+  // scene: which of them anchor in the sky, what a tap does, and the caps that keep a town
+  // full of living wishes calm rather than noisy.
+  const SKY_WISHES = new Set(['wish_sun', 'wish_star', 'wish_moon', 'wish_cloud', 'wish_rainbow', 'wish_kite']);
+  const wishSound = createSoundBudget();
+  // Every sky item and the two tethered flyers are OUTDOOR-ONLY: indoors their drawer chip
+  // greys with the authored tip rather than letting her place a sun in the kitchen.
+  function wishRefusedIndoors(id) { return isInterior && wishNeedsSky(id); }
+
+  // A wish's own idle, applied as a class the CSS animates — transform-only, and every one has
+  // a reduced-motion path that renders the static pose and keeps the tap verb.
+  function dressWish(wrap, t) {
+    const life = wishLife(t.item);
+    if (!life) return;
+    wrap.classList.toggle('wish-still', REDUCED);
+    if (life.cls === 'SKY' && !REDUCED) wrap.style.setProperty('--sky-period', ((life.period || 12000) / 1000) + 's');
+    if (life.cls === 'SWAY') wrap.classList.toggle('wish-sway-strong', AREA.key === 'hilltop');
+    if (life.bands && !bandAllows(t.item, currentHour())) wrap.classList.add('wish-band-off');
+    else wrap.classList.remove('wish-band-off');
+  }
+
+  // The tap verb. Returns true when it handled the tap, so onTap can stop there.
+  function wishTap(wrap, place, item) {
+    const life = wishLife(place.item);
+    if (!life) return false;
+    const word = wordOfWishId(place.item);
+    const key = placementIdOf(place);
+    const svg = wrap.querySelector('svg');
+    const playOnce = (cls, ms) => { if (REDUCED || !svg) return; svg.classList.remove(cls); void svg.offsetWidth; svg.classList.add(cls); setTimeout(() => svg.classList.remove(cls), ms + 40); };
+    const say = (lineKey, scope, vars) => {
+      if (!lineKey || !maydaySay(key + ':' + lineKey, scope || 'session')) return;
+      const line = guideLine(lineKey, vars || null);
+      if (!line) return;
+      const bubble = el('div', { class: 'catchphrase-bubble', text: line });
+      wrap.appendChild(bubble); speakMaybe(line);
+      setTimeout(() => bubble.remove(), 2600);
+    };
+
+    if (life.cls === 'FOOD') { wishFood(wrap, place); return true; }
+    if (life.cls === 'GLEAM') { playOnce('wish-glint', 700); if (wishSound.allow(key, { tapped: true })) sfx.chime(); return true; }
+
+    switch (life.verb) {
+      case 'launch': {
+        // once per VISIT = per area mount, and it is untappable while airborne
+        if (!maydaySay(key + ':launch', 'visit')) { playOnce('wish-wobble', 500); return true; }
+        wrap.classList.add('wish-airborne');
+        playOnce('wish-launch', life.ms + life.backMs);
+        if (wishSound.allow(key, { tapped: true })) sfx.whirr();
+        setTimeout(() => wrap.classList.remove('wish-airborne'), life.ms + life.backMs);
+        return true;
+      }
+      case 'crown': {
+        const boos = areaItems(getState()).filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:')).map(t => ({ id: t.item, x: t.x }));
+        const cur = ((getState().delights || {}).crowns || {});
+        const already = Object.keys(cur).find(id => cur[id] === todayKeyLocal());
+        const pick = crownPick(boos, already);
+        if (!pick) { playOnce('wish-wobble', 500); return true; }
+        mutate(st => { st.delights = st.delights || {}; st.delights.crowns = { [pick]: todayKeyLocal() }; });
+        renderPlaced();
+        const bubble = el('div', { class: 'catchphrase-bubble', text: guideLine('wishRoyal', { booName: getDisplayName(pick) }) });
+        wrap.appendChild(bubble); speakMaybe(bubble.textContent);
+        setTimeout(() => bubble.remove(), 2600);
+        if (wishSound.allow(key, { tapped: true })) sfx.star();
+        return true;
+      }
+      case 'band': {
+        if (wishSound.allow(key, { tapped: true })) { if (life.band === 'snare') sfx.drum && sfx.drum('snare'); else sfx.guitar && sfx.guitar('C'); }
+        playOnce('wish-wobble', 500);
+        return true;
+      }
+      case 'ring': { if (wishSound.allow(key, { tapped: true })) sfx.chime(); playOnce('wish-wobble', 500); return true; }
+      case 'lightCone': {
+        // the cone is only VISIBLE in the dusk/night bands, and the copy never claims otherwise
+        const on = wrap.classList.toggle('wish-lit');
+        if (on && !bandAllows(place.item, currentHour())) hint.textContent = 'It will glow when it gets dark!';
+        if (wishSound.allow(key, { tapped: true })) sfx.tap();
+        return true;
+      }
+      case 'climb': {
+        const tall = tallestNear(areaItems(getState()), place.x, isInterior);
+        playOnce('wish-wobble', 900);
+        hint.textContent = tall ? 'Up we go!' : 'Nothing to lean on — up two rungs and back down!';
+        return true;
+      }
+      default:
+        // the plain verbs: a short pose, a capped line where one is authored, and that is all
+        playOnce('wish-' + (life.verb || 'wobble'), life.ms || 700);
+        if (life.line) say(life.line, life.lineCap === 'session' ? 'session' : 'visit');
+        if (life.sfx && wishSound.allow(key, { tapped: true })) { if (life.sfx === 'chime') sfx.chime(); else sfx.pop(); }
+        return true;
+    }
+  }
+
+  // FOOD: a tap sends the NEAREST Boo trotting over for a chomp, and the item is never consumed.
+  // A chef-costumed Boo gets priority and says so. With nobody in the area the item hops and
+  // Twiggy whispers once — never a dead tap.
+  function wishFood(wrap, place) {
+    const boos = areaItems(getState())
+      .filter(t => (t.item || '').startsWith('boo_') || (t.item || '').startsWith('custom:'))
+      .map(t => ({ id: t.item, x: t.x }));
+    const chosen = chooseDiner(boos, place.x, (id) => { const c = costumeFor(id); return c && /chef/.test(c.id || ''); });
+    const svg = wrap.querySelector('svg');
+    if (!chosen) {
+      if (svg && !REDUCED) { svg.classList.remove('wish-hop'); void svg.offsetWidth; svg.classList.add('wish-hop'); setTimeout(() => svg.classList.remove('wish-hop'), 600); }
+      if (maydaySay('food:noboo', 'session')) { const line = guideLine('wishFoodNoBoo'); hint.textContent = line; speakMaybe(line); }
+      return;
+    }
+    const a = actors.find(x => x.place && x.place.item === chosen.id);
+    if (a) { clearRole(a); a.goal = { kind: 'approach', deco: place, targetDx: (place.x - a.place.x) * zoneW, start: performance.now() }; }
+    if (wishSound.allow(placementIdOf(place), { tapped: true })) sfx.chomp();
+    if (chosen.chef) {
+      const w = [...ground.querySelectorAll('.t-item')].find(n => n.dataset.item === chosen.id);
+      if (w) { const b = el('div', { class: 'catchphrase-bubble', text: guideLine('wishChefYum') }); w.appendChild(b); speakMaybe(b.textContent); setTimeout(() => b.remove(), 2400); }
+    }
   }
 
   // ---- RUN19 Z6: room dressings ---------------------------------------------------------
@@ -1073,8 +1322,13 @@ export function mount(container, params, ctx) {
       // RUN19 Z6: a wall item's height is now its own dragged `y` within the authored
       // 0.18-0.42 band, not one fixed WALL_Y_FRAC for every wall item in the game.
       const onWall = isWallPlane(t);
+      // RUN20 W1 — the SKY plane (reserved in Z6's plane union precisely so this needed no
+      // second migration). A sky wish anchors by fraction of viewport height inside the sky
+      // band, not on a ground row, and drifts along it.
+      const onSky = planeOf(t) === 'sky' || (wishNeedsSky(t.item) && SKY_WISHES.has(t.item));
       const row = onWall ? WALL_ROW : rowOf(t);
-      const rowGroundPx = onWall ? viewH * clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : viewH * ROWS[row];
+      const rowGroundPx = onSky ? viewH * skyYFor(t)
+        : onWall ? viewH * clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : viewH * ROWS[row];
       const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
       const size = baseSize * itemScaleOf(t, scaleMaxFor(item, isInterior));
       
@@ -1098,7 +1352,9 @@ export function mount(container, params, ctx) {
       const bff = item.kind === 'boo' && isBestFriend(item.id, st);
       const onSurface = planeOf(t) === 'surface';
       const newClass = 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '')
-        + (onSurface ? ' on-surface' : '') + (bff ? ' care-bff' : '');
+        + (onSurface ? ' on-surface' : '') + (onSky ? ' on-sky' : '')
+        + (isWish(t.item) ? ' t-wish wish-' + (wishClass(t.item) || 'none').toLowerCase() : '')
+        + (bff ? ' care-bff' : '');
       if (wrap.className !== newClass) wrap.className = newClass;
 
       wrap.dataset.zone = t.zone;
@@ -1129,6 +1385,7 @@ export function mount(container, params, ctx) {
       // growth.js's fairy lights.
       if (LAMP_IDS.has(t.item) && isNight(currentHour())) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
+      if (isWish(t.item)) dressWish(wrap, t);   // RUN20 W1
       
       // NOTE: `placedSize`, not `size` — a surface child is drawn at its clamped size, so the
       // art and the box agree. Using `size` here rendered a lamp at full size inside a box
@@ -1187,6 +1444,7 @@ export function mount(container, params, ctx) {
     applyDance();
     assignRoles();
     renderZoneScenery();   // zone identity (RUN7 C2): distinct backdrop per zone, behind items
+    renderAreaAmbient();   // RUN20 W2: the area's own quiet life
     renderGrowth();
     renderFunfair();
     renderHide();
@@ -2511,6 +2769,10 @@ export function mount(container, params, ctx) {
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
     if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
+    // RUN20 W2: a tap on the right PART of the scene is this area's own secret. It runs before
+    // the scroll drag starts, and only when it actually matched something — a miss falls
+    // straight through to the normal pan, so the scene never feels sticky.
+    if (!placeMode && areaSignature(e.clientX, e.clientY)) return;
     if (buildMode && (buildTool === 'paths' || buildTool === 'erase')) {
       painting = true;
       viewport.setPointerCapture(e.pointerId);
@@ -2603,6 +2865,14 @@ export function mount(container, params, ctx) {
   }
   // Outdoor-only items (landscape + rides) refuse indoors; furniture refuses outdoors
   // (RUN10 P4). Same wobble, two directions, two lines.
+  // RUN20 W1: a sky wish held indoors says the authored tip rather than the generic refusal.
+  function skyNeededWobble() {
+    drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
+    setTimeout(() => drawer.classList.remove('taken'), 600);
+    hint.textContent = INDOOR_TIP;
+    speakMaybe(INDOOR_TIP);
+    if (sfx.oops) sfx.oops();
+  }
   function notIndoorsWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
     setTimeout(() => drawer.classList.remove('taken'), 600);
@@ -2669,9 +2939,15 @@ export function mount(container, params, ctx) {
     if (heldItem) {
       // Outdoor-only: landscape (Build toybox) and rides (any activity item, `act`) —
       // furniture is indoor-only (RUN10 P4). Both directions, both ways.
-      const outdoorOnly = heldItem.kind === 'landscape' || heldItem.kind === 'wish' || !!heldItem.act;
+      // RUN20 W1 changes this: a wish is no longer BLANKET outdoor-only. Only the sky items and
+      // the two tethered flyers need sky; a wished teapot or book belongs in a room as much as
+      // anywhere. "Everything else places anywhere its kind allows today" — the addendum.
+      const outdoorOnly = heldItem.kind === 'landscape' || (heldItem.kind === 'wish' && wishNeedsSky(heldItem.id)) || !!heldItem.act;
       const indoorOnly = heldItem.kind === 'furniture';
-      if (outdoorOnly && AREA.kind !== 'outdoor') { notIndoorsWobble(); return; }
+      if (outdoorOnly && AREA.kind !== 'outdoor') {
+        if (heldItem.kind === 'wish' && wishNeedsSky(heldItem.id)) skyNeededWobble(); else notIndoorsWobble();
+        return;
+      }
       if (indoorOnly && AREA.kind !== 'interior') { notOutdoorsWobble(); return; }
     }
     if (areaFull()) { areaFullWobble(); return; }
@@ -3100,6 +3376,9 @@ export function mount(container, params, ctx) {
     // RUN19 Z2: "«name» wants to try the new «item»!" is fulfilled by a tap on that exact
     // item while «name» is in the area — before anything else this tap might open.
     noteItemTap(place);
+    // RUN20 W1: every wish has a verb now. It runs INSTEAD of the item menu, because a wished
+    // thing that opens "Move / Put away" when you poke it is the dead prop this run removes.
+    if (!buildMode && wishTap(wrap, place, item)) return;
     if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
     if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
@@ -3380,7 +3659,10 @@ export function mount(container, params, ctx) {
     // Personality catchphrase (RUN10 P5): 20% of taps, spoken via a guide-style bubble on
     // the Boo herself, not the guide's own avatar — it's HER line, not the guide's.
     if (item.kind === 'boo' && Math.random() < CATCHPHRASE_RATE) {
-      const phrase = CATCHPHRASES[personalityOf(item.id)];
+      // RUN20 W3: a pirate says "Yarr!" instead of its temperament's line — capped by the SAME
+      // catchphrase rate, so a costume changes what she says and never how often.
+      const cos = costumeFor(item.id);
+      const phrase = (cos && cos.id === 'acc_set_pirate') ? 'Yarr!' : CATCHPHRASES[personalityOf(item.id)];
       if (phrase) {
         const bubble = el('div', { class: 'catchphrase-bubble', text: phrase }); wrap.appendChild(bubble);
         speakMaybe(phrase);
@@ -3715,12 +3997,65 @@ export function mount(container, params, ctx) {
   // moon bounce; Pirate = a hearty wave.
   const COSTUME_IDLE_CLASS = {
     hammer: 'costume-hammer-taps', stir: 'costume-spoon-stir',
-    moonbounce: 'costume-moon-bounce', heartywave: 'costume-hearty-wave'
+    moonbounce: 'costume-moon-bounce', heartywave: 'costume-hearty-wave',
+    // RUN20 W3: the police salute, the explorer's binocular scan, the pirate's spyglass.
+    salute: 'costume-salute', scan: 'costume-scan', spyglass: 'costume-spyglass'
   };
-  const COSTUME_IDLE_MS = { hammer: 900, stir: 900, moonbounce: 2200, heartywave: 1400 };
+  const COSTUME_IDLE_MS = { hammer: 900, stir: 900, moonbounce: 2200, heartywave: 1400,
+    salute: 1000, scan: 2400, spyglass: 1600 };
+  // ---- RUN20 W3: costume sets behave -----------------------------------------------------
+  // Presentation only — no set changes any game or reward value, and none of this touches the
+  // ledger. A costumed Boo that is SEATED suspends its costume idle: the seat pose wins, which
+  // is the addendum's rule and also just true (you cannot scan the horizon while on a swing).
+  const COSTUME_TAP_GAP_MS = 40000;   // the builder taps an item at most this often
+  const SPIN_GAP_MS = 60000;          // the astronaut float-spins at most once a minute
+  const BUILDER_REACH = 0.20;         // nearest item within 20% x
+
+  // The builder's hammer tap: it targets ITEMS ONLY, never Boos, and the 2px bounce it gives
+  // them never interrupts whatever that item is already doing (a sprinkled or wished thing
+  // keeps doing its thing) because it rides its own class on the WRAP.
+  function builderTap(a, now) {
+    if (a.role || a.goal) return;                       // seated or busy: the pose wins
+    if (now - (a.lastBuilderTap || 0) < COSTUME_TAP_GAP_MS) return;
+    const here = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    const target = areaItems(getState())
+      .filter(t => !(t.item || '').startsWith('boo_') && !(t.item || '').startsWith('custom:'))
+      .map(t => ({ t, d: Math.abs(t.x - here) }))
+      .filter(x => x.d <= BUILDER_REACH)
+      .sort((x, y) => x.d - y.d)[0];
+    if (!target) return;
+    a.lastBuilderTap = now;
+    const w = wrapFor(target.t);
+    if (w && !REDUCED) { w.classList.remove('t-bonked'); void w.offsetWidth; w.classList.add('t-bonked'); setTimeout(() => w.classList.remove('t-bonked'), 320); }
+    sfx.tap();
+  }
+  // The police whistle: ONE soft peep per session, ever.
+  let whistled = false;
+  function policeWhistle() {
+    if (whistled) return;
+    whistled = true;
+    if (sfx.chime) sfx.chime(6);
+  }
+  // The astronaut's float-spin: at most once per SPIN_GAP_MS, 1.2s, never while seated.
+  function maybeFloatSpin(a, now) {
+    if (a.role || a.goal) return false;
+    if (now - (a.lastSpin || 0) < SPIN_GAP_MS) return false;
+    a.lastSpin = now;
+    const svg = a.wrap.querySelector('svg');
+    if (svg && !REDUCED) { svg.classList.remove('costume-floatspin'); void svg.offsetWidth; svg.classList.add('costume-floatspin'); setTimeout(() => svg.classList.remove('costume-floatspin'), 1240); }
+    return true;
+  }
+
   function triggerCostumeIdle(a, now = performance.now()) {
     const kind = (a.costume && a.costume.idle) || null;
     a.costumeIdleAt = now + costumeIdleDelay();
+    // RUN20 W3: a SEATED costumed Boo does not idle — the seat pose wins.
+    if (a.role) return null;
+    // ...and the sets whose behaviour is more than a pose do it here, under their own caps.
+    const setId = (a.costume && a.costume.id) || '';
+    if (setId === 'acc_set_builder') builderTap(a, now);
+    if (setId === 'acc_set_police') policeWhistle();
+    if (setId === 'acc_set_astronaut' && maybeFloatSpin(a, now)) return 'floatspin';
     const cls = kind && COSTUME_IDLE_CLASS[kind];
     if (!cls) return null;
     const svg = a.wrap.querySelector('svg');

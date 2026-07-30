@@ -246,15 +246,15 @@ export const CATALOGUE = [
   { id: 'acc_bunnyslippers',kind: 'accessory', slot: 'feet', name: 'Bunny Slippers',  rarity: 'common', art: 'bunnyslippers',blurb: 'Two floppy ears per foot. Non-negotiable.' },
   { id: 'acc_springboots',  kind: 'accessory', slot: 'feet', name: 'Springy Boots',   rarity: 'rare',   art: 'springboots', locomotion: 'spring', blurb: 'Turns every single step into a small joyful boing.' },
   { id: 'acc_flippers',     kind: 'accessory', slot: 'feet', name: 'Swim Flippers',   rarity: 'rare',   art: 'flippers',    locomotion: 'flap', blurb: 'Slap, slap, slap. Excellent in water, comical on grass.' },
-  { id: 'acc_set_police',   kind: 'accessory', slot: 'set', name: 'Police Costume',   rarity: 'ultra', art: 'policecap', pieces: { hat: 'policecap', face: 'policebadge' }, blurb: 'Cap straight, badge shining, ready to help.' },
+  { id: 'acc_set_police',   kind: 'accessory', slot: 'set', name: 'Police Costume',   rarity: 'ultra', art: 'policecap', pieces: { hat: 'policecap', face: 'policebadge' }, idle: 'salute', walk: 'patrol', blurb: 'Cap straight, badge shining, ready to help.' },
   { id: 'acc_set_builder',  kind: 'accessory', slot: 'set', name: 'Builder Costume',  rarity: 'ultra', art: 'builderhelmet', pieces: { hat: 'builderhelmet', face: 'builderhammer' }, idle: 'hammer', blurb: 'Helmet on. Hammer ready. Tap tap!' },
   { id: 'acc_set_chef',     kind: 'accessory', slot: 'set', name: 'Chef Costume',     rarity: 'ultra', art: 'cheftoque', pieces: { hat: 'cheftoque', face: 'chefspoon' }, idle: 'stir', blurb: 'A towering toque and a spoon for serious stirring.' },
-  { id: 'acc_set_explorer', kind: 'accessory', slot: 'set', name: 'Explorer Costume', rarity: 'ultra', art: 'pithhat', pieces: { hat: 'pithhat', face: 'maptan' }, blurb: 'Hat, map and a little sunshine from the trail.' },
+  { id: 'acc_set_explorer', kind: 'accessory', slot: 'set', name: 'Explorer Costume', rarity: 'ultra', art: 'pithhat', pieces: { hat: 'pithhat', face: 'maptan' }, idle: 'scan', blurb: 'Hat, map and a little sunshine from the trail.' },
 
   // RUN13 T5: two more costume sets. Same one-card, atomic-equip, own-ceremony contract as
   // the four above; each brings an idle of its own to the town behaviour loop.
-  { id: 'acc_set_astronaut', kind: 'accessory', slot: 'set', name: 'Astronaut Costume', rarity: 'ultra', art: 'astrohelmet', pieces: { hat: 'astrohelmet', feet: 'astroboots' }, idle: 'moonbounce', blurb: 'Helmet sealed, boots heavy, gravity strictly optional.' },
-  { id: 'acc_set_pirate',    kind: 'accessory', slot: 'set', name: 'Pirate Costume',    rarity: 'ultra', art: 'piratehat',  pieces: { hat: 'piratehat', face: 'eyepatch' }, idle: 'heartywave', blurb: 'Hat on, patch down, and a wave for every passing friend.' },
+  { id: 'acc_set_astronaut', kind: 'accessory', slot: 'set', name: 'Astronaut Costume', rarity: 'ultra', art: 'astrohelmet', pieces: { hat: 'astrohelmet', feet: 'astroboots' }, idle: 'moonbounce', walk: 'lowgravity', blurb: 'Helmet sealed, boots heavy, gravity strictly optional.' },
+  { id: 'acc_set_pirate',    kind: 'accessory', slot: 'set', name: 'Pirate Costume',    rarity: 'ultra', art: 'piratehat',  pieces: { hat: 'piratehat', face: 'eyepatch' }, idle: 'spyglass', walk: 'swagger', blurb: 'Hat on, patch down, and a wave for every passing friend.' },
 
   // --- Free Easel (RUN3 C6): granted with the Studio, never drops from boxes ---
   { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' },

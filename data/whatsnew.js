@@ -21,6 +21,21 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN19 + RUN20. NOT LIVE YET: this block ships under whatever stamp Alex's localhost review
+  // ends up deploying, so its `version` is set at the deploy gate, not here — the branch has
+  // deliberately not bumped BUILD_STAMP. Everything below is child-facing and reachable.
+  {
+    version: 'run20-PENDING',
+    entries: [
+      { icon: '🦋', title: 'Wishes come to LIFE!', blurb: 'Bees buzz, kites fly, rockets launch — every wish does something now.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🗺️', title: 'Every corner has a secret', blurb: 'Tap around the Meadow, the Beach, the Riverside… things happen!', route: 'worldmap' },
+      { icon: '💭', title: 'Your Boos ask for things', blurb: 'Tap the little thought bubble to see what a Boo would love.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🛏️', title: 'Naps, seats and waiting turns', blurb: 'Boos climb into bed, take the best seat, and queue politely for the swing.', route: 'town', params: { area: 'boohouse', room: 'bedroom' } },
+      { icon: '✨', title: 'Sprinkle stardust', blurb: 'Hold down on anything you have placed and make it sparkle all day.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🎨', title: 'Decorate your rooms', blurb: 'New wallpaper and floors for the Lounge, Kitchen and Bedroom.', route: 'shop', params: { shelf: 'house' } },
+      { icon: '🪑', title: 'Put things ON things', blurb: 'Stand a lamp on a table, hang pictures higher or lower, drag the corner to resize.', route: 'town', params: { area: 'boohouse', room: 'lounge' } }
+    ]
+  },
   {
     // The addendum wave (same day): the Disco Hall's guest list — Alex's own ask, and the
     // one genuinely NEW thing in this follow-up (the PC rail scroll and the hidden empty

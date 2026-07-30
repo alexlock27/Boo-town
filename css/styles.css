@@ -1192,11 +1192,16 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .d2-props, .d2-gates { position: absolute; inset: 0; pointer-events: none; }
 .d2-prop { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform; }
 /* gates: one per lane, always all three; doors swing open on the correct tap */
-.d2-gate {
+.d2-gate, .d2-gate-geo {
   position: absolute; left: 0; top: 0; transform-origin: 50% 100%; will-change: transform;
   border: none; background: transparent; padding: 0; cursor: pointer; pointer-events: auto;
   display: flex; flex-direction: column; align-items: center; width: min(132px, calc(24vw / var(--vz)));
 }
+/* RUN19 Z7: the fence takes the gate's GEOMETRY (place() moves it exactly like a gate) but is
+   not a .d2-gate — it is not an answer, it is not a button, and a screen reader must not offer
+   it as one. It gets its own class so nothing that enumerates gates ever picks it up. */
+.d2-fence { pointer-events: none; cursor: default; }
+.d2-fence .g-top, .d2-fence .g-post { background: #8A5A44; }
 .g-frame { position: relative; width: 100%; height: 92px; }
 .g-post { position: absolute; bottom: 0; width: 11px; height: 78px; background: #B9793F; border: 3px solid var(--ink); border-radius: 5px; }
 .g-post.left { left: 0; } .g-post.right { right: 0; }
@@ -2435,10 +2440,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 /* RUN12 S4 (G7): 12px cream with a soft shadow over a bright green island is exactly the
    "small text on green" the brief names. Plated instead: an opaque deep-sky pill carries the
    label at 12.8:1 whatever scenery scrolls under it, and the type goes up a step. */
+/* RUN20 W4: map labels move onto CREAM PILL CHIPS with ink text. They were cream text on a
+   semi-transparent dark plate, which sits over a map whose own colours change area to area —
+   the contrast was whatever happened to be underneath. Ink on solid cream is the house
+   readable-card pattern, and it measures the same over every part of the island. */
 .mb-label {
   position: absolute; top: 100%; margin-top: 4px; white-space: nowrap; font-family: var(--font-display);
-  font-weight: 700; font-size: 13px; color: var(--card);
-  background: rgba(30,21,80,0.86); padding: 2px 8px; border-radius: 10px;
+  font-weight: 700; font-size: 13px; color: var(--ink);
+  background: var(--card); border: 2px solid var(--ink); box-shadow: var(--card-shadow);
+  padding: 2px 10px; border-radius: 999px;
 }
 .mb-chip {
   font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--ink);
@@ -6787,9 +6797,7 @@ html.bigger-text { --vz: 1.125; }
 .t-resize.up::after { transform: rotate(45deg) translate(1px, 1px); }
 /* RUN19 Z7: a two-gate estimation row makes the middle lane a solid section of fence, so there
    is never an invisible gap between the two choices to run through. */
-.d2-gate.d2-fence { pointer-events: none; }
-.d2-gate.d2-fence .g-top { background: #8A5A44; }
-.d2-gate.d2-fence .g-post { background: #8A5A44; }
+
 
 /* RUN19 Z7: Boo Bounce's build-the-answer target. Underscores show how many digits the answer
    has before she starts, and each fills as she breaks it. */
@@ -6801,3 +6809,162 @@ html.bigger-text { --vz: 1.125; }
   background: var(--card); border: 3px dashed var(--ink); border-radius: 10px;
 }
 .bt-digit.on { border-style: solid; border-color: var(--star); }
+
+/* ============================================================
+   RUN20 W1 — wish life. Nine classes, transform-only, every one with a
+   reduced-motion path that keeps the pose and drops the motion.
+   ============================================================ */
+.t-item.on-sky { z-index: 2; }
+.t-wish { will-change: transform; }
+
+/* SKY: a slow drift along the band, period set per item in town.js. */
+.wish-sky, .t-item.on-sky { animation: wish-drift var(--sky-period, 12s) ease-in-out infinite alternate; }
+@keyframes wish-drift { from { transform: translateX(-2%); } to { transform: translateX(2%); } }
+
+/* SWAY: foliage. Stronger on the Hilltop, where the wind is the area's own signature. */
+.wish-sway svg { animation: wish-sway 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.wish-sway.wish-sway-strong svg { animation-duration: 2.6s; }
+@keyframes wish-sway { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+.wish-sway.wish-sway-strong svg { --amp: 4deg; }
+
+/* GLEAM: a slow shine sweep every 8s, and a bright glint on tap. */
+.wish-gleam svg { animation: wish-gleam 8s ease-in-out infinite; }
+@keyframes wish-gleam { 0%, 82%, 100% { filter: none; } 90% { filter: drop-shadow(0 0 8px var(--star)) brightness(1.15); } }
+.wish-glint { animation: wish-glint 700ms ease-out 1 !important; }
+@keyframes wish-glint { 0%,100% { filter: none; } 40% { filter: drop-shadow(0 0 14px var(--star)) brightness(1.35); } }
+
+/* The tap verbs. Each is a short pose that returns to rest — never a state a thing gets stuck in. */
+.wish-wobble { animation: wish-wobble 500ms ease-out 1; }
+@keyframes wish-wobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 60% { transform: rotate(5deg); } }
+.wish-wobble2 { animation: wish-wobble 450ms ease-out 2; }
+.wish-hop { animation: wish-hop 600ms ease-out 1; }
+@keyframes wish-hop { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-16px); } }
+.wish-launch { animation: wish-launch 3200ms ease-in-out 1; }
+@keyframes wish-launch {
+  0% { transform: translateY(0) scale(1); }
+  38% { transform: translateY(-40vh) scale(0.72); }
+  100% { transform: translateY(0) scale(1); }
+}
+.t-item.wish-airborne { pointer-events: none; }
+.wish-steam, .wish-peek, .wish-sparkle, .wish-unroll, .wish-jiggle, .wish-popLid,
+.wish-tryOn, .wish-roll, .wish-peekaboo, .wish-sniff, .wish-stretchRoar, .wish-ring {
+  animation: wish-wobble 700ms ease-out 1;
+}
+.wish-lit { filter: drop-shadow(0 0 12px var(--star)); }
+.wish-band-off { opacity: 0.88; }
+
+/* Reduced motion: the pose stays, the motion goes — a wish you can still poke is calm, not off. */
+@media (prefers-reduced-motion: reduce) {
+  .t-item.on-sky, .wish-sky, .wish-sway svg, .wish-gleam svg,
+  .wish-wobble, .wish-wobble2, .wish-hop, .wish-launch, .wish-glint,
+  .wish-steam, .wish-peek, .wish-sparkle, .wish-unroll, .wish-jiggle, .wish-popLid,
+  .wish-tryOn, .wish-roll, .wish-peekaboo, .wish-sniff, .wish-stretchRoar, .wish-ring { animation: none !important; }
+}
+.t-item.wish-still, .t-item.wish-still svg { animation: none !important; }
+
+/* ---- RUN20 W3: the three new costume idles, and the builder's harmless bonk ------------- */
+.costume-salute { animation: costume-salute 1s ease-out 1; transform-origin: 50% 100%; }
+@keyframes costume-salute { 0%,100% { transform: none; } 30% { transform: rotate(-4deg) translateY(-3px); } 60% { transform: rotate(2deg); } }
+.costume-scan { animation: costume-scan 2.4s ease-in-out 1; transform-origin: 50% 80%; }
+@keyframes costume-scan { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+.costume-spyglass { animation: costume-spyglass 1.6s ease-in-out 1; transform-origin: 50% 90%; }
+@keyframes costume-spyglass { 0%,100% { transform: none; } 35% { transform: rotate(-6deg) scale(1.03); } 70% { transform: rotate(3deg); } }
+.costume-floatspin { animation: costume-floatspin 1.2s ease-in-out 1; transform-origin: 50% 60%; }
+@keyframes costume-floatspin { from { transform: rotateY(0) translateY(0); } 50% { transform: rotateY(180deg) translateY(-10px); } to { transform: rotateY(360deg) translateY(0); } }
+/* The builder's tap: a 2px bounce on the WRAP, so it never interrupts whatever that item is
+   already doing on its own svg — a sprinkled or wished thing keeps doing its thing. */
+.t-item.t-bonked { animation: t-bonked 300ms ease-out 1; }
+@keyframes t-bonked { 0%,100% { transform: translateY(0); } 40% { transform: translateY(2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .costume-salute, .costume-scan, .costume-spyglass, .costume-floatspin, .t-item.t-bonked { animation: none !important; }
+}
+
+/* RUN20 W4: one shared 6s flourish loop per unlocked badge, with per-area content. Three nodes
+   max per badge, transform-only, static under reduced motion. */
+.mb-flourish { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.mb-flourish i { position: absolute; display: block; border-radius: 2px; }
+.mb-flourish.f-meadow i { left: 22%; bottom: 8%; width: 3px; height: 12px; background: #5FBF7A; transform-origin: 50% 100%; animation: mbf-sway 6s ease-in-out infinite; }
+.mb-flourish.f-meadow i:nth-child(2) { left: 66%; height: 9px; animation-delay: -2s; }
+.mb-flourish.f-riverside i { left: 18%; bottom: 22%; width: 60%; height: 3px; background: #8FC7FF; border-radius: 3px; animation: mbf-ripple 6s ease-in-out infinite; }
+.mb-flourish.f-riverside i:nth-child(2) { bottom: 34%; width: 40%; animation-delay: -3s; }
+.mb-flourish.f-hilltop i { left: 20%; top: 18%; width: 7px; height: 7px; background: #E0A96D; border-radius: 0 60% 0 60%; animation: mbf-leaf 6s linear infinite; }
+.mb-flourish.f-beach i { left: 14%; bottom: 16%; width: 66%; height: 4px; background: #BFE9FF; border-radius: 4px; animation: mbf-wave 6s ease-in-out infinite; }
+.mb-flourish.f-funfair i { left: 30%; top: 16%; width: 7px; height: 7px; border-radius: 50%; background: #FFC93C; animation: mbf-twinkle 6s ease-in-out infinite; }
+.mb-flourish.f-funfair i:nth-child(2) { left: 62%; background: #FF7AC6; animation-delay: -2s; }
+.mb-flourish.f-playground i { left: 16%; bottom: 14%; width: 9px; height: 9px; border-radius: 50%; background: #FF7AC6; animation: mbf-roll 6s linear infinite; }
+.mb-flourish.f-boohouse i { left: 38%; top: 30%; width: 12px; height: 12px; border-radius: 3px; background: #FFE9A8; animation: mbf-twinkle 6s ease-in-out infinite; }
+.mb-flourish.f-gallery i { left: 34%; top: 24%; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,201,60,0.75); animation: mbf-spot 6s ease-in-out infinite; }
+@keyframes mbf-sway { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+@keyframes mbf-ripple { 0%,100% { transform: translateX(0); opacity: 0.7; } 50% { transform: translateX(6px); opacity: 1; } }
+@keyframes mbf-leaf { 0% { transform: translate(0,0) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(26px, 16px) rotate(220deg); opacity: 0; } }
+@keyframes mbf-wave { 0%,100% { transform: translateX(-4px) scaleX(0.9); } 50% { transform: translateX(4px) scaleX(1); } }
+@keyframes mbf-twinkle { 0%,100% { transform: scale(0.7); opacity: 0.55; } 50% { transform: scale(1.15); opacity: 1; } }
+@keyframes mbf-roll { 0% { transform: translateX(0) rotate(0); } 100% { transform: translateX(34px) rotate(360deg); } }
+@keyframes mbf-spot { 0%,100% { transform: scale(0.85); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) { .mb-flourish i { animation: none !important; } }
+
+/* ============================================================
+   RUN20 W2 — area character. One ambient + one signature per area.
+   Transform-only; reduced motion keeps a static flavour tint.
+   ============================================================ */
+.t-ambient { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+.t-ambient i { position: absolute; display: block; }
+
+/* Meadow: two tall-grass patches sway; a dandelion seed drifts across once per visit. */
+.amb-grass { bottom: 8%; width: 26px; height: 40px; border-radius: 50% 50% 0 0 / 70% 70% 0 0; background: linear-gradient(180deg, #6FCB86, #4FA96A); transform-origin: 50% 100%; animation: amb-sway 5s ease-in-out infinite; }
+.amb-grass.g1 { left: 12%; } .amb-grass.g2 { left: 61%; height: 30px; animation-delay: -2.2s; }
+.amb-seed { left: -4%; bottom: 34%; width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.92); box-shadow: 0 0 6px rgba(255,255,255,0.8); animation: amb-seed 26s linear infinite; }
+@keyframes amb-sway { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes amb-seed { 0% { transform: translate(0,0); opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { transform: translate(110vw, -60px); opacity: 0; } }
+
+/* Riverside: two drifting highlight stripes on the water, and a scenery duck pair. */
+.amb-shimmer { left: 0; width: 40%; height: 5px; border-radius: 5px; background: rgba(255,255,255,0.55); animation: amb-shimmer 8s linear infinite; }
+.amb-shimmer.s1 { top: 34%; } .amb-shimmer.s2 { top: 39%; width: 28%; animation-delay: -4s; }
+.amb-ducks { left: 24%; top: 31%; width: 26px; height: 12px; border-radius: 12px 12px 8px 8px; background: #FFF3D6; box-shadow: 22px 3px 0 -2px #FFE9A8; animation: amb-paddle 14s ease-in-out infinite; }
+@keyframes amb-shimmer { from { transform: translateX(-20%); } to { transform: translateX(160%); } }
+@keyframes amb-paddle { 0%,100% { transform: translateX(0); } 50% { transform: translateX(70px); } }
+
+/* Hilltop: the wind. A leaf drifts by every 20-40s. */
+.amb-leaf { left: -3%; top: 40%; width: 10px; height: 10px; border-radius: 0 60% 0 60%; background: #E0A96D; animation: amb-leaf 30s linear infinite; }
+@keyframes amb-leaf { 0% { transform: translate(0,0) rotate(0); opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { transform: translate(110vw, 90px) rotate(720deg); opacity: 0; } }
+
+/* Sunny Beach: waves lap the shore band on a 3.5s loop. */
+.amb-wave { left: 0; right: 0; width: 100%; bottom: 26%; height: 8px; background: linear-gradient(90deg, transparent, rgba(191,233,255,0.85), transparent); animation: amb-wave 3.5s ease-in-out infinite; }
+@keyframes amb-wave { 0%,100% { transform: translateY(0) scaleX(0.96); opacity: 0.7; } 50% { transform: translateY(-5px) scaleX(1); opacity: 1; } }
+
+/* Playground: a stray ball rolls across the back row once per visit. */
+.amb-strayball { left: -5%; bottom: 40%; width: 18px; height: 18px; border-radius: 50%; background: #FF7AC6; border: 2px solid #2A1B4E; animation: amb-roll 22s linear infinite; }
+@keyframes amb-roll { 0% { transform: translateX(0) rotate(0); opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { transform: translateX(112vw) rotate(1440deg); opacity: 0; } }
+
+/* Funfair: the string lights twinkle, but only in the dusk/night bands. */
+.amb-lights { left: 4%; right: 4%; width: 92%; top: 12%; height: 10px; opacity: 0; }
+.amb-dark .amb-lights { opacity: 1; background: repeating-linear-gradient(90deg, #FFC93C 0 8px, transparent 8px 44px); animation: amb-twinkle 2.6s ease-in-out infinite; }
+@keyframes amb-twinkle { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* Interiors: dust motes in the Lounge sunbeam, kettle steam in the Kitchen, a Bedroom
+   night-light. Never weather — an interior has no sky to rain from. */
+.amb-motes { left: 30%; top: 26%; width: 6px; height: 6px; border-radius: 50%; background: rgba(255,249,220,0.9); box-shadow: 26px 18px 0 -1px rgba(255,249,220,0.7), 54px 6px 0 -2px rgba(255,249,220,0.6); animation: amb-motes 12s ease-in-out infinite; }
+@keyframes amb-motes { 0%,100% { transform: translate(0,0); } 50% { transform: translate(10px,-14px); } }
+.amb-steam { left: 46%; top: 40%; width: 10px; height: 18px; border-radius: 6px; background: rgba(255,255,255,0.55); animation: amb-steam 30s ease-in-out infinite; }
+@keyframes amb-steam { 0%, 88%, 100% { opacity: 0; transform: translateY(0) scale(0.8); } 92% { opacity: 0.8; transform: translateY(-14px) scale(1); } }
+.amb-nightlight { left: 8%; bottom: 24%; width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle, rgba(255,217,138,0.45), transparent 70%); animation: amb-glow 6s ease-in-out infinite; }
+@keyframes amb-glow { 0%,100% { opacity: 0.5; } 50% { opacity: 0.85; } }
+
+/* The signatures. */
+.t-skip { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #D8D3C8; border: 2px solid #2A1B4E; animation: t-skip 900ms ease-out 1 both; }
+@keyframes t-skip { 0% { transform: translate(0,0); } 33% { transform: translate(30px,-22px); } 66% { transform: translate(60px,-12px); } 100% { transform: translate(90px,6px); opacity: 0; } }
+.t-footprint { position: absolute; width: 14px; height: 18px; border-radius: 50% 50% 40% 40%; background: rgba(180,150,110,0.75); animation: t-print 4s ease-out 1 both; }
+@keyframes t-print { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+.t-train { position: absolute; left: -8%; width: 74px; height: 20px; border-radius: 6px; background: #6B4E9E; box-shadow: -26px 2px 0 -3px #8A5A44, -50px 2px 0 -4px #8A5A44; animation: t-train 4s linear 1 both; }
+@keyframes t-train { from { transform: translateX(0); } to { transform: translateX(118vw); } }
+.t-petal { position: absolute; width: 9px; height: 12px; border-radius: 50% 50% 50% 0; background: #FF9AD5; animation: t-petal 1.2s ease-out 1 both; }
+@keyframes t-petal { from { transform: rotate(var(--pa)) translateY(0); opacity: 1; } to { transform: rotate(var(--pa)) translateY(-52px) scale(0.6); opacity: 0; } }
+.t-kernel { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #FFF3D6; border: 2px solid #E0A96D; animation: t-kernel 1.1s ease-out 1 both; }
+@keyframes t-kernel { 0% { transform: translate(0,0); } 50% { transform: translate(18px,-38px); } 100% { transform: translate(36px, 12px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* the character stays as a static flavour tint; nothing moves */
+  .t-ambient i { animation: none !important; }
+  .amb-seed, .amb-leaf, .amb-strayball, .amb-steam { display: none; }
+  .t-skip, .t-footprint, .t-train, .t-petal, .t-kernel { animation: none !important; }
+}
