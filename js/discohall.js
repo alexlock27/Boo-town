@@ -3,7 +3,8 @@
 // projected-cell floor with an overflow rail, and a Routine Night mode.
 
 import { el, clear, backControl, REDUCED } from './ui.js';
-import { getState } from './state.js';
+import { getState, mutate } from './state.js';
+import { createDrawer } from './drawer.js';
 import { renderItem } from './art.js';
 import { resolveItem } from './customs.js';
 import { equippedArt, getDisplayName } from './accessories.js';
@@ -160,39 +161,56 @@ export function mount(container, params, ctx) {
   root.append(header, room);
   container.appendChild(root);
 
-  const ownedIds = Object.keys(state.inventory || {}).filter(id => {
+  // Alex, 2026-07-30 ("it doesnt let me pick which boos are at the disco"): the guest
+  // list. state.disco.roster (v20) holds her invited Boo ids; an EMPTY roster means what
+  // the absence of the feature always meant — everybody comes, first 16. The chooser
+  // lives in the house drawer at the bottom of the screen (engine reuse: js/drawer.js).
+  const ownedBoos = Object.keys(state.inventory || {}).filter(id => {
     const item = resolveItem(id);
     return (state.inventory[id] || 0) > 0 && item && item.kind === 'boo';
-  }).slice(0, 16);
-  const dancerNodes = ownedIds.map((id, index) => {
-    const item = resolveItem(id);
-    const personality = personalityOf(id);
-    const node = el('div', {
-      class: 'disco-dancer',
-      dataset: { id, personality, move: DISCO_MOVES[personality], index },
-      title: getDisplayName(id)
-    }, [el('div', { html: renderItem(item, { size: 104, equipArt: equippedArt(id) }) })]);
-    return node;
   });
+  const MAX_GUESTS = 16;
+  function chosenRoster() {
+    const st = getState();
+    const picks = ((st.disco && st.disco.roster) || []).filter(id => ownedBoos.includes(id));
+    return (picks.length ? picks : ownedBoos).slice(0, MAX_GUESTS);
+  }
+  let rosterIds = chosenRoster();
+  let dancerNodes = [], layout = null, floorNodes = [], railNodes = [];
 
   // ---- RUN19 Z1: place onto the floor's projected-cell table, overflow to the rail ----
-  const layout = layoutFloor(dancerNodes.length);
-  const floorNodes = [];
-  layout.cells.forEach(cell => {
-    const node = dancerNodes[cell.index];
-    node.dataset.row = String(cell.row);
-    node.style.left = (cell.col * 100).toFixed(1) + '%';
-    node.style.setProperty('--row-scale', FLOOR_ROWS[cell.row].scale);
-    dancers.appendChild(node);
-    floorNodes.push(node);
-  });
-  const railNodes = [];
-  layout.rail.forEach(r => {
-    const node = dancerNodes[r.index];
-    node.classList.add('disco-rail-dancer');
-    rail.appendChild(node);
-    railNodes.push(node);
-  });
+  // Rebuildable (buildFloor), so a guest-list change re-lays the floor live.
+  function buildFloor() {
+    clear(dancers); clear(rail);
+    spotlightIndex = -1;
+    dancerNodes = rosterIds.map((id, index) => {
+      const item = resolveItem(id);
+      const personality = personalityOf(id);
+      return el('div', {
+        class: 'disco-dancer',
+        dataset: { id, personality, move: DISCO_MOVES[personality], index },
+        title: getDisplayName(id)
+      }, [el('div', { html: renderItem(item, { size: 104, equipArt: equippedArt(id) }) })]);
+    });
+    layout = layoutFloor(dancerNodes.length);
+    floorNodes = [];
+    layout.cells.forEach(cell => {
+      const node = dancerNodes[cell.index];
+      node.dataset.row = String(cell.row);
+      node.style.left = (cell.col * 100).toFixed(1) + '%';
+      node.style.setProperty('--row-scale', FLOOR_ROWS[cell.row].scale);
+      dancers.appendChild(node);
+      floorNodes.push(node);
+    });
+    railNodes = [];
+    layout.rail.forEach(r => {
+      const node = dancerNodes[r.index];
+      node.classList.add('disco-rail-dancer');
+      rail.appendChild(node);
+      railNodes.push(node);
+    });
+    seatDancers();
+  }
 
   // ---- RUN19 Z1: the track list — the four Boo Pop Hits PLUS her saved jams ----
   let tracks = BOO_POP_HITS.map(hit => ({ kind: 'hit', id: hit.id, name: hit.name, bpm: hit.bpm, hit }));
@@ -408,13 +426,17 @@ export function mount(container, params, ctx) {
   }
   function renderPosters() {
     clear(posterWall);
-    posterWall.appendChild(el('strong', { text: 'YOUR ROUTINES' }));
     const saved = routines();
+    // Alex, round 2 ("why is it showing then if I haven't got one? makes it look like
+    // there is something missing or a bug"): a poster wall for a thing she does not own
+    // does not show AT ALL until she owns a Dance Stage. Once she owns one but has no
+    // routine yet, the wall appears with the one useful next step; with routines, posters.
+    const ownsStage = (state.inventory && state.inventory.deco_stage > 0);
+    if (!saved.length && !ownsStage) { posterWall.style.display = 'none'; return; }
+    posterWall.style.display = '';
+    posterWall.appendChild(el('strong', { text: 'YOUR ROUTINES' }));
     if (!saved.length) {
-      // Alex, 2026-07-30: this used to just say "save a routine", with no hint that a
-      // Dance Stage is a rare prize she has to find first — it read as a missing feature
-      // rather than something not unlocked yet.
-      posterWall.appendChild(el('p', { text: 'Find a Dance Stage (a special box prize!), place it in your town, and choreograph a routine — its poster hangs here!' }));
+      posterWall.appendChild(el('p', { text: 'Place your Dance Stage in town, tap it and choreograph a routine — its poster hangs here!' }));
       return;
     }
     saved.forEach(([key, seq], index) => {
@@ -454,8 +476,56 @@ export function mount(container, params, ctx) {
     else { mode = 'free'; routineKeyIdx = -1; dancerNodes.forEach(n => clearDanceClasses(n.querySelector('svg'))); dancers.classList.remove('routine'); updateTrackCopy(); }
   }
 
+  // ---- the guest list (Alex, 2026-07-30: "it doesnt let me pick which boos are at the
+  // disco"). The house drawer (js/drawer.js) pins a "Who's coming?" tray to the bottom;
+  // inside, every owned Boo is a toggle chip. Changes persist to state.disco.roster (v20)
+  // and re-lay the floor live, with a line in the now-playing strip naming who came or
+  // went — an announced moment, not a silent state change.
+  const rosterGrid = el('div', { class: 'disco-roster-grid' });
+  function currentPicks() {
+    const st = getState();
+    return ((st.disco && st.disco.roster) || []).filter(id => ownedBoos.includes(id));
+  }
+  function paintRoster() {
+    clear(rosterGrid);
+    const picks = currentPicks();
+    ownedBoos.forEach(id => {
+      const invited = picks.length ? picks.includes(id) : rosterIds.includes(id);
+      rosterGrid.appendChild(el('button', {
+        class: 'disco-roster-chip' + (invited ? ' in' : ''),
+        dataset: { id }, 'aria-pressed': String(invited),
+        onclick: () => toggleGuest(id)
+      }, [
+        el('span', { class: 'drc-art', html: renderItem(resolveItem(id), { size: 52, equipArt: equippedArt(id) }) }),
+        el('span', { class: 'drc-name', text: getDisplayName(id) })
+      ]));
+    });
+  }
+  function toggleGuest(id) {
+    sfx.tap();
+    let picks = currentPicks();
+    if (!picks.length) picks = rosterIds.slice();          // "everyone" made explicit on her first change
+    const leaving = picks.includes(id);
+    if (leaving && picks.length === 1) { nowPlaying.textContent = 'Somebody has to dance! Invite a friend first.'; return; }
+    if (!leaving && picks.length >= MAX_GUESTS) { nowPlaying.textContent = `The floor fits ${MAX_GUESTS} — wave someone home first!`; return; }
+    picks = leaving ? picks.filter(x => x !== id) : [...picks, id];
+    mutate(s => { s.disco = s.disco || {}; s.disco.roster = picks; });
+    rosterIds = chosenRoster();
+    buildFloor();
+    paintRoster();
+    nowPlaying.textContent = leaving ? `${getDisplayName(id)} waves goodnight!` : `${getDisplayName(id)} joins the party!`;
+  }
+  let rosterDrawer = null;
+  if (ownedBoos.length > 1) {
+    rosterDrawer = createDrawer({ tabs: [{ id: 'guests', label: "Who's coming?", node: rosterGrid }], ariaLabel: 'Guest list' });
+    rosterDrawer.setCurrent('<span class="disco-roster-hint">🪩 Who’s coming?</span>');
+    root.appendChild(rosterDrawer.root);
+  }
+
   renderPosters();
   loadJams().then(restartTrack);
+  // buildFloor()/paintRoster() run after the socket section below — seatDancers() reads
+  // SOCKET, which is a const that has not been initialised yet at this point in mount.
 
   // ---- pixel contact (RUN12 S7), extended for RUN19 Z1's three depth rows -------------
   // RUN12 S7's law: a Boo on a dance floor stands ON the dance floor, measured in real
@@ -523,6 +593,8 @@ export function mount(container, params, ctx) {
       rail.style.bottom = Math.round(stageRect.bottom - floorRect.top) + 'px';
     }
   }
+  buildFloor();
+  paintRoster();
   requestAnimationFrame(seatDancers);
   const onResize = () => seatDancers();
   window.addEventListener('resize', onResize);
@@ -559,7 +631,13 @@ export function mount(container, params, ctx) {
     reduced: () => REDUCED,
     floorLayout: () => layout,
     floorCount: () => floorNodes.length,
-    railCount: () => railNodes.length
+    railCount: () => railNodes.length,
+    // the guest list (v20)
+    roster: () => rosterIds.slice(),
+    ownedBoos: () => ownedBoos.slice(),
+    toggleGuest,
+    guestsOpen: () => !!(rosterDrawer && rosterDrawer.isOpen()),
+    openGuests: () => { if (rosterDrawer) rosterDrawer.open(); }
   };
 
   return {
