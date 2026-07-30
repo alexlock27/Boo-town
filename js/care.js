@@ -11,7 +11,7 @@
 import { el, clear, confetti, REDUCED } from './ui.js';
 import { getState, mutate } from './state.js';
 import { renderItem, renderDeco } from './art.js';
-import { equippedArt } from './accessories.js';
+import { equippedArt, getDisplayName } from './accessories.js';
 import { resolveItem } from './customs.js';
 import { personalityOf } from '../data/personalities.js';
 import {
@@ -137,7 +137,9 @@ export function renderCareSummary(container, item, onAction) {
 export function openCare(item, options = {}) {
   const booId = item.id;
   const personality = personalityOf(booId);
-  const displayName = (getState().nicknames && getState().nicknames[booId]) || item.name;
+  // RUN19 Z4: through getDisplayName, not a second local copy of the same rule. Two
+  // implementations of "nickname ?? species name" is one more than can stay in step.
+  const displayName = getDisplayName(booId) || item.name;
   const overlay = el('div', { class: 'care-overlay' });
   const panel = el('section', { class: `care-panel personality-${personality}`, role: 'dialog', 'aria-label': `Care for ${displayName}` });
   const close = el('button', { class: 'care-close', 'aria-label': 'Close Boo Care', text: '×', onclick: () => finishClose() });

@@ -6,6 +6,7 @@ import { genRule } from '../attrengine.js';
 import { renderItem, renderExpGlyph, renderTrailScene, TRAIL_VIEWS, TRAIL_NODE_ATS } from '../art.js';
 import { guideLine, createGuideBubble } from '../guide.js';
 import { sfx } from '../sfx.js';
+import { getDisplayName } from '../accessories.js';   // RUN19 Z4: the party is HER Boos, by her names
 
 // RUN18C C1 — the party is EIGHT. The engine has always been able to run a party of up to
 // twelve, and it still does: the extra places are the visitors it invites itself when eight
@@ -19,6 +20,10 @@ const DEPART_MS = 1200;
 const partyFromSave = () => Object.keys(getState().inventory || {})
   .filter(id => getState().inventory[id] > 0 && BY_ID[id]?.kind === 'boo')
   .map(id => ({ ...BY_ID[id], id }));
+
+// RUN19 Z4: a party label says what SHE calls the Boo. Trail GUESTS are not owned, so they
+// have no nickname and fall straight back to their species name.
+const nameOf = (boo) => (boo && (getDisplayName(boo.id) || boo.name)) || '';
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen expedition' });
@@ -89,7 +94,7 @@ export function mount(container, params, ctx) {
           dataset: { id: boo.id },
           disabled: guest ? '' : undefined,
           'aria-pressed': guest ? undefined : (on ? 'true' : 'false'),
-          'aria-label': guest ? `${boo.name}, a visitor joining the trail` : `${boo.name}${on ? ', chosen' : ''}`,
+          'aria-label': guest ? `${nameOf(boo)}, a visitor joining the trail` : `${nameOf(boo)}${on ? ', chosen' : ''}`,
           onclick: event => {
             if (departing) return;
             if (on) selected.delete(boo.id);
@@ -108,7 +113,7 @@ export function mount(container, params, ctx) {
           }
         }, [
           el('span', { class: 'exp-tile-art', html: renderItem(boo, { size: 88 }) }),
-          el('b', { class: 'exp-tile-name', text: boo.name }),
+          el('b', { class: 'exp-tile-name', text: nameOf(boo) }),
           el('span', { class: 'exp-tick', html: renderExpGlyph('tick', { size: 24 }) }),
           guest ? el('em', { class: 'exp-visitor-flag', text: 'VISITOR' }) : null
         ]);
@@ -279,7 +284,7 @@ export function mount(container, params, ctx) {
     const JITTER = [[-64, 2], [-38, 12], [-14, -6], [10, 8], [34, -4], [58, 10], [-52, 18], [-24, 22], [22, 22], [48, 20], [-6, 30], [72, 4]];
     const CLUSTER_DROP = 20;
     const cluster = explorers.slice(0, 12).map(boo => {
-      const dot = el('div', { class: 'exp-walker', title: boo.name, html: renderItem(boo, { size: 48 }) });
+      const dot = el('div', { class: 'exp-walker', title: nameOf(boo), html: renderItem(boo, { size: 48 }) });
       walkers.appendChild(dot);
       return dot;
     });
@@ -397,7 +402,7 @@ export function mount(container, params, ctx) {
   // (the party, a fire, a line), drawn instead of typed, with a steam wisp on a loop.
   function campNode(explorers) {
     const mugs = el('div', { class: 'exp-camp-mugs' });
-    explorers.slice(0, 8).forEach(boo => mugs.appendChild(el('span', { class: 'exp-camp-boo', title: boo.name, html: renderItem(boo, { size: 34 }) })));
+    explorers.slice(0, 8).forEach(boo => mugs.appendChild(el('span', { class: 'exp-camp-boo', title: nameOf(boo), html: renderItem(boo, { size: 34 }) })));
     return el('div', { class: 'exp-camp' }, [
       el('div', { class: 'exp-camp-fire' }, [
         el('span', { class: 'exp-camp-flame', html: renderExpGlyph('campfire', { size: 44 }) }),

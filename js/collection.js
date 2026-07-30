@@ -5,7 +5,7 @@ import { getState } from './state.js';
 import { renderItem, renderGuide } from './art.js';
 import { applyRarityFx } from './rarityfx.js';
 import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY, BIRTHDAY_BOOS, dropKind, KIND_ONELINER } from '../data/catalogue.js';
-import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName } from './accessories.js';
+import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName, nicknameOf } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
 import { renderTrophyRoom } from './trophies.js';
@@ -57,7 +57,13 @@ export function mount(container, params, ctx) {
       onclick: () => { sfx.tap(); if (has) showItem(item, count); }
     }, [
       collArt,
-      el('div', { class: 'coll-name', text: has ? getDisplayName(item.id) + (item.kind === 'boo' ? heartBadge(item.id) : '') : (seas ? seas.hint : '???') }),
+      // RUN19 Z4 — the collection is the one place the SPECIES name wins. Everywhere else a
+      // Boo is named she gets her nickname, but the collection (and the shop) is where she
+      // learns what the thing IS: with the nickname substituted here, a renamed Pippin
+      // vanished from her own collection and there was no way to see she owned one.
+      // The nickname becomes a second line instead — "Snacks" under "Pippin".
+      el('div', { class: 'coll-name', text: has ? officialName(item.id) + (item.kind === 'boo' ? heartBadge(item.id) : '') : (seas ? seas.hint : '???') }),
+      has && item.kind === 'boo' && nicknameOf(item.id) ? el('div', { class: 'coll-nick', text: nicknameOf(item.id) }) : null,
       count > 1 ? el('div', { class: 'coll-badge', text: 'x' + count }) : null,
       has && shinyCopies > 0 ? el('div', { class: 'shiny-badge', text: shinyCopies > 1 ? `✨x${shinyCopies}` : '✨' }) : null,
       seas ? el('div', { class: 'coll-season', text: seas.icon }) : null
@@ -114,7 +120,10 @@ export function mount(container, params, ctx) {
       const art = el('div', { class:'coll-art birthday-coll-art', html:renderItem(item,{size:94,equipArt:equippedArt(item.id)}) });
       applyRarityFx(art, item, {context:'calm'});
       bgrid.appendChild(el('button', { class:'coll-tile owned rar-birthday', onclick:() => { sfx.tap(); showItem(item,1); } }, [
-        art, el('div',{class:'coll-name',text:getDisplayName(item.id)}), el('div',{class:'birthday-11-badge',text:'11'})
+        // Z4: species name here too — it is still the collection (see the note above).
+        art, el('div',{class:'coll-name',text:officialName(item.id)}),
+        nicknameOf(item.id) ? el('div',{class:'coll-nick',text:nicknameOf(item.id)}) : null,
+        el('div',{class:'birthday-11-badge',text:'11'})
       ]));
     });
     birthdaySection = el('section', {class:'birthday-boos-section'}, [

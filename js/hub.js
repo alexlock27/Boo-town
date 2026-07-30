@@ -26,6 +26,7 @@ import { applyRarityFx } from './rarityfx.js';
 import { TODDLER_GAMES } from './toddler.js';
 import { speakMaybe } from './guide.js';
 import { encouragementFor, returningAfterBreak, inLongSession } from './encouragement.js';   // RUN17 X2
+import { acknowledge } from './ack.js';   // RUN19 Z4: the <=2-per-session acknowledgement budget
 import { feelingsAvailable } from './feelings.js';   // RUN17 X3 (gated: off by default, Medium/Full only)
 import { createWhatsNewCard } from './whatsnew.js';
 import { createWelcomeTour } from './welcometour.js';   // RUN18B Y16
@@ -537,6 +538,20 @@ export function mount(container, params, ctx) {
       if (kind) setTimeout(() => gb.sayText(kind), 2200);
       if (typeof window !== 'undefined') window.__hubEncourage = kind ? { moment, line: kind } : null;
     } else if (typeof window !== 'undefined') window.__hubEncourage = null;
+  }
+
+  // RUN19 Z4 — the restyle. She has just changed how her guide LOOKS, so the guide mentions
+  // it, once, on the next hub visit. Through the Z3/Z4 acknowledgement budget, and the flag
+  // is cleared whether the budget said yes or no: an acknowledgement that queues up for days
+  // waiting for a free slot would eventually arrive with no idea what it was about.
+  {
+    const st = getState();
+    if (st.seen && st.seen.guideRestyled) {
+      const line = acknowledge('restyle');
+      mutate(s => { if (s.seen) delete s.seen.guideRestyled; });
+      if (line) setTimeout(() => gb.sayText(line), 2600);
+      if (typeof window !== 'undefined') window.__hubRestyle = line || null;
+    } else if (typeof window !== 'undefined') window.__hubRestyle = null;
   }
 
   // rotate idle / boxReady lines

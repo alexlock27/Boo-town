@@ -46,6 +46,14 @@ export function getDisplayName(id) {
   return nick || baseName(id);
 }
 export function officialName(id) { return baseName(id); }
+// RUN19 Z4: the nickname ALONE, or '' when she has not given one. The collection grid and
+// the shop show the species name as the main line and this as a second line, because those
+// two screens are where a child learns what a thing IS — see js/collection.js.
+export function nicknameOf(id) {
+  const s = getState();
+  const nick = s && s.nicknames && s.nicknames[id];
+  return (nick && nick !== baseName(id)) ? nick : '';
+}
 
 // Art keys by slot. renderBoo also accepts the old string form for compatibility.
 export function equippedArt(booId) {
