@@ -38,6 +38,13 @@ const TEMPLATE_BY_ID = Object.fromEntries(QUEST_TEMPLATES.map(t => [t.id, t]));
 // Ensure today's three quests exist (regenerate on a new local day). No streak state is kept.
 export function ensureToday() {
   const s = getState();
+  // getState() is null in exactly two situations: before onboarding has written a save, and
+  // after loadOrRescue() has declined to trust a damaged one (it deliberately leaves state null
+  // so nothing ever autosaves over the key). Both are recoverable states the child can be sitting
+  // in — but every caller of noteQuest() used to dereference `s.quests` and throw, which the
+  // router catches and renders as "Something went wrong loading <screen>". A daily quest is the
+  // least important thing on the screen; it must never be the reason the screen does not open.
+  if (!s) return;
   const day = todayKey();
   if (s.quests && s.quests.day === day && (s.quests.list || []).length) return;
   const pool = QUEST_TEMPLATES.filter(t => !t.available || t.available(s));
@@ -49,7 +56,10 @@ export function ensureToday() {
 export function noteQuest(event, data = {}) {
   ensureToday();
   const s = getState();
-  const q = s.quests;
+  // Same reasoning as ensureToday's guard, and it needs its own: with no state ensureToday has
+  // returned without writing st.quests, so `q` would be undefined here even on a non-null save.
+  const q = s && s.quests;
+  if (!q || !Array.isArray(q.list)) return;
   let changed = false;
   for (const id of q.list) {
     if (q.done.includes(id)) continue;

@@ -106,7 +106,25 @@ export async function go(name, params = {}) {
   } catch (e) {
     if (token !== navToken) return;   // superseded while importing
     console.error('[main] failed to load screen', name, e);
-    screenEl.innerHTML = `<div class="card" style="margin:40px auto;max-width:400px">Something went wrong loading "${name}".</div>`;
+    // Note what this catch does and does not cover: it wraps the dynamic IMPORT only, not
+    // mount(). So reaching here means the module chain failed to fetch or parse — a missing
+    // file, a stale cached copy, or a top-level throw — never a bug inside the screen.
+    // The child sees the same gentle line as always. On localhost ONLY, the reason is printed
+    // underneath: a review build that says nothing costs an entire round-trip to diagnose, and
+    // this text must never reach a real device, where it would be frightening and useless.
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cssText = 'margin:40px auto;max-width:520px';
+    card.appendChild(Object.assign(document.createElement('div'), { textContent: `Something went wrong loading "${name}".` }));
+    if (local) {
+      const why = document.createElement('pre');
+      why.style.cssText = 'margin-top:12px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;opacity:.85';
+      why.textContent = `${(e && e.name) || 'Error'}: ${(e && e.message) || e}\n\n${((e && e.stack) || '').split('\n').slice(0, 6).join('\n')}`;
+      card.appendChild(why);
+    }
+    screenEl.innerHTML = '';
+    screenEl.appendChild(card);
     return;
   }
   if (token !== navToken) return;     // a newer navigation owns the screen now
@@ -339,10 +357,35 @@ async function boot() {
   const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     if (isLocal) {
-      // Clear any stale local development service workers so local code updates apply immediately
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(r => r.unregister());
-      });
+      // Clear any stale local development service workers so local code updates apply immediately.
+      //
+      // Unregistering ALONE is not enough, and this was a real and very expensive bug. Two things
+      // it does not do:
+      //   1. It does not empty Cache Storage. The caches outlive the registration, and a later
+      //      registration adopts them.
+      //   2. It does not stop the worker CONTROLLING THE CURRENT LOAD. That worker keeps serving
+      //      this page's modules from its cache until the next navigation — so the very load that
+      //      "fixed" it still ran on stale code.
+      // Combined with sw.js matching `ignoreSearch: true`, that also means ?v= cache-busting
+      // queries are ignored outright: a stale local worker serves old js/ and data/ files no
+      // matter what version query index.html asks for. The result is new save data being read by
+      // old code, which surfaces as "Something went wrong loading <screen>".
+      // So: unregister, empty the caches, and if a worker was controlling this load, reload ONCE
+      // (guarded by sessionStorage, or a worker that re-registers would cause a reload loop).
+      navigator.serviceWorker.getRegistrations().then(async (regs) => {
+        const hadWorker = !!navigator.serviceWorker.controller || regs.length > 0;
+        await Promise.all(regs.map(r => r.unregister().catch(() => {})));
+        if (typeof caches !== 'undefined') {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k).catch(() => {})));
+          } catch {}
+        }
+        if (hadWorker && navigator.serviceWorker.controller && !sessionStorage.getItem('bt.swPurged')) {
+          sessionStorage.setItem('bt.swPurged', '1');
+          location.reload();
+        }
+      }).catch(() => {});
     } else {
       // boot() is async (it awaits the fail-safe loader, which touches IndexedDB), so by the
       // time we get here the window 'load' event may ALREADY have fired — in which case a

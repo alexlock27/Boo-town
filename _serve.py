@@ -93,8 +93,20 @@ def main():
         else:
             print(f'ERROR: ports {original}-{original + 11} are all in use. Close some windows and try again.')
             sys.exit(1)
-        print(f'  NOTE: port {original} was busy (an old server from an earlier session).', flush=True)
-        print(f'        Using port {port} instead - nothing is wrong, just a different number.', flush=True)
+        # Say this LOUDLY. A stale server on the original port is still answering, and any
+        # browser tab still pointed at it is showing an OLD COPY OF THE GAME - which looks
+        # exactly like "my changes aren't showing up" and is impossible to guess from inside
+        # the browser. The number in the address bar is the only way to tell the two apart.
+        print(flush=True)
+        print('  ' + '!' * 52, flush=True)
+        print(f'  PORT {original} WAS ALREADY BUSY.', flush=True)
+        print(f'  Something else - almost certainly a leftover server from an', flush=True)
+        print(f'  earlier session - is still answering on {original}, and it is', flush=True)
+        print(f'  serving an OLD COPY of the game.', flush=True)
+        print(flush=True)
+        print(f'  CLOSE any browser tab showing localhost:{original}.', flush=True)
+        print(f'  The real, up-to-date game is on port {port} (below).', flush=True)
+        print('  ' + '!' * 52, flush=True)
         print(flush=True)
 
     handler = partial(NoCacheHandler, directory=root)
