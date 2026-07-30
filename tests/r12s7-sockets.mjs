@@ -101,8 +101,14 @@ for (const vp of VIEWPORTS) {
   const tol = VENUE_SOCKETS.discohall.tolerance;
   const worstBox = Math.max(...r.dancers.map(d => Math.abs(d.boxBottomOff)));
   const worstFeet = Math.max(...r.dancers.map(d => Math.abs(d.feetOff)));
-  assert(worstBox <= tol, `${vp.name}: every dancer's bounds sit within ${tol}px of the declared surface (worst ${worstBox}px)`);
-  assert(worstFeet <= 12, `${vp.name}: and the drawn FEET land on it (worst ${worstFeet}px, art's own sole geometry)`);
+  // 2026-07-30: these two assertions could not both hold, which is why the feet one had been
+  // failing (5-24px depending on viewport) since before RUN19 Z1's depth rows. Boo art leaves
+  // the bottom ~9% of its box empty below the drawn soles, so a dancer whose BOX bottom is on
+  // the surface has its FEET floating that gap above it. RUN12 S7's law is about the feet — "a
+  // Boo on a dance floor stands ON the dance floor" — so the feet are now the assertion, at
+  // the socket's own declared tolerance, and the box bottom is reported for diagnosis only
+  // (it now sits deliberately BELOW the line by exactly the sole gap).
+  assert(worstFeet <= tol, `${vp.name}: the drawn FEET land on the declared surface (worst ${worstFeet}px, art's own sole geometry)`);
   await page.screenshot({ path: `${SHOTS}/discohall-${vp.name}.png` });
   console.log(`    → surface y=${r.surfaceY}, ${r.dancers.length} dancers, worst bounds ${worstBox}px / feet ${worstFeet}px`);
   await ctx.close();

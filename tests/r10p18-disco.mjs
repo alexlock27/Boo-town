@@ -148,7 +148,16 @@ console.log('== phone and reduced motion ==');
     window.__disco.forceBar();
     return { flag: window.__disco.reduced(), moves: window.__disco.dancerMoves() };
   });
-  ok(reduced.flag && reduced.moves.every(x => x.move === 'sway'), 'reduced motion keeps only the slow sway');
+  // Alex, 2026-07-30: this used to assert every dancer's move === 'sway'. That assertion WAS
+  // the defect — it pinned the whole reduced-motion floor to one identical move in lockstep,
+  // which read as "the boos are literally just swaying left and right" and undid RUN13 T5's
+  // whole point. The contract is now the honest one: reduced motion uses ONLY calm moves
+  // (small, slow, no spinning or jumping) and still varies them, dancer to dancer.
+  const CALM = ['calm-sway', 'calm-bob', 'calm-lean'];
+  ok(reduced.flag && reduced.moves.length > 0 && reduced.moves.every(x => CALM.includes(x.move)),
+    'reduced motion uses only the calm move set');
+  ok(reduced.moves.every(x => !['spin', 'star-jump', 'bounce', 'shimmy', 'robot'].includes(x.move)),
+    'reduced motion never picks a big move');
   await page.screenshot({ path: 'screenshots/r10p18/hall-390x844.png' });
   await context.close();
 }

@@ -3199,7 +3199,15 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .disco-dancers.routine { display:grid; grid-template-columns:repeat(6,minmax(52px,90px)); grid-template-rows:repeat(2,1fr); align-items:end; justify-content:center; gap:0 12px; }
 .disco-dancers.routine .disco-dancer { position:static; transform:none; }
 /* the overflow rail — a row behind the floor for anyone past MAX_ON_FLOOR (10) */
-.disco-rail { position:absolute; z-index:7; left:6%; right:6%; top:8%; height:10%; display:flex; align-items:center; justify-content:center; gap:clamp(2px,1.4vw,10px); }
+/* The overflow rail: the Boos who did not fit on the floor. seatDancers() sets `bottom` from
+   the floor's measured back edge (top:8% left them hanging in the middle of an empty room),
+   and the ledge under them says "standing at the back" instead of "floating, possibly a bug". */
+.disco-rail { position:absolute; z-index:7; left:6%; right:6%; bottom:48%; display:flex; align-items:flex-end; justify-content:center; gap:clamp(2px,1.4vw,10px); padding-bottom:6px; }
+.disco-rail::after {
+  content:''; position:absolute; left:-2%; right:-2%; bottom:0; height:5px; border-radius:4px;
+  background:linear-gradient(180deg,hsla(var(--disco-hue),80%,65%,.55),hsla(var(--disco-hue),80%,40%,.25));
+  box-shadow:0 0 14px hsla(var(--disco-hue),90%,60%,.35);
+}
 .disco-rail .disco-dancer { position:static; width:clamp(38px,5.5vw,56px); opacity:.85; filter:drop-shadow(0 5px 4px rgba(0,0,0,.3)) brightness(.88); transform:none; }
 .disco-rail-dancer.rail-bounce { animation: discoRailBounce .4s ease; }
 @keyframes discoRailBounce { 40% { transform: translateY(-6px); } }
@@ -3241,7 +3249,23 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .disco-dancers.routine { grid-template-columns:repeat(6,52px); gap:0; }
   .disco-rail .disco-dancer { width:34px; }
 }
-.disco-hall.reduced .disco-dancer svg { animation:discoSway 2.4s ease-in-out infinite !important; }
+/* Alex, 2026-07-30: every disco move now LOOPS. They used to run once per applied class and
+   the JS tried to restart them each beat with `void svg.offsetWidth` — which is undefined on
+   an SVGElement, so no reflow happened and each dancer moved for one beat per BAR then stood
+   still. Looping is also what the continuity law asks for: dancing is a continuous thing. */
+.disco-bounce,.disco-sway,.disco-sway-small,.disco-spin,.disco-shimmy,
+.disco-star-jump,.disco-wiggle,.disco-robot,.disco-clap,.disco-twirl { animation-iteration-count:infinite; }
+
+/* The reduced-motion floor: gentle and slow, but still three distinct moves and still varied
+   per dancer (see CALM_PREFERENCES). !important because the prefers-reduced-motion blocks
+   below switch every full-strength move off, and a dance floor of frozen Boos is not a
+   comfort — it is a broken room. Durations are long and the travel is small. */
+.disco-hall.reduced .disco-calm-sway { animation:discoCalmSway 3.2s ease-in-out infinite !important; }
+.disco-hall.reduced .disco-calm-bob  { animation:discoCalmBob  2.8s ease-in-out infinite !important; }
+.disco-hall.reduced .disco-calm-lean { animation:discoCalmLean 3.6s ease-in-out infinite !important; }
+@keyframes discoCalmSway { 0%,100% { transform:rotate(-2.5deg); } 50% { transform:rotate(2.5deg); } }
+@keyframes discoCalmBob  { 0%,100% { transform:translateY(0); }   50% { transform:translateY(-5px); } }
+@keyframes discoCalmLean { 0%,100% { transform:translateX(-3px) rotate(-1.5deg); } 50% { transform:translateX(3px) rotate(1.5deg); } }
 .disco-hall.reduced .disco-tile { animation:none !important; transition:background 1.5s ease; }
 @media (prefers-reduced-motion:reduce) {
   .ff-disco-sign,.disco-ball::after,.disco-tile.bar-hit,.disco-bounce,.disco-sway,.disco-sway-small,

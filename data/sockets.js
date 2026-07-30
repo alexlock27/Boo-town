@@ -75,8 +75,11 @@ export const VENUE_SOCKETS = {
     route: 'discohall',
     boos: '.disco-dancer', surface: '.disco-floor',
     // where along the floor's PROJECTED box the dancers stand: 0 = its far edge, 1 = the
-    // near edge. 0.30 puts them a little way onto the floor rather than on its back rail.
-    surfaceFrac: 0.30, tolerance: 4,
+    // near edge. Alex, 2026-07-30: was 0.30, which stood the front row near the floor's BACK
+    // rail with the whole floor empty in front of them and only ~29px of projected floor left
+    // for the two rows behind to recede into. 0.72 stands the front row well forward, which
+    // is both what a front row means and what gives FLOOR_ROWS room to show depth.
+    surfaceFrac: 0.72, tolerance: 4,
     note: 'js/discohall.js measures the floor each layout — a CSS percentage cannot, because the floor is rotateX(55deg).'
   },
   town: {
