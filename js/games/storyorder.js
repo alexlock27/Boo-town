@@ -38,6 +38,7 @@ import { makeDraggable, makeDropTargets, clearLift } from '../dragdrop.js';
 import { renderStoryArt } from '../storyart.js';
 import { STORIES, STORY_BY_ID, STORY_LEVELS, storiesAtLevel } from '../../data/stories.js';
 import { STORY_READER_SETS, reporterRankFor } from '../../data/storyReader.js';
+import { explainPanel } from '../celebrate.js';
 import { contentTier } from '../content.js';
 
 const MAX_HINTS = 2;
@@ -276,28 +277,38 @@ export function mount(container, params, ctx) {
       if (phase !== 'question') return;
       const story = cur();
       if (opt === story.answer) {
+        // Alex, 2026-07-30 explanation pass: the win confirms itself in a panel she reads
+        // at her own pace, gated by Next — never a toast racing a 1700ms timer.
         phase = 'done';
         node.classList.add('right');
         sfx.star();
         recordResult('storyorder:' + story.id, true);
         const r = node.getBoundingClientRect();
         if (!REDUCED) sparkleAt(r.left + r.width / 2, r.top + r.height / 2);
-        shell.react('You understood the whole story! 🌟', { voice: false, hold: 1800 });
-        speakMaybe('You understood the whole story!');
         done++;
-        shell.advance();
-        idx++;
-        shell.timeout(() => (idx >= stories.length ? finish() : renderStory()), REDUCED ? 800 : 1700);
+        stage.appendChild(explainPanel(`You understood the whole story! Yes — ${story.answer}!`, () => {
+          shell.advance();
+          idx++;
+          if (idx >= stories.length) finish(); else renderStory();
+        }, { correct: true }));
       } else {
+        // A wrong pick locks the options behind "Got it ›" so the nudge is read, not
+        // tapped past — then she tries again with the question still in front of her.
+        phase = 'explain';
         wrong++;
         shell.dimHeart();
         sfx.oops();
         node.classList.remove('miss'); void node.offsetWidth; node.classList.add('miss');
         recordResult('storyorder:' + story.id, false);
         collector.addAttempted(storyMiss(story));
-        const line = `Hmm — think back to the pictures. ${story.question}`;
-        shell.react(line, { voice: false, hold: 3000 });
-        speakMaybe(line);
+        const optBtns = [...stage.querySelectorAll('.so-option')].filter(b => !b.disabled);
+        optBtns.forEach(b => b.disabled = true);
+        const panel = explainPanel(`Hmm — think back to the pictures. ${story.question}`, () => {
+          panel.remove();
+          optBtns.forEach(b => b.disabled = false);
+          phase = 'question';
+        }, { label: 'Got it ›' });
+        stage.appendChild(panel);
       }
     }
 
@@ -351,6 +362,7 @@ export function mount(container, params, ctx) {
       swap: (a, b) => swap(a, b),
       // the tap path, exactly as a child using it would: lift one, tap the other
       tapSwap: (a, b) => { drags[a].lift(); panelNodes[b].click(); },
+      tapNext: () => { const b = stage.querySelector('.explain-next'); if (b) b.click(); },
       solveOrder: () => {
         // repeated swaps into place — the same operation she performs, nothing privileged
         for (let i = 0; i < order.length; i++) {
@@ -485,14 +497,22 @@ function mountReader(container, params, ctx) {
         if (revealPtr >= revealOrder.length) shell.timeout(pressStamp, 300);
         else drawInsert();
       } else {
+        // Alex, 2026-07-30 explanation pass: the connective's why-line locks the gaps
+        // behind "Got it ›" so it is read, not raced past by the next tap.
+        phase = 'explain';
         wrong++;
         shell.dimHeart();
         sfx.oops();
         const card = stage.querySelector('.so-reveal-card');
         if (card) { card.classList.remove('nudge'); void card.offsetWidth; card.classList.add('nudge'); }
-        const why = cur().sentences[revealIdx].why;
-        shell.react(why, { voice: false, hold: 2400 });
-        speakMaybe(why);
+        const gaps = [...stage.querySelectorAll('.so-gap')];
+        gaps.forEach(b => b.disabled = true);
+        const panel = explainPanel(cur().sentences[revealIdx].why, () => {
+          panel.remove();
+          gaps.forEach(b => b.disabled = false);
+          phase = 'insert';
+        }, { label: 'Got it ›' });
+        stage.appendChild(panel);
       }
     }
 
@@ -544,21 +564,27 @@ function mountReader(container, params, ctx) {
         correctQuestions++;
         recordResult('storyorder:' + story.id, true);
         checkRankUp();
-        shell.react('Front page printed — story understood! 🌟', { voice: false, hold: 1800 });
-        speakMaybe('Front page printed. Story understood!');
-        shell.advance();
-        sIdx++;
-        shell.timeout(() => (sIdx >= stories.length ? finish() : renderStory()), 1700);
+        stage.appendChild(explainPanel(`Front page printed — story understood! Yes — ${story.answer}!`, () => {
+          shell.advance();
+          sIdx++;
+          if (sIdx >= stories.length) finish(); else renderStory();
+        }, { correct: true }));
       } else {
+        phase = 'explain';
         wrong++;
         shell.dimHeart();
         sfx.oops();
         node.classList.add('miss');
         recordResult('storyorder:' + story.id, false);
         collector.addAttempted(storyReaderMiss(story));
-        const line = `Hmm — think back to the front page. ${story.question}`;
-        shell.react(line, { voice: false, hold: 2600 });
-        speakMaybe(line);
+        const optBtns = [...stage.querySelectorAll('.so-option')].filter(b => !b.disabled);
+        optBtns.forEach(b => b.disabled = true);
+        const panel = explainPanel(`Hmm — think back to the front page. ${story.question}`, () => {
+          panel.remove();
+          optBtns.forEach(b => b.disabled = false);
+          phase = 'question';
+        }, { label: 'Got it ›' });
+        stage.appendChild(panel);
       }
     }
 
@@ -601,6 +627,7 @@ function mountReader(container, params, ctx) {
       placeWrong: () => { const c = correctGap(revealOrder[revealPtr]); const bad = c === 0 ? c + 1 : c - 1; tryPlace(Math.max(0, Math.min(placed.length, bad))); },
       answerCorrect: () => { const n = [...stage.querySelectorAll('.so-option')].find(x => x.dataset.opt === cur().answer); if (n) n.click(); },
       answerWrong: () => { const n = [...stage.querySelectorAll('.so-option')].find(x => x.dataset.opt !== cur().answer); if (n) n.click(); },
+      tapNext: () => { const b = stage.querySelector('.explain-next'); if (b) b.click(); },
       rank: () => reporterRankFor((getState().seen && getState().seen.reporterCorrect) || 0).name,
       hint: () => useHint(),
       collected: () => collector.items().length

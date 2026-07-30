@@ -212,7 +212,15 @@ export function mount(container, params, ctx) {
     // the wrong one and then let the interrupted line speak in full AFTER the punchline.
     // (Found by the playtest critic: BOO! at +36359ms, "Interrupting Boo wh—" at
     // +36776ms. The joke told backwards.)
-    const said = speakMaybe(b.text, true, { interrupt: interruptTarget || false });
+    // RUN19 (Alex, twice: "some jokes rush to the answer before finishing the question,
+    // and others start reading the question again"): a SPOKEN beat now advances when its
+    // line actually ENDS, not on a guessed timer — this file's own note says a line runs
+    // 2.4-2.9s and the old timers gave it 900-1500ms, so the punchline landed ~1s early
+    // and the next utterance piled onto the one still in flight. The fixed timers remain
+    // only as the silent-voice pacing, plus a long safety net so a speech engine that
+    // never reports back can never strand her mid-joke (house law: toddlers included).
+    let onLineEnd = null;
+    const said = speakMaybe(b.text, true, { interrupt: interruptTarget || false, onend: () => { if (onLineEnd) onLineEnd(); } });
     interruptTarget = b.interrupted ? said : 0;
 
     if (b.punch) {
@@ -222,13 +230,30 @@ export function mount(container, params, ctx) {
       finishAfter();
       return;
     }
-    // The interrupted line does NOT wait for a tap — the punchline lands on top of it.
+    // The interrupted line does NOT wait for its end — the punchline lands on top of it.
     if (b.interrupted) { timer = clock.after(REDUCED ? 260 : 520, () => advance()); return; }
+    const myBeat = beat;
+    const pause = REDUCED ? 260 : 450;   // the comic beat between a line ending and the next
+    const armEndAdvance = () => {
+      onLineEnd = () => {
+        if (beat !== myBeat || ended || !joke) return;   // she tapped ahead, or it finished
+        stop();
+        timer = clock.after(pause, () => advance());
+      };
+      timer = clock.after(8000, () => advance());        // safety net, cancelled by onLineEnd
+    };
     // A setup joke keeps its own rhythm: the eyebrow beat and the punchline arrive on
     // their own so the timing is the joke's, not the child's. She can always tap ahead.
-    if (joke.type !== 'knock') { timer = clock.after(beat === 0 ? (REDUCED ? 700 : 1500) : (REDUCED ? 400 : 900), () => advance()); return; }
+    if (joke.type !== 'knock') {
+      if (said) armEndAdvance();
+      else timer = clock.after(beat === 0 ? (REDUCED ? 700 : 1500) : (REDUCED ? 400 : 900), () => advance());
+      return;
+    }
     // Knock knock is a conversation: she takes her turn. Toddler advances itself.
-    if (toddler) timer = clock.after(REDUCED ? 700 : 1500, () => advance());
+    if (toddler) {
+      if (said) armEndAdvance();
+      else timer = clock.after(REDUCED ? 700 : 1500, () => advance());
+    }
   }
 
   function finishAfter() {
