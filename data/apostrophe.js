@@ -57,3 +57,20 @@ export const NO_COMMA_DECOYS = [
 ];
 
 export const VAN_PX_S = 40;   // level 3: the sign's delivery-van drift speed
+
+// RUN19 explanation pass (Alex, 2026-07-30): the WHY line for an item — the authored
+// `note` where one exists, otherwise the owner-count teaching line. Composed here, not in
+// the game, and shared by the right AND wrong paths so the lesson is identical either way.
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+export function commaWhyLine(item) {
+  if (item.kind === 'decoy' || !item.form) return `${cap(item.word)} already owns it — no flying comma needed!`;
+  return item.note || `${item.count} — ${item.form === 'after' ? 'more than one' : 'only one'}! The apostrophe goes ${item.form === 'after' ? 'AFTER' : 'BEFORE'} the s.`;
+}
+export function commaRightLine(item) {
+  const full = item.kind === 'decoy' || !item.form ? item.sentence : item.sentence.replace('___', item.build);
+  return `Well done! ${full} ${commaWhyLine(item)}`;
+}
+export function squeezeRightLine(item) {
+  const why = item.note ? cap(item.note) : `${item.a} and ${item.b} squeeze together!`;
+  return `${item.build}! ${why} The apostrophe stands where the letters popped out.`;
+}

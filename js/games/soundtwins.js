@@ -21,7 +21,7 @@ import { buildPicker, recordBest, MIX_KEY } from '../picker.js';
 import { maybeIntro, replayIntro } from '../intro.js';
 import { createTrickyCollector, choiceMiss, pileBoost } from '../trickypile.js';
 import { buildSmartMix } from '../smartmix.js';
-import { TWIN_SETS, TWIN_EXPLAIN } from '../../data/soundTwins.js';
+import { TWIN_SETS, TWIN_EXPLAIN, twinRightLine, twinCaughtLine } from '../../data/soundTwins.js';
 
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -177,10 +177,20 @@ export function mount(container, params, ctx) {
         checkRankUp();
         if (c.guilty) return fixCulprit();
         sfx.correct();
+        // Alex, 2026-07-30: a RIGHT answer gets the explanation too — why this twin is
+        // the one, and when its twin would be — read at her pace behind the same Next.
         const comboNote = combo >= 5 ? ' 🔍✨' : '';
-        shell.react(`Innocent — and you're right!${comboNote}`, { voice: false, hold: 1400 });
-        speakMaybe('Innocent — and you are right!');
-        advance();
+        const line = twinRightLine(c.setId, c.displayed);
+        [...stage.querySelectorAll('.tt-innocent,.tt-guilty')].forEach(b => b.disabled = true);
+        const explainEl = stage.querySelector('.tt-explain');
+        clear(explainEl);
+        explainEl.style.display = '';
+        explainEl.classList.add('correct');
+        explainEl.append(
+          el('p', { class: 'tt-explain-line', text: line + comboNote }),
+          el('button', { class: 'btn big tt-next', text: 'Next ›', onclick: () => { sfx.tap(); advance(); } })
+        );
+        speakMaybe(line);
       } else {
         wrong++; combo = 0;
         shell.dimHeart();
@@ -216,9 +226,20 @@ export function mount(container, params, ctx) {
       wordBtn.onclick = () => {
         sfx.correct();
         wordBtn.classList.add('whoosh');
+        wordBtn.onclick = null;
         shell.timeout(() => { wordBtn.textContent = c.answer; wordBtn.classList.remove('whoosh'); }, REDUCED ? 0 : 260);
-        speakMaybe(`${c.answer}! The right twin swaps in.`);
-        shell.timeout(advance, 1200);
+        // Alex, 2026-07-30: the catch explains itself too — why the right twin is right
+        // AND what the sneaky one means — behind a Next instead of a 1200ms timer.
+        const line = twinCaughtLine(c.setId, c.answer, c.displayed);
+        const explainEl = stage.querySelector('.tt-explain');
+        clear(explainEl);
+        explainEl.style.display = '';
+        explainEl.classList.add('correct');
+        explainEl.append(
+          el('p', { class: 'tt-explain-line', text: line }),
+          el('button', { class: 'btn big tt-next', text: 'Next ›', onclick: () => { sfx.tap(); advance(); } })
+        );
+        speakMaybe(line);
       };
     }
 

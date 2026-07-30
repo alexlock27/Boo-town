@@ -35,6 +35,9 @@ import { createWelcomeTour } from './welcometour.js';   // RUN18B Y16
 const NUDGE_WITHIN = 10;
 let nudgedThisSession = false;
 
+// A card's name (like its tag) may follow the content tier — resolve at render time.
+const gameName = (g) => typeof g.name === 'function' ? g.name() : g.name;
+
 const GAMES = [
   { id: 'teachme',   name: 'Teach Me',     tag: 'Little lessons', accent: 'var(--zing)', icon: teachIcon, group: 'Learn' },
   { id: 'bubblepop', name: 'Bubble Pop',   tag: 'Times tables',  accent: 'var(--pop)',  icon: bubbleIcon, group: 'Learn' },
@@ -42,8 +45,10 @@ const GAMES = [
   { id: 'spellboo',  name: 'Spell Boo',    tag: 'Spelling',      accent: 'var(--star)', icon: spellIcon, group: 'Learn' },
   { id: 'detective', name: 'Word Detective', tag: 'Guess the word', accent: 'var(--zing)', icon: detectiveIcon, group: 'Learn' },
   { id: 'soundsorter', name: 'Sound Sorter', tag: 'Hear the sound', accent: 'var(--pop)', icon: soundIcon, group: 'Learn' },   // RUN16 W1
-  // RUN18E Part B: at Medium/Full the same card opens the Word Factory, so its tag says so.
-  { id: 'blendit',   name: 'Blend It',     tag: () => contentTier() === 'medium' ? 'Build orders in the Word Factory' : 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2; RUN18E Word Factory (Medium only)
+  // RUN18E Part B: at Medium the card opens a DIFFERENT game (the Word Factory), so the
+  // NAME follows the tier too — a card saying "Blend It" that opens "The Word Factory" is
+  // a naming bug, not a subtitle problem (Alex, 2026-07-30; handover §2, option A).
+  { id: 'blendit',   name: () => contentTier() === 'medium' ? 'Word Factory' : 'Blend It', tag: () => contentTier() === 'medium' ? 'Build orders, stamp the words' : 'Tap Blend, hear the word', accent: 'var(--zing)', icon: blendIcon, group: 'Learn' },   // RUN16 W2; RUN18E Word Factory (Medium only)
   { id: 'rhymetime', name: 'Rhyme Time',   tag: 'Words that chime', accent: 'var(--star)', icon: rhymeIcon, group: 'Learn' },   // RUN16 W3
   { id: 'storyorder', name: 'Story Order', tag: () => contentTier() === 'medium' ? 'Rebuild the story, print the page' : 'Put the story right', accent: 'var(--pop)', icon: storyIcon, group: 'Learn' },   // RUN16 W4; RUN18E L5 Medium mode only
   { id: 'soundtwins', name: 'Twin Trouble', tag: 'Innocent, or guilty?', accent: 'var(--zing)', icon: twinsIcon, group: 'Learn' },   // RUN18E L3
@@ -211,15 +216,16 @@ export function mount(container, params, ctx) {
     const lp = jumpbackAllowed();
     if (!lp) return null;
     const g = GAMES.find(x => x.id === lp.game);
+    const gName = gameName(g);
     const modeLabel = lp.mix ? 'Smart Mix'
-      : (lp.gameName && lp.gameName !== g.name ? lp.gameName : '')
-        + (lp.level != null ? (lp.gameName && lp.gameName !== g.name ? ' · ' : '') + 'Level ' + lp.level : '');
+      : (lp.gameName && lp.gameName !== gName ? lp.gameName : '')
+        + (lp.level != null ? (lp.gameName && lp.gameName !== gName ? ' · ' : '') + 'Level ' + lp.level : '');
     const resume = { cat: lp.cat, level: lp.level, mix: !!lp.mix };
     const chip = el('button', { class: 'trail-chip jumpback', onclick: () => { sfx.tap(); ctx.go(lp.game, { resume }); } }, [
       el('span', { class: 'tc-ic', html: g.icon() }),
       el('span', { class: 'tc-txt' }, [
         el('span', { class: 'tc-title', text: 'Jump back in' }),
-        el('span', { class: 'tc-sub', text: (modeLabel || g.tag) + ' · ' + g.name })
+        el('span', { class: 'tc-sub', text: (modeLabel || (typeof g.tag === 'function' ? g.tag() : g.tag)) + ' · ' + gameName(g) })
       ]),
       el('span', { class: 'tc-x', 'aria-label': 'Not today', onclick: (e) => {
         e.stopPropagation(); sfx.tap();
@@ -241,15 +247,15 @@ export function mount(container, params, ctx) {
     const building = typeof g.building === 'function' ? g.building() : g.building;
     if (building) return el('button', {
       class: 'game-card building', disabled: '', style: { '--accent': g.accent },
-      'aria-label': `${g.name} — ${building}`
+      'aria-label': `${gameName(g)} — ${building}`
     }, [
       el('div', { class: 'gc-icon', html: g.icon() }),
-      el('div', { class: 'gc-name', text: g.name }),
+      el('div', { class: 'gc-name', text: gameName(g) }),
       el('div', { class: 'gc-tag', text: building })
     ]);
     return el('button', { class: 'game-card', style: { '--accent': g.accent }, onclick: () => ctx.go(g.id) }, [
       el('div', { class: 'gc-icon', html: g.icon() }),
-      el('div', { class: 'gc-name', text: g.name }),
+      el('div', { class: 'gc-name', text: gameName(g) }),
       el('div', { class: 'gc-tag', text: typeof g.tag === 'function' ? g.tag() : g.tag }),
       el('div', { class: 'gc-stars', html: `<span class="gc-stars-pill">${starsRow(best, { size: 20 })}</span>` })
     ]);

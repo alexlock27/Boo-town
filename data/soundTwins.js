@@ -190,6 +190,21 @@ export const TWIN_EXPLAIN = {
   'bawl': "'Bawl' means to cry loudly."
 };
 
+// RUN19 explanation pass (Alex, 2026-07-30): a RIGHT answer teaches too — confirm the
+// win, say why the twin in place is right, then contrast it with the other twin(s), in
+// the tone of Alex's own example ("Well Done! Yes, you use effect when… you would use
+// affect when…"). Composed HERE from the authored TWIN_EXPLAIN lines, never in the game.
+export function twinSet(id) { return TWIN_SETS.find(s => s.id === id); }
+export function twinRightLine(setId, rightWord) {
+  const set = twinSet(setId);
+  const others = set ? set.options.filter(o => o !== rightWord) : [];
+  const contrast = others.map(o => TWIN_EXPLAIN[o]).filter(Boolean).join(' ');
+  return `Well done! Yes — ${TWIN_EXPLAIN[rightWord] || ''} ${contrast}`.trim();
+}
+export function twinCaughtLine(setId, answer, culprit) {
+  return `Well done — you caught '${culprit}'! ${TWIN_EXPLAIN[answer] || ''} ${TWIN_EXPLAIN[culprit] || ''}`.trim();
+}
+
 // All Sound Twins levels present (for the picker).
 export const TWIN_LEVELS = [...new Set(TWIN_SETS.map(s => s.level))].sort();
 
