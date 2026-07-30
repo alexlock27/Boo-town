@@ -106,6 +106,7 @@ const ASSETS = [
   'js/jokeboo.js',
   'js/encouragement.js',
   'js/ack.js',
+  'js/cameo.js',
   'js/feelings.js',
   'data/feelingsLines.js',
   'js/whatsnew.js',

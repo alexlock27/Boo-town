@@ -131,6 +131,14 @@ export const sfx = {
   chime(step = 0) { play(t => envTone(523.25 * Math.pow(2, (step % 8) / 12), t, 0.22, 'sine', 0.22, sfxGain, 'chime')); },
   ping(step = 0) { play(t => { const f = 659.25 * Math.pow(2, (step % 10) / 12); envTone(f, t, 0.3, 'triangle', 0.26, sfxGain, 'ping'); envTone(f * 2, t, 0.18, 'sine', 0.1, sfxGain, 'ping'); }); },
   hum() { play(t => { envTone(220, t, .34, 'sine', .12, sfxGain, 'wish-hum'); envTone(330, t + .04, .3, 'sine', .08, sfxGain, 'wish-hum'); }); },
+  // Wellies in a puddle (RUN19 Z5): a soft wet thud, not a crash — a splash, not a stomp
+  // on a drum. Noise on the low end, a short bright tail for the water.
+  splash() { play(t => {
+      pitchDrum(t, 180, 70, 0.12, 0.22);
+      envTone(1450, t + 0.03, 0.10, 'triangle', 0.07, sfxGain, 'splash');
+      envTone(2100, t + 0.06, 0.07, 'sine', 0.045, sfxGain, 'splash');
+      if (audioLog) logEvent({ kind: 'note', t, freq: 180, dur: 0.14, bus: 'sfx', tag: 'splash' });
+    }); },
   // The bed nap (RUN19 Z3). A snore has to be SOFT — this is a cosy scene, not a gag — so
   // it is a low sine that swells and falls once, well under the tap sounds in level.
   snore() { play(t => {

@@ -3,7 +3,7 @@
 // drag placement along the ground band, wandering Boos, real-clock day/night. Multi-area
 // navigation lives in worldmap.js; this file only ever renders one already-unlocked area.
 
-import { el, clear, confetti, REDUCED, backControl, sparkleAt } from './ui.js';
+import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './ui.js';
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
@@ -151,6 +151,14 @@ const NAP_STRETCH_MS = 600;      // wake-on-tap: a 600ms stretch + a yawn
 // Every SOCKETS[].row in data/sockets.js was authored for an item standing in row 2, so a
 // socket's row is read as a delta from this base (see give()).
 const SOCKET_ROW_BASE = 2;
+// RUN19 Z5 — the wellie puddle stomp, to the pack's numbers.
+const SPLASH_MS = 400;           // how long a splash particle lives
+const SPLASH_MAX = 6;            // hard cap on particles per stomp
+const STOMP_GAP_MS = 240;        // min gap between stomps for one Boo
+// RUN19 Z5 — Sprinkle.
+const SPRINKLE_COST = 5;         // stardust per sprinkle (the shiny upgrade stays at 10)
+const LONG_PRESS_MS = 500;       // play-mode long press (shared with RUN20 W1's catching)
+const SPARKLE_SCENE_CAP = 6;     // never more than this many sparkling at once (particle caps)
 // RUN10 P2's 300ms shrug is RETIRED by Z3 — a Boo that walks to a full bench now waits
 // beside it (see waitBesideSeat), which is what a child does and what a shrug never read as.
 const SEESAW_PERIOD_MS = 2200;   // seesaw pivot loop (RUN10 P2, was ~5000ms)
@@ -203,6 +211,23 @@ function seasonOf(month) {       // month 1..12
   if (month >= 6 && month <= 8) return 'summer';
   if (month >= 9 && month <= 11) return 'autumn';
   return 'winter';
+}
+// RUN19 Z5 — THE CAUSE of "the wellies never stomp". The stomp is gated on
+// `currentSeasonName === 'rain'`, and seasonOf() above CANNOT return 'rain' — it returns
+// exactly one of spring/summer/autumn/winter. So the only thing that ever set the rain
+// season was the `window.__bootownWeather` QA flag, and no child had ever seen a puddle
+// stomp. The weather layer's rain rendering was fully built (its own '•' glyph and
+// `.t-weather.rain`); only the SELECTION was missing.
+//
+// Rain is a WEATHER state, not a season, so it is chosen per local DAY — deterministically,
+// so it cannot flicker between mounts — in the two seasons where a British child expects it,
+// and on RAIN_DAYS_IN of days, which keeps it "occasional" per house law.
+const RAIN_SEASONS = new Set(['spring', 'autumn']);
+const RAIN_DAYS_IN = 4;          // roughly one day in four
+function dayNoise(str) { let h = 0; for (const c of String(str)) h = ((h << 5) - h + c.charCodeAt(0)) | 0; return Math.abs(h); }
+function isRainDay(season, dayKey) {
+  if (!RAIN_SEASONS.has(season)) return false;
+  return dayNoise('rain:' + dayKey) % RAIN_DAYS_IN === 0;
 }
 function currentMonth() {
   if (typeof window !== 'undefined' && window.__bootownMonth != null) return window.__bootownMonth | 0;
@@ -950,6 +975,7 @@ export function mount(container, params, ctx) {
     renderFunfair();
     renderHide();
     decorateEasels().then(maybeAckEasel);   // RUN19 Z4 — after the art is actually in the DOM
+    applySparkles();                        // RUN19 Z5 — today's sprinkles, and drop yesterday's
     renderRequestBubble();
     // A request fulfilled on ANOTHER screen (the wardrobe, the Disco Hall) still owes the
     // child its moment. takeThanks() drains the flag, so this is a no-op when there is
@@ -2564,6 +2590,95 @@ export function mount(container, params, ctx) {
     strip.addEventListener('pointercancel', () => { if (phase === 'lift') cancelChipLift(); phase = 'idle'; downChip = null; });
   }
 
+  // ---- RUN19 Z5: Sprinkle, on the unified play-mode long-press card -------------------
+  // Stardust has quietly accumulated since RUN4 C8 with exactly one thing to spend it on
+  // (10 for a shiny Boo, buried in a collection card). Z5 gives it a second, cheaper spend
+  // that lives in the town where she can see the result: 5 dust makes a placed thing sparkle
+  // until the end of the day.
+  //
+  // The card is deliberately ONE component. RUN20 W1 adds "Pick up & move" for its wandering
+  // wish actors to the SAME card — the cross-run wiring note is explicit that there must
+  // never be two competing long-press behaviours on a placed item.
+  let longPressTimer = null;
+  const placementIdOf = (place) => `${place.zone}:${place.x}:${place.item}`;
+  function sparkleDayOf(place) {
+    const sp = (getState().sparkles) || {};
+    return sp[placementIdOf(place)] || null;
+  }
+  function isSparkling(place) { return sparkleDayOf(place) === todayKeyLocal(); }
+  function openPlayCard(wrap, place, item) {
+    const s = getState();
+    const dust = s.stardust || 0;
+    const name = getDisplayName(place.item) || item.name;
+    const options = [];
+    if (dust >= SPRINKLE_COST && !isSparkling(place)) options.push('sprinkle');
+    // RUN20 W1 appends 'catch' here for a wandering wish actor. Nothing else goes on this card.
+    if (!options.length) {
+      // Never a dead long press: say why there is nothing to offer, and what would change it.
+      hint.textContent = isSparkling(place)
+        ? `${name} is already sparkling today! ✨`
+        : `Sprinkling costs ✨${SPRINKLE_COST} stardust — you have ✨${dust}.`;
+      sfx.tap();
+      return;
+    }
+    sfx.tap();
+    const ov = el('div', { class: 'overlay show play-card-ov' });
+    const card = el('div', { class: 'card play-card' });
+    card.appendChild(el('div', { class: 'pc-pic', html: renderItem(item, { size: 48 }) }));
+    card.appendChild(el('h3', { class: 'pc-name', text: name }));
+    const btns = el('div', { class: 'dialog-btns' });
+    const dismiss = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
+    if (options.includes('sprinkle')) {
+      btns.appendChild(el('button', {
+        class: 'btn', text: `✨ Sprinkle (${SPRINKLE_COST} stardust)`,
+        onclick: () => { dismiss(); confirmSprinkle(wrap, place, item, name); }
+      }));
+    }
+    btns.appendChild(el('button', { class: 'btn soft', text: 'Not now', onclick: () => { sfx.tap(); dismiss(); } }));
+    card.appendChild(btns);
+    ov.appendChild(card);
+    ov.addEventListener('click', e => { if (e.target === ov) dismiss(); });
+    document.body.appendChild(ov);
+  }
+  function confirmSprinkle(wrap, place, item, name) {
+    dialog({
+      title: `Sprinkle stardust on ${name}? ✨${SPRINKLE_COST}`,
+      body: '',
+      buttons: [{ label: 'Yes please!', value: true }, { label: 'Not now', value: false, kind: 'soft' }],
+      dismissable: true
+    }).then(yes => {
+      if (!yes) return;
+      const dust = (getState().stardust || 0);
+      if (dust < SPRINKLE_COST) { hint.textContent = `Not quite enough stardust — you have ✨${dust}.`; return; }
+      const id = placementIdOf(place), day = todayKeyLocal();
+      mutate(st => {
+        st.stardust = (st.stardust || 0) - SPRINKLE_COST;
+        st.sparkles = st.sparkles || {};
+        st.sparkles[id] = day;
+      });
+      sfx.star();
+      if (!REDUCED) confetti({ count: 22, power: 0.5, origin: pointFor(wrap) });
+      applySparkles();
+      hint.textContent = `${name} is sparkling! ✨`;
+    });
+  }
+  // Paint the sparkle onto every placement whose stamp is TODAY, and drop yesterday's stamps
+  // on sight — that is how "expires at local midnight" is enforced without a timer that would
+  // have to survive a backgrounded tablet.
+  function applySparkles() {
+    const day = todayKeyLocal();
+    const sp = (getState().sparkles) || {};
+    const stale = Object.keys(sp).filter(k => sp[k] !== day);
+    if (stale.length) mutate(st => { for (const k of stale) delete st.sparkles[k]; });
+    let painted = 0;
+    for (const wrap of ground.querySelectorAll('.t-item')) {
+      const id = `${wrap.dataset.zone}:${wrap.dataset.x}:${wrap.dataset.item}`;
+      const on = sp[id] === day && painted < SPARKLE_SCENE_CAP;
+      wrap.classList.toggle('t-sprinkled', on);
+      if (on) painted++;
+    }
+  }
+
   // ---- placed-item pointer: tap (squeak+menu) or drag-move ----------------
   function attachItemPointer(wrap, place, item) {
     let down = false, moved = false, dsx = 0, dsy = 0, ghost = null;
@@ -2578,12 +2693,23 @@ export function mount(container, params, ctx) {
       e.stopPropagation();
       down = true; moved = false; dsx = e.clientX; dsy = e.clientY;
       wrap.setPointerCapture(e.pointerId);
+      // RUN19 Z5 — the PLAY-mode long press. ONE card, shared with RUN20 W1's catching (the
+      // cross-run wiring note is explicit that there must never be two competing long-press
+      // behaviours here). Build mode keeps its own tap menu; this is for playing.
+      clearTimeout(longPressTimer);
+      if (!buildMode) longPressTimer = setTimeout(() => {
+        if (!down || moved) return;
+        down = false;
+        try { wrap.releasePointerCapture(e.pointerId); } catch {}
+        openPlayCard(wrap, place, item);
+      }, LONG_PRESS_MS);
     });
     const onWall = !!item.wall;
     wrap.addEventListener('pointermove', e => {
       if (!down) return;
       if (!moved && Math.hypot(e.clientX - dsx, e.clientY - dsy) > 10) {
         moved = true; wrap.classList.add('dragging');
+        clearTimeout(longPressTimer);   // a drag is not a long press (RUN19 Z5)
       }
       if (moved) {
         const { zi, x } = zoneAndXAt(clientToWorld(e.clientX));
@@ -2601,6 +2727,7 @@ export function mount(container, params, ctx) {
       }
     });
     wrap.addEventListener('pointerup', e => {
+      clearTimeout(longPressTimer);
       if (!down) return; down = false;
       wrap.classList.remove('dragging');
       hideDropPreview(wrap);
@@ -2625,7 +2752,7 @@ export function mount(container, params, ctx) {
         onTap(wrap, place, item);
       }
     });
-    wrap.addEventListener('pointercancel', () => { down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); });
+    wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); });
   }
 
   function onTap(wrap, place, item) {
@@ -3130,7 +3257,12 @@ export function mount(container, params, ctx) {
       }
       // …and an idle can start whenever she is standing still and under her caps.
       if (a.state === 'pause' && !a.goal && !a.role) maybeIdle(a, now);
-      if (a.state === 'walk' && a.locomotion === 'stomp' && currentSeasonName === 'rain' && now - a.lastStomp >= 240) {
+      // RUN19 Z5: a wellied Boo stomps when it is RAINING anywhere, and ALSO in any season
+      // when it is walking near the riverside's water band — wellies by a river are for
+      // splashing whatever the weather, which is the half of the pack that makes the
+      // accessory worth owning even in July.
+      if (a.state === 'walk' && a.locomotion === 'stomp' && now - a.lastStomp >= STOMP_GAP_MS
+          && (currentSeasonName === 'rain' || nearWaterBand(a))) {
         a.lastStomp = now;
         spawnWellieSplash(a);
       }
@@ -3190,14 +3322,30 @@ export function mount(container, params, ctx) {
     setTimeout(() => svg.classList.remove(`idle-${which}`), IDLE_MS);
     return which;
   }
+  // RUN19 Z5: the puddle stomp, completed to the pack's numbers — at most SPLASH_MAX
+  // particles, SPLASH_MS long, and an actual sound, which it never had. The sfx goes through
+  // sfx.js like everything else, so it obeys the mutes.
   function spawnWellieSplash(a) {
     a.wellieBursts++;
-    for (let i = 0; i < 3; i++) {
-      const drop = el('i', { class: 'wellie-drop' });
-      drop.style.setProperty('--wx', `${(i - 1) * 13}px`);
-      a.wrap.appendChild(drop);
-      setTimeout(() => drop.remove(), 520);
+    if (!REDUCED) {
+      for (let i = 0; i < SPLASH_MAX; i++) {
+        const drop = el('i', { class: 'wellie-drop' });
+        const spread = (i - (SPLASH_MAX - 1) / 2) / ((SPLASH_MAX - 1) / 2);   // -1 .. 1
+        drop.style.setProperty('--wx', `${spread * 26}px`);
+        drop.style.setProperty('--wy', `${-14 - (1 - Math.abs(spread)) * 16}px`);   // an arc, highest in the middle
+        drop.style.animationDuration = SPLASH_MS + 'ms';
+        a.wrap.appendChild(drop);
+        setTimeout(() => drop.remove(), SPLASH_MS + 40);
+      }
     }
+    sfx.splash();
+  }
+  // Is this actor walking in the riverside's water band? The river is drawn at y 30-42% of the
+  // scene (riversideScenery), and the band a Boo can reach on foot is its near edge — the
+  // BACK depth row, where the ground meets the water.
+  function nearWaterBand(a) {
+    if (AREA.key !== 'riverside') return false;
+    return rowOf(a.place) === 0;
   }
 
   // ---- Boo behaviour engine (RUN6 C1) ------------------------------------
@@ -3604,7 +3752,10 @@ export function mount(container, params, ctx) {
     const old = viewport.querySelector('.t-weather'); if (old) old.remove();
     if (REDUCED || isInterior) return;   // T7: weather is an outdoors thing
     const forced = typeof window !== 'undefined' && window.__bootownWeather;
-    const season = forced === 'rain' ? 'rain' : seasonOf(currentMonth());
+    const base = seasonOf(currentMonth());
+    // RUN19 Z5: rain is now a real, occasional weather state (see isRainDay) rather than a
+    // season name nothing could ever produce.
+    const season = forced === 'rain' ? 'rain' : (isRainDay(base, todayKeyLocal()) ? 'rain' : base);
     currentSeasonName = season;
     const layer = el('div', { class: 't-weather ' + season });
     if (season === 'summer') {
@@ -3752,6 +3903,31 @@ export function mount(container, params, ctx) {
       endNapNow: (i) => { const a = actors[i]; if (a && a.role && a.role.kind === 'housenap') { a.role.napUntil = 0; return true; } return false; },
       tapActor: (i) => { const a = actors[i]; if (!a) return false; onTap(a.wrap, a.place, a.item); return true; },
       seatHopped: () => ground.querySelectorAll('.t-seat-hop').length,
+      // ---- RUN19 Z5 ---------------------------------------------------------------------
+      openPlayCard: (i) => { const a = actors[i]; if (!a) return false; openPlayCard(a.wrap, a.place, a.item); return true; },
+      openPlayCardFor: (itemId) => {
+        const t = areaItems(getState()).find(x => x.item === itemId);
+        const wrap = t && wrapFor(t);
+        if (!t || !wrap) return false;
+        openPlayCard(wrap, t, resolveItem(t.item) || BY_ID[t.item]);
+        return true;
+      },
+      sparkling: () => [...ground.querySelectorAll('.t-sprinkled')].map(n => n.dataset.item),
+      applySparkles: () => applySparkles(),
+      // One stomp, and the drops THAT stomp made. lastStomp is pushed far forward afterwards
+      // so the live loop cannot add a second burst before the suite counts them.
+      forceStomp: (i) => {
+        const a = actors[i]; if (!a) return null;
+        a.wrap.querySelectorAll('.wellie-drop').forEach(n => n.remove());
+        a.lastStomp = 0; a.state = 'walk';
+        spawnWellieSplash(a);
+        a.lastStomp = performance.now() + 60000;
+        return { bursts: a.wellieBursts, drops: a.wrap.querySelectorAll('.wellie-drop').length };
+      },
+      stompEligible: (i) => {
+        const a = actors[i]; if (!a) return null;
+        return { locomotion: a.locomotion, season: currentSeasonName, nearWater: nearWaterBand(a), row: rowOf(a.place), area: AREA.key };
+      },
       napZ: () => ground.querySelectorAll('.t-zzz-drift').length,
       stretching: () => ground.querySelectorAll('.t-nap-stretch').length,
       eyesShut: () => ground.querySelectorAll('svg.t-eyes-shut').length,

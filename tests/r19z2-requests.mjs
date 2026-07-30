@@ -54,7 +54,9 @@ const mig = await page.evaluate(() => {
   const s = window.BooTown.State.getState();
   return { version: s.version, actives: s.request.actives, hasOldActive: 'active' in s.request };
 });
-assert(mig.version === 21, 'the save migrates to v21 (got ' + mig.version + ')');
+// Z2 introduced v21; later packets in the same run raise it again (Z5 -> v22, Z6 -> v23).
+// Assert the fold happened and the version moved PAST 21, not that it stopped there.
+assert(mig.version >= 21, 'the save migrates to at least v21 (got ' + mig.version + ')');
 // The hub's app-open trigger may have added a SECOND request by now (that is the point of
 // Z2), so assert the folded one is present rather than that it is alone.
 assert(Array.isArray(mig.actives) && mig.actives.some(r => r.id === 'box'),

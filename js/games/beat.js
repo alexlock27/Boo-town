@@ -14,6 +14,8 @@ import { guideLine, speakMaybe } from '../guide.js';
 import { sfx, music, beatvoice, audioClockMs } from '../sfx.js';
 import { BOO_POP_HITS } from '../../data/songs.js';
 import { resolveItem } from '../customs.js';
+import { musicalCameo } from '../cameo.js';   // RUN19 Z5: a musical Boo claps from the stage rail
+const CAMEO_CLAP_MS = 150;   // Z5: the clap squash (matches .beat-cameo.clap in styles.css)
 import { makeBeatQuestion, autoQuestion, BLOCK_CATEGORIES } from '../questions.js';
 import { timedGate } from '../smartmix.js';
 import { arcadeHasPicker, filterArcadeCategories } from '../content.js';
@@ -183,7 +185,17 @@ export function mount(container, params, ctx) {
     const hitline = el('div', { class: 'beat-hitline' });
     const character = el('div', { class: 'beat-character', html: renderGuide(getState().guide, { view: 'head', size: 76 }) });
     const crowd = el('div', { class: 'beat-crowd' });   // fever crowd of her own Boos
+    // RUN19 Z5 — the musical cameo. Perched top-right of the stage, 64px, clear of the HUD
+    // and of all three lanes (see .beat-cameo in css/styles.css), clapping on beat 1 of each
+    // bar. No owned musical Boo = no cameo and no placeholder: an empty perch would be worse
+    // than nothing, and a stand-in would be a lie about who lives in her town.
+    const cameoItem = musicalCameo();
+    const cameo = cameoItem ? el('div', {
+      class: 'beat-cameo', 'aria-hidden': 'true',
+      html: renderItem(cameoItem, { size: 64 })
+    }) : null;
     field.append(hitzone, hitline, character, crowd);
+    if (cameo) field.appendChild(cameo);
     // the band's height IS the window: (GOOD_MS / beatMs) beats of travel, both sides
     requestAnimationFrame(() => {
       const fieldH = field.clientHeight || 400;
@@ -327,7 +339,18 @@ export function mount(container, params, ctx) {
       const cb = curBeat();
       // character bops on the beat
       const b = Math.floor(cb);
-      if (b !== beatPulse) { beatPulse = b; if (!REDUCED) { character.classList.remove('bop'); void character.offsetWidth; character.classList.add('bop'); } }
+      if (b !== beatPulse) {
+        beatPulse = b;
+        if (!REDUCED) { character.classList.remove('bop'); void character.offsetWidth; character.classList.add('bop'); }
+        // RUN19 Z5: the cameo claps on beat 1 of each bar ONLY — a 150ms squash. Clapping
+        // every beat would compete with the character's own bop and with the falling notes.
+        if (cameo && !REDUCED && ((b % 4) + 4) % 4 === 0) {
+          cameo.classList.remove('clap'); void cameo.offsetWidth; cameo.classList.add('clap');
+          // ...and take the class off again once the squash is over, so the cameo is not left
+          // permanently flagged mid-clap in the gaps between bars.
+          setTimeout(() => cameo.classList.remove('clap'), CAMEO_CLAP_MS + 20);
+        }
+      }
       const fieldH = field.clientHeight || 400;
       for (const n of notes) {
         let prog = (cb - n.spawnBeat) / FALL;              // 0 at top, 1 at hit line

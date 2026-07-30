@@ -16,7 +16,8 @@
 import { el, clear, starsRow, sparkleAt, REDUCED, backControl } from '../ui.js';
 import { getState, mutate, recordResult, ledgerClass } from '../state.js';
 import { createGameShell } from '../gameshell.js';
-import { renderGuide } from '../art.js';
+import { renderGuide, renderItem } from '../art.js';
+import { sportyCameo } from '../cameo.js';   // RUN19 Z5: a sporty Boo jogs the far layer
 import { guideLine } from '../guide.js';
 import { sfx, music } from '../sfx.js';
 import { BUBBLE_BY_KEY, BUBBLE_CATEGORIES, genQuestion, LEVEL_NAME } from '../../data/bubbleCategories.js';
@@ -118,9 +119,18 @@ export function mount(container, params, ctx) {
       el('div', { class: 'd2-boo-inner', html: renderGuide(getState().guide, { view: 'full', size: 92 }) }),
       el('div', { class: 'd2-shadow' })
     ]);
+    // RUN19 Z5 — the sporty cameo. One owned SPORTY Boo jogs the FAR parallax layer at 0.6x
+    // the scroll speed, so it reads as somebody out for a run in the distance rather than a
+    // second racer. Behind the hills, in front of the sky; never near the lanes or the HUD.
+    // No owned sporty Boo = no jogger and no placeholder.
+    const joggerItem = sportyCameo();
+    const jogger = joggerItem ? el('div', { class: 'd2-jogger' + (REDUCED ? ' static' : ''), 'aria-hidden': 'true' }, [
+      el('div', { class: 'd2-jogger-art', html: renderItem(joggerItem, { size: 40 }) })
+    ]) : null;
     const factCard = el('div', { class: 'dash-fact' });
     if (readAloudOn()) factCard.appendChild(readAloudButton(() => question && question.display));
     scene.append(sky, clouds, hills, ground, roadWrap, propsEl, gatesEl, boo, factCard);
+    if (jogger) hills.appendChild(jogger);   // the far layer, so the hills' own depth carries it
     shell.area.appendChild(scene);
     const road = roadWrap.firstChild;
     const booInner = boo.firstChild;
@@ -306,6 +316,10 @@ export function mount(container, params, ctx) {
       // parallax: road cross-stripes + lane dashes fast, clouds slow (hills sit at infinity)
       road.style.backgroundPosition = `0 ${(worldZ * 3.1).toFixed(1)}px, 0 0`;
       clouds.style.transform = `translateX(${(-worldZ * 0.3).toFixed(1)}px)`;
+      // RUN19 Z5: the sporty cameo drifts with the FAR layer at 0.6x — slower than the road,
+      // faster than the clouds, which is what puts it at middle distance. It wraps rather
+      // than running off, so it is always somewhere out there.
+      if (jogger) jogger.style.transform = `translateX(${(-(worldZ * 0.6) % 420).toFixed(1)}px)`;
     }
     function cleanupPassed(instant) {
       rows = rows.filter(row => {
