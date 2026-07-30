@@ -921,6 +921,35 @@ export function mount(container, params, ctx) {
     return `<span class="t-photo-frame" data-photo-boo="${booId || ''}">${frame}<span class="t-photo-inner">${art}</span></span>`;
   }
 
+  // ---- a bubble over a placed thing, kept ON SCREEN ---------------------------------------
+  // Eight call sites were each doing `el('div',{class:'catchphrase-bubble'})` + append + remove,
+  // and none of them checked whether the result fitted. A bubble is centred on its item and can
+  // be up to 180px wide, so anything near the edge of the visible window had its words cut in
+  // half — and RUN19 made these bubbles far more common (seat claims, thank-yous, wish lines)
+  // than the occasional catchphrase they were built for. Same nudge openMenu already does.
+  function sayOver(wrap, text, ms = 2400, { speak = true } = {}) {
+    if (!wrap || !text) return null;
+    const bubble = el('div', { class: 'catchphrase-bubble', text });
+    wrap.appendChild(bubble);
+    if (speak) speakMaybe(text);
+    // Clamped REPEATEDLY, not once: the town scrolls, and a bubble measured at the moment it
+    // appeared drifts back off the edge as soon as the scene pans. Recomputed from zero each
+    // time so it is idempotent rather than accumulating nudges.
+    const clamp = () => {
+      if (!bubble.isConnected) return;
+      bubble.style.marginLeft = '0px';
+      const r = bubble.getBoundingClientRect(), v = viewport.getBoundingClientRect();
+      let dx = 0;
+      if (r.left < v.left + 6) dx = (v.left + 6) - r.left;
+      else if (r.right > v.right - 6) dx = (v.right - 6) - r.right;
+      bubble.style.marginLeft = dx + 'px';
+    };
+    requestAnimationFrame(clamp);
+    const tick = setInterval(clamp, 200);
+    setTimeout(() => { clearInterval(tick); bubble.remove(); }, ms);
+    return bubble;
+  }
+
   // ---- RUN20 W2: AREA CHARACTER ----------------------------------------------------------
   // One AMBIENT and one SIGNATURE per area. The ambient runs by itself and asks nothing of her;
   // the signature is a secret she finds by tapping the right part of the scene. Both are capped
@@ -1063,9 +1092,7 @@ export function mount(container, params, ctx) {
       if (!lineKey || !maydaySay(key + ':' + lineKey, scope || 'session')) return;
       const line = guideLine(lineKey, vars || null);
       if (!line) return;
-      const bubble = el('div', { class: 'catchphrase-bubble', text: line });
-      wrap.appendChild(bubble); speakMaybe(line);
-      setTimeout(() => bubble.remove(), 2600);
+      sayOver(wrap, line, 2600);
     };
 
     if (life.cls === 'FOOD') { wishFood(wrap, place); return true; }
@@ -1089,9 +1116,7 @@ export function mount(container, params, ctx) {
         if (!pick) { playOnce('wish-wobble', 500); return true; }
         mutate(st => { st.delights = st.delights || {}; st.delights.crowns = { [pick]: todayKeyLocal() }; });
         renderPlaced();
-        const bubble = el('div', { class: 'catchphrase-bubble', text: guideLine('wishRoyal', { booName: getDisplayName(pick) }) });
-        wrap.appendChild(bubble); speakMaybe(bubble.textContent);
-        setTimeout(() => bubble.remove(), 2600);
+        sayOver(wrap, guideLine('wishRoyal', { booName: getDisplayName(pick) }), 2600);
         if (wishSound.allow(key, { tapped: true })) sfx.star();
         return true;
       }
@@ -1142,7 +1167,7 @@ export function mount(container, params, ctx) {
     if (wishSound.allow(placementIdOf(place), { tapped: true })) sfx.chomp();
     if (chosen.chef) {
       const w = [...ground.querySelectorAll('.t-item')].find(n => n.dataset.item === chosen.id);
-      if (w) { const b = el('div', { class: 'catchphrase-bubble', text: guideLine('wishChefYum') }); w.appendChild(b); speakMaybe(b.textContent); setTimeout(() => b.remove(), 2400); }
+      if (w) sayOver(w, guideLine('wishChefYum'), 2400);
     }
   }
 
@@ -2552,8 +2577,7 @@ export function mount(container, params, ctx) {
       // walk offset for 1.2s and then snapped the Boo 60px sideways when it ended. Z3's seat
       // hop already avoided exactly this; the same reasoning belongs here.
       if (!REDUCED) { w.classList.remove('rq-thanks'); void w.offsetWidth; w.classList.add('rq-thanks'); setTimeout(() => w.classList.remove('rq-thanks'), 1300); }
-      const say = el('div', { class: 'catchphrase-bubble', text: 'Thank you!' });
-      w.appendChild(say); speakMaybe('Thank you!'); setTimeout(() => say.remove(), 2200);
+      sayOver(w, 'Thank you!', 2200);
       // The round-end fly, reused: the points visibly LEAVE the Boo. STAGGERED, because the
       // pack authors this as a sequence — bounce, then the thank-you, THEN the points — and
       // firing them together crowded the +2 against the bubble's own words.
@@ -2597,9 +2621,7 @@ export function mount(container, params, ctx) {
     const rawName = ROOM ? ROOM.name : AREA.name;
     const line = acknowledge('socketClaim', { areaName: rawName.replace(/^The\s+/i, '') });
     if (line) {
-      const bubble = el('div', { class: 'catchphrase-bubble', text: line });
-      a.wrap.appendChild(bubble); speakMaybe(line);
-      setTimeout(() => bubble.remove(), 2400);
+      sayOver(a.wrap, line, 2400);
     }
     noteSocketClaim(a.place.item, role.deco);
   }
@@ -2634,9 +2656,7 @@ export function mount(container, params, ctx) {
       if (t.row !== row || Math.abs(t.xFrac - landing) > PATH_ACK_X) continue;
       const line = acknowledge('path', { booName: getDisplayName(a.item.id), style: PATH_STYLE_WORD[t.style] || t.style });
       if (!line) return;                                  // budget said no: silence, no retry
-      const bubble = el('div', { class: 'catchphrase-bubble', text: line });
-      a.wrap.appendChild(bubble); speakMaybe(line);
-      setTimeout(() => bubble.remove(), 2600);
+      sayOver(a.wrap, line, 2600);
       return;
     }
   }
@@ -2648,9 +2668,7 @@ export function mount(container, params, ctx) {
     const line = acknowledge('easel');
     if (!line) return;
     const easel = ground.querySelector('.t-item[data-item="deco_easel"]');
-    const bubble = el('div', { class: 'catchphrase-bubble', text: line });
-    easel.appendChild(bubble); speakMaybe(line);
-    setTimeout(() => bubble.remove(), 3000);
+    sayOver(easel, line, 3000);
   }
 
   // ---- RUN19 Z3: the bed nap ---------------------------------------------------------
@@ -3674,9 +3692,7 @@ export function mount(container, params, ctx) {
       const cos = costumeFor(item.id);
       const phrase = (cos && cos.id === 'acc_set_pirate') ? 'Yarr!' : CATCHPHRASES[personalityOf(item.id)];
       if (phrase) {
-        const bubble = el('div', { class: 'catchphrase-bubble', text: phrase }); wrap.appendChild(bubble);
-        speakMaybe(phrase);
-        setTimeout(() => bubble.remove(), 2200);
+        sayOver(wrap, phrase, 2200);
       }
     }
   }
