@@ -83,7 +83,14 @@ for (const vp of VIEWPORTS) {
     const dancers = [...document.querySelectorAll('.disco-dancer')];
     if (!floor || !dancers.length) return { error: 'no disco nodes' };
     const surfaceY = window.__disco.floorSurfaceY();
-    return {
+    // 2026-07-30, the 8-14px residual RESOLVED: the dance-move keyframes animate a
+    // transform ON the svg, so an svg rect sampled while the Boos dance catches them
+    // mid-hop — a mid-hop foot off the floor is the DANCE, not a seating defect. The law
+    // is about where a dancer STANDS, so the svg's animation (and the dancer's glide
+    // transition) are snapped off for the read; at rest the svg exactly fills its box.
+    dancers.forEach(d => { d.style.transition = 'none'; const s = d.querySelector('svg'); if (s) s.style.animation = 'none'; });
+    void floor.offsetWidth;
+    const out = {
       surfaceY: Math.round(surfaceY),
       floor: { top: Math.round(floor.getBoundingClientRect().top), bottom: Math.round(floor.getBoundingClientRect().bottom) },
       dancers: dancers.map(d => {
@@ -94,6 +101,8 @@ for (const vp of VIEWPORTS) {
         return { boxBottomOff: Math.round(box.bottom - surfaceY), feetOff: Math.round(feetY - surfaceY) };
       })
     };
+    dancers.forEach(d => { d.style.transition = ''; const s = d.querySelector('svg'); if (s) s.style.animation = ''; });
+    return out;
   }, BOO_FOOT_FRAC);
 
   assert(!r.error, `${vp.name}: the Disco Hall renders dancers and a floor`);

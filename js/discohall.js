@@ -494,16 +494,20 @@ export function mount(container, params, ctx) {
     // here because measuring moves nothing; it just snaps each dancer to its committed target
     // so the geometry read is the settled one. The write happens after it is restored, so the
     // glide itself is untouched.
+    // RESOLVED (2026-07-30, the r12s7 residual): the old code measured the sole from the
+    // SVG's rect — but the dance-move keyframes animate a transform ON the svg, so the rect
+    // was sampled mid-hop and the correction baked in a random slice of the dance (8-14px,
+    // varying by whichever move each viewport happened to catch — instrumented: the svg
+    // rect measured 144px inside a 128px box). At REST the svg exactly fills the dancer's
+    // box (same width/height, grid-centred, ratio-true 104x112.67 for the 120x130 viewBox,
+    // no letterboxing), so the rest-pose sole needs no svg read at all: it sits at
+    // box.height * BOO_FOOT_FRAC from the box top. The box only needs the TRANSITION
+    // snapped off (the .5s spotlight glide scales it mid-flight); the dance animation
+    // never touches the box.
     const seats = [...dancers.querySelectorAll('.disco-dancer[data-row]')];
     seats.forEach(n => { n.style.transition = 'none'; });
     void dancers.offsetWidth;                      // valid: .disco-dancers is an HTMLElement
-    const gaps = seats.map(n => {
-      const svg = n.querySelector('svg');
-      if (!svg) return 0;
-      const box = n.getBoundingClientRect();
-      const s = svg.getBoundingClientRect();
-      return s.height ? box.bottom - (s.top + s.height * BOO_FOOT_FRAC) : 0;
-    });
+    const gaps = seats.map(n => n.getBoundingClientRect().height * (1 - BOO_FOOT_FRAC));
     seats.forEach(n => { n.style.transition = ''; });
     seats.forEach((n, i) => {
       const row = Number(n.dataset.row) || 0;
