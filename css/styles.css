@@ -6785,3 +6785,19 @@ html.bigger-text { --vz: 1.125; }
    sit under the build drawer — which, in build mode, it very often does. */
 .t-resize.up { bottom: auto; top: -14px; cursor: nesw-resize; }
 .t-resize.up::after { transform: rotate(45deg) translate(1px, 1px); }
+/* RUN19 Z7: a two-gate estimation row makes the middle lane a solid section of fence, so there
+   is never an invisible gap between the two choices to run through. */
+.d2-gate.d2-fence { pointer-events: none; }
+.d2-gate.d2-fence .g-top { background: #8A5A44; }
+.d2-gate.d2-fence .g-post { background: #8A5A44; }
+
+/* RUN19 Z7: Boo Bounce's build-the-answer target. Underscores show how many digits the answer
+   has before she starts, and each fills as she breaks it. */
+.bounce-target { display: flex; gap: 8px; justify-content: center; margin-top: 6px; }
+.bt-digit {
+  min-width: 34px; min-height: 44px; padding: 2px 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 26px; color: var(--ink);
+  background: var(--card); border: 3px dashed var(--ink); border-radius: 10px;
+}
+.bt-digit.on { border-style: solid; border-color: var(--star); }
