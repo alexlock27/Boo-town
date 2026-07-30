@@ -105,6 +105,7 @@ const ASSETS = [
   'js/wishwell.js',
   'js/jokeboo.js',
   'js/encouragement.js',
+  'js/ack.js',
   'js/feelings.js',
   'data/feelingsLines.js',
   'js/whatsnew.js',

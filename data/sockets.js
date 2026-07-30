@@ -28,8 +28,24 @@ export const SOCKETS = {
   // yFrac = (seatY - 120) / 130, where seatY is the surface's own y in the 0 0 120 130
   // deco viewBox. That identity falls straight out of town.js `give()` and renderPlaced()
   // and is what makes these values checkable by hand rather than dialled in by eye.
-  deco_bed:        [{ x: -0.06, row: 2, yFrac: -0.323, role: 'nap' }],                                   // mattress top y=78
-  deco_bunkbed:    [{ x: -0.04, row: 2, yFrac: -0.231, role: 'nap' }, { x: 0.04, row: 2, yFrac: -0.585, role: 'nap' }],  // lower y=90, upper y=44
+  // RUN19 Z3 re-seated the beds, twice, against screenshots.
+  //
+  // What was wrong: x/-0.06 put the sleeper over the HEADBOARD, yFrac/-0.323 put it on the
+  // bed FRAME rather than the bedding, and RUN13 T3's `rotate(-90deg)` at 0.86 scale made a
+  // round Boo read as TOPPLED OVER on top of a bed rather than tucked into one — the bed
+  // itself was almost entirely hidden behind it.
+  //
+  // What it is now, read straight off the art (renderDeco 'bed', 120x130 viewBox, ground
+  // line y=120): frame 20..100 x 78..108, pillow 26..50 x 66..86, duvet 50..96 x 82..102.
+  // The sleeper sits UPRIGHT with its head on the PILLOW — pillow centre x=38, so
+  // (38-60)/120 = -0.183 — and low enough that the duvet crosses its body: bottom at y=100,
+  // so (120-100)/130 = 0.154. town.js also drops its z-index below the bed's, so the duvet
+  // genuinely covers it. That is the picture a child draws of somebody in bed.
+  //
+  // `role:'nap'` was dead data until Z3 — nothing anywhere read the field. give() reads it
+  // now, so it is the marker that turns a seat claim into a real nap.
+  deco_bed:        [{ x: -0.183, row: 2, yFrac: -0.216, role: 'nap' }],                                  // sits up at the pillow (x=38), body behind the bedding
+  deco_bunkbed:    [{ x: -0.183, row: 2, yFrac: -0.139, role: 'nap' }, { x: -0.183, row: 2, yFrac: -0.493, role: 'nap' }],  // lower bunk, upper bunk
   // Kitchen - SNACK: a Boo stands AT the table (feet on the floor line, y=102), nibbling.
   deco_table:      [{ x: -0.30, row: 2, yFrac: -0.138 }, { x: 0.30, row: 2, yFrac: -0.138 }],            // legs meet the floor at y=102
   deco_kitchentable: [{ x: -0.32, row: 2, yFrac: -0.138 }, { x: 0.32, row: 2, yFrac: -0.138 }],

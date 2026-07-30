@@ -148,9 +148,19 @@ export function mount(container, params, ctx) {
             sfx.tap(); openEquipPicker(result.item, { onDone: next });
           } }));
         } else {
-          buttons.appendChild(el('button', { class: 'btn big', text: KIND_ACTION[kind] || 'Place it 🏡', onclick: () => { sfx.tap(); ctx.go('town', { place: result.item.id, from: 'ceremony' }); } }));
+          // RUN19 Z3 — "Put «name» somewhere?" lands in the item's NATURAL area, holding it.
+          // The old button always routed to town's default area, the Meadow. Furniture is
+          // indoor-only (RUN10 P4), so winning a bed and tapping Place it dropped her in the
+          // Meadow where the very item she was holding could not be put down — the drop just
+          // wobbled and said no. Furniture now goes to the Lounge; everything else, Boos
+          // included, goes to the Meadow with the thing already in hand.
+          const target = naturalAreaFor(result.item);
+          buttons.appendChild(el('button', {
+            class: 'btn big', text: `Put ${displayNameOf(result.item)} somewhere?`,
+            onclick: () => { sfx.tap(); ctx.go('town', Object.assign({ place: result.item.id, from: 'ceremony', build: true }, target)); }
+          }));
         }
-        buttons.appendChild(el('button', { class: 'btn soft', text: 'Keep for later', onclick: next }));
+        buttons.appendChild(el('button', { class: 'btn soft', text: 'Later', onclick: next }));
       }
     }
 
@@ -162,6 +172,17 @@ export function mount(container, params, ctx) {
   }
 
   return { unmount() {} };
+}
+
+// RUN19 Z3: where a newly won thing naturally goes. Furniture is indoor-only, so it goes to
+// the Lounge; everything else — decorations, landscape, wishes and Boos — goes to the Meadow.
+export function naturalAreaFor(item) {
+  return (item && item.kind === 'furniture') ? { area: 'boohouse', room: 'lounge' } : { area: 'meadow' };
+}
+// Her nickname for it if she has given one, so the button says what she calls it.
+function displayNameOf(item) {
+  const nick = getState().nicknames && getState().nicknames[item.id];
+  return nick || item.name;
 }
 
 function flyStars(card) {
