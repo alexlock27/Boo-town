@@ -16,7 +16,7 @@ let audioInited = false;
 // Lazy screen registry (dynamic import → build incrementally, lighter first paint).
 const registry = {
   onboarding: () => import('./onboarding.js'),
-  hub:        () => import('./hub.js?v=6'),
+  hub:        () => import('./hub.js?v=7'),
   bubblepop:  () => import('./games/bubblepop.js'),
   feedboos:   () => import('./games/feedboos.js'),
   spellboo:   () => import('./games/spellboo.js'),
@@ -33,11 +33,11 @@ const registry = {
   oddboo:     () => import('./games/oddboo.js'),        // RUN10 P19
   flashboos:  () => import('./games/flashboos.js'),     // RUN10 P19
   soundsorter: () => import('./games/soundsorter.js'),  // Sound Sorter (RUN16 W1)
-  blendit:    () => import('./games/blendit.js?v=1'),       // Blend It (RUN16 W2)
+  blendit:    () => import('./games/blendit.js?v=2'),       // Blend It (RUN16 W2)
   rhymetime:  () => import('./games/rhymetime.js'),     // Rhyme Time (RUN16 W3)
-  storyorder: () => import('./games/storyorder.js?v=1'),    // Story Order (RUN16 W4)
-  soundtwins: () => import('./games/soundtwins.js?v=2'),    // Twin Trouble (RUN18E L3)
-  apostrophepatrol: () => import('./games/apostrophepatrol.js?v=2'),   // Apostrophe Patrol (RUN18E L4)
+  storyorder: () => import('./games/storyorder.js?v=2'),    // Story Order (RUN16 W4)
+  soundtwins: () => import('./games/soundtwins.js?v=3'),    // Twin Trouble (RUN18E L3)
+  apostrophepatrol: () => import('./games/apostrophepatrol.js?v=3'),   // Apostrophe Patrol (RUN18E L4)
   shop:       () => import('./shop.js'),         // the Boo Shop (RUN15 V4)
   golden:     () => import('./golden.js'),
   toddlergame: () => import('./toddler.js'),   // Toddler mode's four games (RUN5 C7)
@@ -67,7 +67,7 @@ const registry = {
   caper:      () => import('./caper/notebook.js'),           // RUN10 P17: Snaffle's First Caper
   // (RUN11 Q1: the birthday party route is retired; its code is archived under archive/.)
   booquest:   () => import('./booquest.js'),   // Boo Quest (RUN6 C6)
-  jokeboo:    () => import('./jokeboo.js'),    // the Joke Boo's stage (RUN17 X1)
+  jokeboo:    () => import('./jokeboo.js?v=2'),    // the Joke Boo's stage (RUN17 X1)
   feelings:   () => import('./feelings.js'),   // the Feelings Corner (RUN17 X3; gated, off by default)
   grownups:   () => import('./grownups.js')
 };

@@ -13,6 +13,16 @@ function osReducedMotion() {
 export let REDUCED = osReducedMotion();
 let calmMotion = false;
 
+// RUN19: the OS setting is LISTENED to, not read once — before this, flipping Windows'
+// "Animation effects" (or any OS reduce-motion switch) needed a full page reload before
+// Boo Town noticed. The live binding above makes this one line sufficient app-wide.
+try {
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const onChange = () => { REDUCED = calmMotion || mq.matches; };
+  if (mq.addEventListener) mq.addEventListener('change', onChange);
+  else if (mq.addListener) mq.addListener(onChange);   // older WebKit
+} catch {}
+
 // The grown-ups' switch. ON forces REDUCED regardless of the device setting; OFF hands the
 // decision back to the device rather than overriding it the other way — a grown-up turning a
 // comfort OFF must never take away a comfort the tablet itself was already providing.
