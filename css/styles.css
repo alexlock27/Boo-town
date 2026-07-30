@@ -1310,6 +1310,37 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes beatbop { 0%,100% { transform: translateX(-50%) translateY(0); } 40% { transform: translateX(-50%) translateY(-8px) scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .beat-character.bop { animation: none; } }
 
+/* ---- RUN19 Z5: the musical cameo on the Boo Beat stage rail ----------------------------
+   Top-RIGHT of the field, on its own rail, above the lanes' note travel and clear of the
+   question card (which sits outside .beat-field entirely) and of the hit line at the bottom.
+   pointer-events:none so it can never eat a lane tap — the lanes are the game. */
+.beat-cameo {
+  position: absolute; right: 8px; top: 6px; width: 64px; height: 64px; z-index: 5;
+  pointer-events: none; transform-origin: 50% 100%;
+}
+.beat-cameo::after {   /* the rail it perches on */
+  content: ''; position: absolute; left: -6px; right: -6px; bottom: -6px; height: 5px;
+  border-radius: 3px; background: rgba(255,255,255,0.28);
+}
+.beat-cameo svg { width: 100%; height: 100%; display: block; }
+.beat-cameo.clap { animation: cameo-clap 150ms ease-out 1; }
+@keyframes cameo-clap { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.1, 0.88); } }
+@media (max-width: 600px) {
+  /* phone: smaller and tighter, so it never crowds the three lanes at 390px */
+  .beat-cameo { width: 46px; height: 46px; right: 5px; top: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .beat-cameo.clap { animation: none; } }
+
+/* ---- RUN19 Z5: the sporty cameo jogging Boo Dash's far layer ---------------------------
+   Parented to .d2-hills so the hills' own depth carries it; its x drift is set per frame in
+   dash.js at 0.6x the scroll. Small, faded, and behind everything that matters. */
+.d2-jogger { position: absolute; left: 12%; bottom: 0; width: 40px; height: 40px; pointer-events: none; opacity: 0.9; will-change: transform; }
+.d2-jogger-art { width: 100%; height: 100%; animation: d2-jog 620ms ease-in-out infinite; transform-origin: 50% 100%; }
+.d2-jogger-art svg { width: 100%; height: 100%; display: block; }
+@keyframes d2-jog { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-5px) rotate(3deg); } }
+.d2-jogger.static .d2-jogger-art { animation: none; }
+@media (prefers-reduced-motion: reduce) { .d2-jogger-art { animation: none; } }
+
 /* Boo Beat rework (RUN6 C3): soft perspective highway + combo fever + Boo crowd */
 .beat-lane { z-index: 1; }
 .beat-road {
@@ -2332,8 +2363,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .boo-svg.costume-spoon-stir .costume-held.spoon { animation: costumeStir .9s ease; transform-origin: 101px 106px; }
 @keyframes costumeHammer { 20%,55% { transform: rotate(-38deg); } 35%,70% { transform: rotate(14deg); } }
 @keyframes costumeStir { to { transform: rotate(342deg); } }
+/* RUN19 Z5: --wy varies the arc height per drop, so six of them read as a splash rather
+   than as a rake of identical dots leaving at the same angle. */
 .wellie-drop { position: absolute; left: 50%; bottom: 4px; width: 7px; height: 7px; border-radius: 50%; background: #8FC7FF; pointer-events: none; animation: wellieSplash .5s ease-out both; }
-@keyframes wellieSplash { to { transform: translate(var(--wx), -24px) scale(.5); opacity: 0; } }
+@keyframes wellieSplash { to { transform: translate(var(--wx), var(--wy, -24px)) scale(.5); opacity: 0; } }
 @media (max-width: 600px) {
   .acc-dress-card { height: calc(94vh / var(--vz)); }
   .acc-fit-preview { min-height: 185px; transform: scale(.86); margin-block: -12px; }
@@ -4721,6 +4754,34 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   border-radius: 10px; padding: 1px 7px; border: 2px solid #E0A81E;
 }
 .coll-shiny-count { color: var(--star); font-family: var(--font-display); font-weight: 700; margin-left: 10px; }
+/* RUN19 Z5: the stardust chip. A real button (it explains itself when tapped), so it obeys
+   the 56px tap-target law — the padding is what gets it there, not the text. */
+.coll-dust-chip {
+  margin-left: 10px; min-height: 56px; min-width: 56px; padding: 6px 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--card); border: 2px solid var(--ink); border-radius: 999px;
+  color: var(--ink); font-family: var(--font-display); font-weight: 700; font-size: 17px;
+  cursor: pointer; box-shadow: var(--card-shadow);
+}
+.coll-dust-chip:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
+
+/* ---- RUN19 Z5: the play-mode long-press card, and Sprinkle's result -------------------- */
+.play-card { max-width: 320px; padding: 20px; text-align: center; }
+.play-card .pc-pic { width: 48px; height: 48px; margin: 0 auto 8px; }
+.play-card .pc-pic svg { width: 100%; height: 100%; display: block; }
+.play-card .pc-name { margin: 0 0 12px; color: var(--ink); }
+/* A sprinkled thing glints on a slow loop until the end of the local day. Transform and
+   filter only, and hard-capped in JS (SPARKLE_SCENE_CAP) so a whole area cannot shimmer. */
+.t-sprinkled { animation: sprinkle-glint 2.4s ease-in-out infinite; }
+@keyframes sprinkle-glint {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 6px var(--star)) drop-shadow(0 0 14px rgba(255,201,60,0.55)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* reduced motion keeps the sparkle VISIBLE — it is something she paid for — but still. */
+  .t-sprinkled { animation: none; filter: drop-shadow(0 0 6px var(--star)); }
+}
+.reduced .t-sprinkled { animation: none; filter: drop-shadow(0 0 6px var(--star)); }
 .chest-acc { color: var(--pop); font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 2px 0; }
 
 /* the hub chest + its mini track */

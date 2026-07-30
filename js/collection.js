@@ -8,6 +8,7 @@ import { COLLECTIBLES, ACCESSORIES, TOTAL_ITEMS, RARITY, BIRTHDAY_BOOS, dropKind
 import { equippedArt, openDressUp, openRename, openEquipPicker, getDisplayName, officialName, nicknameOf } from './accessories.js';
 import { sfx, music } from './sfx.js';
 import { journalEntries } from './quests.js';
+import { guideLine, speakMaybe } from './guide.js';   // RUN19 Z5: the stardust explanation
 import { renderTrophyRoom } from './trophies.js';
 import { ownedCustomItems } from './customs.js';
 import { micEnabled, openVoiceRecorder } from './voices.js';
@@ -27,7 +28,20 @@ export function mount(container, params, ctx) {
     backControl(() => ctx.go((params && params.from) || 'hub')),   // RUN10 P4: return to whoever sent us here (e.g. the Gallery)
     el('h2', { text: 'My Collection' }),
     el('span', { class: 'coll-count', text: `${foundCount} of ${TOTAL_ITEMS} found` }),
-    shinyTotal > 0 ? el('span', { class: 'coll-shiny-count', text: `✨ ${shinyTotal} shin${shinyTotal === 1 ? 'y' : 'ies'}` }) : null
+    shinyTotal > 0 ? el('span', { class: 'coll-shiny-count', text: `✨ ${shinyTotal} shin${shinyTotal === 1 ? 'y' : 'ies'}` }) : null,
+    // RUN19 Z5 — stardust, SURFACED. It has been silently accumulating since RUN4 C8 (every
+    // duplicate adds one) and the only place it was ever mentioned was inside a Boo's own
+    // card, and then only once she happened to have ten. A child could hold forty and never
+    // know. The chip is always shown, and tapping it explains what the stuff is FOR.
+    el('button', {
+      class: 'coll-dust-chip', 'aria-label': `${s.stardust || 0} stardust — what is stardust?`,
+      onclick: () => {
+        sfx.tap();
+        const line = guideLine('stardustExplain');
+        speakMaybe(line);
+        dialog({ title: '✨ Stardust', body: line, buttons: [{ label: 'Got it!', value: true }], dismissable: true });
+      }
+    }, [el('span', { text: `✨ ${s.stardust || 0}` })])
   ]);
 
   // "My character" card — opens the full creator (spec RUN2 C1).

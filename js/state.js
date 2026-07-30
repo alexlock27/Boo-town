@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 21;  // v21: Boo requests become a list (request.actives; RUN19 Z2 raises MAX_ACTIVE to 2 and its five verbs each name a specific item or friend, which RUN3's single `active` object had no room for). NOTE for RUN19 Z6: its pack text says "VERSION 18" — stale; Z6 must claim 22. v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 22;  // v22: Sprinkle (sparkles: {placementId -> dayStamp}; RUN19 Z5 gives stardust a second, cheaper spend that lives in the town where the result is visible). NOTE for RUN19 Z6: its pack text says "VERSION 18" — stale; Z6 must claim 23. v21: Boo requests become a list (request.actives; RUN19 Z2 raises MAX_ACTIVE to 2 and its five verbs each name a specific item or friend, which RUN3's single `active` object had no room for). v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -57,6 +57,10 @@ function freshSave() {
     meter: 0,
     boxes: 0,
     stardust: 0,
+    // v22 (RUN19 Z5): which placed things she has sprinkled, and on WHICH local day. Painted
+    // on sight and pruned on sight, which is how "expires at local midnight" holds without a
+    // timer that would have to survive a backgrounded tablet.
+    sparkles: {},
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
     inventory: {},               // itemId -> count
@@ -452,6 +456,12 @@ export function migrate(obj) {
     const old = merged.request.active;
     if (old && typeof old === 'object' && !merged.request.actives.length) merged.request.actives = [old];
     delete merged.request.active;
+  }
+  // v22 (RUN19 Z5): Sprinkle's day-stamped sparkle map. Purely additive and empty by
+  // default, so a pre-v22 save migrates to identical behaviour — nothing was sprinkled
+  // before the feature existed. Idempotent: only written when the key is missing.
+  if ((o.version || 0) < 22) {
+    if (!merged.sparkles || typeof merged.sparkles !== 'object') merged.sparkles = {};
   }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);
