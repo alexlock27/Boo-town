@@ -17,6 +17,8 @@ see is always what is on disk.
 import os
 import socket
 import sys
+import threading
+import webbrowser
 from functools import partial
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
@@ -37,7 +39,9 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 
 
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    # the first argument that is NOT a flag is the port (so `--open` is not read as one)
+    args = [a for a in sys.argv[1:] if not a.startswith('-')]
+    port = int(args[0]) if args else 8000
 
     # Serve THIS SCRIPT'S folder, never the shell's current directory.
     #
@@ -68,8 +72,13 @@ def main():
     # client holds a keep-alive connection open (one hung socket = every later request
     # times out). Found 2026-07-30 when Playwright suites froze it twice in one session.
     server = ThreadingHTTPServer(('', port), handler)
-    print(f'Boo Town review server (no-store) on http://localhost:{port}')
+    url = f'http://localhost:{port}'
+    print(f'Boo Town review server (no-store) on {url}')
     print(f'Serving: {root}')
+    # --open: bring the browser up once the server is actually listening, so the double-click
+    # launcher never lands on a "can't connect" page a second before the server is ready.
+    if '--open' in sys.argv:
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     print('Ctrl+C to stop.')
     try:
         server.serve_forever()
