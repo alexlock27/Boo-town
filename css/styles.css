@@ -460,6 +460,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .today-rail { flex: 0 0 auto; margin: 0 0 2px; max-width: 860px; width: 100%; margin-left: auto; margin-right: auto; overflow: hidden; }
 .trail-inner { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 8px 4px 10px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .trail-inner::-webkit-scrollbar { display: none; }
+/* Alex (2026-07-30, PC): "isn't scrolling across on PC so you are unable to see anything
+   to the right of those 2" — a mouse cannot swipe and the scrollbar was hidden, so the
+   rail's tail was unreachable on desktop. Precision-pointer devices get a slim scrollbar
+   back; touch devices (phones AND tablets — hover:none excludes them, keeping the tablet
+   byte-gate identical) keep the clean swipe. The wheel affordance lives in js/hub.js. */
+@media (hover: hover) and (pointer: fine) {
+  .trail-inner { scrollbar-width: thin; scrollbar-color: rgba(255, 248, 240, .4) transparent; }
+  .trail-inner::-webkit-scrollbar { display: block; height: 8px; }
+  .trail-inner::-webkit-scrollbar-thumb { background: rgba(255, 248, 240, .4); border-radius: 4px; }
+  .trail-inner::-webkit-scrollbar-track { background: transparent; }
+}
 .trail-chip {
   position: relative; flex: 0 0 auto; height: 74px; min-width: 148px; max-width: 214px;
   display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 16px; border: none;
@@ -3218,6 +3229,18 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .disco-track { position:absolute; z-index:12; right:18px; top:24px; min-width:180px; padding:10px 14px; border:3px solid #fff; border-radius:16px; background:#FF7AC6; color:var(--ink); font:700 15px var(--font-display); box-shadow:0 0 18px rgba(255,122,198,.5); }   /* G7: white-on-pink was 2.37:1 */
 .disco-now { position:absolute; z-index:9; right:18px; top:78px; width:180px; color:#DCCFF5; text-align:center; font:700 12px var(--font-display); }
 .disco-mode { position:absolute; z-index:12; right:18px; top:112px; min-width:180px; min-height:44px; padding:8px 14px; border:3px solid #fff; border-radius:16px; background:#35D0BA; color:var(--ink); font:700 13px var(--font-display); box-shadow:0 0 18px rgba(53,208,186,.5); }
+/* The guest list (Alex, 2026-07-30): the house drawer's tray filled with Boo toggle chips.
+   An invited chip glows; an univited one dims — no Boo ever looks deleted, just resting. */
+.disco-roster-grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:6px 2px; }
+.disco-roster-chip {
+  display:grid; justify-items:center; gap:2px; min-width:76px; min-height:76px; padding:6px 8px;
+  border:3px solid var(--ink,#2A1B4E); border-radius:14px; background:var(--card,#6A4FD0);
+  opacity:.45; filter:saturate(.4); transition:opacity .2s ease, filter .2s ease;
+}
+.disco-roster-chip.in { opacity:1; filter:none; box-shadow:0 0 0 3px var(--star,#FFC93C); }
+.disco-roster-chip .drc-name { font:700 11px var(--font-display); color:var(--cream,#FFF8F0); max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.disco-roster-hint { font:700 14px var(--font-display); color:var(--ink,#2A1B4E); }
+@media (prefers-reduced-motion: reduce) { .disco-roster-chip { transition:none; } }
 /* RUN19 Z1: moves chain per BEAT — each animation's duration IS the current track's beat
    length (js/discohall.js sets --beat-ms on every dancer's svg), so a move never idles
    waiting for the next one and never overruns into it. The seconds after each keyframes

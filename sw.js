@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run19-20260730';  // RUN18E (Literacy Re-pitch v2) + RUN19 Z1 (Disco rewire) + the explanation pass, deployed together (Alex's go-ahead, 2026-07-30)
+const BUILD_STAMP = 'run19b-20260730';  // Addendum wave: the Disco guest list (v20), PC rail scroll, routines wall hidden until owned. Same-day follow-up to run19-20260730.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

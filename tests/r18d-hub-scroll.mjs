@@ -44,8 +44,8 @@ const SAVE = JSON.stringify({
 
 const browser = await chromium.launch({ args: RESOLVE });
 const errors = [];
-async function hub(width, height) {
-  const ctx = await browser.newContext({ viewport: { width, height } });
+async function hub(width, height, opts = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, ...opts });
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(String(e)));
   await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), SAVE);
@@ -140,7 +140,11 @@ for (const [w, h] of [[390, 844], [768, 1024], [1024, 768]]) {
 // ================== 4. the Today carousel peeks ==================
 console.log('== the next Today card peeks past the edge — the peek IS the affordance ==');
 {
-  const { ctx, page } = await hub(390, 844);
+  // A real phone is a TOUCH device (isMobile+hasTouch → hover:none/pointer:coarse), and
+  // there the rail keeps its clean bar-less swipe. Desktop pointers get a slim scrollbar
+  // + wheel support instead (Alex, 2026-07-30: "isn't scrolling across on PC") — asserted
+  // separately below.
+  const { ctx, page } = await hub(390, 844, { isMobile: true, hasTouch: true });
   const r = await page.evaluate(() => {
     const rail = document.querySelector('.today-rail').getBoundingClientRect();
     const inner = document.querySelector('.trail-inner');
@@ -152,15 +156,31 @@ console.log('== the next Today card peeks past the edge — the peek IS the affo
       firstW: first.width, railW: rail.width,
       peek: peeking ? Math.round(rail.right - peeking.left) : 0,
       scrolls: inner.scrollWidth > inner.clientWidth + 2,
-      bar: getComputedStyle(inner).scrollbarWidth
+      bar: getComputedStyle(inner).scrollbarWidth,
+      coarse: matchMedia('(pointer: coarse)').matches
     };
   });
+  assert(r.coarse, 'the phone context really is a touch context');
   assert(r.chips >= 3, `${r.chips} Today cards`);
   assert(r.firstW / r.railW > 0.78 && r.firstW / r.railW < 0.92,
     `a card is 85% of the rail (${Math.round(r.firstW)} of ${Math.round(r.railW)} = ${(r.firstW / r.railW * 100).toFixed(0)}%)`);
   assert(r.peek >= 14 && r.peek <= 60, `the next card peeks ${r.peek}px past the edge`);
   assert(r.scrolls, 'the rail really does scroll sideways');
-  assert(r.bar === 'none', 'with no hairline scrollbar');
+  assert(r.bar === 'none', 'with no hairline scrollbar on touch');
+  await ctx.close();
+}
+// ============ 4b. the desktop affordance (Alex, 2026-07-30: PC could not scroll) ============
+console.log('== a mouse can drive the rail: slim scrollbar + wheel steps a full card ==');
+{
+  const { ctx, page } = await hub(1024, 768);   // default context = precision pointer
+  const r = await page.evaluate(() => {
+    const inner = document.querySelector('.trail-inner');
+    const before = inner.scrollLeft;
+    document.querySelector('.today-rail').dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
+    return { bar: getComputedStyle(inner).scrollbarWidth, before, after: inner.scrollLeft, overflows: inner.scrollWidth > inner.clientWidth + 2 };
+  });
+  assert(r.bar === 'thin', `a precision pointer gets the slim scrollbar (${r.bar})`);
+  if (r.overflows) assert(r.after > r.before, `one wheel notch advances at least a card (${Math.round(r.before)} → ${Math.round(r.after)})`);
   await ctx.close();
 }
 {

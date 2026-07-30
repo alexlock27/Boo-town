@@ -22,6 +22,17 @@
 
 export const WHATSNEW = [
   {
+    // The addendum wave (same day): the Disco Hall's guest list — Alex's own ask, and the
+    // one genuinely NEW thing in this follow-up (the PC rail scroll and the hidden empty
+    // poster wall are polish; polish is not news).
+    version: 'run19b-20260730',
+    entries: [
+      { icon: '💌', title: 'You pick who comes to the disco!',
+        blurb: "Open “Who's coming?” at the bottom of the Disco Hall and invite your favourites.",
+        route: 'discohall' }
+    ]
+  },
+  {
     // RUN19 (the Disco rewire + the repair/explanation pass), shipping together with
     // RUN18E under one stamp. ONE entry: the Disco Hall is the only thing here that is
     // genuinely NEW to look at — the explanation panels, the Word Factory's teaching join

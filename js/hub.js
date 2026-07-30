@@ -169,6 +169,21 @@ export function mount(container, params, ctx) {
   const todayRail = el('div', { class: 'today-rail screen-content', 'aria-label': 'Today' });
   const railInner = el('div', { class: 'trail-inner' });
   todayRail.appendChild(railInner);
+  // Alex (2026-07-30, PC): the rail would not scroll on desktop — a mouse has no swipe.
+  // The wheel now drives it horizontally while the pointer is over it (the standard
+  // desktop affordance; touch devices never fire wheel), and pointer-precision devices
+  // also get a slim scrollbar back in css/styles.css.
+  todayRail.addEventListener('wheel', (e) => {
+    if (!e.deltaY || e.deltaX) return;                    // a real horizontal wheel already works
+    if (railInner.scrollWidth <= railInner.clientWidth) return;
+    // At least one full chip per notch: the rail's proximity snap points sit a whole card
+    // (~330px) apart and snap SYNCHRONOUSLY, so a bare 100-120px wheel tick snapped
+    // straight back to where it started — the wheel felt dead.
+    const chip = railInner.firstElementChild;
+    const step = Math.max(Math.abs(e.deltaY), chip ? chip.getBoundingClientRect().width + 10 : 160);
+    railInner.scrollLeft += Math.sign(e.deltaY) * step;
+    e.preventDefault();
+  }, { passive: false });
 
   // Quick Meta Chips for instant access
   const wishChip = el('button', {

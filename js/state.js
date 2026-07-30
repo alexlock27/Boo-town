@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 19;  // v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 20;  // v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically — NOTE: RUN19 Z6's pack says "VERSION 18/20"; it must now claim 21). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -76,6 +76,7 @@ function freshSave() {
     easelArt: '',               // artwork id displayed on the town Easel (RUN3 C6)
     request: { active: null, lastResolvedAt: 0 }, // occasional Boo requests (RUN3 C8), ≤1 active
     routines: {},               // Dance Stage choreography per stage: 'zone:x' -> [moveId] (RUN3 C8)
+    disco: { roster: [] },      // Boo ids she invited to the Disco Hall; [] = everyone/first 16 (v20, Alex 2026-07-30)
     age: 0,                     // her age (job 4): local save only, used only for the tier mapping
     ageAsked: false,            // the age question is asked exactly once (onboarding or one-time card)
     threeStars: {},             // 'game:cat:rank' -> 3-star round count (comfort levels, RUN4 C3)
@@ -423,6 +424,13 @@ export function migrate(obj) {
   if ((o.version || 0) < 19) {
     merged.settings = merged.settings || {};
     if (merged.settings.detectiveAbc === undefined) merged.settings.detectiveAbc = null;
+  }
+  // v20 (Alex, 2026-07-30: "it doesnt let me pick which boos are at the disco"): the Disco
+  // Hall guest list. An empty roster means what the absence of the feature meant — everyone
+  // comes (first 16) — so a pre-v20 save migrates to an IDENTICAL floor. Lossless and
+  // idempotent: the empty roster is written once and only if the key is missing.
+  if ((o.version || 0) < 20) {
+    if (!merged.disco || !Array.isArray(merged.disco.roster)) merged.disco = { roster: [] };
   }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);
