@@ -1253,7 +1253,12 @@ export function mount(container, params, ctx) {
     const pCentreX = (ZONE_INDEX[parent.zone] ?? 0) * zoneW + clamp01(parent.x) * zoneW;
     return {
       x: pCentreX + slots[idx].x * pWidth,
-      y: pGround - surfaceYFor(parent.item, idx) * pHeight,     // the surface, above the parent's own ground line
+      // The surface, measured from the parent's rendered BOX BOTTOM — not from its ground line.
+      // renderPlaced puts every item's box bottom at (ground + 8), that 8 being the flat
+      // stand-in for the transparent margin the art leaves below its drawn base. Measuring
+      // from the ground line therefore put every surface ~12px too high, and a lamp floated
+      // above the table it was standing on.
+      y: (pGround + 8) - surfaceYFor(parent.item, idx) * pHeight,
       parentWidth: pWidth,
       z: Math.round(pGround)
     };
@@ -1373,7 +1378,12 @@ export function mount(container, params, ctx) {
         if (seat) {
           placedSize = Math.min(size * CHILD_SCALE, seat.parentWidth * CHILD_MAX_WIDTH_FRAC);
           placedLeft = seat.x - placedSize / 2;
-          placedTop = seat.y - placedSize + 8;
+          // The `+8` every floor item uses is a flat stand-in for the transparent margin the
+          // art leaves below its drawn base (the shared 120x130 deco viewBox draws its ground
+          // line at y=120, so 10/130 of the box is empty). Flat is fine at floor sizes and
+          // WRONG for a child scaled to 45% of a table — measured, the lamp floated 5px above
+          // the table top. Proportional, so contact holds at any size.
+          placedTop = seat.y - placedSize + placedSize * (10 / 130);
           placedZ = seat.z + 1;
         }
       }

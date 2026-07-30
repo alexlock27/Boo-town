@@ -165,8 +165,11 @@ console.log('== a lamp on the table: seated, survives a reload, and GROUNDS if t
     const lamp = [...document.querySelectorAll('.t-item')].find(n => n.dataset.item === 'deco_tablelamp');
     if (!table || !lamp) return null;
     const tr = table.getBoundingClientRect(), lr = lamp.getBoundingClientRect();
+    // the table's own surface: surfaceY 0.55 of its height above its rendered box bottom
+    const surface = tr.bottom - 0.55 * tr.height;
     return {
       plane: lamp.dataset.plane,
+      surfaceGap: Math.round(lr.bottom - surface),
       lampBottom: Math.round(lr.bottom), tableTop: Math.round(tr.top), tableBottom: Math.round(tr.bottom),
       widthFrac: +(lr.width / tr.width).toFixed(3),
       zAhead: (parseInt(lamp.style.zIndex, 10) || 0) > (parseInt(table.style.zIndex, 10) || 0),
@@ -176,6 +179,12 @@ console.log('== a lamp on the table: seated, survives a reload, and GROUNDS if t
   assert(seated && seated.plane === 'surface', `the lamp is on the surface plane (${seated && seated.plane})`);
   assert(seated && seated.lampBottom < seated.tableBottom, `it stands ON the table, not on the floor beside it (lamp bottom ${seated && seated.lampBottom} vs table bottom ${seated && seated.tableBottom})`);
   assert(seated && seated.lampBottom > seated.tableTop, `and its feet are on the table, not floating above it (vs table top ${seated && seated.tableTop})`);
+  // PIXEL CONTACT, to the same law RUN10 P2 holds sockets to. "Above the table's top and below
+  // its bottom" is true of a lamp floating 12px over it, which is what the first cut did:
+  // surfaceSeatFor measured from the parent's GROUND LINE while every item's box bottom sits
+  // at (ground + 8). Measured against the table's real surface now.
+  assert(seated && Math.abs(seated.surfaceGap) <= 4,
+    `and it makes real contact with the table's surface (${seated && seated.surfaceGap}px off)`);
   assert(seated && seated.widthFrac <= 0.45 + 0.02, `it is clamped to at most 45% of the table's width (${seated && seated.widthFrac})`);
   assert(seated && seated.zAhead, 'and draws in front of the table it stands on');
   assert(seated && seated.rightOfCentre, 'slot 1 puts it right of the table\'s centre, where the slot says');
