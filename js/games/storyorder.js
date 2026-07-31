@@ -229,6 +229,12 @@ export function mount(container, params, ctx) {
       const readback = stage.querySelector('.so-readback');
       stage.querySelector('.tm-try-instruction').textContent = 'That\'s it! Listen...';
       sfx.star();
+      // Advance on the caption's OWN utterance ending, not the fixed clock alone. Several
+      // captions genuinely take longer than READ_MS to say, and because tts.js never
+      // interrupts a queued line, the highlight used to sail on to the next panel before this
+      // one's words had finished (or even started, behind a still-draining earlier line) —
+      // the panel lit and the line spoken could drift apart. The timer stays as a floor so a
+      // short caption is never rushed, and as the whole pace when voice is off.
       const step = (i) => {
         panelNodes.forEach(n => n.classList.remove('reading'));
         if (i >= story.panels.length) {
@@ -241,8 +247,11 @@ export function mount(container, params, ctx) {
         const node = panelNodes[i];
         if (node) node.classList.add('reading');
         readback.textContent = p.caption;
-        speakMaybe(p.caption);
-        shell.timeout(() => step(i + 1), REDUCED ? 700 : READ_MS);
+        let minDone = false, spoken = false;
+        const next = () => { if (minDone && spoken) step(i + 1); };
+        shell.timeout(() => { minDone = true; next(); }, REDUCED ? 700 : READ_MS);
+        const id = speakMaybe(p.caption, true, { onend: () => { spoken = true; next(); } });
+        if (!id) { spoken = true; next(); }
       };
       step(0);
     }

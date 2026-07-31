@@ -206,13 +206,23 @@ export function mount(container, params, ctx) {
         phase = 'blending';
         blendBtn.disabled = true;
         const parts = item.g;
+        // Each part waits for its OWN utterance to actually finish, not just a fixed clock,
+        // before the next is even requested. A still-draining earlier line (this item's own
+        // "Tap Blend..." instruction, still queued behind nothing having interrupted it) used
+        // to let every part queue up regardless, which could push the 4-deep speech queue over
+        // QUEUE_MAX and silently drop the first grapheme — a word like "ship" coming out
+        // sounding "i · p · ship". The timer stays as a floor so a very short sound never
+        // feels rushed, and as the whole pace when voice is off.
         const step = (i) => {
           if (i >= parts.length) return whole();
           tileNodes.forEach(n => n.classList.remove('saying'));
           tileNodes[i].classList.add('saying');
-          speakMaybe(parts[i]);
           spread(REDUCED ? 0 : START_GAP * (1 - (i + 1) / parts.length));
-          shell.timeout(() => step(i + 1), REDUCED ? 260 : PART_MS);
+          let minDone = false, spoken = false;
+          const next = () => { if (minDone && spoken) step(i + 1); };
+          shell.timeout(() => { minDone = true; next(); }, REDUCED ? 260 : PART_MS);
+          const id = speakMaybe(parts[i], true, { onend: () => { spoken = true; next(); } });
+          if (!id) { spoken = true; next(); }
         };
         const whole = () => {
           tileNodes.forEach(n => n.classList.remove('saying'));
@@ -220,9 +230,12 @@ export function mount(container, params, ctx) {
           spread(0);
           blended = true;
           word.textContent = item.w;
-          speakMaybe(item.w);
           sfx.correct();
-          shell.timeout(toPick, REDUCED ? 300 : 900);
+          let minDone = false, spoken = false;
+          const next = () => { if (minDone && spoken) toPick(); };
+          shell.timeout(() => { minDone = true; next(); }, REDUCED ? 300 : 900);
+          const id = speakMaybe(item.w, true, { onend: () => { spoken = true; next(); } });
+          if (!id) { spoken = true; next(); }
         };
         step(0);
       }
@@ -245,12 +258,21 @@ export function mount(container, params, ctx) {
         });
       }
       function replay() {
-        tileNodes.forEach((n, i) => shell.timeout(() => {
+        const parts = item.g;
+        const step = (i) => {
+          if (i >= parts.length) {
+            tileNodes.forEach(m => m.classList.remove('saying'));
+            return speakMaybe(item.w);
+          }
           tileNodes.forEach(m => m.classList.remove('saying'));
-          n.classList.add('saying');
-          speakMaybe(item.g[i]);
-          if (i === item.g.length - 1) shell.timeout(() => { n.classList.remove('saying'); speakMaybe(item.w); }, PART_MS);
-        }, i * PART_MS));
+          tileNodes[i].classList.add('saying');
+          let minDone = false, spoken = false;
+          const next = () => { if (minDone && spoken) step(i + 1); };
+          shell.timeout(() => { minDone = true; next(); }, PART_MS);
+          const id = speakMaybe(parts[i], true, { onend: () => { spoken = true; next(); } });
+          if (!id) { spoken = true; next(); }
+        };
+        step(0);
       }
 
       // The explanation pass (Alex, 2026-07-30): the sound walk lands in a panel she reads

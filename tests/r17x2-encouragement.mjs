@@ -112,7 +112,14 @@ async function open(saveJson = save(), viewport = { width: 1024, height: 768 }) 
     window.__spoken = [];
     const install = () => {
       if (!window.speechSynthesis) return false;
-      window.speechSynthesis.speak = (u) => { window.__spoken.push(u && u.text); };
+      window.speechSynthesis.speak = (u) => {
+        window.__spoken.push(u && u.text);
+        // Without this, tts.js's own queue never learns an utterance ended: `playing` locks
+        // forever after the FIRST thing the app ever speaks (e.g. the results screen's own
+        // score line), and every later call — including the kind word this suite is
+        // checking for — sits queued and never reaches this stub at all.
+        if (u && u.onend) setTimeout(() => u.onend(), 0);
+      };
       return true;
     };
     if (!install()) document.addEventListener('DOMContentLoaded', install, { once: true });
