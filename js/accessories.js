@@ -7,6 +7,7 @@ import { getState, mutate } from './state.js';
 import { renderItem, renderGuide } from './art.js';
 import { applyRarityFx } from './rarityfx.js';
 import { BY_ID, ACCESSORIES } from '../data/catalogue.js';
+import { wishItem } from '../data/wishes.js';   // wished things are minted, not catalogued
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx } from './sfx.js';
 import { noteQuest } from './quests.js';
@@ -38,6 +39,11 @@ const ART_LABELS = {
 function baseName(id) {
   if (BY_ID[id]) return BY_ID[id].name;
   if (id && id.startsWith && id.startsWith('custom:')) { const it = resolveCustomItem(id); if (it) return it.name; }
+  // A wished-for thing is not in the catalogue (it is minted from the word she said), so it
+  // fell through to the raw id and every one of the sixty announced itself to a screen reader
+  // as "wish_sun" / "wish_bee". wishItem() has carried a proper `name` all along — use it.
+  // (RUN20 QA: found while labelling the indoor-wish chips.)
+  if (id && id.startsWith && id.startsWith('wish_')) { const w = wishItem(id); if (w) return w.name; }
   return id;
 }
 export function getDisplayName(id) {

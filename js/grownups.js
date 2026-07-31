@@ -157,7 +157,9 @@ export function mount(container, params, ctx) {
   const requestsCard = el('div', { class: 'gu-card' }, [
     el('h3', { text: 'Boo requests' }),
     toggle('Occasional Boo requests', s.settings.requests !== false, v => { setRequestsEnabled(v); }),
-    el('p', { class: 'gu-note', text: 'Now and then a Boo asks for a little something (like "play a maths game!"). At most one at a time, never a nag. Turn off to stop them entirely.' })
+    // RUN19 Z2 raised this to two at once (MAX_ACTIVE), and the sentence describing it was
+    // left saying one. Copy that quietly contradicts the behaviour is worse than no copy.
+    el('p', { class: 'gu-note', text: 'Now and then a Boo asks for a little something (like "play a maths game!"). At most two at a time, never a nag. Turn off to stop them entirely.' })
   ]);
 
   // ---- the Feelings Corner (RUN17 X3) ----

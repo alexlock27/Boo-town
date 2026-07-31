@@ -2010,7 +2010,27 @@ export function mount(container, params, ctx) {
     // (which assume a shared ground line) still read correctly.
     const dw = role.decoWrap || wrapFor(role.deco);
     if (dw) {
-      if (a._homeTop == null) { a._homeTop = a.wrap.style.top; a._homeZ = a.wrap.style.zIndex; }
+      if (a._homeTop == null) { a._homeTop = a.wrap.style.top; a._homeZ = a.wrap.style.zIndex; a._homeLeft = a.wrap.style.left; }
+      // Carry the seat's HORIZONTAL offset on the WRAP, not only on the svg.
+      //
+      // The wrap's `top` has always been moved to the socket (just below); its `left` never
+      // was — the offset lived purely in the svg's per-frame transform. So the artwork sat in
+      // the bed while the wrap it belongs to stayed at the Boo's original placement x. That is
+      // invisible when a Boo happens to be standing next to the thing it claims (which is what
+      // the suites seeded: a Boo at x=0.27, a bed at x=0.25), and glaring when it walks across
+      // the room: measured 793px between the drawn sleeper and its own wrap.
+      //
+      // Everything the child actually interacts with hangs off the WRAP — the tap target, the
+      // drifting z's, the request bubble, the speech bubble. All of it was being drawn, and
+      // listening, in empty space, so tapping the Boo you can see did nothing at all.
+      //
+      // Moving the wrap and zeroing offX keeps every role transform correct by construction:
+      // they all render relative to r.offX, which is now simply 0 because the wrap already
+      // carries it. (RUN20 QA finding A — pre-existing, surfaced by Z3's naps.)
+      if (a.role.offX) {
+        a.wrap.style.left = ((parseFloat(a.wrap.style.left) || 0) + a.role.offX) + 'px';
+        a.role.offX = 0;
+      }
       // RUN19 Z3 — a socket's `row` is a DELTA, not an absolute row. It used to be read
       // absolutely, which silently assumed every socketed item is placed in row 2 (where
       // outdoor rides usually are). Indoors it is not: a bed at row 1 got a seat anchored to
@@ -2162,7 +2182,7 @@ export function mount(container, params, ctx) {
     releaseSocket(a);   // RUN10 P2: free the seat for the next Boo
     a.role = null;
     a.wrap.querySelectorAll('.t-zzz, .t-rod').forEach(n => n.remove());
-    if (a._homeTop != null) { a.wrap.style.top = a._homeTop; a.wrap.style.zIndex = a._homeZ || ''; a._homeTop = null; a._homeZ = null; }   // restore its depth row (C3)
+    if (a._homeTop != null) { a.wrap.style.top = a._homeTop; a.wrap.style.zIndex = a._homeZ || ''; if (a._homeLeft != null) a.wrap.style.left = a._homeLeft; a._homeTop = null; a._homeZ = null; a._homeLeft = null; }   // restore its depth row AND its home x (C3)
     const svg = a.wrap.querySelector('svg');
     if (svg) svg.style.transform = '';
   }
@@ -3110,11 +3130,19 @@ export function mount(container, params, ctx) {
       // Mandate — found while proving the drawer's LABEL, which turned out to be correct.)
       const unlimited = item && (item.kind === 'landscape' || item.kind === 'wish');
       const showCount = !unlimited && free[id] > 1;
-      const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : ''), dataset: { item: id },
-        'aria-label': showCount ? `${chipName} (${free[id]})` : chipName,
-        onclick: () => selectHold(id) }, [
+      // RUN20 W1 addendum: a sky wish indoors is greyed AT THE CHIP with "needs the sky!",
+      // not only refused on drop. wishRefusedIndoors() was written for exactly this and then
+      // never called from anywhere — so indoors the Sun looked perfectly placeable, and the
+      // child only found out by picking it up, carrying it in, and being told no. Saying it
+      // on the chip is the difference between a rule and a rebuff. (RUN20 QA finding B.)
+      const skyOnly = wishRefusedIndoors(id);
+      const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : '') + (skyOnly ? ' needs-sky' : ''), dataset: { item: id },
+        'aria-label': skyOnly ? `${chipName} — ${INDOOR_TIP}` : (showCount ? `${chipName} (${free[id]})` : chipName),
+        title: skyOnly ? INDOOR_TIP : null,
+        onclick: () => { if (skyOnly) { sfx.tap(); skyNeededWobble(); return; } selectHold(id); } }, [
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
-        showCount ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
+        showCount ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null,
+        skyOnly ? el('span', { class: 'drawer-skytip', text: INDOOR_TIP }) : null
       ]);
       // drag-to-lift is delegated to the strip's own pointer handler (attachStripMomentum,
       // RUN10 P2) — it decides scroll-vs-lift by gesture direction since chips tile edge-to-edge
