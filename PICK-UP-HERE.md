@@ -74,6 +74,31 @@ and intermittently `r10p1-worldmap`, `r4p1-nav`, `r4p4-trophies`, `r18a-jokeboo-
 
 ---
 
+## Alex's Toddler-tier feedback, 31 Jul — AWAITING HIS DECISION
+
+**"Stories is too complicated for toddlers."** He is right, and the cause is specific.
+The Toddler door (`js/hub.js` ~line 671) opens `storyorder` with `params.toddler`, which
+does restrict it — captions off, no peek button (`storyorder.js:126,164`) — but
+`playToddler()` then serves "the two shortest stories", and **the shortest story in
+`data/stories.js` is 4 panels** (counts are 4,4,5,5,5,5). There is no 2- or 3-panel story
+to fall back to, so a 3–4 year old is asked to sequence four wordless pictures. No
+setting can soften this; the content does not exist.
+
+Options put to Alex, HIS CALL — do not act unilaterally, this removes/changes a game:
+1. Remove the Stories door from the Toddler hub (one line in `js/hub.js`, reversible).
+   **Recommended.**
+2. Author two 3-panel stories for the toddler tier — content work, and learning content
+   ships exactly as authored, so it needs Alex to write them.
+3. Leave it as a stretch game.
+
+**"I can't see Blend It in the Toddler section."** Not a bug — Blend It has never been a
+Toddler game. `TODDLER_GAMES` (`js/toddler.js:41`) is Count/Colours/Shapes/Letters/
+Animals/Pairs/Sizes, plus four later doors (Echo, Flash, Sounds, Rhymes). Blend It is a
+Learn-group game on the main hub. If Alex wants a toddler door for it, that is new work:
+`blendit.js` would need a `params.toddler` restricted mode like soundsorter/storyorder
+have — and note Blend It is one of the four suites in the broken speech cluster, so fix
+that first or a pre-reader gets a phonics game that never speaks.
+
 ## Open questions from the live QA pass, not yet resolved
 
 - **Lamp "floats" above the table.** The QA agent measured an 80–100px gap at 176% scale;
