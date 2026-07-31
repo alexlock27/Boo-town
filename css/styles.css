@@ -4268,10 +4268,17 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    owns it, it is simply not for in here — and it says WHY on the chip itself. It stays a
    real button so the tap can wobble and explain; only its look says "not now". */
 .drawer-item.needs-sky .drawer-art { opacity: 0.42; filter: saturate(0.5); }
-.drawer-item.needs-sky { position: relative; }
+/* "sky only", not "needs the sky!": the chip is ~78px wide (64px on a phone, where .drawer-art
+   drops to 50px), and the longer line at nowrap spilled over its neighbours. The full sentence
+   lives in the guide line the tap produces, where there is room to say it warmly. 11px is the
+   floor here — this is the one chip that most needs reading. */
 .drawer-skytip { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); white-space: nowrap;
-  background: var(--ink); color: var(--card); font-family: var(--font-display); font-size: 10px;
+  background: var(--ink); color: var(--card); font-family: var(--font-display); font-size: 11px;
   padding: 1px 6px; border-radius: 8px; pointer-events: none; }
+/* A nudge, not a rejection: a single soft tilt, no shake, no red. */
+.drawer-item.sky-nudge { animation: skyNudge 0.5s ease-out 1; }
+@keyframes skyNudge { 0% { transform: translateY(0) rotate(0deg); } 40% { transform: translateY(-5px) rotate(-3deg); } 100% { transform: translateY(0) rotate(0deg); } }
+@media (prefers-reduced-motion: reduce) { .drawer-item.sky-nudge { animation: none; } }
 /* RUN12 S4 (G7): this was white-on-cream — 1.04:1 against the drawer's actual
    #FFF8F0 strip, i.e. genuinely invisible. #5A4D84 measures 7.04:1 there. */
 .drawer-empty { color: #5A4D84; font-size: 16px; padding: 0 10px; }

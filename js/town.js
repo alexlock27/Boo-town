@@ -1067,6 +1067,18 @@ export function mount(container, params, ctx) {
   // Every sky item and the two tethered flyers are OUTDOOR-ONLY: indoors their drawer chip
   // greys with the authored tip rather than letting her place a sun in the kitchen.
   function wishRefusedIndoors(id) { return isInterior && wishNeedsSky(id); }
+  // Tapping a chip that already SAYS "needs the sky!" is not a mistake — she is asking what it
+  // does. So this is deliberately not the drop-refusal treatment: no oops sound, no shaking the
+  // whole drawer, and no repeating the three words already printed under her finger. The chip
+  // itself gives a small nudge and the guide names the way forward, because a refusal that
+  // never says where "yes" lives is just a closed door.
+  function skyChipNudge(chip, name) {
+    sfx.tap();
+    if (!REDUCED) { chip.classList.remove('sky-nudge'); void chip.offsetWidth; chip.classList.add('sky-nudge'); setTimeout(() => chip.classList.remove('sky-nudge'), 600); }
+    const line = `${name} needs the big open sky — take it outside and I'll put it right up!`;
+    hint.textContent = line;
+    speakMaybe(line);
+  }
 
   // A wish's own idle, applied as a class the CSS animates — transform-only, and every one has
   // a reduced-motion path that renders the static pose and keeps the tap verb.
@@ -2027,8 +2039,15 @@ export function mount(container, params, ctx) {
       // Moving the wrap and zeroing offX keeps every role transform correct by construction:
       // they all render relative to r.offX, which is now simply 0 because the wrap already
       // carries it. (RUN20 QA finding A — pre-existing, surfaced by Z3's naps.)
-      if (a.role.offX) {
-        a.wrap.style.left = ((parseFloat(a.wrap.style.left) || 0) + a.role.offX) + 'px';
+      // ONLY for a role that actually seats her on a socket. `sleep` (a Boo dozing beside the
+      // Boo House) is given with no socket and its transform never reads offX at all — it
+      // sleeps where it stands, which is right. Shifting its wrap would teleport every dozing
+      // Boo within ACT_RADIUS onto the house's exact x, stacked on one another. Gate on the
+      // socket, and shift from _homeLeft rather than the current left so a second give() on
+      // the same actor could never double-shift.
+      if (role.socket && a.role.offX) {
+        a.role.slid = a.role.offX;   // the arrival transforms lerp FROM here, so she still walks in
+        a.wrap.style.left = ((parseFloat(a._homeLeft) || 0) + a.role.offX) + 'px';
         a.role.offX = 0;
       }
       // RUN19 Z3 — a socket's `row` is a DELTA, not an absolute row. It used to be read
@@ -2381,13 +2400,18 @@ export function mount(container, params, ctx) {
         const arrive = Math.min(1, t / 1400);
         const sway = arrive >= 1 ? Math.sin(t / 600 + r.slot) * 3 : 0;
         const warm = arrive >= 1 ? 1 + Math.max(0, Math.sin(t / 520 + r.slot * 2)) * 0.04 : 1;
-        svg.style.transform = `translate(${(lerp(0, tx, arrive)).toFixed(1)}px, 0px) rotate(${sway.toFixed(1)}deg) scale(${warm.toFixed(3)})`;
+        // Start from where she actually WAS. The wrap now carries the seat offset (r.slid), so
+        // lerping from 0 would start her already at the fire and slide her outwards to the ring.
+        svg.style.transform = `translate(${(lerp(-(r.slid || 0), tx, arrive)).toFixed(1)}px, 0px) rotate(${sway.toFixed(1)}deg) scale(${warm.toFixed(3)})`;
         break;
       }
       case 'sit': {
         const settle = Math.min(1, t / 600);
         const kick = settle >= 1 ? Math.sin(t / 1000) * 3 : 0;
-        svg.style.transform = `translate(${(r.offX * settle).toFixed(1)}px, ${(-10 * settle).toFixed(1)}px) rotate(${kick.toFixed(1)}deg)`;
+        // As with the campfire: the wrap already holds the seat offset, so slide in from
+        // -r.slid to 0 rather than from 0 to offX, and the settle onto the seat survives.
+        const slideX = lerp(-(r.slid || 0), r.offX, settle);
+        svg.style.transform = `translate(${slideX.toFixed(1)}px, ${(-10 * settle).toFixed(1)}px) rotate(${kick.toFixed(1)}deg)`;
         if (r.until && now > r.until) clearRole(a);
         break;
       }
@@ -2533,7 +2557,12 @@ export function mount(container, params, ctx) {
         class: 'request-thought', 'aria-label': requestLine(r),
         onclick: (e) => { e.stopPropagation(); openRequestCard(r); }
       }, [art]);
-      w.appendChild(bubble);
+      // A napping Boo's wrap is painted behind its bed, and a stacking context takes its
+      // children with it — so a bubble parented here would be a 56px tap target hidden under
+      // the duvet. Float it over the bed instead, where it can be seen and pressed.
+      const sleeper = actors.find(x => x.wrap === w);
+      if (wrapIsBehind(sleeper)) overlayOverWrap(w, bubble, { dx: (w.offsetWidth - 56) / 2, dy: -64 });
+      else w.appendChild(bubble);
     }
     // RUN3's treat float used to carry the words '💖 Thank you!' itself. Z2's ceremony now
     // SPEAKS those words in the Boo's own bubble, so this printed them a second time — and
@@ -2733,9 +2762,27 @@ export function mount(container, params, ctx) {
   function puffNapZ(a) {
     if (REDUCED) return;
     const z = el('div', { class: 't-zzz t-zzz-drift', text: 'z' });
-    a.wrap.appendChild(z);
+    overlayOverWrap(a.wrap, z, { dx: a.wrap.offsetWidth - 20, dy: -10 });
     setTimeout(() => z.remove(), 2100);
   }
+  // A node that must be SEEN even though its Boo is deliberately painted behind something.
+  // A sleeper's wrap sits at bedZ-1 so the duvet covers its body (RUN19 Z3) — and a wrap with
+  // a z-index is a stacking context, so nothing inside it can ever climb out. Measured: the
+  // drifting z rendered underneath the bed's own svg. So the node goes into `ground` instead,
+  // positioned over the wrap and z-indexed above whatever is hiding it.
+  function overlayOverWrap(wrap, node, { dx = 0, dy = 0 } = {}) {
+    const left = parseFloat(wrap.style.left) || 0;
+    const top = parseFloat(wrap.style.top) || 0;
+    node.style.position = 'absolute';
+    node.style.left = (left + dx) + 'px';
+    node.style.top = (top + dy) + 'px';
+    node.style.right = 'auto';   // the class positions from the right inside a wrap; not here
+    node.style.zIndex = String((parseInt(wrap.style.zIndex || '0', 10) || 0) + 4);
+    ground.appendChild(node);
+    return node;
+  }
+  // Is this wrap currently painted BEHIND the thing it is sitting on? (Only a nap is.)
+  const wrapIsBehind = (a) => !!(a && a.role && a.role.socket && a.role.socket.role === 'nap');
   // Waking is gentle, always (rule 1, no grumpiness): a stretch, and — when it was HER tap
   // that woke it — a yawn to say the tap did something.
   function wakeNap(a, { tapped }) {
@@ -3139,10 +3186,10 @@ export function mount(container, params, ctx) {
       const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : '') + (skyOnly ? ' needs-sky' : ''), dataset: { item: id },
         'aria-label': skyOnly ? `${chipName} — ${INDOOR_TIP}` : (showCount ? `${chipName} (${free[id]})` : chipName),
         title: skyOnly ? INDOOR_TIP : null,
-        onclick: () => { if (skyOnly) { sfx.tap(); skyNeededWobble(); return; } selectHold(id); } }, [
+        onclick: () => { if (skyOnly) { skyChipNudge(chip, chipName); return; } selectHold(id); } }, [
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
         showCount ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null,
-        skyOnly ? el('span', { class: 'drawer-skytip', text: INDOOR_TIP }) : null
+        skyOnly ? el('span', { class: 'drawer-skytip', text: 'sky only' }) : null
       ]);
       // drag-to-lift is delegated to the strip's own pointer handler (attachStripMomentum,
       // RUN10 P2) — it decides scroll-vs-lift by gesture direction since chips tile edge-to-edge
