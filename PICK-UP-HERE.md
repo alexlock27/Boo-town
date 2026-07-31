@@ -1,6 +1,6 @@
 # Pick up here — after the run20b deploy (31 Jul 2026)
 
-Live build: **`run20b-20260731`** at https://alexlock27.github.io/Boo-town/
+Live build: **`run20c-20260731`** at https://alexlock27.github.io/Boo-town/
 `main` and `fix-r20-qa` are identical and both pushed. Nothing uncommitted.
 
 ---
@@ -91,7 +91,15 @@ Options put to Alex, HIS CALL — do not act unilaterally, this removes/changes 
    ships exactly as authored, so it needs Alex to write them.
 3. Leave it as a stretch game.
 
-**"I can't see Blend It in the Toddler section."** Not a bug — Blend It has never been a
+**"I can't see Blend It in the Toddler section." — DONE, shipped in run20c.** He had
+asked for it and it was never built (RUN18E L1 grants Toddler only Sound Sorter + the two
+shortest stories; the 30 Jul wave added Rhymes, not this). A "Blend" card now sits on the
+Toddler hub and `params.toddler` opens level 1 with six words, no picker, no intro. The
+Word Factory is untouched at Medium and Full. **CAVEAT: `r16w2-blendit` still fails — a
+pre-reader now has a phonics door into a game whose sounding-out is broken. That raises
+the speech cluster below from "highest value" to "do it first".**
+
+Superseded note, kept for the reasoning: Not a bug — Blend It has never been a
 Toddler game. `TODDLER_GAMES` (`js/toddler.js:41`) is Count/Colours/Shapes/Letters/
 Animals/Pairs/Sizes, plus four later doors (Echo, Flash, Sounds, Rhymes). Blend It is a
 Learn-group game on the main hub. If Alex wants a toddler door for it, that is new work:
