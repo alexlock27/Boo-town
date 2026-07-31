@@ -66,11 +66,19 @@ export function mount(container, params, ctx) {
   container.appendChild(root);
   let shell = null;
 
+  // Alex, 2026-07-31: the Toddler hub's "Blend" card jumps straight into level 1 — the
+  // ORIGINAL light Blend It (sounds slide together, tap the picture), never the Word Factory,
+  // which stays Medium and Full. Same shape as the Sound Sorter and Rhyme Time toddler doors:
+  // no picker a pre-reader cannot read, and no intro to sit through. Six words, matching the
+  // other toddler rounds. (The Medium redirect above is already skipped for a toddler, because
+  // contentTier() is 'toddler' there, not 'medium'.)
+  const toddlerMode = !!(params && params.toddler);
   const rz = params && params.resume;
-  if (rz && rz.mix) playMix();
+  if (toddlerMode) startRound(buildBlendRound(1, 6), { badgeKey: 'L1', level: 1, title: 'Blend It' });
+  else if (rz && rz.mix) playMix();
   else if (rz && rz.level) play(rz.level);
   else startCard();
-  maybeIntro('blendit');
+  if (!toddlerMode) maybeIntro('blendit');
 
   function startCard() {
     clear(root);
@@ -309,7 +317,9 @@ export function mount(container, params, ctx) {
       ctx.go('results', {
         game: 'blendit', gameName: mix ? 'Smart Mix' : 'Blend It', stars, level,
         cat: mix ? null : badgeKey, mix, tricky: collector.items(),
-        replay: () => ctx.go('blendit')
+        // Play again from the toddler door goes back through the toddler door, not to a
+        // picker she cannot read (same as Rhyme Time).
+        replay: () => ctx.go('blendit', toddlerMode ? { toddler: true } : undefined)
       });
     }
 

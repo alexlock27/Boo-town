@@ -671,6 +671,14 @@ function mountToddlerHub(container, params, ctx) {
   cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Stories', onclick: () => {
     sfx.tap(); speakMaybe('Stories'); ctx.go('storyorder', { toddler: true });
   } }, [el('span', { class: 'tc-icon', text: '📖' }), el('span', { class: 'tc-word', text: 'Stories' })]));
+  // Alex, 2026-07-31: the ORIGINAL light Blend It — sounds sit apart, tap Blend, they slide
+  // into a word, tap the picture it makes — belongs here too; it is the same pictures-and-sound
+  // shape as Sounds and Rhymes. The Word Factory (Medium and Full) is NOT this game and stays
+  // where it is: contentTier() is 'toddler' here, so blendit.js serves the light game, and
+  // params.toddler opens level 1 with no picker.
+  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Blend It', onclick: () => {
+    sfx.tap(); speakMaybe('Blend It'); ctx.go('blendit', { toddler: true });
+  } }, [el('span', { class: 'tc-icon', text: '🤝' }), el('span', { class: 'tc-word', text: 'Blend' })]));
   // Alex, 2026-07-30: Rhyme Time suits a pre-reader too (pictures + sound, G14) — its
   // toddler door opens level 1 directly, no picker (rhymetime.js reads params.toddler).
   cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Rhymes', onclick: () => {
