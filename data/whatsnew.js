@@ -21,9 +21,18 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
-  // RUN19 + RUN20. NOT LIVE YET: this block ships under whatever stamp Alex's localhost review
-  // ends up deploying, so its `version` is set at the deploy gate, not here — the branch has
-  // deliberately not bumped BUILD_STAMP. Everything below is child-facing and reachable.
+  // The QA repair wave on top of run20. Only TWO entries: the rest of that pass fixed things
+  // that were never announced in the first place (a bubble in the wrong place, a screen-reader
+  // name, a grown-ups sentence), and "we fixed a thing you never knew was broken" is not news
+  // to a child. These two change what she can actually DO.
+  {
+    version: 'run20b-20260731',
+    entries: [
+      { icon: '😴', title: 'Wake a sleeping Boo', blurb: 'Tap a Boo snoozing in bed and it will wake up and blink at you.', route: 'town', params: { area: 'boohouse', room: 'bedroom' } },
+      { icon: '☀️', title: 'Some wishes need the sky', blurb: 'The sun, the moon and the stars want to be outside. Take them out and up they go!', route: 'town', params: { area: 'meadow' } }
+    ]
+  },
+  // RUN19 + RUN20, shipped under run20-20260731.
   {
     version: 'run20-20260731',
     entries: [
