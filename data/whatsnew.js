@@ -26,6 +26,12 @@ export const WHATSNEW = [
   // name, a grown-ups sentence), and "we fixed a thing you never knew was broken" is not news
   // to a child. These two change what she can actually DO.
   {
+    version: 'run20c-20260731',
+    entries: [
+      { icon: '🤝', title: 'Blend It for little ones', blurb: 'Tap Blend and the sounds slide together into a word. Then tap the picture it makes!', route: 'blendit', params: { toddler: true } }
+    ]
+  },
+  {
     version: 'run20b-20260731',
     entries: [
       { icon: '😴', title: 'Wake a sleeping Boo', blurb: 'Tap a Boo snoozing in bed and it will wake up and blink at you.', route: 'town', params: { area: 'boohouse', room: 'bedroom' } },

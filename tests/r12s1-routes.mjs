@@ -121,6 +121,7 @@ const FIXTURES = {
   soundsorter: [["the Toddler door (initial sounds only)", "({ toddler: true })"]],
   storyorder: [["the Toddler door (two shortest stories)", "({ toddler: true })"]],
   rhymetime: [["the Toddler door (level 1, six sets)", "({ toddler: true })"]],
+  blendit: [["the Toddler door (level 1, six words, light blend not the Factory)", "({ toddler: true })"]],
   echoboos: [
     ["resume standard", "({ resume: true, lightning: false })"],
     ["resume lightning", "({ resume: true, lightning: true })"]

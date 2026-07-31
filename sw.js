@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run20b-20260731';  // QA repair wave: sleeping Boos are tappable where you see them, sky wishes say so in the tray, Bounce can never strand a round.
+const BUILD_STAMP = 'run20c-20260731';  // Blend It joins the Toddler hub (the original light blend, not the Word Factory).
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
