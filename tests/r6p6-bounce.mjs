@@ -79,8 +79,23 @@ console.log('== aimed serve strikes a chosen labelled brick ==');
   assert(!!target, 'a labelled brick with a clear column is available to aim at');
   const res = await page.evaluate((t) => window.__bounce.serveAtLabel(t.label), target);
   assert(res && res.lowest, 'the serve aims straight up the chosen brick’s clear column');
+  // RUN19 Z7: in digit mode a strike on a WRONG digit wobbles the brick and hands the ball
+  // back by design — the brick survives, so "did it die" is no longer the test for "did the
+  // ball reach it". Watch for the strike itself: the brick dies (classic), or it wobbles, or
+  // the mask advances (it was the needed digit).
+  const digit = await page.evaluate(() => window.__bounce.digitMode());
+  const filled0 = digit ? await page.evaluate(() => window.__bounce.filled()) : null;
   let hit = false;
-  for (let k = 0; k < 30 && !hit; k++) { if (!(await page.evaluate(t => window.__bounce.brickAliveAt(t.c, t.r), target))) hit = true; await sleep(80); }
+  for (let k = 0; k < 30 && !hit; k++) {
+    hit = await page.evaluate(([t, dg, f0]) => {
+      const B = window.__bounce;
+      if (!B.brickAliveAt(t.c, t.r)) return true;
+      if (!dg) return false;
+      if (B.filled() > f0) return true;
+      return B.labelInfo().some(l => l.c === t.c && l.r === t.r && l.wobbling);
+    }, [target, digit, filled0]);
+    if (!hit) await sleep(80);
+  }
   assert(hit, 'the aimed serve strikes the chosen labelled brick');
   await ctx.close();
 }
@@ -94,8 +109,19 @@ console.log('== a buried label re-places ==');
   const before = await page.evaluate(() => window.__bounce.labelInfo().filter(l => !l.reachable).length);
   assert(before >= 1, 'at least one label is unreachable before reflow');
   await page.evaluate(() => window.__bounce.reflow());
-  const after = await page.evaluate(() => window.__bounce.labelInfo().filter(l => !l.reachable).length);
-  assert(after === 0, 'after reflow every label is reachable again (the buried one re-placed)');
+  const after = await page.evaluate(() => ({
+    unreachable: window.__bounce.labelInfo().filter(l => !l.reachable).length,
+    correctReachable: window.__bounce.labelSummary().correctReachable,
+    digit: window.__bounce.digitMode(),
+    total: window.__bounce.labelInfo().length
+  }));
+  // RUN19 Z7: classic rounds put THREE labels on a 24-brick wall, so every one of them can
+  // always be given a reachable home — that is what this case has always asserted. Digit mode
+  // puts up TEN, and ten reachable bricks simply may not exist; burying a wrong digit is then
+  // unavoidable and harmless. The invariant that actually protects the child is that the digit
+  // she NEEDS is reachable, which reconcile() guarantees and r8p0-bounce proves continuously.
+  if (after.digit) assert(after.correctReachable, `after reflow the NEEDED digit is reachable (${after.total} labels up)`);
+  else assert(after.unreachable === 0, 'after reflow every label is reachable again (the buried one re-placed)');
   await ctx.close();
 }
 
