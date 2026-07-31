@@ -4264,6 +4264,14 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .drawer-item.holding { border-color: var(--star); box-shadow: 0 0 12px rgba(255,201,60,0.6); }
 .drawer-art { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
 .drawer-badge { position: absolute; top: -6px; right: -6px; background: var(--pop); color: var(--ink); font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
+/* RUN20 QA finding B: a sky-only wish, seen from indoors. Dimmed rather than hidden — she
+   owns it, it is simply not for in here — and it says WHY on the chip itself. It stays a
+   real button so the tap can wobble and explain; only its look says "not now". */
+.drawer-item.needs-sky .drawer-art { opacity: 0.42; filter: saturate(0.5); }
+.drawer-item.needs-sky { position: relative; }
+.drawer-skytip { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); white-space: nowrap;
+  background: var(--ink); color: var(--card); font-family: var(--font-display); font-size: 10px;
+  padding: 1px 6px; border-radius: 8px; pointer-events: none; }
 /* RUN12 S4 (G7): this was white-on-cream — 1.04:1 against the drawer's actual
    #FFF8F0 strip, i.e. genuinely invisible. #5A4D84 measures 7.04:1 there. */
 .drawer-empty { color: #5A4D84; font-size: 16px; padding: 0 10px; }

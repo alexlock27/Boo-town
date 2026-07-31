@@ -262,6 +262,27 @@ export function mount(container, params, ctx) {
         if (cur && cur !== t) { if (hop) spawnHop(cur.x + cur.w / 2, cur.y + cur.h / 2, t, text, isCorrect); cur.label = null; cur.correct = false; }
         t.label = text; t.correct = isCorrect; placed[text] = t;
       }
+      // ---- the last-resort guard -------------------------------------------------------
+      // Everything above SHOULD guarantee the needed answer is on a reachable brick, and 61
+      // sampled digit rounds say it does. But a QA pass reported a wall with no 7 on a
+      // "7 x 10" round, and the cost of that being true even once is a child who followed the
+      // rules and cannot finish — the single worst failure this game has. So verify the
+      // outcome rather than trusting the reasoning: if the correct text ended up absent or
+      // unreachable, take the most reachable brick on the wall by force.
+      // Deliberately cheap and unconditional; it is a no-op in every case we can reproduce.
+      if (correctText != null && want.length) {
+        const holder = bricks.find(b => b.alive && b.label === correctText);
+        if (!holder || !reachable(holder)) {
+          const candidates = bricks.filter(b => b.alive && reachable(b));
+          const target = candidates.find(b => b.label == null)
+            || candidates.find(b => b.label !== correctText)
+            || bricks.filter(b => b.alive)[0];
+          if (target) {
+            if (holder && holder !== target) { holder.label = null; holder.correct = false; }
+            target.label = correctText; target.correct = true;
+          }
+        }
+      }
     }
     // Fresh assignment for a NEW question: clear every previous label, then place (no hops).
     function placeLabels() { bricks.forEach(b => { b.label = null; b.correct = false; }); reconcile(false); }

@@ -159,7 +159,11 @@ export const WHATSNEW = [
       { icon: '👂', title: 'Sound Sorter',
         blurb: 'I say a sound — like shhh! — and you find it hiding in the pictures. Twelve sounds to hunt for.',
         route: 'soundsorter' },
-      { icon: '🤝', title: 'Blend It',
+      // The card behind this route is named for the content tier — "Blend It" at Full, "Word
+      // Factory" at Medium (js/hub.js). Naming one of them here made the other look like a
+      // broken link: tapping "Blend It" at Medium correctly opens the Word Factory, and a QA
+      // pass reasonably read that as the wrong destination. Name the thing they share.
+      { icon: '🤝', title: 'Sounds into words',
         blurb: 'The sounds sit apart until you tap Blend. Watch them slide into a word, then tap the picture it makes!',
         route: 'blendit' },
       { icon: '🎵', title: 'Rhyme Time',
