@@ -620,7 +620,7 @@ export function mount(container, params, ctx) {
       preview: () => computePreview(),
       fire: () => launch(),
       // reachability + label invariants (C4/C0)
-      labelInfo: () => labelBricks().map(b => ({ c: b.c, r: b.r, correct: b.correct, reachable: reachable(b), clearColumn: columnClearBelow(b), label: b.label })),
+      labelInfo: () => labelBricks().map(b => ({ c: b.c, r: b.r, correct: b.correct, reachable: reachable(b), clearColumn: columnClearBelow(b), label: b.label, wobbling: b.wobbleAt != null })),
       labelSummary: () => { const L = labelBricks(); return { total: L.length, correct: L.filter(b => b.correct).length, correctPresent: L.some(b => b.correct), correctReachable: L.some(b => b.correct && reachable(b)), wrong: L.filter(b => !b.correct).length }; },
       brickAliveAt: (c, r) => bricks.some(b => b.c === c && b.r === r && b.alive),
       ballSpeed: () => Math.hypot(ball.vx, ball.vy),
