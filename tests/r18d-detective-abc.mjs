@@ -155,9 +155,12 @@ console.log('== migration: a save from before the switch behaves identically =='
     const full = m.migrate({ version: 18, settings: { content: 'full' } });
     const twice = m.migrate(JSON.parse(JSON.stringify(light)));
     return { lightVal: light.settings.detectiveAbc, fullVal: full.settings.detectiveAbc,
-             version: light.version, idempotent: twice.settings.detectiveAbc === light.settings.detectiveAbc };
+             version: light.version, currentVersion: m.VERSION, idempotent: twice.settings.detectiveAbc === light.settings.detectiveAbc };
   });
-  assert(r.version === 19, `VERSION is 19 (${r.version})`);
+  // migrate() always brings a save up to the CURRENT VERSION, not to 19 specifically — that
+  // was true only the day D6 shipped. Compare against the live constant so a future version
+  // bump can never make this suite stale again the way it made this suite stale once already.
+  assert(r.version === r.currentVersion, `migrating brings a v18 save to the current VERSION (${r.version} vs ${r.currentVersion})`);
   assert(r.lightVal === null && r.fullVal === null, 'the new setting migrates in as NULL — "no answer yet", not "off"');
   assert(r.idempotent, 'migrating twice is identical');
   // null means: follow the age-based global exactly as before D6
