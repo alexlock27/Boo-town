@@ -228,7 +228,12 @@ console.log('== 6. level 3 plays, spoken and pictured ==');
   assert(cards.length === 3, 'three options for the couplet');
   assert(cards.every(c => c.pic && c.label === c.word), 'each one is a picture with its word beneath it');
   await page.evaluate(() => document.querySelector('.ss-say').click());
-  await page.waitForTimeout(250);
+  // The click's own request correctly QUEUES behind the round-start line (spoken by the
+  // real engine a moment ago, before the stub above replaced it) rather than interrupting
+  // it — tts.js is an intentional FIFO, and a couplet takes several real seconds. Wait for
+  // the line to actually arrive rather than assuming a quarter of a second is enough; the
+  // claim under test is "read aloud on demand", not "read aloud within 250ms".
+  await page.waitForFunction(() => window.__said && window.__said.length > 0, null, { timeout: 8000 });
   const said = await page.evaluate(() => window.__said.slice());
   assert(said.some(s => s.includes(t.lines[0].replace(',', '').split(' ')[0])), `the couplet is read aloud on demand: "${(said[0] || '').slice(0, 60)}…"`);
   await page.evaluate(() => window.__rhyme.tapCorrect());

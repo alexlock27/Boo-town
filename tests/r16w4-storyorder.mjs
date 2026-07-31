@@ -30,11 +30,29 @@ const save = (settings = {}) => JSON.stringify({
 
 const browser = await chromium.launch({ args: RESOLVE });
 const errors = [];
-async function open(route, params = {}, settings = {}) {
+async function open(route, params = {}, settings = {}, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(String(e)));
   await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), save(settings));
+  if (opts.stubSpeech) {
+    // Installed before the app ever boots, so the round-start line goes through this stub
+    // too — nothing is ever left mid-utterance on the REAL engine for a later speak() call
+    // to queue behind. (A stub installed mid-test, after the app has already spoken for
+    // real, is exactly what made r16w3-rhymetime look silent — see that suite's fix.)
+    await page.addInitScript(() => {
+      window.__said = [];
+      const install = () => {
+        if (!window.speechSynthesis) return false;
+        window.speechSynthesis.speak = (u) => {
+          window.__said.push({ t: performance.now(), text: String(u.text) });
+          if (u.onend) setTimeout(() => u.onend(), 0);
+        };
+        return true;
+      };
+      if (!install()) document.addEventListener('DOMContentLoaded', install, { once: true });
+    });
+  }
   await page.goto(BASE + '/index.html', { waitUntil: 'load', timeout: 25000 });
   await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
   await page.evaluate(([r, p]) => window.BooTown.go(r, p || {}), [route, params]);
@@ -168,12 +186,8 @@ console.log('== 3b. tap-one-then-tap-the-other reorders too ==');
 // ---- 4. the read-back highlights in sync ---------------------------------------------
 console.log('== 4. the read-back: each panel lights up as its line is read ==');
 {
-  const { ctx, page } = await open('storyorder', {}, { voice: true });
+  const { ctx, page } = await open('storyorder', {}, { voice: true }, { stubSpeech: true });
   await startLevel(page, 1);
-  await page.evaluate(() => {
-    window.__said = [];
-    window.speechSynthesis.speak = (u) => { window.__said.push({ t: performance.now(), text: String(u.text) }); if (u.onend) setTimeout(() => u.onend(), 0); };
-  });
   const captions = await page.evaluate(() => window.__story.story().panels);
   await page.evaluate(() => window.__story.solveOrder());
   await page.waitForFunction(() => window.__story.state().phase === 'reading', null, { timeout: 8000 });
