@@ -472,7 +472,9 @@ export function mount(container, params, ctx) {
         el('h3', { text: 'A welcome present!' }),
         el('p', { class: 'sw-amount', text: `⭐ ${WELCOME_PURSE} stars` }),
         el('p', { class: 'sw-note', text: 'To start you off. Have a good look round!' }),
-        el('button', { class: 'btn big', text: 'Thank you!', onclick: () => { sfx.tap(); w.remove(); renderPurse(); } })
+        // RUN21A-8: the first-play intro waits until this present is read and dismissed —
+        // two overlapping dialogs on a first visit is one too many.
+        el('button', { class: 'btn big', text: 'Thank you!', onclick: () => { sfx.tap(); w.remove(); renderPurse(); maybeIntro('shop', SHOP_INTRO); } })
       ])
     ]);
     root.appendChild(w);
@@ -494,7 +496,7 @@ export function mount(container, params, ctx) {
       setTimeout(() => card.classList.remove('sc-highlight'), 2600);
     });
   }
-  maybeIntro('shop', SHOP_INTRO);
+  if (!welcomed) maybeIntro('shop', SHOP_INTRO);   // RUN21A-8: else it runs on the present's dismiss
 
   if (typeof window !== 'undefined') window.__shop = {
     shelves: () => SHELVES.map(s => s.id),
