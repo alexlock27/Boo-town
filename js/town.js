@@ -1011,8 +1011,10 @@ export function mount(container, params, ctx) {
       }
       case 'beach': {
         if (yFrac < 0.62) return false;
+        // RUN21A-7: prints appear at the tapped height, not a hardcoded mid-beach line
+        const fy = Math.min(0.86, Math.max(0.62, yFrac));
         for (let i = 0; i < 3; i++) {
-          const f = el('i', { class: 't-footprint', style: { left: (worldX + i * 30) + 'px', top: (r.height * (0.74 + i * 0.02)) + 'px', animationDelay: (i * 120) + 'ms' } });
+          const f = el('i', { class: 't-footprint', style: { left: (worldX + i * 30) + 'px', top: (r.height * (fy + i * 0.02)) + 'px', animationDelay: (i * 120) + 'ms' } });
           put(f, 4000 + i * 120);
         }
         return true;
