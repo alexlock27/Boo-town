@@ -2921,7 +2921,7 @@ export function mount(container, params, ctx) {
     const x = clamp01((worldX - zi * zoneW) / zoneW);
     return { zi, x };
   }
-  function canPlaceIn(zi) { return totalStars() >= ZONES[zi].unlock; }
+  function canPlaceIn(zi) { const z = ZONES[zi]; return !!z && totalStars() >= z.unlock; }
   // Which depth row a drop lands in — nearest of the three ground lines (C3).
   function rowAtClient(cy) {
     const r = viewport.getBoundingClientRect();
