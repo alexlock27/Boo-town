@@ -627,7 +627,9 @@ export function mount(container, params, ctx) {
     renderScenery();
     renderPlaced();
     // RUN13 T3: restore this room's own camera the first time it lays out.
-    if (ROOM && !cameraRestored) {
+    // RUN21A-9: widened from rooms to EVERY area — a mini-app round trip (shop, Joke Boo)
+    // used to reset an outdoor area to screen 1. Session memory only, never the save.
+    if (!cameraRestored) {
       cameraRestored = true;
       const saved = roomScroll.get(STORE_KEY);
       if (saved != null) scrollX = saved;
@@ -856,7 +858,7 @@ export function mount(container, params, ctx) {
       const stallX = zoneW * 0.42;
       const stall = el('button', {
         class: 't-shop-stall', 'aria-label': 'Go to the Boo Shop',
-        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); ctx.go('shop', { fromArea: AREA.key }); }
+        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); ctx.go('shop', { from: 'town', fromArea: AREA.key }); }   // RUN21A-9
       });
       stall.style.left = stallX + 'px';
       stall.style.top = (groundY - 118) + 'px';
@@ -1273,7 +1275,8 @@ export function mount(container, params, ctx) {
           onclick: () => {
             if (owned) { applyDressing(d.id); renderDecorateTab(); return; }
             sfx.tap();
-            ctx.go('shop', { shelf: 'house', highlight: d.id });
+            // RUN21A-9: carry the way home — Back from the shop returns to THIS room
+            ctx.go('shop', { shelf: 'house', highlight: d.id, from: 'town', fromArea: 'boohouse', fromRoom: rid });
           }
         }, [
           el('div', { class: 'decorate-swatch-art', html: renderDressingSwatch(d, { size: 56 }) }),
@@ -5057,6 +5060,7 @@ export function mount(container, params, ctx) {
 
   return {
     unmount() {
+      roomScroll.set(STORE_KEY, scrollX);   // RUN21A-9: the pan survives every exit (session only)
       if (raf) cancelAnimationFrame(raf);
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
