@@ -493,10 +493,16 @@ export function mount(container, params, ctx) {
     drawerStrips[spec.id] = strip;
     return { id: spec.id, label: spec.label, node: strip };
   });
-  const drawerApi = createDrawer({ tabs: drawerTabsNodes, initial: 0, ariaLabel: 'Town items' });
+  const drawerApi = createDrawer({
+    tabs: drawerTabsNodes, initial: 0, ariaLabel: 'Town items',
+    // RUN21A-2: the decorate strip re-renders whenever its tab is picked — it used to be
+    // populated only by the hammer toggle, so fresh rooms showed a bare "Nothing here yet!".
+    onTab: (id) => { if (id === 'decorate') renderDecorateTab(); }
+  });
   const drawer = drawerApi.root;   // kept as `drawer` — existing wobble/capacity-tint code targets it
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
   updateBuildUI();   // hides the Landscape tab + build tool rows until the hammer is tapped
+  renderDecorateTab();   // RUN21A-2: populated at mount too, not only via the hammer
   root.append(header, hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
   container.appendChild(root);
 
@@ -1263,6 +1269,9 @@ export function mount(container, params, ctx) {
     clear(strip);
     const rid = roomIdOfArea();
     if (!rid) { strip.appendChild(el('div', { class: 'drawer-empty', text: 'Decorating is for the rooms of the Boo House.' })); return; }
+    // RUN21A-2: dressings are per-room SKUs — the strip says whose room it is dressing.
+    // ROOM.name carries the same values as the DRESSING_ROOMS names (Lounge/Kitchen/Bedroom).
+    strip.appendChild(el('div', { class: 'decorate-caption', text: `Dressings for the ${ROOM.name}` }));
     for (const [slot, label] of [['walls', 'Walls'], ['floors', 'Floors']]) {
       const applied = dressingApplied(slot);
       const row = el('div', { class: 'decorate-row' });
