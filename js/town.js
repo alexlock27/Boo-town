@@ -397,7 +397,7 @@ export function mount(container, params, ctx) {
   let raf = null, actors = [], fx = [];
   let currentSeasonName = '', starTimer = null;   // ambient life (RUN6 C1)
   // ---- build mode (RUN10 P3) ----
-  let buildMode = false, buildTool = 'place', pathStyle = 'stone';
+  let buildMode = false, buildTool = 'paths', pathStyle = 'stone';   // RUN21A-15: 'place' removed
   let pendingPaths = null, pathCommitTimer = null, painting = false;
 
   const root = el('div', { class: 'town2 area-' + AREA.key + ' entering' });
@@ -437,10 +437,11 @@ export function mount(container, params, ctx) {
   air.appendChild(buildGrid);   // never cleared by renderScenery/renderPlaced, like the drop-ghost
   const viewport = el('div', { class: 't-viewport' }, [sky, hills, ground, air]);
 
-  // Build-mode tool row (right edge, vertical, RUN10 P3): Place | Paths | Erase, plus a
+  // Build-mode tool row (right edge, vertical, RUN10 P3): Paths | Erase, plus a
   // secondary path-style strip (stone/sand/flower) that only shows while Paths is picked.
+  // RUN21A-15: the Place tool is gone — no code ever read it, and placing (chip-lift,
+  // tap-to-place, drag-to-move) has always worked in play mode.
   const BUILD_TOOLS = [
-    { id: 'place', label: '✋', title: 'Place' },
     { id: 'paths', label: '🛤️', title: 'Paths' },
     { id: 'erase', label: '🧹', title: 'Erase' }
   ];
@@ -729,7 +730,7 @@ export function mount(container, params, ctx) {
     if (buildMode) {
       loadPendingPaths();
       pathCommitTimer = setInterval(commitPaths, 10000);   // "commit on exit or every 10s" (spec)
-      buildTool = 'place';
+      buildTool = 'paths';   // RUN21A-15: build mode is the path workshop now
       toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === buildTool));
       renderDecorateTab();   // RUN19 Z6 — the room's wallpaper + floor swatches
       drawerApi.showTab(isInterior ? 'furniture' : 'boos');
@@ -764,15 +765,16 @@ export function mount(container, params, ctx) {
     const hammerLbl = hammerBtn.querySelector('.hammer-lbl');
     if (hammerLbl) hammerLbl.textContent = buildMode ? 'Done' : 'Build';
     pathStyleRow.style.display = (buildMode && buildTool === 'paths') ? '' : 'none';
-    // Landscape is a Build-only, outdoor-only toybox (RUN10 P3/P4) — hidden whenever
-    // either condition isn't met (e.g. build mode toggled on inside the Boo House).
+    // Landscape is an outdoor-only toybox (RUN10 P3/P4). RUN21A-15: no longer hidden
+    // behind the hammer — chip-lift placement has always worked in play mode.
     const tabs = [...drawer.querySelectorAll('.bd-tabs .bd-tab')];
-    const landscapeVisible = buildMode && AREA.kind === 'outdoor';
+    const landscapeVisible = AREA.kind === 'outdoor';
     const landscapeTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'landscape')];
     if (landscapeTabBtn) landscapeTabBtn.style.display = landscapeVisible ? '' : 'none';
     if (!landscapeVisible && drawerApi.activeTab() === 'landscape') drawerApi.showTab('deco');
     // RUN20 W1: the Wishes tab is no longer outdoors-only — most wishes place in a room now.
-    const wishesVisible = buildMode && Object.keys(((getState().wishes || {}).unlocked) || {}).length > 0;
+    // RUN21A-15: nor behind the hammer — any unlocked wish shows the tab.
+    const wishesVisible = Object.keys(((getState().wishes || {}).unlocked) || {}).length > 0;
     const wishesTabBtn = tabs[DRAWER_TABS_SPEC.findIndex(spec => spec.id === 'wishes')];
     if (wishesTabBtn) wishesTabBtn.style.display = wishesVisible ? '' : 'none';
     if (!wishesVisible && drawerApi.activeTab() === 'wishes') drawerApi.showTab('deco');
