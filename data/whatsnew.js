@@ -21,6 +21,18 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21A "Reach & Truth". Four entries: the ones that change what she can DO or SEE.
+  // The rest of the pack fixed things never announced in the first place (a hint line, a
+  // request glyph, a tray shield) — not news to a child.
+  {
+    version: 'run21a-20260802',
+    entries: [
+      { icon: '🎠', title: 'Boos can be in two clubs at once — not two places!', blurb: 'Put a Boo somewhere new and it hops off its ride to come with you. No more hiding!', route: 'town', params: { area: 'funfair' } },
+      { icon: '✨', title: 'Wish words land the right way round', blurb: 'Spell a wish and watch the gold letters spin a full twirl — then read your word!', route: 'town', params: { area: 'meadow', openWishWell: true } },
+      { icon: '💌', title: 'Send a Town Postcard', blurb: 'Tap the postcard on your Town map to copy one — a friend can come and look around your town!', route: 'worldmap' },
+      { icon: '🚀', title: 'The rocket always listens', blurb: 'Tap the rocket and up it goes. Every single time.', route: 'town', params: { area: 'meadow' } }
+    ]
+  },
   // The QA repair wave on top of run20. Only TWO entries: the rest of that pass fixed things
   // that were never announced in the first place (a bubble in the wrong place, a screen-reader
   // name, a grown-ups sentence), and "we fixed a thing you never knew was broken" is not news
