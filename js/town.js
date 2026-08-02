@@ -3564,7 +3564,8 @@ export function mount(container, params, ctx) {
     // her drawer, and silently making a second is the app deciding for her.
     if (!wasNew) {
       if (wellWrap) sparkleAtNode(wellWrap);
-      sayInWorld(`Another ${word}! It's in your Build drawer.`);
+      // RUN21A-4: no toast for a duplicate — the well itself says the line, in its own
+      // line slot where she is already looking (wishwell.js owns that moment now).
       return { repeat: true };
     }
     // An indoor room is not where a wish goes; the Meadow is (the pack's own fallback).
