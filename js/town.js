@@ -2349,7 +2349,12 @@ export function mount(container, params, ctx) {
       }
       case 'swing': {
         const ang = Math.sin(t / 700) * 20, rad = ang * Math.PI / 180, L = 46;
-        svg.style.transform = `translate(${(r.offX + Math.sin(rad) * L).toFixed(1)}px, ${(-30 - (1 - Math.cos(rad)) * L).toFixed(1)}px) rotate(${(ang * 0.55).toFixed(1)}deg) scale(0.82)`;
+        // RUN21A-14: baseline +5, not -30. The old -30 lifted the rider to the crossbar
+        // while the plank hung empty. Measured live at scale 1 (1024x768): svg-bottom sat
+        // 35.2px above the plank line (viewBox y=88); +5 lands it within 0.2px — the +5
+        // offsets what scale(0.82) around the svg centre lifts the bottom by. The
+        // (1-cos)*L term stays: that is the pendulum's real arc rise while swinging.
+        svg.style.transform = `translate(${(r.offX + Math.sin(rad) * L).toFixed(1)}px, ${(5 - (1 - Math.cos(rad)) * L).toFixed(1)}px) rotate(${(ang * 0.55).toFixed(1)}deg) scale(0.82)`;
         const seat = r.decoWrap && r.decoWrap.querySelector('.sw-seat');
         if (seat) { seat.style.transformOrigin = '60px 40px'; seat.style.transform = `rotate(${ang.toFixed(1)}deg)`; }
         break;
