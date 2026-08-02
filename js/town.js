@@ -1215,7 +1215,9 @@ export function mount(container, params, ctx) {
   // nothing has a complete room, and one who buys everything can always go back.
   //
   // Applying is free and repeatable: the stars buy the OPTION, never the act of decorating.
-  const roomIdOfArea = () => (ROOM ? ROOM.id : null);
+  // RUN21A-2: a function declaration (hoisted) — the mount-time renderDecorateTab() call
+  // runs before this line, and a const arrow here would still be in its dead zone.
+  function roomIdOfArea() { return ROOM ? ROOM.id : null; }
   function dressingApplied(slot) {
     const rid = roomIdOfArea();
     if (!rid) return null;
