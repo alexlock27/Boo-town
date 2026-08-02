@@ -1762,6 +1762,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   padding: 10px 12px 14px; transform: translateY(100%); opacity: 0; pointer-events: none;
   transition: transform .22s ease-out, opacity .22s ease-out; }
 .boo-drawer.open .bd-tray { transform: translateY(0); opacity: 1; pointer-events: auto; }
+/* RUN21A-10: while the tray slides, a transparent shield sits over its travel band (the
+   region above the handle) so a fast tap cannot fall through to the world, and the tray's
+   own tabs/strips go inert. The shield's height is set from the tray's box by drawer.js. */
+.bd-shield { position: absolute; left: 0; right: 0; bottom: 100%; z-index: 5; pointer-events: auto; }
+.boo-drawer.bd-transitioning .bd-tabs, .boo-drawer.bd-transitioning .bd-body { pointer-events: none; }
 .bd-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; position: sticky; top: 0;
   background: var(--card); padding-bottom: 8px; margin-bottom: 6px; z-index: 1; }
 .bd-tab { background: var(--card); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 14px;

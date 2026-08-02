@@ -68,15 +68,42 @@ export function createDrawer({ tabs = [], initial = 0, ariaLabel = 'Tools', onOp
     if (onTab) try { onTab(tabs[idx].id); } catch {}
   }
 
+  // ---- RUN21A-10: transition shield ----
+  // While the tray travels (220ms), a transparent shield covers its travel band and the
+  // tabs/strips go inert via .bd-transitioning — a fast tap mid-transition used to fall
+  // through the moving tray into the world below and could start a drag there. Dropped on
+  // the tray's own transitionend (transform), with a 400ms safety timeout; under REDUCED
+  // the transition is `none` (no travel, no event), so no shield at all.
+  const shield = el('div', { class: 'bd-shield', 'aria-hidden': 'true' });
+  let shieldTimer = null;
+  function raiseShield() {
+    if (REDUCED) return;
+    shield.style.height = (tray.offsetHeight || 0) + 'px';
+    if (!shield.parentNode) root.appendChild(shield);
+    root.classList.add('bd-transitioning');
+    clearTimeout(shieldTimer);
+    shieldTimer = setTimeout(dropShield, 400);
+  }
+  function dropShield() {
+    clearTimeout(shieldTimer); shieldTimer = null;
+    root.classList.remove('bd-transitioning');
+    shield.remove();
+  }
+  tray.addEventListener('transitionend', (e) => {
+    if (e.target === tray && e.propertyName === 'transform') dropShield();
+  });
+
   function openDrawer() {
     if (open) return;
     open = true; root.classList.remove('closed'); root.classList.add('open');
+    raiseShield();
     collapsed.setAttribute('aria-label', 'Close ' + ariaLabel);
     if (onOpen) try { onOpen(true); } catch {}
   }
   function closeDrawer() {
     if (!open) return;
     open = false; root.classList.remove('open'); root.classList.add('closed');
+    raiseShield();
     collapsed.setAttribute('aria-label', 'Open ' + ariaLabel);
     if (onOpen) try { onOpen(false); } catch {}
   }
