@@ -6789,6 +6789,11 @@ html.bigger-text { --vz: 1.125; }
   font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
   margin: 0 0 6px 2px;
 }
+/* RUN21A-2: the strip's caption — same type style as .decorate-row-label */
+.decorate-caption {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
+  margin: 4px 0 2px 12px;
+}
 .decorate-swatches { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
 .decorate-swatches::-webkit-scrollbar { display: none; }
 .decorate-swatch {
@@ -6814,6 +6819,7 @@ html.bigger-text { --vz: 1.125; }
   font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
 }
 .sd-slot { font-size: 12.5px; color: var(--ink); opacity: 0.8; }
+.sd-for-room { font-size: 12px; color: var(--ink); opacity: 0.65; }   /* RUN21A-2 */
 /* RUN19 Z6: the card a Decorate-tab deep-link just brought her to. */
 .shop-card.sc-highlight { outline: 4px solid var(--star); outline-offset: 2px; animation: sc-highlight 900ms ease-out 2; }
 @keyframes sc-highlight { 0%,100% { transform: none; } 50% { transform: scale(1.04); } }

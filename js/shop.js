@@ -246,6 +246,9 @@ export function mount(container, params, ctx) {
           el('div', { class: 'sc-art', html: renderDressingSwatch(d, { size: 76 }) }),
           el('div', { class: 'sc-name', text: d.name }),
           el('div', { class: 'sd-slot', text: d.slot === 'walls' ? 'Wallpaper' : 'Floor' }),
+          // RUN21A-2: the room lives on the CARD too — a deep-link highlight can land
+          // mid-grid with the room group chip scrolled out of view.
+          el('div', { class: 'sd-for-room', text: `For the ${room.name}` }),
           owned
             ? el('div', { class: 'sc-owned', text: '✓ Yours' })
             : el('div', { class: 'sc-price' }, [
