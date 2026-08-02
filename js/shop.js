@@ -198,7 +198,16 @@ export function mount(container, params, ctx) {
   drawerApi.setCurrent(shelfCurrent(SHELVES[0].id));
   drawerApi.root.classList.add('shop-drawer');
   drawerApi.open();
-  root.append(header, purse, drawerApi.root, backControl(() => ctx.go('hub'), { floating: true }));
+  // RUN21A-9: Back goes where she came from. A town door passes from:'town' (+fromArea,
+  // and fromRoom for a Boo House room); every other entry — Collection's shop link, QA
+  // hooks, anything paramless — keeps the hub exactly as before.
+  root.append(header, purse, drawerApi.root, backControl(() => {
+    if (params && params.from === 'town') {
+      ctx.go('town', params.fromRoom
+        ? { area: 'boohouse', room: params.fromRoom }
+        : { area: params.fromArea || 'meadow' });
+    } else ctx.go('hub');
+  }, { floating: true }));
 
   function renderPurse() {
     clear(purse);
