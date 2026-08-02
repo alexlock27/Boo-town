@@ -69,3 +69,17 @@ BLOCKED.md
 _critic*.mjs
 _probe*.mjs
 _fix.py
+
+# The RUN21 programme bundle and session handover/QA docs — private planning material
+# in the same class as _programme/ above; never published to the public repo.
+RUN21-programme/
+RUN21-programme.zip
+HANDOVER.md
+HANDOVER-*.md
+QA-CHANGES-vs-LIVE.md
+QA-PLAYTEST-*.md
+bootown-qa-seed-code-for-alex.txt
+seed code for testing-alex only.pdf
+
+# RUN21 evidence screenshots (regenerable; referenced from the RUN21*-REPORT files)
+_evidence/
