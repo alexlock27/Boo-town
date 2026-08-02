@@ -101,7 +101,11 @@ const FIXTURES = {
     ["entered from an area", "({ fromArea: 'hilltop' })"],
     // RUN19 Z6: a locked wallpaper swatch in a room's Decorate tab deep-links here, naming the
     // shelf to open and the dressing to ring.
-    ["deep-linked from a room's Decorate tab", "({ shelf: 'house', highlight: 'lounge_walls_starry' })"]
+    ["deep-linked from a room's Decorate tab", "({ shelf: 'house', highlight: 'lounge_walls_starry' })"],
+    // RUN21A-9: the town doors carry the way home — Back returns to the sending area, or
+    // to the exact Boo House room a locked swatch came from.
+    ["the stall door (Back returns to the sending area)", "({ from: 'town', fromArea: 'meadow' })"],
+    ["a locked swatch in a room (Back returns to that room)", "({ shelf: 'house', highlight: 'lounge_walls_starry', from: 'town', fromArea: 'boohouse', fromRoom: 'lounge' })"]
   ],
   // RUN18A H3: the Joke Boo has two doors, and Back must return her to the one she used.
   // The in-world stage says so; the hub card and What's New send nothing and get the hub.
