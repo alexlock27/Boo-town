@@ -24,13 +24,32 @@ export function mount(container, params, ctx) {
   function exportTown() {
     sfx.tap();
     try {
-      const code = btoa(encodeURIComponent(JSON.stringify(getState())));
+      // RUN21A-11: an honest Town Postcard — the LOOK of her town and nothing else.
+      // The old "Town Code" base64'd the ENTIRE save (name, age, learning ledger) to the
+      // clipboard with "share it with a friend". The postcard carries only: placements,
+      // paths, applied room dressings, and each placed Boo's worn accessories + shininess.
+      // (The read-only visit screen that consumes this is RUN21F F6.)
+      const s = getState();
+      const areas = JSON.parse(JSON.stringify((s.town && s.town.areas) || {}));
+      const dressings = JSON.parse(JSON.stringify(s.dressings || {}));
+      const booIds = [...new Set(
+        Object.values(areas)
+          .flatMap(a => ((a && a.items) || []).map(t => t.item))
+          .filter(id => (id || '').startsWith('boo_') || (id || '').startsWith('custom:'))
+      )];
+      const roster = booIds.map(id => ({
+        id,
+        acc: Object.values((s.equips || {})[id] || {}).filter(Boolean),
+        shiny: !!((s.shinies || {})[id])
+      }));
+      const postcard = { format: 'BOO_TOWN_POSTCARD', version: 1, createdAt: Date.now(), areas, dressings, roster };
+      const code = 'BTPC1.' + btoa(encodeURIComponent(JSON.stringify(postcard)));
       if (navigator.clipboard) navigator.clipboard.writeText(code);
-      toast.textContent = "✈️ Town Code copied to clipboard! Share it with a friend.";
+      toast.textContent = 'Postcard copied! A grown-up can paste it in another Boo Town to visit.';
       toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
     } catch(e) {}
   }
-  const exportBtn = el('button', { class: 'icon-btn', text: '✈️', 'aria-label': 'Visitor Mode / Export Town', onclick: exportTown });
+  const exportBtn = el('button', { class: 'icon-btn', text: '💌', 'aria-label': 'Share a Town Postcard', onclick: exportTown });
   const header = el('header', { class: 'town-header' }, [back, title, exportBtn]);
   const stage = el('div', { class: 'map-stage' });
   const toast = el('div', { class: 'map-toast' });
