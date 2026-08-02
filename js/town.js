@@ -3673,14 +3673,19 @@ export function mount(container, params, ctx) {
   }
 
   let careArcTimer = null;
+  // RUN21A-6: while a Boo's care arc is open, that Boo holds still — the arc rides on the
+  // wrap, so a wandering Boo used to walk its own choices out from under her finger.
+  let careHold = null;
   function clearCareArc() {
     ground.querySelectorAll('.town-care-arc').forEach(n => n.remove());
     if (careArcTimer) clearTimeout(careArcTimer);
     careArcTimer = null;
+    careHold = null;
     ground.classList.remove('care-open');
   }
   function showCareArc(wrap, place, item) {
     clearCareArc();
+    careHold = wrap;   // set AFTER clearCareArc(), which nulls it
     ground.classList.add('care-open');
     // RUN13 T1: the flourish reads its actions from care.js so Bath (and anything after it)
     // cannot be added in one place and forgotten in the other.
@@ -4033,6 +4038,7 @@ export function mount(container, params, ctx) {
     const now = performance.now();
     for (const a of actors) {
       if (a.riding) continue;   // seated on a funfair ride: animated by the ride, not the wander loop (C1b)
+      if (a.wrap === careHold) continue;   // RUN21A-6: frozen in place while its care arc is open
       // skip offscreen actors (cheap) — relative to the real viewport, not the wide zone
       const px = parseFloat(a.wrap.style.left) - scrollX;
       if (px < -140 || px > viewW + 140) continue;
