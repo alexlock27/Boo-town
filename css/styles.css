@@ -5178,7 +5178,9 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .wish-slot { width:50px; height:56px; border:3px dashed rgba(42,27,78,.25); border-radius:11px; display:grid; place-items:center; background:rgba(255,255,255,.38); color:var(--ink); font:700 28px var(--font-display); transition:transform .2s,background .2s; }
 .wish-slot.needed { border-style:solid; border-color:#8D77B6; }
 .wish-slot.filled { background:#fff; transform:translateY(-3px); }
-.wish-slot.gold { background:var(--star); border-color:#E0A81E; transform:rotateY(180deg) translateY(-3px); color:#fff; }
+/* RUN21A-3: the flip is an ANIMATION that ends the right way round — a correctly
+   spelled word must never sit mirrored in celebratory gold in a literacy app. */
+.wish-slot.gold { background:var(--star); border-color:#E0A81E; transform:translateY(-3px); color:#fff; animation:wishSlotFlip .5s ease; }
 .wish-main-btn {
   display: block; margin: 8px auto 4px; padding: 10px 24px;
   background: linear-gradient(135deg, #FFC93C, #FF9F68); border: 3px solid var(--ink);
@@ -5209,6 +5211,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @keyframes wishPoof { from { opacity:0; transform:scale(.3); } 55% { opacity:1; transform:scale(1.35); } to { opacity:0; transform:scale(1.8); } }
 @keyframes wishScale { from { opacity:0; transform:scale(.1); } 65% { transform:scale(1.08); } to { transform:scale(1); } }
 @keyframes wishListen { 30% { transform:rotate(-4deg); } 70% { transform:rotate(4deg); } }
+@keyframes wishSlotFlip { from { transform:rotateY(0) translateY(-3px); } 50% { transform:rotateY(180deg) translateY(-3px); } to { transform:rotateY(360deg) translateY(-3px); } }
 @keyframes wishTownIn { from { opacity:0; transform:scale(.1); } 70% { transform:scale(1.08); } }
 @keyframes wishButterfly { 20% { transform:translate(35px,-35px) rotate(8deg); } 55% { transform:translate(95px,-70px) rotate(-9deg); } to { transform:translate(180px,-120px) scale(.55); opacity:0; } }
 @keyframes wishFrog { 25%,75% { transform:translateY(-45px) rotate(-5deg); } 45%,100% { transform:translateY(0) rotate(5deg); } }
@@ -5229,6 +5232,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 @media(prefers-reduced-motion:reduce) {
   .wish-poof,.wish-made,.wish-town-spawn { animation:none!important; }
+  .wish-slot.gold { animation:none; }
 }
 
 
