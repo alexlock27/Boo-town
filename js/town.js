@@ -1475,8 +1475,10 @@ export function mount(container, params, ctx) {
       
       if (item.kind === 'boo' && !item.fx && count < MAX_WANDERERS) {
         const act = makeActor(wrap, item, t);
-        // a Boo currently riding a funfair ride shows ONLY on the ride, not on the ground (C1b)
-        if (isSeated(t.item)) { act.riding = true; wrap.style.display = 'none'; }
+        // RUN21A-1: a riding Boo's STANDING sprite is suppressed only inside the funfair
+        // itself, where the ride renderer already draws it — everywhere else a placed Boo
+        // always renders. (Saves holding hidden placements self-heal here; no migration.)
+        if (AREA.key === 'funfair' && isSeated(t.item)) { act.riding = true; wrap.style.display = 'none'; }
         else wrap.style.display = '';
         actors.push(act); count++;
       }
@@ -3090,6 +3092,15 @@ export function mount(container, params, ctx) {
     renderPlaced(); renderDrawer(); updateHint();
     notePlacement();
     if (landing.x !== x || landing.row !== row) hint.textContent = 'Tucked into the nearest free spot!';
+    // RUN21A-1: placing a Boo somewhere new hops it off any funfair ride it was on —
+    // one Boo, one place. (placeAtClient is the single funnel for every new placement:
+    // tap-to-place, the chip-lift drop and ctx.placeAt all land here.)
+    const seated = isSeated(id);
+    if (seated) {
+      unseatBoo(seated.ride, id);
+      renderFunfair();
+      hint.textContent = getDisplayName(id) + ' hopped off the ' + RIDE_NAME[seated.ride] + ' to come here!';
+    }
     sfx.pop();
   }
 
