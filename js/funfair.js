@@ -31,31 +31,51 @@ const RIDE_BOX = 190;   // px, the ride's composed box
 
 function funfairState(s) {
   const f = (s && s.funfair) || {};
-  return { built: f.built || [], build: f.build || null, pending: f.pending || [], seats: f.seats || {} };
+  // catchup (RUN21A-16) is additive with a safe default — a v23 save without it reads [].
+  return { built: f.built || [], build: f.build || null, pending: f.pending || [], seats: f.seats || {}, catchup: f.catchup || [] };
 }
 export function funfairUnlocked(s = getState()) { return !!s && (s.stars.total || 0) >= FUNFAIR_UNLOCK; }
 
 // Advance the funfair build machine (mirrors tickGrowth). Call on town + hub open.
 // Carousel is free when the gates open; other rides queue at their star milestone
-// and build one at a time over 24h. Returns { readyToReveal: ride|null, spawned:[] }.
+// and build one at a time over 24h.
+// Returns { readyToReveal: ride|null, spawned:[], catchUp: rides[]|null }.
 export function tickFunfair() {
   const s = getState();
-  if (!s) return { readyToReveal: null, spawned: [] };
+  if (!s) return { readyToReveal: null, spawned: [], catchUp: null };
   const stars = s.stars.total || 0;
   const f = funfairState(s);
   const spawned = [];
+  const caughtUp = [];
   if (stars >= FUNFAIR_UNLOCK && !f.built.includes('carousel')) { f.built.push('carousel'); }
   if (stars >= FUNFAIR_UNLOCK) {
+    const newly = [];
     for (const ride of ['ferris', 'teacups', 'bouncy', 'helter']) {
       if (stars < RIDE_MILESTONE[ride]) continue;
       if (f.built.includes(ride) || f.pending.includes(ride) || (f.build && f.build.ride === ride)) continue;
-      f.pending.push(ride); spawned.push(ride);
+      newly.push(ride);
+    }
+    // RUN21A-16: fair catch-up. MORE THAN ONE newly-eligible ride in a single tick means
+    // the child has been away earning — one combined celebration, never four queued 24h
+    // builds. They complete immediately; the pending combined reveal survives in
+    // f.catchup until a town mount shows it (hub ticks too and cannot show reveals).
+    // A SINGLE newly-crossed threshold keeps the normal 24h Builders flow untouched.
+    if (newly.length > 1) {
+      for (const ride of newly) { f.built.push(ride); f.catchup.push(ride); caughtUp.push(ride); }
+    } else if (newly.length === 1) {
+      f.pending.push(newly[0]); spawned.push(newly[0]);
     }
     if (!f.build && f.pending.length) f.build = { ride: f.pending.shift(), startedAt: nowMs() };
   }
   const readyToReveal = (f.build && nowMs() - f.build.startedAt >= FUNFAIR_BUILD_MS) ? f.build.ride : null;
-  mutate(st => { const cur = funfairState(st); st.funfair = { built: f.built, build: f.build, pending: f.pending, seats: cur.seats }; });
-  return { readyToReveal, spawned };
+  mutate(st => { const cur = funfairState(st); st.funfair = { built: f.built, build: f.build, pending: f.pending, seats: cur.seats, catchup: f.catchup }; });
+  for (const ride of caughtUp) stampJournal('funfair_' + ride);   // outside the mutate, like completeRideReveal
+  return { readyToReveal, spawned, catchUp: f.catchup.length ? f.catchup.slice() : null };
+}
+
+// RUN21A-16: the combined reveal was seen — clear the memory of it.
+export function completeCatchupReveal() {
+  mutate(st => { const f = funfairState(st); f.catchup = []; st.funfair = f; });
 }
 
 export function completeRideReveal(ride) {
