@@ -12,6 +12,10 @@
 export const SOCKETS = {
   deco_seesaw:     [{ x: -0.32, row: 2, flip: 1, yFrac: -0.337 }, { x: 0.32, row: 2, flip: -1, yFrac: -0.337 }],
   deco_bench:      [{ x: -0.2, row: 2, yFrac: -0.274 }, { x: 0.2, row: 2, yFrac: -0.274 }],
+  // RUN21A-14 re-measure (1024x768, scale 1): this entry was already right — x:0 centres
+  // the rider between the ropes (viewBox x=52/68) and yFrac -0.244 = plank top y=88 via
+  // (88-120)/130. The crossbar perch came from the swing ROLE's baked -30px baseline in
+  // town.js stepRole (now +5; svg-bottom lands 0.2px off the plank line at rest).
   deco_swings:     [{ x: 0, row: 2, yFrac: -0.244 }],
   deco_slide:      [{ x: 0.38, row: 2, role: 'mount' }, { x: -0.35, row: 2, role: 'queue' }],
   deco_trampoline: [{ x: -0.2, row: 2 }, { x: 0, row: 1 }, { x: 0.2, row: 2 }],
