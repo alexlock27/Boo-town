@@ -688,6 +688,9 @@ export function importCode(code) {
 export function readSaveText(text) {
   if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'There was nothing to read.' };
   const t = text.trim();
+  // RUN21A-11: a Town Postcard (visit-only snapshot, worldmap.js) is not a backup — say
+  // so plainly instead of the generic "damaged" error. The visit screen itself is RUN21F F6.
+  if (t.startsWith('BTPC1.')) return { ok: false, error: "That's a Town Postcard for visiting, not a backup. Backups start with a different code." };
   if (t.startsWith(BACKUP_PREFIX)) {
     let raw;
     try { raw = JSON.parse(b64decode(t.slice(BACKUP_PREFIX.length))); } catch { return { ok: false, error: 'That code is damaged or incomplete.' }; }
