@@ -2584,9 +2584,12 @@ export function mount(container, params, ctx) {
       // child can see nothing of and tap nowhere. It comes back when the Boo does.
       if (w.style.display === 'none') continue;
       const target = requestTarget(r);
+      // RUN21A-12: a kind-less (template) request never renders a bare '?' — each
+      // template id carries a meaningful glyph, ⭐ the catch-all for anything unmapped.
+      const REQUEST_GLYPHS = { maths: '🔢', spell2: '🔤', paint: '🎨', dressUp: '🎀', box: '🎁', threeStar: '⭐' };
       const art = target
         ? el('div', { class: 'rq-pic', html: renderItem(target, { size: 38 }) })
-        : el('div', { class: 'rq-pic rq-ask', text: '?' });
+        : el('div', { class: 'rq-pic rq-ask', text: REQUEST_GLYPHS[r.id] || '⭐' });
       const bubble = el('button', {
         class: 'request-thought', 'aria-label': requestLine(r),
         onclick: (e) => { e.stopPropagation(); openRequestCard(r); }

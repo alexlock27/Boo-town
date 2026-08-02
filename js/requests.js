@@ -167,7 +167,9 @@ function expireIfDue() {
   if (!activeRequests().some(r => now - r.createdAt >= EXPIRE_MS)) return;
   writeActives(rq => {
     rq.actives = rq.actives.filter(r => now - r.createdAt < EXPIRE_MS);
-    rq.lastResolvedAt = now;                                  // silent, as it always was
+    // RUN21A-12: expiry stays silent but no longer stamps lastResolvedAt — a request
+    // nobody answered must not tax a returning child with the full recharge silence
+    // before the town can wonder anything new.
   });
 }
 
