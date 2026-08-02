@@ -175,6 +175,9 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     if (!WISH_WORDS.includes(word)) { miss(word); return false; }
     locked = true;
     stopIdleHint();
+    // RUN21A-4: the letter tray drops out of the way so the grant zone is visible —
+    // the next modal open rebuilds everything fresh and re-expands it (line ~71).
+    drawer.close();
     const item = wishItem(word);
     slots.querySelectorAll('.wish-slot.filled').forEach((tile, i) => {
       setTimeout(() => tile.classList.add('gold'), REDUCED ? 0 : i * 45);
@@ -194,6 +197,16 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     // where a thing had been filed; the wish now ARRIVES IN THE WORLD, and the town's
     // onSpawn owns that moment. A toast is not a payoff (CLAUDE.md, announced moments).
     if (onSpawn) onSpawn(word, item, { wasNew });
+    // RUN21A-4: a DUPLICATE grant gets a proper, visible moment in the well's own line
+    // slot — shown and spoken — never a corner toast. The well sprite plays the
+    // existing wishListen wobble (same reflow retrigger as miss()).
+    if (!wasNew) {
+      const repeatLine = `Ooh — another ${word}! It's tucked in your drawer for later.`;
+      const lineEl = panel.querySelector('.wish-line');
+      if (lineEl) lineEl.textContent = repeatLine;
+      speakMaybe(repeatLine);
+      panel.classList.remove('listening'); void panel.offsetWidth; panel.classList.add('listening');
+    }
     // RUN18B Y3: THE WELL GETS OUT OF THE WAY. The pack's sequence ends "the item is a
     // real placement she can drag NOW or leave" — she cannot drag anything through a
     // full-screen z-1500 modal, and the critic found the overlay still up 15s after the
@@ -204,7 +217,11 @@ export function openWishWell({ onSpawn = null, onClose = null } = {}) {
     // ceremony, used to walk all 60 words in one go) calls resetWish() synchronously,
     // which cancels this — so a scripted sweep keeps its open well and a child gets her
     // town back.
-    resetTimer = setTimeout(close, 1500);
+    // RUN21A-4 FIX: a duplicate's line needs long enough to be read and heard before the
+    // well hands the town back — 1.5s was authored for the new-word case, where the
+    // ceremony continues OUTSIDE the well. A duplicate has nothing outside to hand over
+    // to, so it keeps the well (and its line) up a little longer.
+    resetTimer = setTimeout(close, wasNew ? 1500 : 3500);
     return true;
   }
   function resetWish() {
