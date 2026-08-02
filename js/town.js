@@ -592,13 +592,20 @@ export function mount(container, params, ctx) {
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
     // finished while she was away, the next town open plays the reveal.
     const gt = tickGrowth();
-    if (gt.readyToReveal) setTimeout(() => playGrowthReveal(gt.readyToReveal), REDUCED ? 100 : 700);
-    else if (gt.spawned.length) renderPlaced();   // a fresh site fence appears
+    if (!gt.readyToReveal && gt.spawned.length) renderPlaced();   // a fresh site fence appears
     // Funfair rides via the Boo Builders (RUN6 C1b): reveal a finished ride, else render the
     // (always-open, RUN7 C1) fair so its day-one Carousel/scenery/bandstand show on the first mount.
     const ft = tickFunfair();
-    if (ft.readyToReveal) setTimeout(() => playFunfairReveal(ft.readyToReveal), REDUCED ? 120 : 900);
-    else renderFunfair();
+    if (!ft.readyToReveal) renderFunfair();
+    // RUN21A-8: ONE reveal at a time. The two reveals used to be scheduled independently
+    // (+700ms and +900ms) and stacked their overlays; now one timer enqueues growth then
+    // funfair and the queue shows the next only when the child dismisses the first.
+    if (gt.readyToReveal || ft.readyToReveal) {
+      setTimeout(() => {
+        if (gt.readyToReveal) enqueueReveal(done => playGrowthReveal(gt.readyToReveal, done));
+        if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
+      }, REDUCED ? 100 : 700);
+    }
   });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
@@ -1703,8 +1710,21 @@ export function mount(container, params, ctx) {
     return wrap;
   }
 
+  // RUN21A-8: the reveal queue — one reveal on screen at a time, everywhere. Each queued
+  // fn receives a `done` callback it MUST invoke from its dismiss handler; the queue then
+  // shows the next. Per-mount state, so a mid-reveal navigation can never wedge it.
+  const revealQueue = []; let revealShowing = false;
+  function enqueueReveal(fn) { revealQueue.push(fn); pumpReveals(); }
+  function pumpReveals() {
+    if (revealShowing) return;
+    const fn = revealQueue.shift();
+    if (!fn) return;
+    revealShowing = true;
+    fn(() => { revealShowing = false; pumpReveals(); });
+  }
+
   // The reveal ceremony: fence drops, confetti, guide line, Journal stamp (C6).
-  function playGrowthReveal(m) {
+  function playGrowthReveal(m, done = () => {}) {
     sfx.fanfare();
     const ov = el('div', { class: 'overlay growth-reveal' });
     const panel = el('div', { class: 'card gr-panel' }, [
@@ -1718,6 +1738,7 @@ export function mount(container, params, ctx) {
         sfx.tap(); ov.remove();
         completeReveal(m.idx);
         renderPlaced();   // the upgrade appears (and any queued site starts)
+        done();
       } })
     ]);
     ov.appendChild(panel);
@@ -1919,14 +1940,14 @@ export function mount(container, params, ctx) {
       stepRide(box, box.dataset.ride, now);
     }
   }
-  function playFunfairReveal(ride) {
+  function playFunfairReveal(ride, done = () => {}) {
     sfx.fanfare();
     const ov = el('div', { class: 'overlay growth-reveal' });
     const panel = el('div', { class: 'card gr-panel' }, [
       el('h2', { class: 'gr-title', text: '🎡 Ta-daa!' }),
       el('p', { class: 'gr-line', text: `The ${RIDE_NAME[ride]} is ready! Hop on!` }),
       el('div', { class: 'gr-scene' }, [el('div', { class: 'gr-upgrade', html: `<div class="gr-name">${RIDE_NAME[ride]}</div>` }), el('div', { class: 'gr-fence' })]),
-      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => { sfx.tap(); ov.remove(); completeRideReveal(ride); renderFunfair(); scrollToZone(ZONE_INDEX['funfair']); } })
+      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => { sfx.tap(); ov.remove(); completeRideReveal(ride); renderFunfair(); scrollToZone(ZONE_INDEX['funfair']); done(); } })
     ]);
     ov.appendChild(panel); root.appendChild(ov);
     requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
