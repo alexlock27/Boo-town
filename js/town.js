@@ -1101,7 +1101,10 @@ export function mount(container, params, ctx) {
     const svg = wrap.querySelector('svg');
     const playOnce = (cls, ms) => { if (REDUCED || !svg) return; svg.classList.remove(cls); void svg.offsetWidth; svg.classList.add(cls); setTimeout(() => svg.classList.remove(cls), ms + 40); };
     const say = (lineKey, scope, vars) => {
-      if (!lineKey || !maydaySay(key + ':' + lineKey, scope || 'session')) return;
+      // RUN21A-5: no budget consultation on a tap path — budgets exist to stop the town
+      // talking unprompted, never to mute a response to her finger. (`scope` kept for
+      // call-site compatibility; it no longer gates anything on taps.)
+      if (!lineKey) return;
       const line = guideLine(lineKey, vars || null);
       if (!line) return;
       sayOver(wrap, line, 2600);
@@ -1112,8 +1115,10 @@ export function mount(container, params, ctx) {
 
     switch (life.verb) {
       case 'launch': {
-        // once per VISIT = per area mount, and it is untappable while airborne
-        if (!maydaySay(key + ':launch', 'visit')) { playOnce('wish-wobble', 500); return true; }
+        // RUN21A-5: a direct tap ALWAYS launches once the last flight has landed — the
+        // only guard is in-flight (the airborne class also carries pointer-events:none
+        // in CSS, so this JS check is belt-and-braces).
+        if (wrap.classList.contains('wish-airborne')) return true;
         wrap.classList.add('wish-airborne');
         playOnce('wish-launch', life.ms + life.backMs);
         if (wishSound.allow(key, { tapped: true })) sfx.whirr();
@@ -1171,7 +1176,8 @@ export function mount(container, params, ctx) {
     const svg = wrap.querySelector('svg');
     if (!chosen) {
       if (svg && !REDUCED) { svg.classList.remove('wish-hop'); void svg.offsetWidth; svg.classList.add('wish-hop'); setTimeout(() => svg.classList.remove('wish-hop'), 600); }
-      if (maydaySay('food:noboo', 'session')) { const line = guideLine('wishFoodNoBoo'); hint.textContent = line; speakMaybe(line); }
+      // RUN21A-5: her tap always gets the answer, not just the first time this session
+      { const line = guideLine('wishFoodNoBoo'); hint.textContent = line; speakMaybe(line); }
       return;
     }
     const a = actors.find(x => x.place && x.place.item === chosen.id);
