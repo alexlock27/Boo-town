@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boo Town — Anchor Tuner (LOCAL-ONLY dev tool)</title>
+<!--
+  tools/anchor-tuner.html — RUN21F F2.
+
+  LOCAL-ONLY DEV TOOL. Deliberately OUT of sw.js ASSETS[] and never linked from the
+  app. Opened by hand while authoring data/sockets.js / data/surfaces.js entries.
+  Zero network requests; plain vanilla JS in this one file.
+
+  THE CONVENTION (mirrors data/sockets.js + js/town.js give(), so Copy JSON output is
+  paste-ready for those files):
+
+    House art shares one viewBox, "0 0 120 130" (js/art.js). The item's GROUND LINE is
+    viewBox y=120, i.e. 120/130 of its rendered height below its top edge.
+
+    x  (shown as dxFrac) = (Boo centre X − parent centre X) / parent rendered WIDTH.
+                           Negative = left of the parent's centre.
+    yFrac                = (Boo bottom edge Y − parent ground-line Y) / parent rendered HEIGHT.
+                           Negative = seat surface ABOVE the parent's own ground line.
+
+    Why the Boo's BOTTOM edge: town.js seats a Boo with
+        wrap.top = rowGroundPx − wrap.height + 8 + yFrac * itemH
+    and places the item with its viewBox ground line at rowGroundPx + 8 — so the seated
+    Boo's bottom edge lands exactly at (parent ground line + yFrac * parent height).
+    Measuring the dragged Boo's bottom edge therefore reads back the very number
+    town.js will consume. Checkable identity: yFrac = (seatY − 120) / 130 for a seat
+    drawn at viewBox y=seatY (bench seat y=84 → −0.277; authored −0.274).
+
+    SOCKETS export       : { x, row: 2, yFrac }   (row 2 = SOCKET_ROW_BASE; a socket's
+                           row is authored per seat — edit by hand if yours differs)
+    SURFACE_SLOTS export : { x, surfaceY }        (surfaceY = −yFrac: same measure,
+                           authored positive-up in data/surfaces.js)
+
+  Arrow keys nudge the Boo by 0.005 of the parent's box per press (dxFrac steps
+  horizontally, yFrac steps vertically).
+-->
+<style>
+  :root { --ink: #2A1B4E; --card: #FFF8F0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 18px; background: #241A44; color: var(--card); font-family: 'Segoe UI', system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .note { font-size: 12px; opacity: 0.75; margin: 0 0 14px; }
+  .cols { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .panel { background: rgba(255,255,255,0.07); border-radius: 12px; padding: 12px; }
+  .in-panel { flex: 1 1 300px; min-width: 280px; }
+  .in-panel h2, .out-panel h2 { font-size: 15px; margin: 0 0 6px; }
+  textarea { width: 100%; height: 110px; font: 11px/1.4 Consolas, monospace; background: #17102E; color: #DCD4F0; border: 1px solid #4B3AA0; border-radius: 8px; padding: 8px; }
+  label.scale { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; margin: 6px 12px 10px 0; }
+  input[type=number] { width: 70px; background: #17102E; color: #DCD4F0; border: 1px solid #4B3AA0; border-radius: 6px; padding: 4px 6px; font: 12px Consolas, monospace; }
+  button { background: #4B3AA0; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font: 600 13px 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+  button:hover { background: #5C4AC0; }
+  .stage-panel { flex: 2 1 520px; }
+  #stage {
+    position: relative; height: 460px; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, #7FC85F 0%, #52A04C 100%);  /* meadow, for contact judging */
+  }
+  #parentBox { position: absolute; }
+  #parentBox svg, #booBox svg { display: block; }
+  #groundLine { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed rgba(42,27,78,0.55); pointer-events: none; }
+  #groundLine::after { content: 'parent ground line (viewBox y=120)'; position: absolute; right: 6px; top: 2px; font-size: 10px; color: rgba(42,27,78,0.8); }
+  #booBox { position: absolute; cursor: grab; touch-action: none; outline: none; }
+  #booBox.dragging { cursor: grabbing; }
+  #booBox:focus { filter: drop-shadow(0 0 6px #FFC93C); }
+  #seatDot { position: absolute; width: 10px; height: 10px; margin: -5px; border-radius: 50%; background: #FFC93C; border: 2px solid var(--ink); pointer-events: none; }
+  .out-panel { flex: 1 1 280px; min-width: 260px; }
+  .readout { font: 700 18px Consolas, monospace; background: #17102E; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .readout small { display: block; font: 11px 'Segoe UI', system-ui, sans-serif; opacity: 0.7; margin-top: 4px; }
+  select { background: #17102E; color: #DCD4F0; border: 1px solid #4B3AA0; border-radius: 6px; padding: 5px; font: 12px Consolas, monospace; }
+  #jsonOut { width: 100%; height: 58px; margin-top: 8px; }
+  .hint { font-size: 12px; opacity: 0.75; margin-top: 10px; line-height: 1.5; }
+  .row { margin: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #copied { color: #7FE0A8; font-size: 12px; min-width: 60px; }
+</style>
+</head>
+<body>
+<h1>Boo Town anchor tuner</h1>
+<p class="note">Local-only dev tool — not in sw.js ASSETS[], never linked from the app. Drag the Boo onto the parent; the readout is the data/sockets.js entry.</p>
+
+<div class="cols">
+  <div class="panel in-panel">
+    <h2>Art in</h2>
+    <div>Parent item SVG (e.g. js/art.js renderDeco output)</div>
+    <textarea id="parentIn" spellcheck="false" placeholder="Paste the parent item's SVG…"></textarea>
+    <label class="scale">parent width px <input id="parentScale" type="number" value="220" min="40" max="600"></label>
+    <div>Boo SVG (js/art.js renderBoo output)</div>
+    <textarea id="booIn" spellcheck="false" placeholder="Paste the Boo's SVG…"></textarea>
+    <label class="scale">boo width px <input id="booScale" type="number" value="110" min="20" max="400"></label>
+    <div class="row"><button id="loadBtn" type="button">Load onto stage</button></div>
+    <div class="hint" id="err"></div>
+  </div>
+
+  <div class="panel stage-panel">
+    <div id="stage">
+      <div id="parentBox"></div>
+      <div id="groundLine" hidden></div>
+      <div id="booBox" tabindex="0" aria-label="draggable Boo" hidden></div>
+      <div id="seatDot" hidden></div>
+    </div>
+    <div class="hint">Drag the Boo with the pointer. Arrow keys = 0.005 nudges (click the Boo first so it has focus). The yellow dot marks the measured seat point: the Boo's bottom-centre.</div>
+  </div>
+
+  <div class="panel out-panel">
+    <h2>Seat readout</h2>
+    <div class="readout" id="readout">{ dxFrac: —, yFrac: — }<small>dxFrac = of parent width from its centre · yFrac = of parent height above its ground line (negative = up)</small></div>
+    <div class="row">
+      <select id="shape">
+        <option value="socket">SOCKETS entry</option>
+        <option value="surface">SURFACE_SLOTS entry</option>
+      </select>
+      <button id="copyBtn" type="button">Copy JSON</button>
+      <span id="copied"></span>
+    </div>
+    <textarea id="jsonOut" readonly spellcheck="false"></textarea>
+    <div class="hint">SOCKETS: <code>{ x, row: 2, yFrac }</code> — paste-ready for data/sockets.js (row 2 = the authored base; adjust by hand for off-row seats).<br>SURFACE_SLOTS: <code>{ x, surfaceY }</code> with surfaceY = −yFrac (data/surfaces.js authors height positive-up).</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var GROUND_FRAC = 120 / 130;   // the house viewBox ground line (js/art.js "0 0 120 130")
+  var NUDGE = 0.005;             // arrow-key grid step, in parent-box fractions
+
+  var stage = document.getElementById('stage');
+  var parentBox = document.getElementById('parentBox');
+  var booBox = document.getElementById('booBox');
+  var groundLine = document.getElementById('groundLine');
+  var seatDot = document.getElementById('seatDot');
+  var errEl = document.getElementById('err');
+
+  // Geometry state, all in stage-local pixels.
+  var G = null;   // { pLeft, pTop, pW, pH, groundY, bW, bH, booLeft, booTop }
+
+  function parseSvg(text) {
+    var doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) return null;
+    var svg = doc.documentElement;
+    return (svg && svg.nodeName.toLowerCase() === 'svg') ? svg : null;
+  }
+  function aspectOf(svg) {
+    var vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    return (vb.length === 4 && vb[2] > 0) ? vb[3] / vb[2] : 130 / 120;
+  }
+  function sized(svg, w) {
+    var el = svg.cloneNode(true);
+    el.setAttribute('width', w);
+    el.setAttribute('height', Math.round(w * aspectOf(svg) * 100) / 100);
+    return el;
+  }
+
+  function load() {
+    errEl.textContent = '';
+    var pSvg = parseSvg(document.getElementById('parentIn').value.trim());
+    var bSvg = parseSvg(document.getElementById('booIn').value.trim());
+    if (!pSvg || !bSvg) { errEl.textContent = 'Could not parse ' + (!pSvg ? 'the parent' : 'the Boo') + ' SVG.'; return; }
+    var pW = +document.getElementById('parentScale').value || 220;
+    var bW = +document.getElementById('booScale').value || 110;
+    var pH = pW * aspectOf(pSvg), bH = bW * aspectOf(bSvg);
+
+    var pLeft = (stage.clientWidth - pW) / 2;
+    // Sit the parent so its ground line lands 80px above the stage bottom.
+    var groundY = stage.clientHeight - 80;
+    var pTop = groundY - pH * GROUND_FRAC;
+
+    parentBox.innerHTML = ''; parentBox.appendChild(sized(pSvg, pW));
+    parentBox.style.left = pLeft + 'px'; parentBox.style.top = pTop + 'px';
+
+    booBox.innerHTML = ''; booBox.appendChild(sized(bSvg, bW));
+    booBox.hidden = false; groundLine.hidden = false; seatDot.hidden = false;
+    groundLine.style.top = groundY + 'px';
+
+    G = { pLeft: pLeft, pTop: pTop, pW: pW, pH: pH, groundY: groundY, bW: bW, bH: bH,
+          // start at dxFrac 0 / yFrac 0: centred, bottom edge on the ground line
+          booLeft: pLeft + pW / 2 - bW / 2, booTop: groundY - bH };
+    place();
+  }
+
+  function place() {
+    booBox.style.left = G.booLeft + 'px';
+    booBox.style.top = G.booTop + 'px';
+    seatDot.style.left = (G.booLeft + G.bW / 2) + 'px';
+    seatDot.style.top = (G.booTop + G.bH) + 'px';
+    readout();
+  }
+
+  // THE readout — the exact inverse of js/town.js give() (see header comment).
+  function fracs() {
+    var dxFrac = ((G.booLeft + G.bW / 2) - (G.pLeft + G.pW / 2)) / G.pW;
+    var yFrac = ((G.booTop + G.bH) - G.groundY) / G.pH;
+    return { dxFrac: dxFrac, yFrac: yFrac };
+  }
+  function r3(n) { return Math.round(n * 1000) / 1000; }
+
+  function readout() {
+    var f = fracs();
+    document.getElementById('readout').innerHTML =
+      '{ dxFrac: ' + r3(f.dxFrac).toFixed(3) + ', yFrac: ' + r3(f.yFrac).toFixed(3) + ' }' +
+      '<small>dxFrac = of parent width from its centre &middot; yFrac = of parent height above its ground line (negative = up)</small>';
+    document.getElementById('jsonOut').value = entryJSON();
+  }
+
+  // Paste-ready entries for data/sockets.js / data/surfaces.js (unquoted keys, exactly
+  // the style those files author by hand).
+  function entryJSON() {
+    if (!G) return '';
+    var f = fracs();
+    if (document.getElementById('shape').value === 'surface') {
+      return '{ x: ' + r3(f.dxFrac) + ', surfaceY: ' + r3(-f.yFrac) + ' }';
+    }
+    return '{ x: ' + r3(f.dxFrac) + ', row: 2, yFrac: ' + r3(f.yFrac) + ' }';
+  }
+
+  // ---- drag ------------------------------------------------------------------
+  var drag = null;
+  booBox.addEventListener('pointerdown', function (e) {
+    if (!G) return;
+    drag = { x: e.clientX, y: e.clientY, left: G.booLeft, top: G.booTop };
+    booBox.setPointerCapture(e.pointerId);
+    booBox.classList.add('dragging');
+    booBox.focus();
+    e.preventDefault();
+  });
+  booBox.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    G.booLeft = drag.left + (e.clientX - drag.x);
+    G.booTop = drag.top + (e.clientY - drag.y);
+    place();
+  });
+  function endDrag() { drag = null; booBox.classList.remove('dragging'); }
+  booBox.addEventListener('pointerup', endDrag);
+  booBox.addEventListener('pointercancel', endDrag);
+
+  // ---- arrow-key grid nudge: 0.005 of the parent box per press ---------------
+  booBox.addEventListener('keydown', function (e) {
+    if (!G) return;
+    var dx = 0, dy = 0;
+    if (e.key === 'ArrowLeft') dx = -1; else if (e.key === 'ArrowRight') dx = 1;
+    else if (e.key === 'ArrowUp') dy = -1; else if (e.key === 'ArrowDown') dy = 1;
+    else return;
+    e.preventDefault();
+    G.booLeft += dx * NUDGE * G.pW;
+    G.booTop += dy * NUDGE * G.pH;
+    place();
+  });
+
+  // ---- Copy JSON -------------------------------------------------------------
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var text = entryJSON();
+    if (!text) return;
+    var done = function () { flash('copied'); };
+    var fallback = function () {
+      // file:// pages may lack the async clipboard; the readonly box below always
+      // holds the same string, so select it for a manual Ctrl+C as a last resort.
+      var out = document.getElementById('jsonOut');
+      out.focus(); out.select();
+      try { document.execCommand('copy'); flash('copied'); }
+      catch (err) { flash('select + Ctrl+C'); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else fallback();
+  });
+  function flash(msg) {
+    var el = document.getElementById('copied');
+    el.textContent = msg;
+    setTimeout(function () { el.textContent = ''; }, 1400);
+  }
+
+  document.getElementById('shape').addEventListener('change', readout);
+  document.getElementById('loadBtn').addEventListener('click', load);
+})();
+</script>
+</body>
+</html>
