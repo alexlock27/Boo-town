@@ -23,7 +23,7 @@ import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
 import { addMeterPoints } from './rewards.js';
-import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
+import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
@@ -607,9 +607,10 @@ export function mount(container, params, ctx) {
     // RUN21A-8: ONE reveal at a time. The two reveals used to be scheduled independently
     // (+700ms and +900ms) and stacked their overlays; now one timer enqueues growth then
     // funfair and the queue shows the next only when the child dismisses the first.
-    if (gt.readyToReveal || ft.readyToReveal) {
+    if (gt.readyToReveal || ft.readyToReveal || ft.catchUp) {
       setTimeout(() => {
         if (gt.readyToReveal) enqueueReveal(done => playGrowthReveal(gt.readyToReveal, done));
+        if (ft.catchUp) enqueueReveal(done => playFairCatchupReveal(ft.catchUp, done));   // RUN21A-16
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
     }
@@ -1954,6 +1955,31 @@ export function mount(container, params, ctx) {
       stepRide(box, box.dataset.ride, now);
     }
   }
+  // RUN21A-16: the combined catch-up celebration — several ride thresholds crossed in one
+  // tick complete together and are announced ONCE, through the item-8 queue.
+  function playFairCatchupReveal(rides, done = () => {}) {
+    sfx.fanfare();
+    const names = rides.map(r => RIDE_NAME[r]);
+    const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+    const ov = el('div', { class: 'overlay growth-reveal' });
+    const panel = el('div', { class: 'card gr-panel' }, [
+      el('h2', { class: 'gr-title', text: 'Look how the fair has grown!' }),
+      el('p', { class: 'gr-line', text: `The Boo Builders finished ${rides.length} rides while you were busy: ${list}!` }),
+      el('div', { class: 'gr-scene' }, [el('div', { class: 'gr-upgrade', html: `<div class="gr-name">The Boo Funfair</div>` }), el('div', { class: 'gr-fence' })]),
+      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => {
+        sfx.tap(); ov.remove();
+        completeCatchupReveal();
+        renderFunfair();
+        if (ZONE_INDEX['funfair'] != null) scrollToZone(ZONE_INDEX['funfair']);
+        done();
+      } })
+    ]);
+    ov.appendChild(panel); root.appendChild(ov);
+    requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
+    if (!REDUCED) confetti({ count: 110, power: 1.1 });
+    speakMaybe('Look how the fair has grown!');
+  }
+
   function playFunfairReveal(ride, done = () => {}) {
     sfx.fanfare();
     const ov = el('div', { class: 'overlay growth-reveal' });
