@@ -46,6 +46,7 @@ main. Vanilla HTML/JS/CSS. No frameworks. No build step. ~1MB total.
 - Deploy gate when a task completes: bump BUILD_STAMP → **append a What's New block** →
   push → fetch the live URL → confirm the new stamp serves → update PROGRESS.md
   (gitignored, keep it current so a fresh session can resume from it alone).
+  At every RUN's final gate also regenerate PROJECT_STATE.md (`node tools/gen-state.mjs`) and commit it (RUN21F F3).
 - WHAT'S NEW IS PART OF THE DEPLOY GATE (RUN17 X4, standing law). Every run that ships a
   child-facing feature appends a block to data/whatsnew.js — `{ version, entries:[{ icon,
   title, blurb, route, params? }] }`, newest FIRST, `version` equal to the BUILD_STAMP it
