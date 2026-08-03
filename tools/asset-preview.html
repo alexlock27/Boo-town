@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boo Town — Asset Preview (LOCAL-ONLY dev tool)</title>
+<!--
+  tools/asset-preview.html — RUN21F F1.
+
+  LOCAL-ONLY DEV TOOL. This page is deliberately OUT of sw.js ASSETS[] and is never
+  linked from the app. It is opened by hand (file:// or a local server) while drawing
+  house-style SVG art. Zero network requests: no CDN, no fonts, no fetch — everything
+  is inline in this one file.
+
+  What it does: paste (or file-load) an SVG string; it renders at 60 / 120 / 220 px on
+  the app's three real backdrop colours side by side, offers a 60px silhouette mode
+  (every fill/stroke forced to one dark ink so shape-reading can be judged), and a
+  manual self-critique checklist. The one AUTOMATED readout lists every fill/stroke
+  colour literal found in the pasted markup so palette compliance is easy to eyeball.
+
+  Backdrop swatches are read from css/styles.css (there is no --meadow/--room/--navy
+  custom property; these are the real background gradients the app paints):
+    meadow-green : .t-band.meadow            linear-gradient(180deg, #7FC85F 0%, #52A04C 100%)
+    room-grey    : .t-interior-wall.room-kitchen  linear-gradient(180deg, #F6F2E4 0%, #EDE7D2 100%)
+                   (the app has no grey room; the kitchen wall is its nearest neutral
+                   interior surface, so it stands in for "room grey")
+    night-navy   : .town2.night .t-skygrad   linear-gradient(180deg, #0E0A2E 0%, #201858 60%, #35306E 100%)
+
+  House art contract (js/art.js): shared viewBox "0 0 120 130", ~4px ink outline
+  (#2A1B4E), ~10px cream halo (#FFF8F0) behind the silhouette, fills only from the
+  COLORS palette. The checklist below mirrors that contract.
+-->
+<style>
+  :root {
+    --ink: #2A1B4E;        /* css/styles.css --ink / js/art.js COLORS.ink */
+    --card: #FFF8F0;       /* css/styles.css --card / js/art.js halo cream */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 18px; background: #241A44; color: var(--card);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .note { font-size: 12px; opacity: 0.75; margin: 0 0 14px; }
+  .cols { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .panel { background: rgba(255,255,255,0.07); border-radius: 12px; padding: 12px; }
+  .input-panel { flex: 1 1 320px; min-width: 300px; }
+  textarea {
+    width: 100%; height: 180px; font: 12px/1.4 Consolas, monospace;
+    background: #17102E; color: #DCD4F0; border: 1px solid #4B3AA0; border-radius: 8px; padding: 8px;
+  }
+  button, label.filebtn {
+    background: #4B3AA0; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px;
+    font: 600 13px 'Segoe UI', system-ui, sans-serif; cursor: pointer; display: inline-block;
+  }
+  button:hover, label.filebtn:hover { background: #5C4AC0; }
+  input[type=file] { display: none; }
+  .controls { margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .toggle { font-size: 13px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .preview-panel { flex: 2 1 560px; }
+  .swatch-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .swatch { border-radius: 12px; padding: 10px; flex: 1 1 180px; min-width: 200px; }
+  /* The three real backdrops (hexes read from css/styles.css — see header comment). */
+  .swatch.meadow { background: linear-gradient(180deg, #7FC85F 0%, #52A04C 100%); }
+  .swatch.room   { background: linear-gradient(180deg, #F6F2E4 0%, #EDE7D2 100%); }
+  .swatch.night  { background: linear-gradient(180deg, #0E0A2E 0%, #201858 60%, #35306E 100%); }
+  .swatch h3 {
+    margin: 0 0 8px; font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase;
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.55); opacity: 0.9;
+  }
+  .cells { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell .box { display: inline-block; }
+  .cell .cap { font-size: 11px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.55); margin-top: 2px; }
+  .checklist-panel { flex: 1 1 280px; min-width: 260px; }
+  .checklist-panel h2, .input-panel h2 { font-size: 15px; margin: 0 0 8px; }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; font-size: 13px; cursor: pointer; }
+  .check input { margin-top: 2px; }
+  .check.ticked span { opacity: 0.55; text-decoration: line-through; }
+  .readout { margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; }
+  .readout h3 { font-size: 13px; margin: 0 0 6px; }
+  .lit { display: flex; gap: 8px; align-items: center; font: 12px Consolas, monospace; margin: 4px 0; }
+  .chip { width: 18px; height: 18px; border-radius: 5px; border: 2px solid rgba(255,255,255,0.6); flex: 0 0 auto; }
+  .lit .name { opacity: 0.8; }
+  .lit .pal-yes { color: #7FE0A8; }
+  .lit .pal-no  { color: #FF9EA8; font-weight: 700; }
+  .empty { font-size: 12px; opacity: 0.6; font-style: italic; }
+  .err { color: #FF9EA8; font-size: 12px; margin-top: 6px; min-height: 16px; }
+</style>
+</head>
+<body>
+<h1>Boo Town asset preview</h1>
+<p class="note">Local-only dev tool — not in sw.js ASSETS[], never linked from the app. Paste house-style SVG, judge it at sticker sizes on the app's real backdrops.</p>
+
+<div class="cols">
+  <div class="panel input-panel">
+    <h2>SVG in</h2>
+    <textarea id="svgIn" spellcheck="false" placeholder="Paste an SVG string here (e.g. the output of js/art.js renderBoo / renderDeco)…"></textarea>
+    <div class="controls">
+      <button id="renderBtn" type="button">Render</button>
+      <label class="filebtn">Load .svg file<input id="fileIn" type="file" accept=".svg,image/svg+xml"></label>
+      <label class="toggle"><input id="silhToggle" type="checkbox"> 60px silhouette mode</label>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="panel preview-panel">
+    <div class="swatch-row">
+      <div class="swatch meadow"><h3>meadow green</h3><div class="cells" id="cells-meadow"></div></div>
+      <div class="swatch room"><h3>room grey</h3><div class="cells" id="cells-room"></div></div>
+      <div class="swatch night"><h3>night navy</h3><div class="cells" id="cells-night"></div></div>
+    </div>
+  </div>
+
+  <div class="panel checklist-panel">
+    <h2>Self-critique checklist</h2>
+    <!-- Manual tick-boxes: a human judgement aid, not automated analysis. -->
+    <label class="check"><input type="checkbox"><span>Ink outline #2A1B4E on every shape</span></label>
+    <label class="check"><input type="checkbox"><span>Stroke weight ~4px (halo pass ~10px) at the 120&times;130 viewBox scale</span></label>
+    <label class="check"><input type="checkbox"><span>Cream halo #FFF8F0 behind the silhouette</span></label>
+    <label class="check"><input type="checkbox"><span>Palette-only fills (js/art.js COLORS — nothing invented)</span></label>
+    <div class="readout">
+      <h3>Colour literals found (automated)</h3>
+      <div id="colorList"><div class="empty">Render something first.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // The house palette, copied verbatim from js/art.js COLORS (+ the two fixed tones it
+  // derives INK/HALO from). Used only to LABEL the colour-literal readout — the tick
+  // boxes above stay a manual judgement.
+  var PALETTE = {
+    '#4B3AA0': 'indigo', '#C6A9F0': 'lilac/prism', '#FF7AC6': 'bubblegum/pink/pop',
+    '#35D0BA': 'teal/zing', '#FFF8F0': 'cream (halo)', '#FFC93C': 'gold/star',
+    '#2B2170': 'midnight', '#FFD166': 'sunshine', '#8FC7FF': 'sky',
+    '#8A5A44': 'cocoa/brown', '#5FD9D0': 'aqua', '#7A4A34': 'coconut',
+    '#F0D28C': 'sand', '#FF9A52': 'orange', '#EDEEF9': 'ghost', '#BFE6F5': 'iceblue',
+    '#3AA0D8': 'seablue', '#E8636F': 'red', '#2A1B4E': 'ink', '#FF9EC4': 'blush',
+    '#FFFFFF': 'toothW/white'
+  };
+  var INK = '#2A1B4E';
+  var SIZES = [60, 120, 220];
+  var SWATCHES = ['meadow', 'room', 'night'];
+
+  var svgIn = document.getElementById('svgIn');
+  var errEl = document.getElementById('err');
+  var silhToggle = document.getElementById('silhToggle');
+
+  function parseSvg(text) {
+    var doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) return null;
+    var svg = doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase() !== 'svg') return null;
+    return svg;
+  }
+
+  // Size a clone to `size` px wide, height from its viewBox aspect (house art is
+  // 120x130, so height = size * 130/120 — same rule as js/art.js render*).
+  function sizedClone(svg, size) {
+    var el = svg.cloneNode(true);
+    var vb = (el.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    var aspect = (vb.length === 4 && vb[2] > 0) ? vb[3] / vb[2] : 1;
+    el.setAttribute('width', size);
+    el.setAttribute('height', Math.round(size * aspect * 100) / 100);
+    el.style.display = 'block';
+    return el;
+  }
+
+  // Silhouette pass: every painted fill/stroke forced to the one dark ink; opacity
+  // flattened to 1 so the read is a solid shape. fill="none"/stroke="none" stay none
+  // ('none' is not a colour — forcing it dark would invent area the art doesn't have).
+  function toSilhouette(svgEl) {
+    var all = [svgEl].concat(Array.prototype.slice.call(svgEl.querySelectorAll('*')));
+    all.forEach(function (n) {
+      if (!n.setAttribute) return;
+      ['opacity', 'fill-opacity', 'stroke-opacity'].forEach(function (a) {
+        if (n.hasAttribute(a)) n.setAttribute(a, '1');
+      });
+      var st = n.getAttribute && n.getAttribute('style');
+      if (st) {
+        st = st.replace(/fill\s*:\s*(?!none)[^;]+/gi, 'fill:' + INK)
+               .replace(/stroke\s*:\s*(?!none)[^;]+/gi, 'stroke:' + INK)
+               .replace(/(fill-|stroke-)?opacity\s*:\s*[^;]+/gi, 'opacity:1');
+        n.setAttribute('style', st);
+      }
+      var f = n.getAttribute('fill');
+      if (f && f.toLowerCase() !== 'none') n.setAttribute('fill', INK);
+      var s = n.getAttribute('stroke');
+      if (s && s.toLowerCase() !== 'none') n.setAttribute('stroke', INK);
+      // An element painting with the SVG default (no fill declared anywhere) paints
+      // black; pin it to ink so the silhouette is genuinely one colour.
+      if (!f && !s && !(st && /fill/i.test(st)) && /^(path|rect|circle|ellipse|polygon|polyline)$/i.test(n.nodeName)) {
+        n.setAttribute('fill', INK);
+      }
+    });
+    return svgEl;
+  }
+
+  function render() {
+    errEl.textContent = '';
+    var text = svgIn.value.trim();
+    SWATCHES.forEach(function (sw) { document.getElementById('cells-' + sw).innerHTML = ''; });
+    if (!text) { listColours(''); return; }
+    var svg = parseSvg(text);
+    if (!svg) { errEl.textContent = 'Could not parse that as SVG.'; listColours(''); return; }
+    var silh = silhToggle.checked;
+    SWATCHES.forEach(function (sw) {
+      var host = document.getElementById('cells-' + sw);
+      SIZES.forEach(function (size) {
+        var cell = document.createElement('div'); cell.className = 'cell';
+        var box = document.createElement('div'); box.className = 'box';
+        var el = sizedClone(svg, size);
+        // Silhouette mode is judged at STICKER size: it replaces the 60px cell only.
+        if (silh && size === 60) { toSilhouette(el); box.classList.add('silhouette'); }
+        box.appendChild(el);
+        var cap = document.createElement('div'); cap.className = 'cap';
+        cap.textContent = size + 'px' + (silh && size === 60 ? ' · silhouette' : '');
+        cell.appendChild(box); cell.appendChild(cap);
+        host.appendChild(cell);
+      });
+    });
+    listColours(text);
+  }
+
+  // Automated readout: every fill/stroke colour literal in the raw markup (attribute or
+  // inline-style form), de-duplicated with counts, labelled if it is a known palette hex.
+  function listColours(text) {
+    var host = document.getElementById('colorList');
+    host.innerHTML = '';
+    if (!text) { host.innerHTML = '<div class="empty">Render something first.</div>'; return; }
+    var re = /(?:fill|stroke)\s*[:=]\s*["']?\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|[a-zA-Z][a-zA-Z0-9-]*)/g;
+    var skip = { none: 1, inherit: 1, currentcolor: 1, transparent: 1, url: 1 };
+    var counts = {}, order = [], m;
+    while ((m = re.exec(text))) {
+      var lit = m[1];
+      if (skip[lit.toLowerCase()]) continue;
+      var key = /^#/.test(lit) ? lit.toUpperCase() : lit;
+      if (!(key in counts)) { counts[key] = 0; order.push(key); }
+      counts[key]++;
+    }
+    if (!order.length) { host.innerHTML = '<div class="empty">No fill/stroke colour literals found.</div>'; return; }
+    order.forEach(function (key) {
+      var row = document.createElement('div'); row.className = 'lit';
+      var chip = document.createElement('span'); chip.className = 'chip';
+      chip.style.background = key;
+      var name = PALETTE[/^#[0-9A-F]{6}$/.test(key) ? key : key.toUpperCase()] ||
+                 PALETTE[expand3(key)];
+      var label = document.createElement('span');
+      label.innerHTML = '<b>' + key + '</b> &times;' + counts[key] + ' ' +
+        (name ? '<span class="name pal-yes">palette: ' + name + '</span>'
+              : '<span class="pal-no">not in js/art.js COLORS</span>');
+      row.appendChild(chip); row.appendChild(label);
+      host.appendChild(row);
+    });
+  }
+  function expand3(hex) {
+    var m = /^#([0-9A-F])([0-9A-F])([0-9A-F])$/.exec(hex);
+    return m ? ('#' + m[1] + m[1] + m[2] + m[2] + m[3] + m[3]) : hex;
+  }
+
+  document.getElementById('renderBtn').addEventListener('click', render);
+  silhToggle.addEventListener('change', render);
+  document.getElementById('fileIn').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { svgIn.value = String(r.result || ''); render(); };
+    r.readAsText(f);   // local FileReader only — this page makes zero network requests
+  });
+  // Checklist tickboxes: purely visual state, no persistence — a per-session aid.
+  document.querySelectorAll('.check input').forEach(function (cb) {
+    cb.addEventListener('change', function () { cb.closest('.check').classList.toggle('ticked', cb.checked); });
+  });
+})();
+</script>
+</body>
+</html>
