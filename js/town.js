@@ -27,7 +27,7 @@ import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair,
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
-import { SURFACE_SLOTS, slotsFor, surfaceYFor, isSmall, clampWallY, WALL_Y_MIN, WALL_Y_MAX,
+import { SURFACE_SLOTS, slotsFor, surfaceYFor, baseYFor, isSmall, clampWallY, WALL_Y_MIN, WALL_Y_MAX,
          CHILD_SCALE, CHILD_MAX_WIDTH_FRAC, SLOT_SNAP_PX } from '../data/surfaces.js';
 import { DRESSINGS, DRESSING_BY_ID, DEFAULT_DRESSING, dressingsFor } from '../data/dressings.js';
 import { renderDressing, renderDressingSwatch } from './art.js';
@@ -1538,11 +1538,13 @@ export function mount(container, params, ctx) {
     const pCentreX = (ZONE_INDEX[parent.zone] ?? 0) * zoneW + clamp01(parent.x) * zoneW;
     return {
       x: pCentreX + slots[idx].x * pWidth,
-      // The surface, measured from the parent's rendered BOX BOTTOM — not from its ground line.
-      // renderPlaced puts every item's box bottom at (ground + 8), that 8 being the flat
-      // stand-in for the transparent margin the art leaves below its drawn base. Measuring
-      // from the ground line therefore put every surface ~12px too high, and a lamp floated
-      // above the table it was standing on.
+      // The surface, measured from the parent's own GROUND LINE — the y=120 line of the shared
+      // 120x130 deco viewBox, which renderPlaced lands at (rowGround + 8). RUN21B item 5: this
+      // comment used to claim (ground + 8) is the parent's rendered BOX BOTTOM. It is not — the
+      // box bottom is a further pHeight*10/130 below, that 10/130 being the transparent margin
+      // the viewBox leaves under the ground line. The arithmetic was always right; the sentence
+      // describing it was not, and data/surfaces.js's authors were reading the sentence.
+      // surfaceY = (120 - S)/130 for a surface drawn at viewBox y = S. See data/surfaces.js.
       y: (pGround + 8) - surfaceYFor(parent.item, idx) * pHeight,
       parentWidth: pWidth,
       z: Math.round(pGround)
@@ -1669,12 +1671,14 @@ export function mount(container, params, ctx) {
         if (seat) {
           placedSize = Math.min(size * CHILD_SCALE, seat.parentWidth * CHILD_MAX_WIDTH_FRAC);
           placedLeft = seat.x - placedSize / 2;
-          // The `+8` every floor item uses is a flat stand-in for the transparent margin the
-          // art leaves below its drawn base (the shared 120x130 deco viewBox draws its ground
-          // line at y=120, so 10/130 of the box is empty). Flat is fine at floor sizes and
-          // WRONG for a child scaled to 45% of a table — measured, the lamp floated 5px above
-          // the table top. Proportional, so contact holds at any size.
-          placedTop = seat.y - placedSize + placedSize * (10 / 130);
+          // Land the child's OWN drawn base on the surface. RUN21B item 5: this was
+          // `- placedSize + placedSize * (10/130)`, a single flat nudge for every small item —
+          // which is exactly right only for art that stops at viewBox y = 110.8 and nothing
+          // does. The lamp stops at 104 and floated; the plant stops at 114 and sank. Since a
+          // child's box height is placedSize*130/120, its own y=Yc line sits Yc*placedSize/120
+          // below its box top, so putting that line on the seat is one subtraction — and it
+          // holds at every parent scale because placedSize already carries the scale.
+          placedTop = seat.y - placedSize * (baseYFor(t.item) / 120);
           placedZ = seat.z + 1;
         }
       }
