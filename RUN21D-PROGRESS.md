@@ -4,7 +4,7 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
 
 ## Items
 - [x] 1 — The Pulse Director
-- [ ] 2 — Requests you can find
+- [x] 2 — Requests you can find
 - [ ] 3 — Landmark dots
 - [ ] 4 — Signposting the fair's best rooms
 - [ ] 5 — The hider gets a fair chance
@@ -29,3 +29,11 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
   mount. `__townLife.pulse().beat === 'skipped:reveal'` records it.
 - New shared primitive `panToPx/panToFrac/fracOnScreen` in town.js — every RUN21D pan goes
   through it rather than each item growing its own easing loop.
+- **Bug found and fixed while proving item 2's ACCEPT:** the Pulse's own pan could yank the
+  camera back off a target the child had just asked to see with "Show me" (or had dragged
+  to), because both wrote scrollX and the later one won. town.js now carries
+  `cameraClaimed`, set by every deliberate camera move she makes (drag, "Show me", and from
+  item 3 the landmark dots / item 4 the fair signs); the Pulse never pans once it is set.
+  Same principle as reveals winning.
+- The map 💭 chip folds the Boo House's three room storage keys into the one `boohouse`
+  badge (`HOUSE_ROOM_KEYS`). A future pack adding room-level map entries must revisit that.

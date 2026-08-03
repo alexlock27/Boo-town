@@ -255,6 +255,178 @@ console.log('== item 1: a second visit today prefers a beat it has not shown =='
   await ctx.close();
 }
 
+// ============================================================================
+// Item 2 — Requests you can find
+// ============================================================================
+const REQUESTS_ON = { sound: false, music: false, voice: false, content: 'full', requests: true };
+
+console.log('== item 2A: the map says WHERE somebody is wondering something ==');
+{
+  const asker = BOOS[0];
+  const save = SAVE({
+    town: { areas: withItems('riverside', boosIn('riverside')) },
+    settings: REQUESTS_ON,
+    // seeded, and the recharge freshly spent, so nothing new is created underneath the test
+    request: { actives: [{ id: 'threeStar', booId: asker, text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() }
+  });
+  const { ctx, page } = await open(save, { area: null });
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
+  const name = await page.evaluate(id => window.__worldmap.wonderChip('riverside'), asker);
+  const areas = await page.evaluate(() => window.__worldmap.wonderAreas());
+  assert(!!name, 'the riverside badge has a 💭 chip');
+  assert(name && name.text === '💭', `the chip is a thought bubble ("${name && name.text}")`);
+  assert(name && name.title === 'Inky is wondering something…', `tooltip exactly: "${name && name.title}"`);
+  assert(name && name.aria === 'Inky is wondering something…', `aria exactly: "${name && name.aria}"`);
+  assert(JSON.stringify(areas) === '["riverside"]', `only the right area is chipped (${JSON.stringify(areas)})`);
+  const meadowChip = await page.evaluate(() => window.__worldmap.wonderChip('meadow'));
+  assert(meadowChip === null, 'an area with no requester has no chip');
+  const aria = await page.evaluate(() => window.__worldmap.badgeAria('riverside'));
+  assert(aria.includes('Inky is wondering something…'), `the badge announces it too: "${aria}"`);
+  // The chip is decoration: tapping the badge still just opens the area.
+  await page.evaluate(() => window.__worldmap.tap('riverside'));
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  assert(await page.evaluate(() => window.__townLife.area()) === 'riverside', 'tapping the chipped badge opens that area as normal');
+  await ctx.close();
+}
+
+console.log('== item 2A: a request generated on one visit is on the map by the next ==');
+{
+  // No request in the save; three Boos standing in the Meadow; the recharge long spent. Area
+  // entry is a creation trigger (RUN19 Z2), so one visit is all it takes.
+  const save = SAVE({
+    town: { areas: withItems('meadow', boosIn('meadow')) },
+    settings: REQUESTS_ON,
+    request: { actives: [], lastResolvedAt: 0 }
+  });
+  const { ctx, page } = await open(save, { area: 'meadow' });
+  await sleep(600);
+  const made = await page.evaluate(() => (JSON.parse(localStorage.getItem('bootown.save.v1')).request.actives || []).length);
+  assert(made > 0, `one visit to the Meadow generated a request (${made})`);
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
+  const areas = await page.evaluate(() => window.__worldmap.wonderAreas());
+  assert(areas.includes('meadow'), `and the Meadow badge is chipped on the very next visit to the map (${JSON.stringify(areas)})`);
+  await page.screenshot({ path: `${SHOTS}/item2-map-wonder-chip.png` });
+  await ctx.close();
+}
+
+console.log('== item 2B: "Show me" lands the target on screen ==');
+{
+  const asker = BOOS[0];
+  // The bench is at 0.72 of a four-viewport area — nearly three screens right of where she
+  // arrives, which is exactly the walk this button exists to save.
+  const items = [...boosIn('meadow'), { zone: 'meadow', x: 0.72, row: 1, item: 'deco_bench', scale: 1 }];
+  const save = SAVE({
+    town: { areas: withItems('meadow', items) },
+    settings: REQUESTS_ON,
+    request: {
+      actives: [{ id: 'sit', kind: 'sit', booId: asker, area: 'meadow', itemId: 'deco_bench', itemX: 0.72, targetBooId: null, accId: null, createdAt: Date.now() }],
+      lastResolvedAt: Date.now()
+    }
+  });
+  const { ctx, page } = await open(save, { area: 'meadow' });
+  await sleep(1600);                                   // let item 1's opening beat finish first
+  const before = await page.evaluate(id => window.__townLife.targetViewFrac(id), asker);
+  assert(before < 0 || before > 1, `the bench starts off-screen (view fraction ${before && before.toFixed(2)})`);
+  assert(await page.evaluate(id => window.__townLife.openRequestFor(id), asker), 'the request card opens');
+  await sleep(300);
+  const hasShowMe = await page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].some(b => b.textContent === 'Show me'));
+  assert(hasShowMe, 'the card offers "Show me" for a target in this area');
+  await page.screenshot({ path: `${SHOTS}/item2-showme-card.png` });
+  await page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].find(b => b.textContent === 'Show me').click());
+  await sleep(900);                                    // the pan is 600ms
+  const after = await page.evaluate(id => window.__townLife.targetViewFrac(id), asker);
+  assert(Math.abs(after - 0.5) <= 0.2, `the bench lands centred ±20% (view fraction ${after.toFixed(3)})`);
+  const cardGone = await page.evaluate(() => !document.querySelector('.request-card'));
+  assert(cardGone, 'and the card closed on the way');
+  const ringed = await page.evaluate(() => window.__townLife.ringed());
+  assert(ringed.includes('deco_bench'), `the bench wears the soft ring (${JSON.stringify(ringed)})`);
+  await page.screenshot({ path: `${SHOTS}/item2-showme-landed.png` });
+  await sleep(1600);
+  const stillRinged = await page.evaluate(() => window.__townLife.ringed());
+  assert(stillRinged.length === 0, 'and the ring lets go after ~2s');
+  await ctx.close();
+
+  // …and the hard case: she presses "Show me" INSIDE the pulse's own 900ms window. The
+  // ambient beat must not yank the camera back off the thing she just asked to see.
+  const early = await open(save, { area: 'meadow' });
+  await sleep(250);
+  await early.page.evaluate(id => window.__townLife.openRequestFor(id), asker);
+  await early.page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].find(b => b.textContent === 'Show me').click());
+  await sleep(2200);                                   // straight through the 900ms beat
+  const landed = await early.page.evaluate(id => window.__townLife.targetViewFrac(id), asker);
+  assert(Math.abs(landed - 0.5) <= 0.2, `an early "Show me" still lands the bench (view fraction ${landed.toFixed(3)})`);
+  await early.ctx.close();
+}
+
+console.log('== item 2B: a cross-area target keeps its existing button and gains no pan ==');
+{
+  const asker = BOOS[0];
+  // `wear` names an accessory in the wardrobe, not a thing standing in this area.
+  const save = SAVE({
+    town: { areas: withItems('meadow', boosIn('meadow')) },
+    inventory: Object.assign(Object.fromEntries(BOOS.map(b => [b, 1])), { acc_bow: 1 }),
+    settings: REQUESTS_ON,
+    request: {
+      actives: [{ id: 'wear', kind: 'wear', booId: asker, area: 'meadow', itemId: null, itemX: null, targetBooId: null, accId: 'acc_bow', createdAt: Date.now() }],
+      lastResolvedAt: Date.now()
+    }
+  });
+  const { ctx, page } = await open(save, { area: 'meadow' });
+  await sleep(400);
+  assert(await page.evaluate(id => window.__townLife.openRequestFor(id), asker), 'the wardrobe request card opens');
+  await sleep(300);
+  const labels = await page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].map(b => b.textContent));
+  assert(!labels.includes('Show me'), `no "Show me" for a cross-screen target (${JSON.stringify(labels)})`);
+  assert(labels.includes('Open the wardrobe'), 'the existing cross-screen button is untouched');
+  await ctx.close();
+}
+
+console.log('== item 2C: an in-area bubble breathes every 6s ==');
+{
+  const asker = BOOS[0];
+  const save = SAVE({
+    town: { areas: withItems('meadow', boosIn('meadow')) },
+    settings: REQUESTS_ON,
+    request: { actives: [{ id: 'threeStar', booId: asker, text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() }
+  });
+  {
+    const { ctx, page } = await open(save, { area: 'meadow' });
+    await sleep(400);
+    const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.request-thought')).animationName);
+    assert(/rq-breathe/.test(anim), `the bubble carries the 6s breathe (${anim})`);
+    // Wait out item 1's opening beat first: the Pulse breathes this very bubble three times
+    // at scale 1.14 (900ms + PULSE_BUBBLE_MS), and sampling through that would measure the
+    // wrong animation entirely.
+    await sleep(3600);
+    const pulsing = await page.evaluate(() => !!document.querySelector('.request-thought.rq-pulse3'));
+    assert(!pulsing, 'the Pulse\'s 3× breathe has finished before the ambient one is measured');
+    // 7 seconds of samples, so a full 6s cycle is inside the window: the peak has to appear.
+    const samples = await page.evaluate(async () => {
+      const n = document.querySelector('.request-thought'); const out = [];
+      for (let i = 0; i < 29; i++) { out.push(getComputedStyle(n).scale); await new Promise(r => setTimeout(r, 250)); }
+      return out;
+    });
+    const nums = samples.map(v => parseFloat(v)).filter(v => Number.isFinite(v));
+    const max = Math.max(...nums);
+    assert(nums.length >= 24, `${nums.length} frames sampled over 7s`);
+    assert(max > 1.005 && max <= 1.06 + 0.001, `the breathe really scales, peaking at ${max} (1 → 1.06)`);
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await open(save, { area: 'meadow', reduced: 'reduce' });
+    await sleep(400);
+    const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.request-thought')).animationName);
+    const sc = await page.evaluate(() => getComputedStyle(document.querySelector('.request-thought')).scale);
+    assert(anim === 'none', `REDUCED: no bubble animation at all (${anim})`);
+    assert(parseFloat(sc) === 1 || sc === 'none', `REDUCED: the bubble holds still at scale ${sc}`);
+    await ctx.close();
+  }
+}
+
 console.log(pageErrors.length ? `PAGE ERRORS: ${JSON.stringify(pageErrors.slice(0, 6))}` : 'no page errors');
 if (pageErrors.length) failed = true;
 await browser.close();
