@@ -165,12 +165,32 @@ console.log('== a lamp on the table: seated, survives a reload, and GROUNDS if t
     const lamp = [...document.querySelectorAll('.t-item')].find(n => n.dataset.item === 'deco_tablelamp');
     if (!table || !lamp) return null;
     const tr = table.getBoundingClientRect(), lr = lamp.getBoundingClientRect();
-    // the table's own surface: surfaceY 0.55 of its height above its rendered box bottom
-    const surface = tr.bottom - 0.55 * tr.height;
+    // RUN21B item 5 re-point. This used to read `tr.bottom - 0.55 * tr.height`, i.e. it
+    // restated data/surfaces.js's own constant — so it could only ever confirm that the code
+    // agreed with itself, and it went stale the moment the constant was re-measured. It now
+    // reads the surface off the ART, exactly as r10p2-sockets reads a seat line: the table's
+    // top is drawn at y=56 in the shared 0 0 120 130 deco viewBox (ell(60,62,34,10), whose
+    // face is at y=55.7 where slot x ±0.22 lands), so it is (56/130) of the rendered box down
+    // from its top. Independent of every number in data/surfaces.js.
+    const TABLE_TOP_VIEWBOX_Y = 56;
+    const surface = tr.top + (TABLE_TOP_VIEWBOX_Y / 130) * tr.height;
+    // ...and against the lamp's OWN DRAWN BASE, not its box bottom: the lamp's foot is drawn
+    // at y=104 of its viewBox, so 26/130 of its box hangs below the foot as transparent
+    // margin. Comparing box bottoms passed while the visible lamp floated.
+    const lampArtBottom = (() => {
+      const svg = lamp.querySelector('svg'); if (!svg) return lr.bottom;
+      const k = lr.height / 130; let y1 = -1e9;
+      for (const n of svg.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline')) {
+        let b; try { b = n.getBBox(); } catch { continue; }
+        if (!b || (!b.width && !b.height)) continue;
+        y1 = Math.max(y1, b.y + b.height);
+      }
+      return lr.top + y1 * k;
+    })();
     return {
       plane: lamp.dataset.plane,
-      surfaceGap: Math.round(lr.bottom - surface),
-      lampBottom: Math.round(lr.bottom), tableTop: Math.round(tr.top), tableBottom: Math.round(tr.bottom),
+      surfaceGap: Math.round(lampArtBottom - surface),
+      lampBottom: Math.round(lampArtBottom), tableTop: Math.round(tr.top), tableBottom: Math.round(tr.bottom),
       widthFrac: +(lr.width / tr.width).toFixed(3),
       zAhead: (parseInt(lamp.style.zIndex, 10) || 0) > (parseInt(table.style.zIndex, 10) || 0),
       rightOfCentre: lr.left + lr.width / 2 > tr.left + tr.width / 2
@@ -183,7 +203,9 @@ console.log('== a lamp on the table: seated, survives a reload, and GROUNDS if t
   // its bottom" is true of a lamp floating 12px over it, which is what the first cut did:
   // surfaceSeatFor measured from the parent's GROUND LINE while every item's box bottom sits
   // at (ground + 8). Measured against the table's real surface now.
-  assert(seated && Math.abs(seated.surfaceGap) <= 4,
+  // RUN21B item 5 tightened this from 4px to the pack's own 2px, now that both halves of the
+  // residual are fixed (the parent's surfaceY AND the child's own drawn base). Measured 0.0px.
+  assert(seated && Math.abs(seated.surfaceGap) <= 2,
     `and it makes real contact with the table's surface (${seated && seated.surfaceGap}px off)`);
   assert(seated && seated.widthFrac <= 0.45 + 0.02, `it is clamped to at most 45% of the table's width (${seated && seated.widthFrac})`);
   assert(seated && seated.zAhead, 'and draws in front of the table it stands on');
@@ -221,8 +243,21 @@ console.log('== the slot table is the authored one ==');
   assert(JSON.stringify(SURFACE_SLOTS.deco_table) === JSON.stringify([{ x: -0.22 }, { x: 0.22 }]), 'table: two slots at ±0.22');
   assert(JSON.stringify(SURFACE_SLOTS.deco_kitchentable) === JSON.stringify([{ x: -0.22 }, { x: 0.22 }]), 'kitchentable: two slots at ±0.22');
   assert(SURFACE_SLOTS.deco_counter.length === 3, 'counter: three slots');
-  assert(SURFACE_SLOTS.deco_bookshelf.length === 2 && SURFACE_SLOTS.deco_bookshelf[0].surfaceY === 0.35 && SURFACE_SLOTS.deco_bookshelf[1].surfaceY === 0.68,
-    'bookshelf: two shelves at 0.35 and 0.68');
+  // RUN21B item 5 re-point: 0.35 / 0.68 were authored numbers that named no line in the art —
+  // 0.35 is y 74.5, mid-air between the divider (y=64) and the lower shelf's floor (y=102),
+  // and 0.68 is y 31.6, ABOVE the top of the upper row of books (y=30). The assertion is
+  // therefore no longer "the pair are these two numbers" but "each shelf's surfaceY names the
+  // viewBox line its own books stand on", via the same (120 - S)/130 identity data/sockets.js
+  // uses — which is a stronger claim than the constant it replaces, and cannot go stale.
+  const shelfY = (S) => +((120 - S) / 130).toFixed(3);
+  for (const [id, lowerS, upperS] of [['deco_bookshelf', 102, 60], ['deco_bookshelf2', 106, 80], ['deco_bookshelf3', 86, 60]]) {
+    const s = SURFACE_SLOTS[id];
+    assert(s && s.length === 2, `${id}: two shelves`);
+    assert(s && Math.abs(s[0].surfaceY - shelfY(lowerS)) <= 0.002,
+      `${id}: the lower shelf sits on its own floor, viewBox y=${lowerS} (${s && s[0].surfaceY} vs ${shelfY(lowerS)})`);
+    assert(s && Math.abs(s[1].surfaceY - shelfY(upperS)) <= 0.002,
+      `${id}: the upper shelf sits on its own floor, viewBox y=${upperS} (${s && s[1].surfaceY} vs ${shelfY(upperS)})`);
+  }
   assert(JSON.stringify(SURFACE_SLOTS.deco_toybox) === JSON.stringify([{ x: 0 }]), 'toybox: one slot at centre');
 }
 

@@ -34,6 +34,28 @@ export const WHATSNEW = [
       { icon: '↩️', title: 'Changed your mind? Undo!', blurb: 'Move something, put something away, or paint a path, and a little Undo button pops up for a few seconds. Tap it to put things back — up to five times.', route: 'town', params: { area: 'meadow' } }
     ]
   },
+  // RUN21B "Look & Feel". Four entries: what she can SEE that is different. The seat
+  // offsets, the slot glow and the disco spacing are repairs to things that were meant to
+  // work all along — not news, and "we fixed a thing you never knew was broken" is not a
+  // sentence for a child.
+  {
+    version: 'run21b-20260803',
+    entries: [
+      { icon: '🎁', title: 'Every wish is its own thing now', blurb: 'Wish for a cake and you get a CAKE. Sixty wishes, sixty different things to find.', route: 'town', params: { area: 'meadow', openWishWell: true } },
+      { icon: '🦋', title: 'Your wishes are alive', blurb: 'Butterflies loop about, boats bob on the water, teapots puff steam and trophies twinkle — all by themselves.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🛋️', title: 'The furniture fits your Boos', blurb: 'Benches, beds, tables and sofas are the right size now. Sit a Boo down and see!', route: 'town', params: { area: 'boohouse', room: 'lounge' } },
+      { icon: '🚂', title: 'A much bigger train', blurb: 'Tap the sky on the Hilltop and watch it go by. Choo choo!', route: 'town', params: { area: 'hilltop' } }
+    ]
+  },
+  // RUN21F F7/F10. ONE entry: the ambient beds are the only child-facing half. The play
+  // journal is behind the grown-up QA flag, and this file's own rule is never to advertise
+  // anything a grown-up has to switch on — so it is deliberately absent.
+  {
+    version: 'run21f-20260803',
+    entries: [
+      { icon: '🌊', title: 'Every place has its own sound', blurb: 'Listen closely — the beach has waves, the river burbles, the hilltop has wind and the meadow has birds.', route: 'town', params: { area: 'beach' } }
+    ]
+  },
   // RUN21D "Alive on Arrival". Four entries — the four things she can now DO or SEE that
   // she could not before. The Pulse itself is deliberately NOT sold to her: a town that
   // says hello should feel like a town that says hello, not like a feature.
