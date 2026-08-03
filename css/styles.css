@@ -1932,6 +1932,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .request-thought .rq-ask { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--pop); line-height: 1; }
 .request-thought:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
 @keyframes rq-bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+/* RUN21D-1: the Pulse breathes a bubble three times to say "over here". It animates the
+   INDIVIDUAL `scale` property rather than `transform`, so the bob above keeps running
+   underneath it instead of the two fighting over one transform. 3 × 0.8s = PULSE_BUBBLE_MS. */
+.request-thought.rq-pulse3 { animation: rq-bob 2s ease-in-out infinite, rq-pulse3-scale 0.8s ease-in-out 3; }
+@keyframes rq-pulse3-scale { 0%,100% { scale: 1; } 50% { scale: 1.14; } }
 
 /* The request card */
 .request-card { max-width: 360px; padding: 20px; text-align: center; }
@@ -1962,10 +1967,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   z-index: 9; text-shadow: 0 0 3px var(--card), 0 1px 0 var(--card);
 }
 @media (prefers-reduced-motion: reduce) {
-  .request-thought { animation: none !important; }
+  .request-thought, .request-thought.rq-pulse3 { animation: none !important; scale: 1 !important; }
   .rq-glow, .rq-thanks, .rq-fly { animation: none !important; }
 }
-.reduced .request-thought, .reduced .rq-glow, .reduced .rq-thanks { animation: none !important; }
+.reduced .request-thought, .reduced .request-thought.rq-pulse3, .reduced .rq-glow, .reduced .rq-thanks { animation: none !important; scale: 1 !important; }
 
 /* the 8 dance moves (applied one per beat to a Boo svg) */
 .move-bounce { animation: mv-bounce 0.6s ease-in-out; transform-origin: 50% 100%; }
