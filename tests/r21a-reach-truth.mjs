@@ -144,17 +144,23 @@ for (const room of ['lounge', 'kitchen', 'bedroom']) {
   const { ctx, page } = await open(SAVE(), { area: 'boohouse', room });
   await dismissReveal(page);
   const strip = await page.evaluate(() => {
-    const s = document.querySelector('.bd-panel .decorate-caption, .decorate-caption');
-    const swatches = document.querySelectorAll('.decorate-swatch');
-    const rows = [...document.querySelectorAll('.decorate-row-label')].map(n => n.textContent);
-    const empties = [...document.querySelectorAll('.drawer-empty')].map(n => n.textContent);
-    return { caption: s ? s.textContent : null, swatches: swatches.length, rows, empties };
+    // scope everything to the DECORATE strip: other tabs legitimately show the generic
+    // "Nothing here yet!" when the child owns nothing for them, and that is not this test's
+    // business (renderDrawer, town.js).
+    const cap = document.querySelector('.decorate-caption');
+    const strip = cap ? cap.parentElement : null;
+    return {
+      caption: cap ? cap.textContent : null,
+      swatches: strip ? strip.querySelectorAll('.decorate-swatch').length : 0,
+      rows: strip ? [...strip.querySelectorAll('.decorate-row-label')].map(n => n.textContent) : [],
+      empties: strip ? [...strip.querySelectorAll('.drawer-empty')].map(n => n.textContent) : ['strip not found']
+    };
   });
   const Room = room[0].toUpperCase() + room.slice(1);
   assert(strip.caption === `Dressings for the ${Room}`, `${room}: caption names the room, verbatim ("${strip.caption}")`);
   assert(strip.swatches >= 6, `${room}: its swatches are there before any hammer tap (${strip.swatches})`);
   assert(strip.rows.includes('Walls') && strip.rows.includes('Floors'), `${room}: both rows render`);
-  assert(!strip.empties.includes('Nothing here yet!'), `${room}: no bare "Nothing here yet!"`);
+  assert(strip.empties.length === 0, `${room}: the decorate strip shows swatches, not an empty state (${JSON.stringify(strip.empties)})`);
   if (room === 'lounge') await page.screenshot({ path: `${SHOTS}/item2-decorate-lounge.png` });
   await ctx.close();
 }
@@ -203,14 +209,14 @@ console.log('== item 6: the Boo stays put while its care arc is open ==');
   await dismissReveal(page);
   await page.evaluate(() => window.__townLife.forceWalk && window.__townLife.forceWalk(0));
   await sleep(500);
-  // the arc opens on a real TAP of the Boo (its only entry point), so tap it for real
-  await page.evaluate((id) => {
+  // The arc opens on a real TAP of the Boo (its only entry point). Use the real mouse:
+  // synthetic PointerEvents have no active pointer, so the app's setPointerCapture throws.
+  const at = await page.evaluate((id) => {
     const w = [...document.querySelectorAll('.t-item.boo')].find(n => n.dataset.item === id);
     const r = w.getBoundingClientRect();
-    for (const type of ['pointerdown', 'pointerup', 'click']) {
-      w.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
-    }
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }, BOOS[0]);
+  await page.mouse.click(at.x, at.y);
   await sleep(250);
   assert(await page.evaluate(() => window.__townLife.careArcCount()) > 0, 'the care arc is open');
   const frames = [];
@@ -390,11 +396,19 @@ console.log('== item 12: requests recharge honestly and always show something ==
   });
   const { ctx, page } = await open(save, { area: 'meadow', now });
   await dismissReveal(page);
-  const st = await page.evaluate(() => {
+  const st = await page.evaluate((cutoff) => {
     const s = window.BooTown.State.getState();
-    return { lastResolvedAt: s.request.lastResolvedAt, actives: (s.request.actives || []).length };
-  });
-  assert(st.actives === 0, 'the 60h-old request has expired');
+    const live = s.request.actives || [];
+    return {
+      lastResolvedAt: s.request.lastResolvedAt,
+      stale: live.filter(r => r.createdAt <= cutoff).length,
+      total: live.length
+    };
+  }, now - 50 * 3600 * 1000);
+  assert(st.stale === 0, `the 60h-old request is gone (${st.stale} stale of ${st.total} live)`);
+  // The point of item 12: because expiry no longer stamps lastResolvedAt, the recharge gate
+  // is already open, so the town can wonder something NEW on this very visit instead of
+  // taxing her with three hours of silence. A fresh request here is the fix working.
   assert(st.lastResolvedAt === 0, `and expiry did NOT stamp lastResolvedAt — no silence tax (${st.lastResolvedAt})`);
   await ctx.close();
 }

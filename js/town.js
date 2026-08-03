@@ -3305,8 +3305,10 @@ export function mount(container, params, ctx) {
     holdingScale = 1;
     placeMode = !!holding;
     renderDrawer(); updateHint();
-    // close the tray so it stops covering the ground once she's picked something (RUN10 P2)
-    if (holding) drawerApi.close();
+    // close the tray so it stops covering the ground once she's picked something (RUN10 P2).
+    // RUN21A-10: NOT shielded — this close exists to hand her the ground, and her very next
+    // tap is the placement. Shielding it ate that tap for up to 400ms.
+    if (holding) drawerApi.close({ shield: false });
   }
   // Horizontal momentum scroll for a drawer tab's chip strip (RUN10 P2): velocity fling,
   // decel 0.94/frame — matches the camera's own momentum feel (town.js scrollX, 0.92/frame).
