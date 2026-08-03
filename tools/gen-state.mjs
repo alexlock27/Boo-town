@@ -61,9 +61,12 @@ const wishCount = all(/'[a-z]+'/g, stripComments(block(read('data/wishes.js'), '
 const dressingCount = all(/\{\s*id:\s*'/g, stripComments(block(read('data/dressings.js'), 'export const DRESSINGS = [', '\n];'))).length;
 
 // ---- tests ----------------------------------------------------------------------
-// The board runner's excluded prefixes per CLAUDE.md testing law (shoot, sim-blocks,
-// device-qa) are listed but flagged, so the suite count states what the board runs.
-const EXCLUDED = /^(shoot|sim-blocks|device-qa)/;
+// What `_runall.sh` leaves out of the board is listed here but flagged, so the suite count
+// states what the board actually runs. It must match the runner's own filter: the excluded
+// prefixes from CLAUDE.md's testing law (shoot, sim-blocks, device-qa) plus `walk` — the
+// minutes-long pre-merge smoke that runs alone (RUN21F F10) — plus `run.mjs` itself, which
+// is the board's ENTRY POINT (what `npm test` executes), not a suite.
+const EXCLUDED = /^(shoot|sim-blocks|device-qa|walk)|^run\.mjs$/;
 const suites = fs.readdirSync(path.join(ROOT, 'tests')).filter(f => f.endsWith('.mjs')).sort();
 const boardSuites = suites.filter(f => !EXCLUDED.test(f));
 const excludedSuites = suites.filter(f => EXCLUDED.test(f));
@@ -119,9 +122,9 @@ L.push('');
 L.push(`- wishes: ${wishCount} (data/wishes.js WISH_WORDS)`);
 L.push(`- dressings: ${dressingCount} (data/dressings.js DRESSINGS, free defaults included)`);
 L.push('');
-L.push(`## Tests — ${suites.length} suites under tests/`);
+L.push(`## Tests — ${suites.length} files under tests/`);
 L.push('');
-L.push(`- board suites: ${boardSuites.length} (+ ${excludedSuites.length} excluded by prefix: shoot*, sim-blocks*, device-qa*)`);
+L.push(`- board suites: ${boardSuites.length} (+ ${excludedSuites.length} not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)`);
 L.push(`- \`npm test\` runs \`${testScript}\` — ${testEntry ? `\`${testEntry}\` ${testResolves ? 'EXISTS (resolves)' : 'MISSING (does NOT resolve)'}` : 'no node entry file detected'}`);
 L.push('');
 L.push('### Suite list');
