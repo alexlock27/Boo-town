@@ -13,7 +13,7 @@ import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
 import { idbGet } from './idb.js';
 import { voiceBooIds, playVoice } from './voices.js';
-import { checkRequestOpen, activeRequest, activeRequests, takeTreat, takeThanks, noteRequest, pruneImpossible, VERB_BY_KIND, nowMs, REQUEST_REWARD } from './requests.js';
+import { checkRequestOpen, activeRequest, activeRequests, takeTreat, takeThanks, noteRequest, pruneImpossible, VERB_BY_KIND, nowMs, REQUEST_REWARD, TRY_FRESH_MS } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
@@ -241,6 +241,45 @@ const ZONE_BEHAVIOURS = {       // which zone-only acts a Boo may pick, by zone 
   hilltop:   [['kite', 2.2]],
   beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]]
 };
+
+// ---- RUN21D: pulse ---------------------------------------------------------------------
+// Delight in this town is probabilistic — dice per pause, per Boo, per behaviour — which is
+// lovely on the fifth minute and empty on the first. A child could walk into a living place
+// and watch nothing happen for a full minute. So every area mount now takes ONE guaranteed
+// opening breath: exactly one beat, chosen by priority rather than by dice, and then a
+// single invitation to touch something.
+//
+// One beat. Never two. The chooser below returns on its first success, and `pulseStarted`
+// makes the whole thing once-per-mount. Reveals win outright (RUN21A-8's queue): if a
+// ceremony is on screen or waiting at the moment the beat is due, the pulse skips that
+// mount entirely rather than talking over it.
+const PULSE_DELAY_MS = 900;      // after first paint: long enough to read as the town's own
+const PULSE_HINT_MS = 9000;      // …and the invitation, once, at nine seconds
+const PULSE_PAN_MS = 600;        // the pack's ease for "come and look at this"
+const PULSE_BUBBLE_PULSES = 3;   // a request bubble breathes three times, then stops
+const PULSE_BUBBLE_MS = 2400;    // 3 × the .rq-pulse3 cycle in styles.css
+// The invitation, per area, exactly as authored. The Playground names the swings until
+// RUN21E lands tag; the pack authors both and says which one binds until then.
+const PULSE_INVITATIONS = {
+  meadow:            'Try tapping a flower…',
+  riverside:         'Try tapping the river…',
+  hilltop:           'Try tapping the sky…',
+  beach:             'Try tapping the sand…',
+  playground:        'Try the swings…',
+  funfair:           'The bandstand plays if you wander right…',
+  boohouse:          'Try tapping a sleepy Boo…',
+  boohouse_kitchen:  'Try tapping a sleepy Boo…',
+  boohouse_bedroom:  'Try tapping a sleepy Boo…'
+};
+// "Prefer things not shown today" — a SESSION set, never the save. There is no ledger of
+// what the town has already shown her; it resets on load like every other pacing memory
+// here (js/ack.js, js/encouragement.js, wishlife's visit tokens).
+let pulseSeenDay = '';
+let pulseSeen = new Set();
+function pulseSeenSet(dayKey) {
+  if (pulseSeenDay !== dayKey) { pulseSeenDay = dayKey; pulseSeen = new Set(); }
+  return pulseSeen;
+}
 
 function seasonOf(month) {       // month 1..12
   if (month >= 3 && month <= 5) return 'spring';
@@ -620,6 +659,9 @@ export function mount(container, params, ctx) {
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
     }
+    // RUN21D-1: the town's one guaranteed opening breath. Last, so everything it can choose
+    // from (placed items, actors, the fair, request bubbles) is already on screen.
+    startPulse();
   });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
@@ -1746,6 +1788,191 @@ export function mount(container, params, ctx) {
     fn(() => { revealShowing = false; pumpReveals(); });
   }
 
+  // ---- RUN21D-1: the Pulse Director ----------------------------------------------------
+  // See the `// RUN21D: pulse` block at module scope for the why. This is the wiring: one
+  // beat 900ms after first paint, one invitation at 9s, both cancelled on unmount.
+  let pulseStarted = false, pulseBeat = null, pulseInvited = false;
+  let pulseTimer = null, pulseHintTimer = null;
+  const pulseFired = [];   // every beat this mount played — the "never two" proof
+  const pulseInvitation = () => PULSE_INVITATIONS[STORE_KEY] || PULSE_INVITATIONS[AREA.key] || null;
+
+  function startPulse() {
+    if (pulseStarted) return;        // once per mount, whatever calls it
+    pulseStarted = true;
+    pulseTimer = setTimeout(() => {
+      pulseTimer = null;
+      // Reveals win. A growth/funfair ceremony is already the moment; the town does not
+      // clear its throat over one. The whole pulse skips this mount, invitation included.
+      if (revealShowing || revealQueue.length) { pulseBeat = 'skipped:reveal'; return; }
+      // REDUCED: no movement beats at all — the invitation is the whole pulse.
+      pulseBeat = REDUCED ? 'reduced' : (playPulseBeat() || 'none');
+      pulseHintTimer = setTimeout(showPulseInvitation, Math.max(0, PULSE_HINT_MS - PULSE_DELAY_MS));
+    }, PULSE_DELAY_MS);
+  }
+
+  // Exactly ONE beat: first eligible wins, but a beat this area has not shown today is
+  // preferred over one it has, so a second visit is not a rerun of the first.
+  function playPulseBeat() {
+    const seen = pulseSeenSet(todayKeyLocal());
+    const beats = [
+      ['request',   beatRequest],
+      ['newItem',   beatNewItem],
+      ['zone',      beatZoneBehaviour],
+      ['idle',      beatNearestIdle],
+      ['signature', beatSignature]
+    ];
+    const key = (k) => STORE_KEY + ':' + k;
+    const unshown = beats.filter(([k]) => !seen.has(key(k)));
+    for (const list of [unshown, beats]) {
+      for (const [kind, run] of list) {
+        if (!run()) continue;
+        seen.add(key(kind));
+        pulseFired.push(kind);
+        return kind;                 // one beat. The loop never runs past this.
+      }
+    }
+    return null;
+  }
+
+  // 1 — someone in this area is wondering something. Breathe the bubble, and if she cannot
+  //     see it, take her to it.
+  function beatRequest() {
+    const placed = areaItems(getState());
+    const r = activeRequests().find(x => placed.some(t => t.item === x.booId));
+    if (!r) return false;
+    const bubble = ground.querySelector(`.request-thought[data-boo="${r.booId}"]`);
+    if (!bubble) return false;
+    pulseBubble(bubble);
+    const t = placed.find(x => x.item === r.booId);
+    if (t && !fracOnScreen(t.x)) panToFrac(t.x, PULSE_PAN_MS);
+    return true;
+  }
+  function pulseBubble(bubble) {
+    if (REDUCED) return;
+    bubble.classList.remove('rq-pulse3'); void bubble.offsetWidth; bubble.classList.add('rq-pulse3');
+    setTimeout(() => bubble.classList.remove('rq-pulse3'), PULSE_BUBBLE_MS);
+  }
+
+  // 2 — the newest thing she put down does its own verb once. "New" is requests.js's own
+  //     TRY_FRESH_MS, so the town agrees with itself about what counts as new.
+  function beatNewItem() {
+    const now = nowMs();
+    const fresh = areaItems(getState())
+      .filter(t => t.at && now - t.at < TRY_FRESH_MS)
+      .sort((a, b) => b.at - a.at);
+    for (const t of fresh) {
+      const wrap = wrapFor(t);
+      if (!wrap || wrap.style.display === 'none') continue;
+      if (isWish(t.item)) {
+        const item = resolveItem(t.item);
+        if (!item || !wishTap(wrap, t, item)) continue;   // its authored wish verb, played once
+        if (!fracOnScreen(t.x)) panToFrac(t.x, PULSE_PAN_MS);
+        return true;
+      }
+      // A seat or an activity: the nearest Boo goes and uses it. Walking there IS the
+      // beat; the socket claim that follows is ordinary town life on its own timing.
+      if ((SOCKETS[t.item] && SOCKETS[t.item].length) || ACT_IDS.includes(t.item)) {
+        const a = nearestActorTo(t.x);
+        if (!a) continue;
+        clearRole(a); endWait(a);
+        a.goal = { kind: 'approach', deco: t, targetDx: (t.x - a.place.x) * zoneW, start: performance.now() };
+        if (!fracOnScreen(t.x)) panToFrac(t.x, PULSE_PAN_MS);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 3 — this place has an act of its own. Start it now instead of waiting for the dice that
+  //     chooseBehaviourKind rolls once every few seconds per Boo.
+  function beatZoneBehaviour() {
+    if (isNight(currentHour())) return false;            // the same daytime gate the dice use
+    const zb = ZONE_BEHAVIOURS[STORE_KEY];
+    if (!zb || !zb.length) return false;
+    const a = nearestActorToScreen();
+    if (!a || a.role || a.parading) return false;
+    clearRole(a); endWait(a); a.goal = null;
+    startBehaviour(a, zb[0][0], performance.now());       // the authored first choice, not a roll
+    return !!a.goal;
+  }
+
+  // 4 — the nearest Boo notices you: its species idle, and one hop.
+  function beatNearestIdle() {
+    const a = nearestActorToScreen();
+    if (!a) return false;
+    const species = (a.item && a.item.species) || 'bloop';
+    // A directed beat, so the per-Boo GAP is cleared (as __townLife.forceIdle does). The
+    // rolling-minute and scene caps still bind — this is a nudge, not an override.
+    a.idleNextAt = 0; a.idleUntil = 0;
+    if (!maybeIdle(a, performance.now(), SPECIES_IDLE[species] || SPECIES_IDLE.bloop)) return false;
+    a.wrap.classList.remove('t-seat-hop'); void a.wrap.offsetWidth; a.wrap.classList.add('t-seat-hop');
+    setTimeout(() => a.wrap.classList.remove('t-seat-hop'), SEAT_HOP_MS + 60);
+    return true;
+  }
+
+  // 5 — the area's own signature, fired once from where a finger would have found it.
+  function beatSignature() {
+    const p = signaturePoint();
+    return !!(p && areaSignature(p.x, p.y));
+  }
+  // Where the signature LIVES on screen right now, or null when it is not reachable from
+  // this camera. Deliberately reads the same anchors areaSignature() tests against, so the
+  // pulse can never fire a signature a finger could not have.
+  function signaturePoint() {
+    if (buildMode || isInterior) return null;
+    const r = viewport.getBoundingClientRect();
+    const atFrac = (xFrac, yFrac) => {
+      const px = xFrac * zoneW - scrollX;
+      if (px < 8 || px > r.width - 8) return null;
+      return { x: r.left + px, y: r.top + r.height * yFrac };
+    };
+    const centre = (yFrac) => ({ x: r.left + r.width / 2, y: r.top + r.height * yFrac });
+    switch (AREA.key) {
+      case 'riverside': return centre(0.44);
+      case 'beach':     return centre(0.72);
+      case 'hilltop':   return centre(0.30);
+      case 'meadow': {
+        const f = areaItems(getState()).find(t => /flower/.test(t.item));
+        return f ? atFrac(f.x, 0.62) : null;
+      }
+      case 'playground': {
+        const f = areaItems(getState()).find(t => /slide|frame|climb/.test(t.item));
+        return f ? atFrac(f.x, 0.60) : null;
+      }
+      case 'funfair': {
+        const cart = ground.querySelector('.ff-scenery-wrap, .ff-consite');
+        if (!cart) return null;
+        const cr = cart.getBoundingClientRect();
+        const cx = cr.left + cr.width / 2;
+        return (cx > r.left + 8 && cx < r.right - 8) ? { x: cx, y: r.top + r.height * 0.60 } : null;
+      }
+      default: return null;
+    }
+  }
+
+  const liveActors = () => actors.filter(a => a.wrap && a.wrap.isConnected && a.wrap.style.display !== 'none');
+  function nearestActorTo(xFrac) {
+    return liveActors().sort((p, q) => Math.abs(p.place.x - xFrac) - Math.abs(q.place.x - xFrac))[0] || null;
+  }
+  function nearestActorToScreen() {
+    return nearestActorTo((scrollX + viewW / 2) / (zoneW || 1));
+  }
+
+  // The invitation: a hint-bar line, never spoken, never while she is busy arranging.
+  function showPulseInvitation() {
+    pulseHintTimer = null;
+    if (revealShowing || revealQueue.length) return;
+    if (buildMode || placeMode || holding) return;
+    const line = pulseInvitation();
+    if (!line) return;
+    hint.textContent = line;
+    pulseInvited = true;
+  }
+  function stopPulse() {
+    if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
+    if (pulseHintTimer) { clearTimeout(pulseHintTimer); pulseHintTimer = null; }
+  }
+
   // The reveal ceremony: fence drops, confetti, guide line, Journal stamp (C6).
   function playGrowthReveal(m, done = () => {}) {
     sfx.fanfare();
@@ -2640,8 +2867,10 @@ export function mount(container, params, ctx) {
       const art = target
         ? el('div', { class: 'rq-pic', html: renderItem(target, { size: 38 }) })
         : el('div', { class: 'rq-pic rq-ask', text: REQUEST_GLYPHS[r.id] || '⭐' });
+      // RUN21D: `data-boo` so a bubble can be found by asker whether it is parented to the
+      // Boo's own wrap or floated over a bed — the Pulse and the 6s breathe both need it.
       const bubble = el('button', {
-        class: 'request-thought', 'aria-label': requestLine(r),
+        class: 'request-thought', 'aria-label': requestLine(r), dataset: { boo: r.booId },
         onclick: (e) => { e.stopPropagation(); openRequestCard(r); }
       }, [art]);
       // A napping Boo's wrap is painted behind its bed, and a stacking context takes its
@@ -2931,6 +3160,31 @@ export function mount(container, params, ctx) {
       scrollX = from + (target - from) * e; clampScroll(); applyScroll();
       if (p < 1) requestAnimationFrame(step);
     })(dt0);
+  }
+  // RUN21D — ONE smooth-pan primitive. The pulse, "Show me", the landmark dots, the fair's
+  // signs and the hider's fair chance all want the same thing: take the camera somewhere,
+  // gently, in a stated number of milliseconds. They all go through here rather than each
+  // growing its own easing loop (and its own reduced-motion bug). `panRaf` is held so a
+  // second pan cancels the first instead of the two fighting over scrollX.
+  let panRaf = null;
+  function panToPx(target, ms = PULSE_PAN_MS) {
+    target = Math.max(0, Math.min(target, Math.max(0, worldW - viewW)));
+    if (panRaf) { cancelAnimationFrame(panRaf); panRaf = null; }
+    if (REDUCED || !ms) { scrollX = target; clampScroll(); applyScroll(); return; }
+    const from = scrollX, t0 = performance.now();
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / ms);
+      const e = 1 - Math.pow(1 - p, 3);                 // ease-out: arrives, never overshoots
+      scrollX = from + (target - from) * e; clampScroll(); applyScroll();
+      panRaf = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    panRaf = requestAnimationFrame(step);
+  }
+  // Centre an area x-fraction. Single-zone areas since RUN10 P1, so zone 0 always.
+  function panToFrac(xFrac, ms = PULSE_PAN_MS) { panToPx(xFrac * zoneW - viewW / 2, ms); }
+  function fracOnScreen(xFrac, pad = 60) {
+    const px = xFrac * zoneW - scrollX;
+    return px > pad && px < viewW - pad;
   }
   // Zone-unlock reveal (RUN7 C2): pan across the whole new zone so the unlock reads as
   // DISCOVERING a new place — its distinct scenery slides past left→right.
@@ -5101,6 +5355,18 @@ export function mount(container, params, ctx) {
       // Sample chooseBehaviourKind(a) n times without side effects (it only READS the
       // candidate-picker helpers; startBehaviour is what actually sets a.goal) — the
       // chi-square-vs-uniform proof for personality weighting.
+      // ---- RUN21D QA hooks ---------------------------------------------------------------
+      // The pulse's caps ARE the feature (one beat, one invitation, reveals win), so they
+      // are inspectable rather than inferred from pixels.
+      pulse: () => ({
+        beat: pulseBeat, beats: pulseFired.slice(), invited: pulseInvited,
+        invitation: pulseInvitation(), hint: hint.textContent,
+        delayMs: PULSE_DELAY_MS, hintMs: PULSE_HINT_MS
+      }),
+      signaturePoint: () => signaturePoint(),
+      panToFrac: (x, ms) => panToFrac(x, ms),
+      // What every actor is actually DOING — the state proof behind a movement beat.
+      goals: () => actors.map(a => ({ item: a.place && a.place.item, goal: a.goal && a.goal.kind, role: a.role && a.role.kind, state: a.state })),
       behaviourSample: (i, n) => {
         const a = actors[i]; if (!a) return null;
         const savedGoal = a.goal, savedRole = a.role;
@@ -5116,7 +5382,9 @@ export function mount(container, params, ctx) {
   return {
     unmount() {
       roomScroll.set(STORE_KEY, scrollX);   // RUN21A-9: the pan survives every exit (session only)
+      stopPulse();                          // RUN21D-1: no beat and no invitation after leaving
       if (raf) cancelAnimationFrame(raf);
+      if (panRaf) cancelAnimationFrame(panRaf);
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);
