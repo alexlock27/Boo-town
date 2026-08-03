@@ -825,7 +825,7 @@ export function mount(container, params, ctx) {
     const groups = new Map();
     for (const c of cells) {
       const fixed = axis === 'h' ? c.cy : c.cx;
-      const k = c.style + ' ' + fixed;
+      const k = c.style + '|' + fixed;
       if (!groups.has(k)) groups.set(k, { style: c.style, fixed, list: [] });
       groups.get(k).list.push(axis === 'h' ? c.cx : c.cy);
     }
