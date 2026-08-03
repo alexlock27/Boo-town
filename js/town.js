@@ -604,13 +604,19 @@ export function mount(container, params, ctx) {
     // (always-open, RUN7 C1) fair so its day-one Carousel/scenery/bandstand show on the first mount.
     const ft = tickFunfair();
     if (!ft.readyToReveal) renderFunfair();
+    // RUN21A-16: the rides COMPLETE on whichever tick finds them (that is the fix — no four
+    // queued days), but the combined celebration waits for the fair itself, which is what
+    // the pack's ACCEPT asks for ("first FAIR mount") and what the announced-moments law
+    // needs: a headline about the fair, in the Meadow, gives her nowhere to look. It keeps
+    // in `funfair.catchup` until she walks in.
+    const showCatchUp = ft.catchUp && AREA.key === 'funfair';
     // RUN21A-8: ONE reveal at a time. The two reveals used to be scheduled independently
     // (+700ms and +900ms) and stacked their overlays; now one timer enqueues growth then
     // funfair and the queue shows the next only when the child dismisses the first.
-    if (gt.readyToReveal || ft.readyToReveal || ft.catchUp) {
+    if (gt.readyToReveal || ft.readyToReveal || showCatchUp) {
       setTimeout(() => {
         if (gt.readyToReveal) enqueueReveal(done => playGrowthReveal(gt.readyToReveal, done));
-        if (ft.catchUp) enqueueReveal(done => playFairCatchupReveal(ft.catchUp, done));   // RUN21A-16
+        if (showCatchUp) enqueueReveal(done => playFairCatchupReveal(ft.catchUp, done));   // RUN21A-16
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
     }
