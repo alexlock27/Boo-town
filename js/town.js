@@ -7,7 +7,7 @@ import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
-import { renderItem, renderDeco, clockHands, renderPathPot } from './art.js';
+import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { priceOf } from '../data/shop.js';   // RUN21C-4: the Pot's locked styles show their shelf price
 import { resolveItem } from './customs.js';
@@ -19,7 +19,7 @@ import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreograph
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
-import { sfx, music, ambient } from './sfx.js';
+import { sfx, music, ambient, bed } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
@@ -28,7 +28,7 @@ import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair,
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
-import { SURFACE_SLOTS, slotsFor, surfaceYFor, isSmall, clampWallY, WALL_Y_MIN, WALL_Y_MAX,
+import { SURFACE_SLOTS, slotsFor, surfaceYFor, baseYFor, isSmall, clampWallY, WALL_Y_MIN, WALL_Y_MAX,
          CHILD_SCALE, CHILD_MAX_WIDTH_FRAC, SLOT_SNAP_PX } from '../data/surfaces.js';
 import { DRESSINGS, DRESSING_BY_ID, DEFAULT_DRESSING, dressingsFor } from '../data/dressings.js';
 import { renderDressing, renderDressingSwatch } from './art.js';
@@ -40,8 +40,9 @@ import { wishId, wishItem, LIVING_WISHES, WISH_GROUPS, WISH_GROUP_FALLBACK } fro
 // RUN20 W1 — wish life. The table says which of the nine classes each of the sixty wishes
 // gets; js/wishlife.js is the machinery they share.
 import { WISH_LIFE, lifeFor, classOf, isOutdoorOnly, INDOOR_TIP, SKY_BAND, CATCHABLE } from '../data/wishlife.js';
-import { wordOfWishId, isWish, wishClass, wishLife, wishNeedsSky, createSoundBudget, newVisit,
+import { wordOfWishId, isWish, wishClass, wishIdleClass, wishLife, wishNeedsSky, createSoundBudget, newVisit,
          maydaySay, skyYFor, skyDriftX, bandOfHour, bandAllows, chooseDiner, tallestNear, crownPick } from './wishlife.js';
+import { WISH_IDLE_EPISODIC, WHALE_SPOUT_MS, WISH_IDLE_SCENE_PER_MIN } from '../data/wishlife.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -58,7 +59,9 @@ const DISCO_DOOR_X = 0.51;
 const INTERIOR_W_VIEWPORTS = 1.5;
 const INTERIOR_WALL_FRAC = 0.55;   // room backdrop: wall band = top 55%, floor band = the rest
 const WALL_ROW = 3;                // sentinel row value for wall-hung items (floor uses 0-2)
-const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no depth variation
+const WALL_Y_FRAC = 0.30;          // DEFAULT hang height for a wall item with no dragged `y`.
+                                   // Since RUN19 Z6 the height is per item: clampWallY(t.y ??
+                                   // WALL_Y_FRAC) inside data/surfaces.js's 0.18-0.42 band.
 const ITEM_SCALE_MIN = 0.70, ITEM_SCALE_MAX = 1.60, ITEM_SCALE_STEP = 0.15;
 // RUN19 Z6 — drag-handle resize replaces the +/- buttons. The range is the same 0.70-1.60 the
 // buttons stepped through, except that furniture indoors (and a bed anywhere) may go to 2.0,
@@ -376,20 +379,84 @@ function weightedPick(cands) {   // cands: [ [value, weight], ... ]
 }
 const lerp = (a, b, k) => a + (b - a) * k;
 // Activity kit renders bigger than a Boo so climbing/sitting reads properly.
+//
+// ---- RUN21B item 3: PROPORTION RE-BASELINE ------------------------------------------------
+// The unit for every furniture number below is B — the standing Boo's DRAWN height at scale 1,
+// row 1 — MEASURED, not assumed: 74.36px at 1024x768 (six of the ten starter Boos; the eared
+// species reach 87.4 and 93.5, the SVG box is 99.66). Every item shares one 120x130 viewBox
+// and is scaled uniformly by the number in this table, so at row 1, scale 1:
+//     one viewBox unit = ACT_SIZE / 120 px
+// and an item's DRAWN height/width is (its own drawn extent in viewBox units) x that.
+//
+// Two things this table cannot do, and one it now does:
+//  - It cannot hit a width target AND a seat-height target at once: the ratio between them is
+//    fixed by the ART. Where the pack gives both, the SEAT/TOP HEIGHT wins (RUN21B-PROGRESS
+//    deviation 9b) — that is the number "a Boo fits every seat without floating" tests.
+//  - Heights are measured from each item's OWN DRAWN BASE, not from the nominal y=120 ground
+//    line of the viewBox (deviation 10): a table's legs stop at y=102, a bench's at y=114, and
+//    it is where the legs stop that the eye reads as the floor. Measuring from y=120 instead
+//    makes six of the pack's own targets SHRINK the very items its WHY calls too small.
+//  - It now covers deco_bench, deco_bookshelf3 and deco_pond, which were silently on the 92
+//    fallback and so were invisible to every previous pass (deviation 9d).
+// Comments give: measured-before -> after, in B, and which target set the number.
 const ACT_SIZE = {
   deco_slide: 150, deco_swings: 150, deco_seesaw: 160, deco_trampoline: 140,
   deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120,
+  // The pack's outdoor list is a SANITY PASS only — change nothing unless a Boo visibly
+  // cannot fit. Photographed one Boo on each (swings/slide/seesaw/trampoline/picnic/
+  // paddlepool): every one fits, so every one is untouched above.
+  // deco_pond was on the 92 fallback and is now explicit at the same value: it is in neither
+  // the pack's indoor list nor its outdoor sanity list, and a Boo does fit it, so the
+  // re-baseline has no mandate to resize it. It DOES read small (88 drawn units = 0.90xB
+  // wide, so a fishing Boo covers it) — flagged for RUN21C/E rather than invented here.
+  deco_pond: 92,
+  // The one bench in the game — the pack's indoor "bench" and its outdoor "cosy bench" are
+  // the same item (deviation 9d). Seat top y=84, drawn base y=114, so 30 units of seat.
+  // seat 0.310xB -> 0.520xB (the pack's bench ratio). Width follows the art at 1.11xB.
+  deco_bench: 154,
   // furniture (RUN10 P4)
-  deco_bed: 150, deco_sofa: 165, deco_rug: 210, deco_table: 120, deco_tablelamp: 105,
+  // bed: mattress top y=78 over base y=108 was ALREADY 0.504xB against the pack's 0.45, so the
+  // height target would have SHRUNK the one item the WHY names first. Length was the number
+  // actually missing (1.345xB against the pack's 1.9), and length is what the bed-nap ACCEPT
+  // needs — the duvet cannot cover a Boo lying on a bed shorter than it is. 1.345 -> 1.90xB.
+  deco_bed: 212,
+  // sofa cushion top y=80 over base y=106: seat 0.481 -> 0.500xB. Width 1.85xB (pack: 2.4).
+  deco_sofa: 172,
+  deco_rug: 213,                  // width 2.166 -> 2.200xB (the one pure-width item; +1.6%)
+  deco_table: 129,                // top y=52 over base y=102: 0.672 -> 0.720xB. Width 0.98xB (pack: 1.3)
+  deco_tablelamp: 131,            // drawn height 0.682 -> 0.850xB
   deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145, deco_bffportrait: 120,
   // furniture and decor expansion (RUN13 T4)
-  deco_armchair: 130, deco_bunkbed: 155, deco_wardrobe2: 145, deco_kitchentable: 135,
-  deco_counter: 150, deco_fridge: 130, deco_oven: 130, deco_stool: 95,
-  deco_bookshelf2: 145, deco_rug2: 200, deco_rug3: 200, deco_lamp2: 105, deco_floorlamp: 130,
-  deco_plant1: 110, deco_plant2: 120, deco_plant3: 105, deco_wallclock: 105, deco_mirror: 115,
-  deco_toybox: 125, deco_wallart1: 110, deco_wallart2: 110, deco_wallart3: 110,
+  // armchair and sofa draw the SAME seat geometry (cushion top y=80, base y=106) yet sat at
+  // 130 and 165, which is why one read 0.379xB and the other 0.481xB. Equal art, equal size.
+  deco_armchair: 172,             // seat 0.379 -> 0.500xB. Width 1.54xB (pack: 1.3 — art overshoots)
+  deco_bunkbed: 155, deco_wardrobe2: 145,
+  deco_kitchentable: 139,         // top y=56 over base y=106: 0.757 -> 0.780xB. Width 1.37xB (pack: 1.9)
+  deco_counter: 150, deco_fridge: 130, deco_oven: 130,
+  deco_stool: 149,                // seat y=78 over base y=108: 0.319 -> 0.500xB
+  deco_bookshelf2: 182,           // the pack's "low bookshelf": 0.877 -> 1.100xB tall
+  deco_bookshelf3: 139,           // ADDED (was on the 92 fallback at 0.99xB — shorter than the
+                                  // LOW shelf would now be). 1.50xB, so the three shelves read
+                                  // low 1.10 / standard 1.40 / ladder 1.50 as one family.
+  deco_rug2: 205, deco_rug3: 205, // same 2.2xB width rule as deco_rug (their art is 96 units, not 92)
+  deco_lamp2: 105, deco_floorlamp: 130,
+  deco_plant1: 146,               // the pack's "pot plant" (the only plant in SMALL_ITEMS): 0.678 -> 0.900xB
+  deco_plant2: 120, deco_plant3: 105,
+  // wallclock and photoframe are the two targets that genuinely REDUCE (0.55xB -> 72, 0.5xB ->
+  // 53) — deviation 9c: treated as authored against a different B and left alone, since the
+  // pack's own WHY is that this furniture reads too SMALL. Side-by-sides show neither oversized.
+  deco_wallclock: 105, deco_mirror: 115,
+  deco_toybox: 116,               // 0.756 -> 0.700xB tall (the pack's only toybox number)
+  deco_wallart1: 110, deco_wallart2: 110, deco_wallart3: 110,
   deco_photoframe: 105
 };
+// RUN21B item 1: every wish used to render at the generic 92, because they were all the
+// same medallion and size carried no meaning. Now that they are real objects, each carries
+// the pack's footprint class — S 44 (bell, key, sock, cookie…), M 64, L 84 (castle, whale,
+// rocket…) — so a key is key-sized beside a castle instead of matching it.
+for (const [word, cls] of Object.entries(WISH_SIZE)) {
+  if (WISH_PX[cls]) ACT_SIZE[wishId(word)] = WISH_PX[cls];
+}
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
 
@@ -600,8 +667,10 @@ export function mount(container, params, ctx) {
   pathStyleRow.style.display = 'none';
   viewport.append(pathStyleRow);
 
-  // Town drawer (RUN10 P2): js/drawer.js tabs [Boos | Rides & fun | Decorations | Special],
-  // plus a Build-only Landscape tab (RUN10 P3, tab button hidden outside build mode).
+  // Town drawer (RUN10 P2): js/drawer.js tabs. DRAWER_TABS_SPEC below is the list — Boos,
+  // Rides & fun, Decorations, Furniture (RUN13 T4), Special, Landscape (RUN10 P3, hidden
+  // outside build mode), Wishes (RUN20 W1) and Decorate (RUN19 Z6, rooms only). Which of
+  // them are visible depends on indoors/outdoors and build mode; see updateBuildUI().
   // `item.act` (catalogue.js) marks the playground/activity decos; ultra-rarity decos are
   // the "Special" showpieces.
   const DRAWER_TABS_SPEC = [
@@ -1334,14 +1403,20 @@ export function mount(container, params, ctx) {
           const f = el('i', { class: 't-footprint', style: { left: (worldX + i * 30) + 'px', top: (r.height * (fy + i * 0.02)) + 'px', animationDelay: (i * 120) + 'ms' } });
           put(f, 4000 + i * 120);
         }
+        // RUN21B-6: the sand answers back, the way the river already does. Deliberately no
+        // once-per-visit gate — the pack asks for an echo on footprint taps, plural.
+        hint.textContent = 'Squish, squish!';
         return true;
       }
       case 'hilltop': {
         if (yFrac > 0.42) return false;
         if (areaSeen.train || REDUCED) return false;   // once per visit; never under reduced motion
         areaSeen.train = true;
-        const train = el('i', { class: 't-train', style: { top: (r.height * 0.34) + 'px' } });
+        // RUN21B-6: the train is 24px taller now, so it would hang that much lower on the
+        // same sightline — take half the growth back to keep it where it always ran.
+        const train = el('i', { class: 't-train', style: { top: (r.height * 0.34 - 12) + 'px' } });
         put(train, 4200);
+        hint.textContent = 'Choo choo! There goes the little train!';
         if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.chime(4);
         return true;
       }
@@ -1418,7 +1493,17 @@ export function mount(container, params, ctx) {
     const word = wordOfWishId(place.item);
     const key = placementIdOf(place);
     const svg = wrap.querySelector('svg');
-    const playOnce = (cls, ms) => { if (REDUCED || !svg) return; svg.classList.remove(cls); void svg.offsetWidth; svg.classList.add(cls); setTimeout(() => svg.classList.remove(cls), ms + 40); };
+    // Each play carries a token, and only the play that started a pose may end it. Without
+    // this, tapping the instant a pose finishes lets the OLD cleanup timer (already queued,
+    // ~40ms out) strip the class the NEW tap just added — the second tap looks ignored. It
+    // only became reachable once RUN21A-5 stopped budget-gating taps, because before that
+    // the too-soon tap was refused anyway. (RUN21B, found merging D into B.)
+    const playOnce = (cls, ms) => {
+      if (REDUCED || !svg) return;
+      const token = (svg._playToken = (svg._playToken || 0) + 1);
+      svg.classList.remove(cls); void svg.offsetWidth; svg.classList.add(cls);
+      setTimeout(() => { if (svg._playToken === token) svg.classList.remove(cls); }, ms + 40);
+    };
     const say = (lineKey, scope, vars) => {
       // RUN21A-5: no budget consultation on a tap path — budgets exist to stop the town
       // talking unprompted, never to mute a response to her finger. (`scope` kept for
@@ -1441,7 +1526,9 @@ export function mount(container, params, ctx) {
         wrap.classList.add('wish-airborne');
         playOnce('wish-launch', life.ms + life.backMs);
         if (wishSound.allow(key, { tapped: true })) sfx.whirr();
-        setTimeout(() => wrap.classList.remove('wish-airborne'), life.ms + life.backMs);
+        // Same token rule as playOnce: only this flight may declare itself landed.
+        const flightToken = (wrap._flightToken = (wrap._flightToken || 0) + 1);
+        setTimeout(() => { if (wrap._flightToken === flightToken) wrap.classList.remove('wish-airborne'); }, life.ms + life.backMs);
         return true;
       }
       case 'crown': {
@@ -1621,11 +1708,13 @@ export function mount(container, params, ctx) {
     const pCentreX = (ZONE_INDEX[parent.zone] ?? 0) * zoneW + clamp01(parent.x) * zoneW;
     return {
       x: pCentreX + slots[idx].x * pWidth,
-      // The surface, measured from the parent's rendered BOX BOTTOM — not from its ground line.
-      // renderPlaced puts every item's box bottom at (ground + 8), that 8 being the flat
-      // stand-in for the transparent margin the art leaves below its drawn base. Measuring
-      // from the ground line therefore put every surface ~12px too high, and a lamp floated
-      // above the table it was standing on.
+      // The surface, measured from the parent's own GROUND LINE — the y=120 line of the shared
+      // 120x130 deco viewBox, which renderPlaced lands at (rowGround + 8). RUN21B item 5: this
+      // comment used to claim (ground + 8) is the parent's rendered BOX BOTTOM. It is not — the
+      // box bottom is a further pHeight*10/130 below, that 10/130 being the transparent margin
+      // the viewBox leaves under the ground line. The arithmetic was always right; the sentence
+      // describing it was not, and data/surfaces.js's authors were reading the sentence.
+      // surfaceY = (120 - S)/130 for a surface drawn at viewBox y = S. See data/surfaces.js.
       y: (pGround + 8) - surfaceYFor(parent.item, idx) * pHeight,
       parentWidth: pWidth,
       z: Math.round(pGround)
@@ -1727,6 +1816,12 @@ export function mount(container, params, ctx) {
       const newClass = 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '')
         + (onSurface ? ' on-surface' : '') + (onSky ? ' on-sky' : '')
         + (isWish(t.item) ? ' t-wish wish-' + (wishClass(t.item) || 'none').toLowerCase() : '')
+        // RUN21B-2: the ambient idle rides on its own token, so it can never disturb the
+        // wish-<cls> token the tap verbs and RUN20's behaviours bind to. The continuous
+        // idles (FLIER, BOB) are pure CSS on this class; the episodic ones are paced by
+        // pumpWishIdles below. Recomputed here every render, which is also how the owl's
+        // night gate re-evaluates as the clock rolls over.
+        + (isWish(t.item) ? ' wishidle-' + (wishIdleClass(t.item, isNight(currentHour())) || 'none').toLowerCase() : '')
         + (bff ? ' care-bff' : '');
       if (wrap.className !== newClass) wrap.className = newClass;
 
@@ -1746,12 +1841,14 @@ export function mount(container, params, ctx) {
         if (seat) {
           placedSize = Math.min(size * CHILD_SCALE, seat.parentWidth * CHILD_MAX_WIDTH_FRAC);
           placedLeft = seat.x - placedSize / 2;
-          // The `+8` every floor item uses is a flat stand-in for the transparent margin the
-          // art leaves below its drawn base (the shared 120x130 deco viewBox draws its ground
-          // line at y=120, so 10/130 of the box is empty). Flat is fine at floor sizes and
-          // WRONG for a child scaled to 45% of a table — measured, the lamp floated 5px above
-          // the table top. Proportional, so contact holds at any size.
-          placedTop = seat.y - placedSize + placedSize * (10 / 130);
+          // Land the child's OWN drawn base on the surface. RUN21B item 5: this was
+          // `- placedSize + placedSize * (10/130)`, a single flat nudge for every small item —
+          // which is exactly right only for art that stops at viewBox y = 110.8 and nothing
+          // does. The lamp stops at 104 and floated; the plant stops at 114 and sank. Since a
+          // child's box height is placedSize*130/120, its own y=Yc line sits Yc*placedSize/120
+          // below its box top, so putting that line on the seat is one subtraction — and it
+          // holds at every parent scale because placedSize already carries the scale.
+          placedTop = seat.y - placedSize * (baseYFor(t.item) / 120);
           placedZ = seat.z + 1;
         }
       }
@@ -4300,7 +4397,7 @@ export function mount(container, params, ctx) {
         onTap(wrap, place, item);
       }
     });
-    wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); });
+    wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); clearSlotGlow(); });   // RUN21B-4
   }
 
   function onTap(wrap, place, item) {
@@ -4452,6 +4549,68 @@ export function mount(container, params, ctx) {
 
   function sparkleAtNode(node) {
     try { const b = node.getBoundingClientRect(); sparkleAt(b.left + b.width / 2, b.top + b.height / 2); } catch {}
+  }
+
+  // ---- RUN21B-2: episodic wish idles ------------------------------------------------------
+  // The continuous idles (FLIER, BOB) are CSS loops on the wishidle-* class and cost nothing
+  // to schedule. These are the ones that happen NOW AND THEN, so they need pacing: a wisp of
+  // steam every 20-30s, a sparkle pass every 25-40s, the whale's spout once every 45s.
+  //
+  // Two caps, both modelled on the species-idle pattern (maybeIdle): a per-item next-due time
+  // kept on the wrap, and one shared rolling-minute scene cap so a room full of teapots never
+  // becomes weather. REDUCED never idles at all — the static pose IS the reduced experience.
+  let wishIdleLog = [];
+  function wishIdleDue(wrap, now, cls) {
+    if (wrap._wishIdleNextAt == null) {
+      // Stagger first-due across the scene so everything placed in one go does not fire in
+      // lockstep on the same tick.
+      const [lo, hi] = cls === 'WHALE' ? [WHALE_SPOUT_MS, WHALE_SPOUT_MS] : (WISH_IDLE_EPISODIC[cls] || [25000, 40000]);
+      wrap._wishIdleNextAt = now + lo * 0.3 + Math.random() * (hi - lo * 0.3);
+      return false;
+    }
+    return now >= wrap._wishIdleNextAt;
+  }
+  function armNextWishIdle(wrap, now, cls) {
+    const [lo, hi] = cls === 'WHALE' ? [WHALE_SPOUT_MS, WHALE_SPOUT_MS] : (WISH_IDLE_EPISODIC[cls] || [25000, 40000]);
+    wrap._wishIdleNextAt = now + lo + Math.random() * Math.max(0, hi - lo);
+  }
+  function playWishIdle(wrap, cls) {
+    const svg = wrap.querySelector('svg');
+    if (cls === 'GLEAM') { sparkleAtNode(wrap); return true; }
+    if (cls === 'STEAM' || cls === 'WHALE') {
+      // A wisp: three soft pips rising off the top of the thing. Named wish-wisp, NOT
+      // wish-steam — that class already exists as the teapot's TAP pose and would collide.
+      for (let i = 0; i < 3; i++) {
+        const pip = el('i', { class: 'wish-wisp' + (cls === 'WHALE' ? ' wish-wisp-spout' : '') });
+        pip.style.left = (34 + i * 14) + '%';
+        pip.style.animationDelay = (i * 180) + 'ms';
+        wrap.appendChild(pip);
+        setTimeout(() => pip.remove(), 1800 + i * 180);
+      }
+      if (svg) { svg.classList.remove('wish-wobble'); void svg.offsetWidth; svg.classList.add('wish-wobble'); setTimeout(() => svg.classList.remove('wish-wobble'), 740); }
+      return true;
+    }
+    return false;
+  }
+  function pumpWishIdles() {
+    if (REDUCED) return;
+    const now = performance.now();
+    wishIdleLog = wishIdleLog.filter(t => now - t < 60000);   // the rolling minute
+    for (const wrap of ground.querySelectorAll('.t-wish')) {
+      if (wishIdleLog.length >= WISH_IDLE_SCENE_PER_MIN) break;   // scene cap, shared
+      if (wrap.style.display === 'none') continue;
+      const id = wrap.dataset.item;
+      const word = wordOfWishId(id);
+      const idle = wishIdleClass(id, isNight(currentHour()));
+      // The whale is a BOB that also spouts; its spout is on its own 45s clock.
+      const cls = (word === 'whale') ? 'WHALE' : idle;
+      if (cls !== 'STEAM' && cls !== 'GLEAM' && cls !== 'WHALE') continue;
+      // offscreen things do not perform (the same courtesy stepActors extends to actors)
+      const px = parseFloat(wrap.style.left) - scrollX;
+      if (px < -140 || px > viewW + 140) continue;
+      if (!wishIdleDue(wrap, now, cls)) continue;
+      if (playWishIdle(wrap, cls)) { wishIdleLog.push(now); armNextWishIdle(wrap, now, cls); }
+    }
   }
   // Twiggy, in the world — shown and spoken, so a voice-off house gets the same moment.
   function sayInWorld(text) {
@@ -4608,7 +4767,8 @@ export function mount(container, params, ctx) {
     setTimeout(() => heart.remove(), 900);
     const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) + heartBadge(item.id) }); wrap.appendChild(tag);
     setTimeout(() => tag.remove(), 1100);
-    // Personality catchphrase (RUN10 P5): 20% of taps, spoken via a guide-style bubble on
+    // Personality catchphrase (RUN10 P5): 45% of taps (CATCHPHRASE_RATE, raised from 0.2 by
+    // RUN19 Z2 — a Boo you tap should mostly say something), spoken via a guide-style bubble on
     // the Boo herself, not the guide's own avatar — it's HER line, not the guide's.
     if (item.kind === 'boo' && Math.random() < CATCHPHRASE_RATE) {
       // RUN20 W3: a pirate says "Yarr!" instead of its temperament's line — capped by the SAME
@@ -4830,16 +4990,52 @@ export function mount(container, params, ctx) {
     // anything in the front rows sits behind it, so the authored bottom-right position was a
     // handle a child could see and never touch. Same precedent as openMenu, which already
     // flips itself below the item when it would clip the top edge.
-    requestAnimationFrame(() => {
-      const r = ring.getBoundingClientRect();
+    const placeRing = () => {
+      if (!ring.isConnected) return;
       // The drawer's ROOT sits low; what actually covers things is its open TRAY, which starts
       // much higher up. Take whichever is higher, or the check passes while the tray is over
       // the handle (measured: root top 708, tray top 531, handle bottom 582).
-      const parts = [drawer, drawer.querySelector('.bd-tray'), drawer.querySelector('.bd-tabs')].filter(Boolean);
-      const boxes = parts.map(n => n.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0);
-      const covered = boxes.some(d => r.bottom > d.top + 4 && r.right > d.left && r.left < d.right);
-      ring.classList.toggle('up', covered);
-    });
+      //
+      // RUN21B item 3: and the build-mode TOOL ROWS, which run down the viewport's right edge
+      // at mid-height. They never mattered while furniture was small, because the flipped-up
+      // handle stayed below them. Re-baselined furniture is up to 40% taller, so a selected bed
+      // put its handle squarely under the path-style buttons — measured, elementFromPoint at
+      // the ring's own centre returned `.t-style-btn`, so every drag went to the toolbar and
+      // the child could see a handle she could not move. Both candidate positions are now
+      // tested and the free one wins, instead of flipping up unconditionally.
+      // The test is not "does the handle's box overlap a list of panels" but the thing that
+      // actually matters: WOULD A PRESS ON IT LAND ON IT. elementFromPoint answers exactly
+      // that, and answers it for the drawer, its tabs, its transition shield, the tool rows
+      // and any other item's wrap at once — a list of named panels was always going to keep
+      // acquiring one more panel. Off-screen returns null, which counts as blocked.
+      const reachable = () => {
+        const r = ring.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!hit && (hit === ring || ring.contains(hit));
+      };
+      // Four corners, best first: the authored bottom-right, then up, then the two on the LEFT
+      // side, which are what clear the right-edge build tool rows. A re-baselined bed at
+      // 1024x700 blocks BOTH right-hand corners at once — drawer tabs under the bottom-right,
+      // path-style buttons over the top-right — and before item 3 grew the furniture, flipping
+      // up unconditionally was enough. Falling back to the default would hand the child a
+      // handle she can see and cannot press, which is the exact defect Z6's flip was added for.
+      const corners = [[], ['up'], ['up', 'left'], ['left']];
+      let chosen = corners[0];
+      for (const c of corners) {
+        ring.classList.remove('up', 'left');
+        if (c.length) ring.classList.add(...c);
+        if (reachable()) { chosen = c; break; }
+      }
+      ring.classList.remove('up', 'left');
+      if (chosen.length) ring.classList.add(...chosen);
+    };
+    // Twice: once now, and once after the drawer has finished sliding. Build mode OPENS the
+    // drawer, so at the first frame after selection its tray is still travelling and its
+    // transition shield is still up — the first pass sees a clear bottom-right corner that is
+    // covered by tabs 200ms later. 480ms clears the tray's 220ms slide and the shield's 400ms
+    // safety timeout both.
+    requestAnimationFrame(placeRing);
+    setTimeout(placeRing, 480);
   }
   // Resize this one wrap in place, without re-rendering the area, so the drag stays smooth.
   function applyLiveSize(wrap, place, scale) {
@@ -4878,6 +5074,14 @@ export function mount(container, params, ctx) {
     const menu = el('div', { class: 'plot-menu' }, btns);
     wrap.appendChild(menu);
     openPopover = menu;
+    // RUN21B item 3: the SELECTED item draws above its neighbours while its menu is open.
+    // Every `.t-item` is a full 120x130 box however little of it the art fills, and a
+    // re-baselined rug's box is 256x277 of mostly-empty rectangle — which sat over the bed's
+    // resize handle and swallowed the press. Neighbours share a z-index (their shared ground
+    // row), so DOM order was deciding which of two overlapping boxes won, and the thing she
+    // had just tapped could lose.
+    selectedWrap = wrap; selectedZ = wrap.style.zIndex;
+    wrap.style.zIndex = '9998';
     ground.classList.add('menu-open');   // request bubbles fade so they never cover the menu
     // keep the popover fully on-screen (edge items / narrow screens): nudge it
     // horizontally and flip it below the item if it would clip the top edge
@@ -4891,7 +5095,16 @@ export function mount(container, params, ctx) {
     });
     setTimeout(() => document.addEventListener('pointerdown', closeMenu, { once: true }), 0);
   }
-  function closeMenu() { if (openPopover) { openPopover.remove(); openPopover = null; } ground.classList.remove('menu-open'); }
+  let selectedWrap = null, selectedZ = '';
+  function closeMenu() {
+    if (openPopover) { openPopover.remove(); openPopover = null; }
+    if (selectedWrap) {
+      selectedWrap.querySelectorAll('.t-resize').forEach(n => n.remove());
+      if (selectedWrap.isConnected) selectedWrap.style.zIndex = selectedZ;   // put it back in its row
+      selectedWrap = null; selectedZ = '';
+    }
+    ground.classList.remove('menu-open');
+  }
 
   function removePlacement(place) {
     mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
@@ -4921,11 +5134,21 @@ export function mount(container, params, ctx) {
     const ly = cy - LIFT;
     liftGhost.style.left = cx + 'px'; liftGhost.style.top = ly + 'px';
     const r = viewport.getBoundingClientRect();
-    if (ly >= r.top && ly <= r.bottom) { const { zi, x } = zoneAndXAt(clientToWorld(cx)); showDropPreview(liftGhost, zi, x, rowAtClient(ly)); }
-    else hideDropPreview(liftGhost);
+    if (ly >= r.top && ly <= r.bottom) {
+      const { zi, x } = zoneAndXAt(clientToWorld(cx));
+      showDropPreview(liftGhost, zi, x, rowAtClient(ly));
+      // RUN21B-4: THE slot glow was wired to the two rarest gestures and not to this one —
+      // lifting a chip out of the drawer is how a child actually carries a lamp to a table,
+      // and the pointer is captured by the strip, so the viewport's own move handler never
+      // sees it. Aim at ly (the point endChipLift places from), so the ring marks the spot
+      // the item will really land on.
+      if (isSmall(holding)) showSlotGlow(nearestFreeSlot(cx, ly)); else clearSlotGlow();
+    }
+    else { hideDropPreview(liftGhost); clearSlotGlow(); }
   }
   function endChipLift(cx, cy) {
     hideDropPreview(liftGhost);
+    clearSlotGlow();
     if (liftGhost) { liftGhost.remove(); liftGhost = null; }
     const ly = cy - LIFT;
     const r = viewport.getBoundingClientRect();
@@ -4935,6 +5158,7 @@ export function mount(container, params, ctx) {
   }
   function cancelChipLift() {
     hideDropPreview(liftGhost);
+    clearSlotGlow();   // RUN21B-4: a cancelled lift must not leave a ring pulsing on screen
     if (liftGhost) { liftGhost.remove(); liftGhost = null; }
     updateSoftened();
   }
@@ -5712,6 +5936,10 @@ export function mount(container, params, ctx) {
   if (!isInterior) buildAmbient(air, night, AREA.key);
   renderWeather();
   ambient.play(night ? 'night' : 'day');   // gentle bed under the music, obeys the mute (C1)
+  // RUN21F F7: and the place itself has a voice — surf, river, wind, birdsong, distant
+  // play. The table in sfx.js decides: the Funfair (its jingle owns that air) and the
+  // interiors are not in it, so they stay exactly as quiet as they were.
+  bed.play(AREA.key);
   scheduleShootingStar();
 
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
@@ -5720,6 +5948,13 @@ export function mount(container, params, ctx) {
   // ambient speech, and the softened world has none of it — she is arranging, not being
   // talked at. The sweep resumes with everything else the moment the tray shuts.
   const roleTimer = setInterval(() => { if (!document.hidden && !softened) assignRoles(); }, 4000);
+  // RUN21B-2: the EPISODIC wish idles — a teapot's wisp, a trophy's sparkle, the whale's
+  // spout. The continuous ones (FLIER's figure-8, BOB's rise and fall) are CSS loops and
+  // need no clock. This one paces the rest against a shared scene cap, so a Meadow full of
+  // teapots stays a place rather than a fireworks display.
+  // RUN21C merge: `buildMode` no longer exists — this is `softened` now, or the wish idles
+  // would never pause while she arranges (and, before C, never run at all).
+  const wishIdleTimer = setInterval(() => { if (!document.hidden && !softened) pumpWishIdles(); }, 2000);
   // RUN13 T4: a placed wall clock keeps real time — hands only, no re-render of the item.
   const clockTimer = setInterval(() => {
     if (document.hidden) return;
@@ -5909,6 +6144,17 @@ export function mount(container, params, ctx) {
       litLamps: () => [...ground.querySelectorAll('.t-item.lit')].map(n => n.dataset.item),
       // RUN13 T5 QA hooks: idles and the behaviour-changing accessories.
       idleCaps: () => ({ minGapMs: IDLE_MIN_GAP_MS, maxPerMin: IDLE_MAX_PER_MIN, sceneCap: IDLE_SCENE_CAP, ms: IDLE_MS }),
+      // RUN21B-2: the ambient wish idles.
+      wishIdleCaps: () => ({ scenePerMin: WISH_IDLE_SCENE_PER_MIN, episodic: WISH_IDLE_EPISODIC, whaleMs: WHALE_SPOUT_MS }),
+      wishIdleLog: () => wishIdleLog.slice(),
+      wishIdles: () => [...ground.querySelectorAll('.t-wish')].map(w => ({
+        item: w.dataset.item,
+        idle: (String(w.className).match(/wishidle-(\w+)/) || [, 'none'])[1],
+        anim: (() => { const s = w.querySelector('svg'); return s ? getComputedStyle(s).animationName : null; })(),
+        nextAt: w._wishIdleNextAt == null ? null : Math.round(w._wishIdleNextAt - performance.now())
+      })),
+      pumpWishIdles: () => pumpWishIdles(),
+      wisps: () => ground.querySelectorAll('.wish-wisp').length,
       idleFor: (i) => { const a = actors[i]; return a ? { species: (a.item && a.item.species) || null, blink: IDLE_BLINK, flavour: SPECIES_IDLE[(a.item && a.item.species) || 'bloop'] } : null; },
       forceIdle: (i, which) => { const a = actors[i]; if (!a) return null; a.idleNextAt = 0; a.idleUntil = 0; return maybeIdle(a, performance.now(), which || true); },
       tryIdle: (i) => { const a = actors[i]; if (!a) return null; return maybeIdle(a, performance.now()); },
@@ -6005,7 +6251,7 @@ export function mount(container, params, ctx) {
       drawerTabs: () => [...drawer.querySelectorAll('.bd-tab')].filter(n => getComputedStyle(n).display !== 'none').map(n => n.textContent),
       // RUN10 P5 QA hooks: personalities + hide-and-seek 2.0.
       personalityOf: (booId) => personalityOf(booId),
-      // Taps once (the real squeak() path, 20% catchphrase odds) and reports whether the
+      // Taps once (the real squeak() path, CATCHPHRASE_RATE = 45% odds) and reports whether the
       // bubble showed THIS time — cleans it up immediately rather than waiting its own
       // 2200ms lifetime, so a test can sample hundreds of taps quickly.
       // Returns the catchphrase bubble's exact text if this tap showed one, else null.
@@ -6134,6 +6380,7 @@ export function mount(container, params, ctx) {
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);
+      clearInterval(wishIdleTimer);   // RUN21B-2
       clearInterval(clockTimer);
       if (starTimer) clearTimeout(starTimer);
       if (pathCommitTimer) clearInterval(pathCommitTimer);
@@ -6142,6 +6389,7 @@ export function mount(container, params, ctx) {
       if (lingerResizeTimer) clearTimeout(lingerResizeTimer);   // RUN21C-6
       clearTimeout(undoChipTimer);                              // RUN21C-7: the stack dies with the mount
       ambient.stop();
+      bed.stop();
       stopBand();
       window.removeEventListener('resize', onResize);
       closeMenu();

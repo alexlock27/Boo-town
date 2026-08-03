@@ -94,8 +94,34 @@ export const WISH_LIFE = {
   kite:     { cls: 'SKY', fx: 'kite', tethered: true, hilltopAmp: 1.6 }
 };
 
+// ---- RUN21B item 2: ambient life, on its own axis ---------------------------------------
+// A wish should visibly live without being tapped. This is deliberately a SEPARATE table
+// from `cls` above: `cls` is the TAP DISPATCHER (town.js switches on it to choose the verb),
+// so re-classing a word to give it an idle would silently delete its tap response — which
+// the pack itself forbids ("Existing tap verbs unchanged"). Idle and tap are two different
+// questions about the same object, so they get two different fields.
+//
+// FLIER: a slow figure-8 near home.  BOB: a gentle rise and fall on the water.
+// STEAM: a wisp every 20-30s.        GLEAM: one sparkle pass every 25-40s.
+// SWAY (flower/tree/palm) is untouched, as the pack says.
+export const WISH_IDLE_CLASSES = ['FLIER', 'BOB', 'STEAM', 'GLEAM'];
+export const WISH_IDLE = {
+  butterfly: 'FLIER', bee: 'FLIER',
+  owl:       'FLIER',                     // the pack says "owl at night" — gated at render
+  boat:      'BOB', duck: 'BOB', fish: 'BOB', whale: 'BOB',
+  teapot:    'STEAM', cake: 'STEAM', pizza: 'STEAM',
+  crown:     'GLEAM', trophy: 'GLEAM', medal: 'GLEAM', key: 'GLEAM', lamp: 'GLEAM'
+};
+// Idles that only make sense after dark. The owl is the pack's own qualifier.
+export const WISH_IDLE_NIGHT_ONLY = new Set(['owl']);
+// The continuous idles are CSS loops; these are the episodic ones the scheduler paces.
+export const WISH_IDLE_EPISODIC = { STEAM: [20000, 30000], GLEAM: [25000, 40000] };
+export const WHALE_SPOUT_MS = 45000;        // "whale spouts once/45s", per the pack
+export const WISH_IDLE_SCENE_PER_MIN = 8;   // scene cap: 8 wish idles a minute, shared
+
 export const WISH_WORDS = Object.keys(WISH_LIFE);
 export const lifeFor = (word) => WISH_LIFE[word] || null;
+export const idleOf = (word) => WISH_IDLE[word] || null;
 export const classOf = (word) => (WISH_LIFE[word] || {}).cls || null;
 export const isOutdoorOnly = (word) => OUTDOOR_ONLY.has(word);
 // FLYERs and ROAMERs become live actors once placed, so they are the ones RUN20's long-press

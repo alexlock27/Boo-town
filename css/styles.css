@@ -4536,13 +4536,17 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 /* tap-the-pond ripples: three rings, 900ms. Fixed at full (110x40) size and SCALED down
    via transform instead of animating width/height/margin — transform/opacity only, so
    the ring never forces a reflow (perf rule, RUN6 C1b onward). */
+/* RUN21B-6: rings grow to 64px MAX, not 110px. The old ring finished wider than the pond
+   it belongs to (the pond's own water ellipse is 54-78px across), so the ripple spilled
+   onto the grass. Same 14px starting ring, same 900ms, same transform-only rule — only the
+   ceiling moves, by shrinking the box the scale runs to. */
 .t-ripple {
-  position: absolute; left: 50%; bottom: 8%; width: 110px; height: 40px; margin-left: -55px;
+  position: absolute; left: 50%; bottom: 8%; width: 64px; height: 34px; margin-left: -32px;
   border: 2px solid rgba(255,255,255,0.85); border-radius: 50%; pointer-events: none;
-  transform: scale(0.127, 0.35); opacity: 0.9;
+  transform: scale(0.22, 0.41); opacity: 0.9;
   animation: rippleGrow 900ms ease-out forwards;
 }
-@keyframes rippleGrow { from { transform: scale(0.127, 0.35); opacity: 0.9; } to { transform: scale(1, 1); opacity: 0; } }
+@keyframes rippleGrow { from { transform: scale(0.22, 0.41); opacity: 0.9; } to { transform: scale(1, 1); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .t-drip, .t-ripple { animation: none; opacity: 0; } }
 
 /* ---- box ceremony (the signature moment) ---- */
@@ -6950,7 +6954,9 @@ html.bigger-text { --vz: 1.125; }
   border: 3px solid var(--star); box-shadow: 0 0 12px var(--star), inset 0 0 8px rgba(255,201,60,0.5);
   pointer-events: none; opacity: 0; transition: opacity 120ms ease-out; z-index: 40;
 }
-.t-slot-glow.show { opacity: 1; animation: slot-pulse 1.1s ease-in-out infinite; }
+/* RUN21B-4 restates the ring: 70% opacity, soft 900ms pulse. It sits UNDER the dragged
+   item, so at full opacity it competed with the thing she is carrying. */
+.t-slot-glow.show { opacity: 0.7; animation: slot-pulse 900ms ease-in-out infinite; }
 @keyframes slot-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { .t-slot-glow.show { animation: none; } }
 
@@ -7042,6 +7048,14 @@ html.bigger-text { --vz: 1.125; }
    sit under the build drawer — which, in build mode, it very often does. */
 .t-resize.up { bottom: auto; top: -14px; cursor: nesw-resize; }
 .t-resize.up::after { transform: rotate(45deg) translate(1px, 1px); }
+/* RUN21B item 3: and to the item's LEFT side when BOTH right-hand corners are blocked — which
+   re-baselined furniture manages at 1024x700, with the drawer tabs under the bottom-right
+   corner and the build-mode tool rows over the top-right one. The arrow keeps pointing away
+   from the item, so the gesture still reads as "drag me bigger" from whichever corner it is on. */
+.t-resize.left { right: auto; left: -14px; cursor: nesw-resize; }
+.t-resize.left::after { transform: rotate(135deg) translate(1px, 1px); }
+.t-resize.up.left { cursor: nwse-resize; }
+.t-resize.up.left::after { transform: rotate(-135deg) translate(1px, 1px); }
 
 
 /* RUN19 Z7: Boo Bounce's build-the-answer target. Underscores show how many digits the answer
@@ -7098,9 +7112,45 @@ html.bigger-text { --vz: 1.125; }
 .wish-lit { filter: drop-shadow(0 0 12px var(--star)); }
 .wish-band-off { opacity: 0.88; }
 
+/* ---- RUN21B item 2: ambient life ---------------------------------------------------------
+   Two continuous idles, both transform-only so they cost the compositor and nothing else.
+   These ride on the `wishidle-*` token, which is a separate axis from `wish-<cls>` — the
+   class the tap verbs bind to — so a butterfly can fly AND still respond to a finger.
+   FLIER: a slow figure-8 that stays within ~120px of home, 21s (the pack's 18-24s band).
+   BOB:   a gentle 6px rise and fall, as if the water were breathing under it. */
+.wishidle-flier svg { animation: wish-flier 21s ease-in-out infinite; }
+@keyframes wish-flier {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  12%  { transform: translate(28px, -20px) rotate(5deg); }
+  25%  { transform: translate(52px, -4px) rotate(-3deg); }
+  37%  { transform: translate(28px, 16px) rotate(4deg); }
+  50%  { transform: translate(0, 0) rotate(0deg); }
+  62%  { transform: translate(-28px, -20px) rotate(-5deg); }
+  75%  { transform: translate(-52px, -4px) rotate(3deg); }
+  87%  { transform: translate(-28px, 16px) rotate(-4deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.wishidle-bob svg { animation: wish-bob 3.4s ease-in-out infinite; }
+@keyframes wish-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* The episodic wisp — steam off a teapot, the whale's spout. Named wish-wisp, NOT
+   wish-steam: that class is already the teapot's TAP pose and would collide. */
+.wish-wisp {
+  position: absolute; top: 4%; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--card); opacity: 0; pointer-events: none; z-index: 2;
+  animation: wish-wisp 1.6s ease-out forwards;
+}
+.wish-wisp.wish-wisp-spout { background: #BFE6FF; width: 12px; height: 12px; }
+@keyframes wish-wisp {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  25%  { opacity: 0.85; }
+  100% { opacity: 0; transform: translateY(-34px) scale(1.5); }
+}
+
 /* Reduced motion: the pose stays, the motion goes — a wish you can still poke is calm, not off. */
 @media (prefers-reduced-motion: reduce) {
   .t-item.on-sky, .wish-sky, .wish-sway svg, .wish-gleam svg,
+  .wishidle-flier svg, .wishidle-bob svg, .wish-wisp,
   .wish-wobble, .wish-wobble2, .wish-hop, .wish-launch, .wish-glint,
   .wish-steam, .wish-peek, .wish-sparkle, .wish-unroll, .wish-jiggle, .wish-popLid,
   .wish-tryOn, .wish-roll, .wish-peekaboo, .wish-sniff, .wish-stretchRoar, .wish-ring { animation: none !important; }
@@ -7200,7 +7250,11 @@ html.bigger-text { --vz: 1.125; }
 @keyframes t-skip { 0% { transform: translate(0,0); } 33% { transform: translate(30px,-22px); } 66% { transform: translate(60px,-12px); } 100% { transform: translate(90px,6px); opacity: 0; } }
 .t-footprint { position: absolute; width: 14px; height: 18px; border-radius: 50% 50% 40% 40%; background: rgba(180,150,110,0.75); animation: t-print 4s ease-out 1 both; }
 @keyframes t-print { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
-.t-train { position: absolute; left: -8%; width: 74px; height: 20px; border-radius: 6px; background: #6B4E9E; box-shadow: -26px 2px 0 -3px #8A5A44, -50px 2px 0 -4px #8A5A44; animation: t-train 4s linear 1 both; }
+/* RUN21B-6: the train at 2.2x, cream-bodied with an ink outline so it reads against the
+   hilltop sky instead of dissolving into it. Every coupled number scales, not just the
+   width — height, radius and BOTH carriage shadows — or the carriages ride up over the
+   engine. box-sizing:border-box (top of this file) keeps the 4px border inside the box. */
+.t-train { position: absolute; left: -8%; width: 163px; height: 44px; border-radius: 13px; background: #FFF8F0; border: 4px solid #2A1B4E; box-shadow: -57px 4px 0 -7px #8A5A44, -110px 4px 0 -9px #8A5A44; animation: t-train 4s linear 1 both; }
 @keyframes t-train { from { transform: translateX(0); } to { transform: translateX(118vw); } }
 .t-petal { position: absolute; width: 9px; height: 12px; border-radius: 50% 50% 50% 0; background: #FF9AD5; animation: t-petal 1.2s ease-out 1 both; }
 @keyframes t-petal { from { transform: rotate(var(--pa)) translateY(0); opacity: 1; } to { transform: rotate(var(--pa)) translateY(-52px) scale(0.6); opacity: 0; } }

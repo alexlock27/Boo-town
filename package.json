@@ -5,8 +5,9 @@
   "description": "Dev-only tooling for Boo Town (Playwright for self-testing, sharp for one-off icon PNGs). NOTHING here ships to the runtime app, which is pure vanilla HTML/CSS/JS.",
   "type": "module",
   "scripts": {
-    "serve": "python -m http.server 8000",
-    "test": "node tests/run.mjs"
+    "serve": "python _serve.py 8000",
+    "test": "node tests/run.mjs",
+    "test:smoke": "node tests/run.mjs --smoke"
   },
   "devDependencies": {
     "playwright": "^1.48.0",

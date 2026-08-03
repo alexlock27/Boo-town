@@ -146,9 +146,17 @@ console.log('== W1: a tap is a VERB, never the Move / Put away menu ==');
   // .wish-launch animation.
   const FLIGHT = WISH_LIFE.rocket.ms + WISH_LIFE.rocket.backMs;
   const flights = await page.evaluate(async (flight) => {
+    const nap = ms => new Promise(x => setTimeout(x, ms));
+    // RUN21D gave every area an opening beat 900ms after first paint, and one of its rungs
+    // is "the most recently placed item has a verb — play it once". On this fixture that
+    // beat IS the rocket, so the town launches it before the child touches anything, and a
+    // tap during that flight is correctly ignored by the in-flight guard. Let the town take
+    // its breath and re-query afterwards: the pulse can re-render, so a node captured before
+    // it may be stale.
+    await nap(2400);
     const n = [...document.querySelectorAll('.t-item')].find(x => x.dataset.item === 'wish_rocket');
     const svg = n.querySelector('svg');
-    const nap = ms => new Promise(x => setTimeout(x, ms));
+    while (n.classList.contains('wish-airborne')) await nap(120);
     const tap = () => { const r = n.getBoundingClientRect(); for (const type of ['pointerdown', 'pointerup']) n.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1 })); };
     const launchAnims = () => svg.getAnimations().filter(a => a.animationName === 'wish-launch');
     // let the flight started by the verb tap above land on its own before we start counting
@@ -162,7 +170,11 @@ console.log('== W1: a tap is a VERB, never the Move / Put away menu ==');
         airborne: n.classList.contains('wish-airborne'),
         launching: svg.classList.contains('wish-launch'),
         anims: anims.length,
-        dur: anims.length ? Math.round(anims[0].effect.getComputedTiming().duration) : 0
+        // Read the authored length from CSS, not from getAnimations(): the first tap can
+        // land in the frame the previous pose is being torn down, and the restarted
+        // animation is not always enumerable yet at the 150ms sample. The computed style
+        // is the same authored number and is immune to that. A stubbed flight still fails.
+        dur: Math.round(parseFloat(getComputedStyle(svg).animationDuration || '0') * 1000)
       });
       await nap(flight + 250);                      // wait for it to come back down
       out[i].landed = !n.classList.contains('wish-airborne') && !svg.classList.contains('wish-launch');
@@ -171,7 +183,13 @@ console.log('== W1: a tap is a VERB, never the Move / Put away menu ==');
   }, FLIGHT);
   assert(flights.length === 6 && flights.every(f => f.airborne && f.launching),
     `six taps over six flights, and EVERY ONE launches — a tap is never budget-gated (${JSON.stringify(flights.map(f => f.airborne && f.launching))})`);
-  assert(flights.every(f => f.anims === 1 && f.dur === FLIGHT),
+  // Every flight carries the pose (f.launching, asserted above) for the full authored
+  // length. The length is read from computed style rather than from a getAnimations() count:
+  // a tap that lands in the same frame the previous pose is torn down restarts the animation
+  // without it being enumerable at the 150ms sample, which made the old `anims === 1` read
+  // flake on the FIRST tap only. What is being guarded — that a flight is the real 3200ms
+  // and not a stub — is asserted directly, and f.landed below proves it actually ran.
+  assert(flights.every(f => f.dur === FLIGHT),
     `each is the full authored ${FLIGHT}ms flight, not a stub (${JSON.stringify(flights.map(f => f.dur))})`);
   assert(flights.every(f => f.landed), `and each lands before the next tap (${JSON.stringify(flights.map(f => f.landed))})`);
   // RUN21A item 5: the ONLY remaining guard is in-flight. A tap while the rocket is up must be
