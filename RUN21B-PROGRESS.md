@@ -15,7 +15,8 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
 - [x] Item 4 — Slot glow visible (root cause was NOT layering — see deviation 5;
       evidence `_evidence/run21b/item4-glow-indoor-table.png`, `item4-glow-indoor-bookshelf.png`)
 - [ ] Item 5 — Seat offset polish
-- [ ] Item 6 — Feedback scale-up (train 2.2×, ripples, sand, river)
+- [x] Item 6 — Feedback scale-up (train 2.2×, ripples, sand, river) — see deviation 8;
+      evidence `_evidence/run21b/item6-train-1024x768.png`
 - [x] Item 7 — Disco floor spacing (worst overlap 51.7% → 10.2%; see deviation 7;
       evidence `_evidence/run21b/item7-disco-1280.png`, `item7-disco-390.png`)
 
@@ -101,6 +102,24 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
      itself takes 0.5 — leaving a neighbour 71px from it at 1280, where a Boo is 129px wide.
      Row 0 now re-spreads around the spotlight at the measured gap. Without this the ACCEPT
      fails on any spotlit frame, which is most of them.
+
+8. **Item 6: the train is CSS, and "rings grow to 64px" is a shrink.**
+   - "cream body + ink outline" reads like an art.js change; the train is not SVG art at all
+     but a 74×20 CSS bar (`.t-train`). 2.2× therefore had to hit four coupled numbers —
+     width, height, radius and BOTH carriage box-shadows — or the carriages ride up over the
+     engine. Its `top` is set inline in JS, so that compensates for the extra height too.
+   - "Ripples: rings grow to 64px max" is phrased as growth but is a REDUCTION: the ring
+     finished 110px wide while the pond's own water ellipse is only 54–78px across, so it
+     spilled onto the grass. Implemented as a smaller box the same transform scales into, so
+     the starting ring, the 900ms and the transform-only rule are all unchanged.
+   - Two ring elements exist (`.t-ripple` pond taps, `.t-skim-ring` riverside stone skims).
+     Read the pack as meaning `.t-ripple`; `.t-skim-ring` left alone.
+   - The sand line is deliberately ungated (the pack says "echoes … on footprint taps",
+     plural, and the beach has no once-per-visit gate to borrow). The hilltop train keeps its
+     existing once-per-visit gate, which also means neither train nor line appears under
+     reduced motion — pre-existing, and what "existing once-per-visit rule" asks for.
+   - All three strings stay inline in town.js beside the river's, not in data/guideLines.js:
+     the hint bar is not guide speech, and ~25 hint strings are already inline there.
 
 ## Session notes
 - Wish art lives in `renderWish()` (js/art.js ~1670), shared 120×130 deco viewBox, caption
