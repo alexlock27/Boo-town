@@ -60,7 +60,15 @@ shapes; iterate until it passes its own ACCEPT on screen"):
 
 1. **Item 4** — duplicate wish grants keep the well open 3.5s instead of 1.5s so the
    (now in-well) line can actually be read and heard. New-word grant timing untouched at 1.5s.
-2. **Item 16** — the combined catch-up celebration was firing on *any* town mount, because
+2. **Item 10** — the transition shield swallowed the child's *placement* tap. `selectHold`
+   closes the drawer deliberately, to get out of the way so she can tap the ground; the
+   shield then covered up to 48vh of the world for the next 220–400ms, so her first tap
+   after picking something up did nothing. Caught at the gate by `r10p2-sockets` (the
+   area-full line never appeared because the ground click never landed — and the "25th item
+   refused" assertion was passing for the wrong reason). Fixed by giving `closeDrawer` a
+   `{ shield: false }` option for closes that hand the world back; every user-driven
+   open/close still shields, which is what the pack's ACCEPT actually asks for.
+3. **Item 16** — the combined catch-up celebration was firing on *any* town mount, because
    `tickFunfair` runs on every one. Caught at the gate by `r18b-wish-arrives`: the overlay
    opened over the **Meadow** and covered the wish-arrival line. The pack's ACCEPT says
    "first **fair** mount", and a headline reading "Look how the fair has grown!" gives her

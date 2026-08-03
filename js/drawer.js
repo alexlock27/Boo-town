@@ -74,6 +74,12 @@ export function createDrawer({ tabs = [], initial = 0, ariaLabel = 'Tools', onOp
   // through the moving tray into the world below and could start a drag there. Dropped on
   // the tray's own transitionend (transform), with a 400ms safety timeout; under REDUCED
   // the transition is `none` (no travel, no event), so no shield at all.
+  //
+  // A close can also be a HANDOFF: town.js closes the drawer the instant she picks an item
+  // up, precisely so she can tap the ground. Shielding that one swallowed her placement tap
+  // for up to 400ms over half the play area (found at the RUN21A gate by r10p2-sockets), so
+  // such a close passes { shield: false }. Every user-driven open/close still shields, which
+  // is what the pack's ACCEPT is about.
   const shield = el('div', { class: 'bd-shield', 'aria-hidden': 'true' });
   let shieldTimer = null;
   function raiseShield() {
@@ -100,10 +106,10 @@ export function createDrawer({ tabs = [], initial = 0, ariaLabel = 'Tools', onOp
     collapsed.setAttribute('aria-label', 'Close ' + ariaLabel);
     if (onOpen) try { onOpen(true); } catch {}
   }
-  function closeDrawer() {
+  function closeDrawer(opts) {
     if (!open) return;
     open = false; root.classList.remove('open'); root.classList.add('closed');
-    raiseShield();
+    if (!(opts && opts.shield === false)) raiseShield();
     collapsed.setAttribute('aria-label', 'Open ' + ariaLabel);
     if (onOpen) try { onOpen(false); } catch {}
   }
