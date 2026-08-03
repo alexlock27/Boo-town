@@ -91,7 +91,10 @@ console.log('== v23: planes, and a pre-Z6 wall item lands exactly where it hung 
     const s = window.BooTown.State.getState();
     return { version: s.version, items: s.town.areas.boohouse.items.map(t => ({ item: t.item, plane: t.plane, y: t.y, row: t.row })), dressings: s.dressings, owned: s.dressingsOwned };
   });
-  assert(mig.version === 23, `the save migrates to v23 (${mig.version})`);
+  // RE-POINTED at v24 (RUN21F F5 bumped the save). The claim is unchanged and unweakened —
+  // this save must reach the CURRENT version, and the plane/y assertions below still hold Z6's
+  // "old saves byte-preserved" line for every field v24 does not own.
+  assert(mig.version === 24, `the save migrates to v24 (${mig.version})`);
   const clock = mig.items.find(t => t.item === 'deco_wallclock');
   const table = mig.items.find(t => t.item === 'deco_table');
   // BYTE-PRESERVED. The pack says "all new keys optional, old saves byte-preserved", so the

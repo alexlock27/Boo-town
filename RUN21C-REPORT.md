@@ -16,7 +16,7 @@ SAVE VERSION is **still 23** — nothing in this run needed a migration.
 | 2 | The Path Pot | **DONE** | `smoke2.mjs` — the full paint / repaint / scrub / auto-commit / put-away cycle through the Pot, with the saved cells proven to be exactly `{cx,cy,style}`; a pre-existing save's paths render byte-identically with nothing in hand. `i2-preexisting-paths.png`, `i2-painted-stone.png`, `i2-pot-away.png` |
 | 3 | Strokes, not tiles | **DONE** | `smoke3.mjs` — a 10-cell L in all three styles draws 7 row strokes + 1 column run instead of 10 tiles, caps at 45% of cell height; a lone cell is a rounded pebble; painting one cell rebuilds only its own row/column; **60.7fps** over a 40-step painting drag. Before/after: `i3-before-L-*.png` vs `i3-after-L-*.png`, and `i3-before-corner-zoom.png` vs `i3-after-corner-zoom.png` |
 | 4 | Three new path styles in the shop | **DONE** | `smoke4.mjs` — the Paths group on the Town shelf at 6/6/10 maths stars with the authored blurb verbatim; buying writes one `inventory` entry and VERSION stays 23; the handoff lands her in the town with the Pot held and brick picked; it paints; locked styles show `🔒 6★` and route to the shop with the card ringed and Back returning to the Meadow; a bought style never becomes a drawer chip. `i4-shop-paths-group.png`, `i4-pot-row-locked.png`, `i4-six-styles.png`, `i4-brick-painted.png` |
-| 5 | Boos use her paths | **DONE** | `smoke5.mjs` — two 90-second observations of the same Meadow, one with a path laid to the Boos' right and one with none. Mean drift **+0.382 with vs −0.072 without**; **37.8% vs 20.3%** of Boo-samples standing on the path line; 57–58/60 distinct frames in both, so both towns were alive throughout. REDUCED unchanged. `i5-with-path.png`, `i5-no-path.png` |
+| 5 | Boos use her paths | **BUILT TO SPEC — ACCEPT NOT DEMONSTRABLE (logged as BLOCK B1)** | The mechanism is proven directly and repeatably: a Boo's path target points RIGHT for a path on its right, LEFT for one on its left, and is null both when there is no path and when the nearest one lies past the 12% reach. The pack's ACCEPT — "a 90s observation shows Boos visibly favouring the path line" — could not be produced. Measurements in the BLOCK below. `i5-path-left.png`, `i5-no-path.png`, `i5-path-right.png` |
 | 6 | Resize handle without the mode | **DONE** | `smoke67.mjs` — with the drawer shut, drag a bench then drag its handle straight after: 1.0 → 1.6. The handle lets go after exactly 4s and the item's menu brings it back. `i6-handle-after-drag.png` |
 | 7 | Session undo (5 steps) | **DONE** | `smoke67.mjs` — place → move → resize → undo ×3 restores the save byte-identically; put-away then undo returns the bench with `scale` and `plane` intact; paint then undo restores the prior cells; seven edits keep five steps; leaving the area empties the stack; the chip is labelled exactly `Undo`, bottom-left. `i7-undo-chip.png` |
 | 8 | Drawer polish | **DONE** | `smoke8.mjs` — six headed rows in the authored order holding every word each list names, all 60 wishes reachable exactly once; every listed tile's line checked against `data/sockets.js`, `SMALL_ITEMS` and `wishNeedsSky` rather than a hand-typed list. `i8-wishes-grouped-1024x768.png`, `i8-wishes-grouped-390x844.png`, `i8-info-lines-rides.png`, `i8-info-lines-furniture.png` |
@@ -117,7 +117,60 @@ object as `after` and the resize step recorded no change at all.
 
 ## BLOCKS
 
-None.
+### B1 - item 5's ACCEPT cannot be met at the insertion point the pack names
+
+**The change itself is built exactly as written** and is proven on its own terms.
+`pathWalkTargetDx` finds the nearest same-row path cell within 12% of zone width, walks out
+its contiguous same-style run, picks a target along it, clamps that to the ordinary wander
+range, and the walk re-roll takes it 60% of the time. Four direct assertions in `smoke5.mjs`
+pin exactly that and pass every run: target RIGHT for a path on the right, LEFT for one on
+the left, null with no path, null past the reach.
+
+**What could not be produced is the ACCEPT's observation.** Three measurement designs were
+built and discarded before this was clear, and the numbers are worth recording because the
+first two produced convincing-looking FALSE positives:
+
+1. *Six Boos, one 90s window each, with vs without.* Reported +0.382 vs -0.072 drift and
+   37.8% vs 20.3% time-on-path — and then its own control reproduced the effect (+0.396,
+   40.3%) once the seeding bug below was fixed. A wanderer's offset is a slow random walk;
+   ninety seconds of six Boos is about ten independent observations, and its mean drift
+   reaches +/-0.4 with no path anywhere.
+2. *Seeding.* The path was being written into a page that already had the town mounted, and
+   that town's debounced autosave landed on top of the seed during the reload — so the
+   "with path" runs had **no path at all**. Demonstrated directly; this is CLAUDE.md's
+   "seed saves in a FRESH browser context" pitfall, and it is what made design 1 pass.
+3. *Final design: a sign flip over independent mounts.* Path LEFT / no path / path RIGHT,
+   six fresh mounts of 18s each, one lone Boo in an otherwise empty Meadow so nothing but
+   the micro-wander can move it. Random drift cannot follow the path from one side to the
+   other; the feature must. Result:
+
+   | condition | mean drift | per mount |
+   |---|---|---|
+   | path LEFT | +0.046 | -0.98, +1.09, -0.30, +0.43, +0.30, -0.26 |
+   | NO path | +0.239 | -0.67, +0.83, -0.57, -0.18, +0.42, +1.60 |
+   | path RIGHT | +0.124 | +0.54, +0.14, -0.37, +1.08, -0.37, -0.28 |
+
+   No relationship between the path's side and where the Boo sits.
+
+**Why, and it is structural rather than a bug.** Two things, both measured:
+- Even a LONE Boo with nothing to visit is inside one of RUN6 C1's richer goals (visit /
+  approach / chase / watch / nap) **56-62% of the time**, and those goals DRIVE the actor —
+  `stepGoal` runs and the micro-wander branch never executes. The pack's insertion point is
+  a minority of a Boo's time budget.
+- The pull the micro-wander can apply is small next to the wander's own variance: per-mount
+  drift spreads about +/-1.0 of the full range in every condition, including the control.
+
+Meeting the ACCEPT would mean biasing the GOAL engine's destinations toward paths as well —
+outside this pack's stated WHERE ("stepActors micro-wander choice"), a different child-facing
+behaviour, and exactly the scope invention the dispatch bans. So it is logged rather than
+built. **RUN21E's call**, with a concrete recommendation in the hand-off section.
+
+One tuning change WAS made inside the specced code and should be kept either way: an aimed
+walk's duration is capped at `PATH_WALK_MAX_MS` (4200ms) rather than the aimless walk's
+1400ms, so a walk that has somewhere to be can actually get there. It still stops the instant
+it arrives. Without it a Boo took one step towards the path and then re-rolled.
+
+### The SAVE VERSION question - resolved, not blocked
 
 The dispatch asked me to BLOCK if item 4 needed a SAVE VERSION bump. It does not: owning a
 path style is one `inventory` entry, and `inventory` is an existing free-form map. No
@@ -221,6 +274,12 @@ documented above rather than papered over.
 
 ## What RUN21E needs to know
 
+0. **Item 5 needs a decision (BLOCK B1).** The mechanism is in and correct; it is simply not
+   felt, because the micro-wander it hooks is a minority of a Boo's time and the pull is
+   small against the wander's own variance. The cheapest way to make "Boos use her paths"
+   true on screen is to bias `maybePickBehaviour`'s destination — when a goal picks somewhere
+   to walk, prefer a spot on a path run — which is one insertion point in the engine that
+   already owns most of the movement. That is a pack decision, not a builder's.
 1. **`worldSoftened()` is the gate now.** Anything new that should pause while she arranges
    reads `!softened`, not a mode. If E adds an ambient behaviour or a scheduler, gate it there.
 2. **RUN21B's `pumpWishIdles` still needs re-pointing at merge** — see the section above.

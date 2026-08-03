@@ -93,9 +93,29 @@ for (let v = 5; v <= 14; v++) {
     `v${v}: the Kitchen and the Bedroom exist`);
   assert(HOUSE_ROOM_KEYS.every(k => m.town.areas[k].items.length === 0), `v${v}: nothing was invented in the new rooms`);
   if (v >= 6) {
-    assert(eq(m.town.areas.boohouse.items, src.town.areas.boohouse.items),
-      `v${v}: the pre-rooms Boo House became the Lounge with every placement byte-identical`);
+    // RE-POINTED at v24 (RUN21F F5), not weakened. Until v24 the claim was that the Lounge's
+    // placements came through BYTE-identical; v24 adds exactly one field to each of them, `id`,
+    // so "byte-identical" would now be a pin on the old schema rather than a test of losslessness.
+    // The claim is therefore split, and the pair is STRICTLY STRONGER than the one line it
+    // replaces: every field EXCEPT the id is still byte-identical (so nothing was rewritten,
+    // reordered or dropped), AND the ids that were added are real, unique and below the counter.
+    const stripId = (t) => { const { id, ...rest } = t; return rest; };
+    assert(eq(m.town.areas.boohouse.items.map(stripId), src.town.areas.boohouse.items.map(stripId)),
+      `v${v}: the pre-rooms Boo House became the Lounge with every placement byte-identical apart from its new id`);
     assert(eq(m.town.areas.boohouse.paths, src.town.areas.boohouse.paths), `v${v}: its floor paths survived too`);
+  }
+  // v24 (RUN21F F5): EVERY placement in EVERY area now carries a monotonic id, and the counter
+  // it came from sits past all of them, so no id can ever be handed out twice.
+  {
+    const all = AREAS.concat(HOUSE_ROOM_KEYS).flatMap(k => m.town.areas[k].items);
+    const ids = all.map(t => t.id);
+    assert(ids.length === all.length && ids.every(n => Number.isInteger(n) && n > 0),
+      `v${v}: every placement has a positive integer id`);
+    assert(new Set(ids).size === ids.length, `v${v}: no two placements share an id`);
+    assert(Number.isInteger(m.town.nextId) && ids.every(n => n < m.town.nextId),
+      `v${v}: town.nextId (${m.town.nextId}) is ahead of every id in the save`);
+    assert(all.every(t => t.parent === undefined || Number.isInteger(t.parent)),
+      `v${v}: no placement is left holding an old zone:x:item parent string`);
   }
   // equips: however stored, boo_pip ends up wearing acc_shades in the face slot
   assert(m.equips.boo_pip && m.equips.boo_pip.face === 'acc_shades', `v${v}: accessory carried into a slot`);
@@ -141,6 +161,60 @@ console.log('== v12 → v13 party-Boo retirement is lossless ==');
   assert(m.care.bonds.boo_party_gift_b === 45, 'bond carried to new id');
   assert(m.partyGiftArchived === true && !('birthdayParty' in m), 'party state folded into a neutral archived flag');
   assert(m.inventory.boo_pip === 2 && m.stars.total === 90, 'unrelated data untouched');
+}
+
+// v23→v24 (RUN21F F5): placement ids. A v23 save opened by v24 code must migrate LOSSLESSLY —
+// the placements, the seats and the sparkles are counted before and after and must be equal.
+// (The reverse, a v24 save opened by v23 code, is the normal forward-only rule and unsupported.)
+console.log('== v23 → v24 placement ids are lossless ==');
+{
+  const v23 = {
+    version: 23, name: 'Ada',
+    inventory: { deco_table: 1, deco_tablelamp: 1, deco_bench: 2 },
+    stars: { total: 120, byGame: {} }, stardust: 10,
+    sparkles: { 'boohouse:0.2:deco_table': '2026-08-03', 'meadow:0.4:deco_bench': '2026-08-03' },
+    town: { areas: {
+      meadow: { items: [
+        { zone: 'meadow', x: 0.4, row: 1, item: 'deco_bench', scale: 1.2, plane: 'floor' },
+        { zone: 'meadow', x: 0.4, row: 0, item: 'deco_bench' }        // shares a place-key with the above
+      ], paths: [{ cx: 2, cy: 3, style: 'stone' }] },
+      boohouse: { items: [
+        { zone: 'boohouse', x: 0.2, row: 1, item: 'deco_table', plane: 'floor' },
+        { zone: 'boohouse', x: 0.2, row: 1, item: 'deco_tablelamp', plane: 'surface', parent: 'boohouse:0.2:deco_table', slot: 1, scale: 0.9 },
+        { zone: 'boohouse', x: 0.9, row: 1, item: 'deco_teapot', plane: 'surface', parent: 'boohouse:0.9:deco_shelf_that_left', slot: 0 }
+      ], paths: [] }
+    } }
+  };
+  const count = (s) => {
+    const areas = (s.town && s.town.areas) || {};
+    let placements = 0, seats = 0;
+    for (const k of Object.keys(areas)) for (const t of ((areas[k] || {}).items || [])) { placements++; if (t.parent != null) seats++; }
+    return { placements, seats, sparkles: Object.keys(s.sparkles || {}).length };
+  };
+  const before = count(v23);
+  const m = migrate(structuredClone(v23));
+  const after = count(m);
+  assert(m.version === VERSION, `reaches VERSION ${VERSION}`);
+  assert(after.placements === before.placements, `every placement survives (${before.placements} -> ${after.placements})`);
+  const house = m.town.areas.boohouse.items;
+  const table = house.find(t => t.item === 'deco_table');
+  const lamp = house.find(t => t.item === 'deco_tablelamp');
+  const pot = house.find(t => t.item === 'deco_teapot');
+  assert(lamp.parent === table.id, `a live seat is rewritten to the parent's id (${lamp.parent} vs ${table.id})`);
+  assert(lamp.slot === 1 && lamp.scale === 0.9 && lamp.plane === 'surface', 'with its slot, size and plane untouched');
+  // the one seat that legitimately changes: its parent was already gone, so it grounds rather
+  // than being deleted — the same thing groundOrphans does at the next render, one frame earlier
+  assert(!!pot && pot.parent === undefined && pot.plane === 'floor' && Math.abs(pot.x - 0.9) < 0.0005,
+    'a child whose parent had already gone is GROUNDED at its parent\'s last x, never deleted');
+  assert(after.seats === before.seats - 1, `every live seat survives; only the orphan is grounded (${before.seats} -> ${after.seats})`);
+  // sparkles: id-keyed, and an ambiguous key still covers both placements it used to paint
+  const mead = m.town.areas.meadow.items;
+  assert(m.sparkles[String(table.id)] === '2026-08-03', 'a sparkle stamp becomes id-keyed');
+  assert(m.sparkles[String(mead[0].id)] === '2026-08-03' && m.sparkles[String(mead[1].id)] === '2026-08-03',
+    'and an ambiguous place-key keeps painting both placements it painted before');
+  assert(Object.keys(m.sparkles).length >= before.sparkles, `no sparkle is lost (${before.sparkles} -> ${Object.keys(m.sparkles).length})`);
+  assert(eq(m.town.areas.meadow.paths, v23.town.areas.meadow.paths), 'painted paths are untouched');
+  assert(eq(m, migrate(structuredClone(m))), 'and the whole step is idempotent');
 }
 
 // idempotence: migrating an already-current save changes nothing material
