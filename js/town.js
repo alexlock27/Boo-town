@@ -508,6 +508,7 @@ export function mount(container, params, ctx) {
   let softened = false, pathStyle = 'stone';
   let potHeld = false;          // the Path Pot is lifted (RUN21C-2)
   let pendingPaths = null, pathCommitTimer = null, painting = false;
+  let lastCommittedPaths = null;   // RUN21C-7: the paths as of the last commit, for undo
 
   const root = el('div', { class: 'town2 area-' + AREA.key + ' entering' });
   const back = backControl(() => ctx.go('worldmap'));
@@ -896,6 +897,8 @@ export function mount(container, params, ctx) {
   function loadPendingPaths() {
     const a = getState().town.areas[STORE_KEY];
     pendingPaths = a && Array.isArray(a.paths) ? a.paths.slice() : [];
+    // RUN21C-7: what the ground looked like before this stretch of painting.
+    lastCommittedPaths = pendingPaths.map(c => ({ ...c }));
   }
   // Flushes the in-memory batch to the save. Also the setInterval(commitPaths, 10000)
   // callback itself — must NOT touch pathCommitTimer, or the first auto-commit would
@@ -904,6 +907,14 @@ export function mount(container, params, ctx) {
     if (!pendingPaths) return;
     const toSave = pendingPaths;
     mutate(st => { areaItems(st); st.town.areas[STORE_KEY].paths = toSave.slice(); });
+    // RUN21C-7: one undo step per COMMIT, not per cell — "path-commit" in the pack. A ten-
+    // second stretch of painting takes one tap to take back, which is the granularity a
+    // child means by "undo", and a commit that changed nothing records nothing.
+    const prev = lastCommittedPaths || [];
+    if (JSON.stringify(prev) !== JSON.stringify(toSave)) {
+      pushUndo('paths', prev, toSave.map(c => ({ ...c })));
+      lastCommittedPaths = toSave.map(c => ({ ...c }));
+    }
   }
   function pathCapWobble() {
     drawer.classList.remove('taken'); void drawer.offsetWidth; drawer.classList.add('taken');
@@ -1819,6 +1830,7 @@ export function mount(container, params, ctx) {
     decorateEasels().then(maybeAckEasel);   // RUN19 Z4 — after the art is actually in the DOM
     applySparkles();                        // RUN19 Z5 — today's sprinkles, and drop yesterday's
     renderRequestBubble();
+    applyLingerResize();   // RUN21C-6: the handle survives the re-render that a drag causes
     // A request fulfilled on ANOTHER screen (the wardrobe, the Disco Hall) still owes the
     // child its moment. takeThanks() drains the flag, so this is a no-op when there is
     // nothing owed and never plays the same thank-you twice (announced-moments law).
@@ -3348,6 +3360,43 @@ export function mount(container, params, ctx) {
     return { xFrac, row, style: c.style };
   }
   const PATH_ACK_X = 0.03;   // "within ±3% of any painted path tile" (Z4 addendum)
+  // ---- RUN21C-5: Boos use her paths --------------------------------------------------
+  const PATH_REACH_X = 0.12;      // "any path cell within 12% of zone width" of where it stands
+  const PATH_PULL_CHANCE = 0.6;   // "60% chance its walk target is set along that path run"
+  // The dx (px offset from this actor's home) of a spot along the nearest path RUN in this
+  // Boo's own depth row, or null when there is no path within reach. Row-filtered because a
+  // wanderer walks along its row: a path two rows back is not a path it could pad along.
+  // The answer is clamped to the ordinary wander range, so this never widens how far a Boo
+  // may roam — it only changes WHICH way it goes inside the range it already had.
+  function pathWalkTargetDx(a) {
+    const cells = currentPaths();
+    if (!cells.length) return null;
+    const row = rowOf(a.place);
+    const here = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    const geom = cellGeom();
+    let bestCx = null, bestD = Infinity, style = null;
+    const tiles = [];
+    for (const c of cells) {
+      const yPx = geom.bandTopPx + (c.cy + 0.5) * geom.cellH;
+      let r = 0, rb = Infinity;
+      ROWS.forEach((g, i) => { const d = Math.abs(yPx - viewH * g); if (d < rb) { rb = d; r = i; } });
+      if (r !== row) continue;
+      const xFrac = (c.cx + 0.5) * PATH_CELL;
+      tiles.push({ cx: c.cx, xFrac, style: c.style });
+      const d = Math.abs(xFrac - here);
+      if (d <= PATH_REACH_X && d < bestD) { bestD = d; bestCx = c.cx; style = c.style; }
+    }
+    if (bestCx == null) return null;
+    // Walk the contiguous same-style run out from that cell, then aim anywhere along it.
+    const has = (cx) => tiles.some(t => t.cx === cx && t.style === style);
+    let lo = bestCx, hi = bestCx;
+    while (has(lo - 1)) lo--;
+    while (has(hi + 1)) hi++;
+    const aimFrac = (lo + Math.random() * (hi - lo + 1)) * PATH_CELL;
+    const range = zoneW * WANDER_FRAC;
+    const dx = Math.max(-range, Math.min(range, (aimFrac - a.place.x) * zoneW));
+    return Math.abs(dx - (a.dx || 0)) < 6 ? null : dx;   // already there: take a normal wander
+  }
   const PATH_STYLE_WORD = { stone: 'stone', sand: 'sandy', flower: 'flowery' };
   // Called on a wanderer's arrival. Cheap by design: a handful of numeric comparisons, and
   // it stops at the first hit — the budget declines almost every call anyway.
@@ -3747,6 +3796,7 @@ export function mount(container, params, ctx) {
       // within the last day" and nothing in the save recorded that before now. Absent on
       // every pre-Z2 placement, which reads correctly as "not new".
       mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, plane: 'wall', y: clampWallY(WALL_Y_FRAC), item: id, scale: holdingScale, at: nowMs() }); });
+      pushUndo('place', [], [{ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id }]);   // RUN21C-7
       holdingScale = 1;
       holding = null; placeMode = false;
       renderPlaced(); renderDrawer(); updateHint();
@@ -3762,6 +3812,7 @@ export function mount(container, params, ctx) {
       if (near) {
         const id = holding;
         mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, plane: 'surface', parent: near.parentKey, slot: near.slot, item: id, scale: holdingScale, at: nowMs() }); });
+        pushUndo('place', [], [{ zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, item: id }]);   // RUN21C-7
         holdingScale = 1; holding = null; placeMode = false;
         clearSlotGlow();
         renderPlaced(); renderDrawer(); updateHint();
@@ -3776,6 +3827,7 @@ export function mount(container, params, ctx) {
     if (!landing) { spotWobble(); return; }
     const id = holding;
     mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, plane: 'floor', item: id, scale: holdingScale, at: nowMs() }); });
+    pushUndo('place', [], [{ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id }]);   // RUN21C-7
     holdingScale = 1;
     holding = null; placeMode = false;
     clearSlotGlow();
@@ -4132,6 +4184,7 @@ export function mount(container, params, ctx) {
         // floor. Checked before the floor logic, and only for a small item, so nothing else
         // about dragging changes.
         const seat = isSmall(place.item) ? nearestFreeSlot(e.clientX, e.clientY, cur) : null;
+        const moveBefore = snapPlacement(cur);   // RUN21C-7: where it was, with everything on it
         if (seat && canPlaceIn(zi)) {
           mutate(st => {
             const items = areaItems(st);
@@ -4141,6 +4194,8 @@ export function mount(container, params, ctx) {
           clearSlotGlow();
           hint.textContent = `On the ${resolveItem(seat.parentItem)?.name || 'shelf'}!`;
           notePlacement();
+          if (moveBefore) pushUndo('move', [moveBefore], [{ zone: ZONES[zi].key, x: +seat.xFrac.toFixed(3), row: seat.row, item: place.item }]);   // RUN21C-7
+          keepResizeHandle({ zone: ZONES[zi].key, x: +seat.xFrac.toFixed(3), item: place.item });   // RUN21C-6
           renderPlaced();
           return;
         }
@@ -4164,6 +4219,10 @@ export function mount(container, params, ctx) {
           });
           if (taken) hint.textContent = 'Tucked into the nearest free spot!';
           notePlacement();   // a 'visit' request may have just become true (RUN19 Z2)
+          if (moveBefore) pushUndo('move', [moveBefore], [{ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: place.item }]);   // RUN21C-7
+          // RUN21C-6: the handle is there the moment she lets go, for four seconds, so
+          // "move it, then make it bigger" needs nothing in between.
+          keepResizeHandle({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), item: place.item });
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
         }
@@ -4501,10 +4560,14 @@ export function mount(container, params, ctx) {
     const item = resolveItem(place.item);
     const max = scaleMaxFor(item, isInterior);
     const current = itemScaleOf(place, max);
+    const beforeSnap = liveRecord(place);   // RUN21C-7
     const next = mode === 'reset' ? 1
       : (typeof mode === 'number' && Math.abs(mode) > 1.0001) ? Math.max(ITEM_SCALE_MIN, Math.min(max, mode))
       : Math.max(ITEM_SCALE_MIN, Math.min(max, current + mode * ITEM_SCALE_STEP));
     writeScale(place, next);
+    if (beforeSnap && Math.abs((beforeSnap.scale != null ? beforeSnap.scale : 1) - next) > 0.001) {
+      pushUndo('resize', [beforeSnap], [liveRecord(place)]);
+    }
     commit();   // a deliberate town edit: persist now, not on the 2s debounce (RUN11 Q9)
     closeMenu();
     renderPlaced();
@@ -4524,16 +4587,112 @@ export function mount(container, params, ctx) {
   // the item itself with two fingers; RESIZE_DRAG_SPAN px of travel covers the whole clamp
   // range, so the gesture is the same length whatever an individual item's limits are.
   // Reduced motion is unaffected on purpose: this is direct manipulation, not animation.
+  // ---- RUN21C-7: session undo, five steps ----------------------------------------------
+  // Rearranging a town is fiddly and a nine-year-old's finger is not precise. Every edit she
+  // makes — placing, moving, putting away, resizing, and a batch of path painting — records
+  // a {before, after} pair of the placements it actually touched, and an `Undo` chip offers
+  // to take the last one back for six seconds.
+  //
+  // Deliberately NOT persisted and deliberately per-area: the stack lives in this mount's
+  // closure, so walking out of the Meadow clears it, which is exactly the pack's rule and
+  // also the honest one — an undo that reaches back into yesterday is not an undo.
+  // No redo: one direction, five steps, no state to explain.
+  const UNDO_MAX = 5, UNDO_CHIP_MS = 6000;
+  const undoStack = [];
+  let undoChip = null, undoChipTimer = null;
+  const snapPlacement = (t) => t ? JSON.parse(JSON.stringify(t)) : null;
+  const samePlacement = (t, r) => t && r && t.item === r.item && t.zone === r.zone
+    && Math.abs((t.x || 0) - (r.x || 0)) < 0.0015 && rowOf(t) === rowOf(r);
+  // `before` and `after` are arrays of placement snapshots (or, for kind 'paths', of cells).
+  function pushUndo(kind, before, after) {
+    undoStack.push({ kind, before: (before || []).map(snapPlacement), after: (after || []).map(snapPlacement) });
+    while (undoStack.length > UNDO_MAX) undoStack.shift();
+    showUndoChip();
+  }
+  function undoOnce() {
+    const step = undoStack.pop();
+    if (!step) { hideUndoChip(); return false; }
+    sfx.tap();
+    if (step.kind === 'paths') {
+      const restore = step.before.map(c => ({ cx: c.cx, cy: c.cy, style: c.style }));
+      mutate(st => { areaItems(st); st.town.areas[STORE_KEY].paths = restore.map(c => ({ ...c })); });
+      commit();
+      lastCommittedPaths = restore;
+      if (pendingPaths) pendingPaths = restore.map(c => ({ ...c }));
+      renderPaths();
+    } else {
+      mutate(st => {
+        const items = areaItems(st);
+        for (const a of step.after) { const i = items.findIndex(t => samePlacement(t, a)); if (i >= 0) items.splice(i, 1); }
+        for (const b of step.before) items.push(JSON.parse(JSON.stringify(b)));
+      });
+      commit();
+      renderPlaced(); renderDrawer();
+    }
+    updateHint();
+    showUndoChip();   // "re-shows if steps remain" — showUndoChip hides itself when empty
+    return true;
+  }
+  function showUndoChip() {
+    if (!undoStack.length) { hideUndoChip(); return; }
+    if (!undoChip) {
+      undoChip = el('button', { class: 't-undo-chip', type: 'button', text: 'Undo', 'aria-label': 'Undo',
+        onclick: (e) => { e.stopPropagation(); undoOnce(); } });
+      undoChip.addEventListener('pointerdown', e => e.stopPropagation());   // never starts a pan or a stroke
+      viewport.appendChild(undoChip);
+    }
+    undoChip.classList.add('show');
+    clearTimeout(undoChipTimer);
+    undoChipTimer = setTimeout(hideUndoChip, UNDO_CHIP_MS);
+  }
+  function hideUndoChip() {
+    clearTimeout(undoChipTimer); undoChipTimer = null;
+    if (undoChip) undoChip.classList.remove('show');
+  }
+  // The record in the save that matches this placement right now — the thing an undo has to
+  // photograph before an edit, and find again after one.
+  const liveRecord = (place) => areaItems(getState()).find(t => samePlacement(t, place));
+
+  // ---- RUN21C-6: the resize handle without the mode -------------------------------------
+  // The handle used to need build mode to exist. Now it attaches whenever an item's MENU
+  // opens (openMenu, unconditionally), and for RESIZE_LINGER_MS after any move-drag ends —
+  // so "drag the bench, then make it bigger" is one gesture followed by another, with no
+  // mode in between. Behaviour, range and the double-tap reset are untouched.
+  //
+  // It lives as a REMEMBERED PLACEMENT rather than a DOM node, because half a dozen paths
+  // (the drag itself, a resize commit, an actor claiming a seat) call renderPlaced() and
+  // rebuild every wrap. renderPlaced re-attaches it from this record; the timer forgets it.
+  const RESIZE_LINGER_MS = 4000;
+  let lingerResize = null, lingerResizeTimer = null;
+  function keepResizeHandle(t) {
+    if (!t || !t.item) return;
+    lingerResize = { zone: t.zone, x: t.x, item: t.item };
+    clearTimeout(lingerResizeTimer);
+    lingerResizeTimer = setTimeout(() => {
+      lingerResize = null;
+      ground.querySelectorAll('.t-resize').forEach(n => n.remove());
+    }, RESIZE_LINGER_MS);
+    applyLingerResize();
+  }
+  function applyLingerResize() {
+    if (!lingerResize) return;
+    const t = areaItems(getState()).find(p => p.item === lingerResize.item && p.zone === lingerResize.zone
+      && Math.abs((p.x || 0) - lingerResize.x) < 0.001);
+    if (!t) return;
+    const w = wrapFor(t), it = resolveItem(t.item);
+    if (w && it) attachResizeHandle(w, t, it);
+  }
   function attachResizeHandle(wrap, place, item) {
     wrap.querySelectorAll('.t-resize').forEach(n => n.remove());
     const max = scaleMaxFor(item, isInterior);
     const clampTo = (v) => Math.max(ITEM_SCALE_MIN, Math.min(max, v));
     const label = resolveItem(place.item) ? resolveItem(place.item).name : 'item';
     const ring = el('button', { class: 't-resize', type: 'button', 'aria-label': `Resize ${label} — drag, or double-tap to reset` });
-    let dragging = false, startScale = 1, sx = 0, sy = 0;
+    let dragging = false, startScale = 1, sx = 0, sy = 0, beforeSnap = null;
     ring.addEventListener('pointerdown', e => {
       e.preventDefault(); e.stopPropagation();
       dragging = true; startScale = itemScaleOf(place, max); sx = e.clientX; sy = e.clientY;
+      beforeSnap = liveRecord(place);   // RUN21C-7: the size it was before this drag
       try { ring.setPointerCapture(e.pointerId); } catch {}
       ring.classList.add('dragging');
     });
@@ -4554,7 +4713,11 @@ export function mount(container, params, ctx) {
       ring.classList.remove('dragging');
       try { ring.releasePointerCapture(e.pointerId); } catch {}
       commit();
-      renderPlaced();   // re-clamps anything sitting on this surface
+      const afterSnap = liveRecord(place);
+      if (beforeSnap && afterSnap && (beforeSnap.scale || 1) !== (afterSnap.scale || 1)) pushUndo('resize', [beforeSnap], [afterSnap]);
+      beforeSnap = null;
+      keepResizeHandle(place);   // RUN21C-6: still adjusting — the handle stays another 4s
+      renderPlaced();            // re-clamps anything sitting on this surface
       sfx.tap();
     };
     ring.addEventListener('pointerup', finish);
@@ -4573,7 +4736,7 @@ export function mount(container, params, ctx) {
       if (active.size < 2) return;
       const two = [...active.values()];
       const d = Math.hypot(two[0].clientX - two[1].clientX, two[0].clientY - two[1].clientY);
-      if (!pinchStart) { pinchStart = d; startScale = itemScaleOf(place, max); return; }
+      if (!pinchStart) { pinchStart = d; startScale = itemScaleOf(place, max); beforeSnap = liveRecord(place); return; }
       const next = clampTo(startScale * (d / pinchStart));
       writeScale(place, next);
       applyLiveSize(wrap, place, next);
@@ -4581,7 +4744,13 @@ export function mount(container, params, ctx) {
     const endPinch = (e) => {
       if (!active.has(e.pointerId)) return;
       active.delete(e.pointerId);
-      if (active.size < 2 && pinchStart) { pinchStart = 0; commit(); renderPlaced(); }
+      if (active.size < 2 && pinchStart) {
+        pinchStart = 0; commit();
+        const afterSnap = liveRecord(place);
+        if (beforeSnap && afterSnap && (beforeSnap.scale || 1) !== (afterSnap.scale || 1)) pushUndo('resize', [beforeSnap], [afterSnap]);
+        beforeSnap = null;
+        renderPlaced();
+      }
     };
     wrap.addEventListener('pointerup', endPinch, true);
     wrap.addEventListener('pointercancel', endPinch, true);
@@ -4658,7 +4827,13 @@ export function mount(container, params, ctx) {
     mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
   }
   function pickUp(place) { closeMenu(); holdingScale = itemScaleOf(place); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); updateSoftened(); }
-  function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); updateSoftened(); }
+  function putAway(place) {
+    closeMenu(); sfx.tap();
+    const before = liveRecord(place);   // RUN21C-7: photographed WITH its scale and plane
+    removePlacement(place);
+    if (before) pushUndo('putAway', [before], []);
+    renderPlaced(); renderDrawer(); updateHint(); updateSoftened();
+  }
 
   // ---- drawer drag to place (delegated from attachStripMomentum, RUN10 P2) ----------
   const LIFT = 70;   // px the dragged item floats ABOVE the fingertip (blocks.js pattern)
@@ -4786,14 +4961,43 @@ export function mount(container, params, ctx) {
         // stand still. If it happens to have landed on a path she painted, the town notices
         // (once or twice a session at most, per the shared budget).
         if (a.state === 'walk') maybeAckPath(a);
-        if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.next = 700 + Math.random() * 1600; }
-        else if (roll < 0.85) { a.state = 'walk'; a.vx = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.01); a.next = 500 + Math.random() * 900; }
-        else { a.state = 'hop'; a.hopT = 0; a.next = 500 + Math.random() * 900; }
+        if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.walkTo = null; a.next = 700 + Math.random() * 1600; }
+        else if (roll < 0.85) {
+          a.state = 'walk';
+          const speed = 0.006 + Math.random() * 0.01;
+          // RUN21C-5: BOOS USE HER PATHS. On most re-rolls, if there is a path within reach
+          // in this Boo's own depth row, it walks along that run instead of picking a
+          // direction at random. Not a magnet and not a rail — the target stays inside the
+          // ordinary wander range, so a Boo beside a path drifts onto it and pads along it
+          // the way anything alive uses a path, and one nowhere near a path is unchanged.
+          const aim = Math.random() < PATH_PULL_CHANCE ? pathWalkTargetDx(a) : null;
+          if (aim != null) {
+            const delta = aim - a.dx;
+            a.vx = (delta < 0 ? -1 : 1) * speed;
+            a.next = Math.max(500, Math.min(1400, Math.abs(delta) / speed));
+            a.walkTo = aim;
+          } else {
+            a.vx = (Math.random() < 0.5 ? -1 : 1) * speed;
+            a.next = 500 + Math.random() * 900;
+            a.walkTo = null;
+          }
+        }
+        else { a.state = 'hop'; a.hopT = 0; a.walkTo = null; a.next = 500 + Math.random() * 900; }
         // now and then drift a little between the depth rows (C3), for a living scene
         if (!a.depthLock && Math.random() < 0.4) a.depthTarget = (Math.random() * 2 - 1) * DEPTH_WANDER;
       }
       const range = zoneW * WANDER_FRAC;   // wander range scales with the wider zone (C3)
-      if (a.state === 'walk') { a.dx += a.vx * dt; a.dx = Math.max(-range, Math.min(range, a.dx)); }
+      if (a.state === 'walk') {
+        a.dx += a.vx * dt; a.dx = Math.max(-range, Math.min(range, a.dx));
+        // RUN21C-5: a walk aimed at a path STOPS on it rather than sailing past. Arriving is
+        // also what feeds maybeAckPath on the next re-roll, so "she noticed" stays true.
+        if (a.walkTo != null && ((a.vx > 0 && a.dx >= a.walkTo) || (a.vx < 0 && a.dx <= a.walkTo))) {
+          a.dx = a.walkTo; a.walkTo = null;
+          // Stay in state 'walk' and force the re-roll onto the next tick: the re-roll block
+          // reads `a.state === 'walk'` as "it has just arrived", which is exactly true here.
+          a.t = a.next;
+        }
+      }
       a.depth += (a.depthTarget - a.depth) * Math.min(1, dt / 260);   // ease toward the target depth
       let ty = 0, flip = a.vx < 0 ? -1 : 1, lean = 0;
       if (a.state === 'hop') { a.hopT += dt; const p = Math.min(1, a.hopT / 420); ty = -Math.sin(p * Math.PI) * 12; if (p >= 1) a.state = 'pause'; }
@@ -5663,6 +5867,21 @@ export function mount(container, params, ctx) {
       // RUN21C-3: a painted cell is no longer a node of its own — adjacent same-style cells
       // in a row are ONE stroke. `pathCellCount` counts the painted CELLS (what the name has
       // always meant); `pathRunCount` counts the strokes those cells drew.
+      // RUN21C-5: every wanderer's LIVE x-fraction (its placed x plus how far it has walked),
+      // with the depth row it walks in — how "do the Boos favour the path" is measured.
+      // RUN21C-6 QA: is the resize handle attached, and to what?
+      resizeHandles: () => [...ground.querySelectorAll('.t-item')].filter(w => w.querySelector('.t-resize')).map(w => w.dataset.item),
+      resizeLingerMs: () => RESIZE_LINGER_MS,
+      // RUN21C-7 QA: the session undo stack and its chip.
+      undoDepth: () => undoStack.length,
+      undoKinds: () => undoStack.map(u => u.kind),
+      undoChip: () => { const n = viewport.querySelector('.t-undo-chip'); return n ? { text: n.textContent, shown: n.classList.contains('show') } : null; },
+      undo: () => undoOnce(),
+      actorXs: () => actors.map(a => a.place.x + ((a.dx || 0) / (zoneW || 1))),
+      actorRows: () => actors.map(a => rowOf(a.place)),
+      // How far each wanderer has strayed from its home spot, as a fraction of the wander
+      // range: -1 is as far left as it may go, +1 as far right. Sign is the whole point.
+      actorDrift: () => actors.map(a => (a.dx || 0) / (zoneW * WANDER_FRAC || 1)),
       pathCellCount: () => currentPaths().length,
       pathRunCount: () => ground.querySelectorAll('.t-path-run').length,
       pathRunBoxes: () => [...ground.querySelectorAll('.t-path-run')].map(n => ({
@@ -5842,6 +6061,8 @@ export function mount(container, params, ctx) {
       if (pathCommitTimer) clearInterval(pathCommitTimer);
       commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)
       if (hideWiggleTimer) clearTimeout(hideWiggleTimer);
+      if (lingerResizeTimer) clearTimeout(lingerResizeTimer);   // RUN21C-6
+      clearTimeout(undoChipTimer);                              // RUN21C-7: the stack dies with the mount
       ambient.stop();
       stopBand();
       window.removeEventListener('resize', onResize);

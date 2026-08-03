@@ -5441,6 +5441,23 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 .t-path-style-row .t-style-btn { width: 60px; height: 60px; flex: 0 0 auto; }
 
+/* ---- RUN21C-7: the Undo chip ----------------------------------------------------------
+   Bottom-left of the play area, for six seconds after any edit. Big enough for a nine-year-
+   old's thumb (the 44px tap-target floor), out of the way of the style row (bottom-centre)
+   and the drawer (below), and it never appears at all when there is nothing to take back. */
+.t-undo-chip {
+  position: absolute; left: 12px; bottom: 10px; z-index: 66;
+  min-height: 44px; padding: 8px 20px; border-radius: 22px;
+  background: var(--card); border: 3px solid var(--ink); box-shadow: var(--card-shadow);
+  color: var(--ink); font-family: var(--font-display); font-size: 17px; font-weight: 700;
+  cursor: pointer; opacity: 0; pointer-events: none;
+  transform: translateY(6px); transition: opacity 160ms ease, transform 160ms ease;
+}
+.t-undo-chip.show { opacity: 1; pointer-events: auto; transform: none; }
+.t-undo-chip:active { transform: scale(0.94); }
+.t-undo-chip:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .t-undo-chip { transition: none; transform: none; } }
+
 /* ---- Flash Boos ---- */
 .flash-question h2 { color: #FFFFFF !important; text-shadow: 0 2px 8px rgba(0,0,0,0.8) !important; font-weight: 800; font-size: 26px; }
 
