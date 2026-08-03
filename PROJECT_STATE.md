@@ -37,10 +37,10 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - wishes: 60 (data/wishes.js WISH_WORDS)
 - dressings: 24 (data/dressings.js DRESSINGS, free defaults included)
 
-## Tests — 209 suites under tests/
+## Tests — 210 files under tests/
 
-- board suites: 186 (+ 23 excluded by prefix: shoot*, sim-blocks*, device-qa*)
-- `npm test` runs `node tests/run.mjs` — `tests/run.mjs` MISSING (does NOT resolve)
+- board suites: 185 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
+- `npm test` runs `node tests/run.mjs` — `tests/run.mjs` EXISTS (resolves)
 
 ### Suite list
 
@@ -230,6 +230,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - r9p5-echoboos.mjs
 - r9p6-band.mjs
 - r9p7-garnish.mjs
+- run.mjs  *(excluded from board)*
 - shoot-hub-fix.mjs  *(excluded from board)*
 - shoot-mechanics.mjs  *(excluded from board)*
 - shoot-p2.mjs  *(excluded from board)*
@@ -252,7 +253,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - shoot-spell.mjs  *(excluded from board)*
 - shoot.mjs  *(excluded from board)*
 - sim-blocks.mjs  *(excluded from board)*
-- walk.mjs
+- walk.mjs  *(excluded from board)*
 
 ## RUN reports present — 7
 
