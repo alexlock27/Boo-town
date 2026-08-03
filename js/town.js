@@ -3517,6 +3517,7 @@ export function mount(container, params, ctx) {
   // ---- RUN21C-5: Boos use her paths --------------------------------------------------
   const PATH_REACH_X = 0.12;      // "any path cell within 12% of zone width" of where it stands
   const PATH_PULL_CHANCE = 0.6;   // "60% chance its walk target is set along that path run"
+  const PATH_WALK_MAX_MS = 4200;  // how long an AIMED walk may last (an aimless one keeps 500-1400ms)
   // The dx (px offset from this actor's home) of a spot along the nearest path RUN in this
   // Boo's own depth row, or null when there is no path within reach. Row-filtered because a
   // wanderer walks along its row: a path two rows back is not a path it could pad along.
@@ -5374,7 +5375,13 @@ export function mount(container, params, ctx) {
           if (aim != null) {
             const delta = aim - a.dx;
             a.vx = (delta < 0 ? -1 : 1) * speed;
-            a.next = Math.max(500, Math.min(1400, Math.abs(delta) / speed));
+            // A walk that is GOING somewhere lasts as long as it needs, up to PATH_WALK_MAX_MS.
+            // The ordinary 500-1400ms window is a walk with no destination; capping an aimed
+            // walk at it meant a Boo took a step towards the path and then re-rolled, so the
+            // pull was real in the numbers and invisible on screen — which fails the ACCEPT.
+            // It still stops the moment it arrives (see the walk step), so this lengthens only
+            // the walks that have somewhere to be.
+            a.next = Math.max(500, Math.min(PATH_WALK_MAX_MS, Math.abs(delta) / speed));
             a.walkTo = aim;
           } else {
             a.vx = (Math.random() < 0.5 ? -1 : 1) * speed;
