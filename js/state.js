@@ -7,7 +7,7 @@ import { idbGetAll, idbAvailable } from './idb.js';
 // Key stays 'bootown.save.v1' (the localStorage slot name) so tablets keep their save;
 // the schema version lives in the `version` field and migrates forward.
 export const SAVE_KEY = 'bootown.save.v1';
-export const VERSION = 23;  // v23: the RUN19 Z6 object model — placements gain `plane` (floor|wall|surface|sky; absent = floor), wall items gain a dragged `y` in the 0.18-0.42 band instead of one fixed height, a surface child carries `parent`+`slot`, and each Boo House room remembers its `dressings`. (Z6's pack text says "VERSION 18" — stale by five bumps; corrected here.) v22: Sprinkle (sparkles: {placementId -> dayStamp}; RUN19 Z5 gives stardust a second, cheaper spend that lives in the town where the result is visible). NOTE for RUN19 Z6: its pack text says "VERSION 18" — stale; Z6 must claim 23. v21: Boo requests become a list (request.actives; RUN19 Z2 raises MAX_ACTIVE to 2 and its five verbs each name a specific item or friend, which RUN3's single `active` object had no room for). v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
+export const VERSION = 24;  // v24: RUN21F F5 — every placement carries a monotonic `id` from `town.nextId`; a surface child's `parent` is that id instead of the old `zone:x:item` place-key (which baked the parent's x in, so moving a table orphaned everything on it); sparkle stamps are keyed by placement id too. Lossless: ids are ADDED, nothing is rewritten but `parent` (resolved once against the placements that exist) and the sparkle map's keys. v23: the RUN19 Z6 object model — placements gain `plane` (floor|wall|surface|sky; absent = floor), wall items gain a dragged `y` in the 0.18-0.42 band instead of one fixed height, a surface child carries `parent`+`slot`, and each Boo House room remembers its `dressings`. (Z6's pack text says "VERSION 18" — stale by five bumps; corrected here.) v22: Sprinkle (sparkles: {placementId -> dayStamp}; RUN19 Z5 gives stardust a second, cheaper spend that lives in the town where the result is visible). NOTE for RUN19 Z6: its pack text says "VERSION 18" — stale; Z6 must claim 23. v21: Boo requests become a list (request.actives; RUN19 Z2 raises MAX_ACTIVE to 2 and its five verbs each name a specific item or friend, which RUN3's single `active` object had no room for). v20: the Disco Hall guest list (disco.roster; [] = everyone, so a pre-v20 save behaves identically). v19: Word Detective's own "ABC keys" switch (RUN18D D6; null = follow the age-based global, so a pre-v19 save behaves identically). v18: the Comfort & access switches (RUN18B Y15; both default OFF, so nothing changes for a save that never sets them). v17: typed stars + the spending ledger (RUN15 V1; pre-shop totals migrate to stars.legacy). v16: Boo Roll 3.0's six authored courses (RUN14 U1). v15: the Boo House's three rooms (RUN13 T3). v14: Boo Expedition + Caper save state (RUN11 Q4/Q5). v13: party retirement.
 export const BACKUP_PREFIX = 'BOO1.';
 
 function freshSave() {
@@ -64,7 +64,10 @@ function freshSave() {
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
     inventory: {},               // itemId -> count
-    town: { areas: {} },         // { areas: { areaKey: { items:[{x,row,item}], paths:[{cx,cy,style}] } } } (v6, RUN10 P1); old flat [{zone,x,item,row}] (v3-5) / [{plot,item}] (pre-v3) migrated forward
+    // v24 (RUN21F F5): `nextId` is the monotonic counter every placement's `id` comes from.
+    // It only ever goes UP — an id is never reused, so a `parent` link can never point at a
+    // different thing than the one it was made for.
+    town: { areas: {}, nextId: 1 },  // { areas: { areaKey: { items:[{id,x,row,item}], paths:[{cx,cy,style}] } }, nextId } (v6, RUN10 P1); old flat [{zone,x,item,row}] (v3-5) / [{plot,item}] (pre-v3) migrated forward
     nicknames: {},              // itemId -> nickname (owned Boos)
     equips: {},                 // Boo itemId -> {hat?,face?,feet?} accessory ids
     catBest: {},                // 'game:choice' -> best stars (per-picker badges, EXPANSION_1 §5)
@@ -487,12 +490,107 @@ export function migrate(obj) {
     if (!merged.dressings || typeof merged.dressings !== 'object') merged.dressings = {};
     if (!merged.dressingsOwned || typeof merged.dressingsOwned !== 'object') merged.dressingsOwned = {};
   }
+  // v24 (RUN21F F5): PLACEMENT IDS, and children that ride with their parents.
+  //
+  // Until now a surface child's `parent` was the place-key `zone:x:item` — a string with the
+  // parent's exact x baked into it. So the moment she nudged the table, every lamp on it
+  // pointed at a parent that no longer existed and groundOrphans dropped them on the floor.
+  // The fix is an identity that does not move: a monotonic integer per placement, handed out
+  // from `town.nextId` and never reused.
+  //
+  // LOSSLESS, and this is the whole point of the step:
+  //  · nothing is added to or removed from any area's `items` array, and no existing field is
+  //    changed except `parent` — every x, row, scale, plane, y, slot, at and portraitBoo is
+  //    left exactly as it was found. Ids are ADDED.
+  //  · every `parent` is resolved ONCE, here, against the placements that actually exist in the
+  //    SAME area, matching the `.find()` the renderer used to do — so the seat she can see today
+  //    is the seat she has tomorrow.
+  //  · a `parent` that resolves to nothing is an orphan, which the running app already grounds
+  //    at the parent's last x on the very next render (groundOrphans). Doing it here instead of
+  //    one frame later loses nothing and leaves no un-followable string behind.
+  //  · sparkle stamps move from place-keys to ids. Where a place-key was AMBIGUOUS (two items of
+  //    the same kind at the same x in different depth rows share a key), the stamp is copied to
+  //    EVERY placement it painted, because today's applySparkles paints all of them.
+  //
+  // IDEMPOTENT by shape, not by version number: a placement that already has an id keeps it, a
+  // numeric `parent` is left alone, and a sparkle key that is already an id is left alone. So
+  // migrate(migrate(x)) is byte-identical, and a hand-edited or half-written save self-heals.
+  if (merged.town && typeof merged.town === 'object' && merged.town.areas && typeof merged.town.areas === 'object') {
+    const areas = merged.town.areas;
+    const areaKeys = Object.keys(areas).filter(k => areas[k] && Array.isArray(areas[k].items));
+    const validId = (v) => Number.isInteger(v) && v > 0;
+    // 1. The counter never goes backwards, and never hands out an id that is already in use —
+    //    even if `nextId` itself was lost, clipped or hand-edited below the high-water mark.
+    let nextId = validId(merged.town.nextId) ? merged.town.nextId : 1;
+    for (const k of areaKeys) for (const t of areas[k].items) if (t && validId(t.id) && t.id >= nextId) nextId = t.id + 1;
+    // 2. Every placement gains an id, in save order, so the numbering is stable for a given save.
+    for (const k of areaKeys) for (const t of areas[k].items) { if (t && typeof t === 'object' && !validId(t.id)) t.id = nextId++; }
+    merged.town.nextId = nextId;
+    // 3. Parents, resolved per area (a child is only ever seated on something in its own area).
+    //    First match wins, exactly as the renderer's `.find(p => placeKey(p) === child.parent)` did.
+    const placeKeyOf = (t) => `${t.zone}:${t.x}:${t.item}`;
+    for (const k of areaKeys) {
+      const items = areas[k].items.filter(t => t && typeof t === 'object');
+      const firstByKey = new Map();
+      const ids = new Set();
+      for (const t of items) { const pk = placeKeyOf(t); if (!firstByKey.has(pk)) firstByKey.set(pk, t.id); ids.add(t.id); }
+      for (const t of items) {
+        if (t.parent == null) continue;
+        if (validId(t.parent) && ids.has(t.parent)) continue;          // already an id, still real
+        const resolved = typeof t.parent === 'string' ? firstByKey.get(t.parent) : null;
+        if (resolved != null && resolved !== t.id) { t.parent = resolved; continue; }
+        // Orphaned: ground it where its parent stood, never delete it. The child's own x has
+        // always been written as the parent's x when it was seated, so it is already the right
+        // answer; the old key's x is used when it disagrees, because that is what the running
+        // groundOrphans would have used.
+        const px = typeof t.parent === 'string' ? parseFloat(String(t.parent).split(':')[1]) : NaN;
+        if (Number.isFinite(px)) t.x = +px.toFixed(3);
+        t.plane = 'floor';
+        delete t.parent; delete t.slot;
+      }
+    }
+    // 4. Sparkles, re-keyed. Unmatched keys are KEPT rather than dropped: they paint nothing
+    //    today (they already painted nothing) and applySparkles prunes them at the day rollover
+    //    on its own, which is strictly less destructive than deleting them here.
+    if (merged.sparkles && typeof merged.sparkles === 'object') {
+      const idsByKey = new Map();
+      const allIds = new Set();
+      for (const k of areaKeys) for (const t of areas[k].items) {
+        if (!t || typeof t !== 'object') continue;
+        allIds.add(String(t.id));
+        const pk = placeKeyOf(t);
+        if (!idsByKey.has(pk)) idsByKey.set(pk, []);
+        idsByKey.get(pk).push(String(t.id));
+      }
+      const out = {};
+      for (const [key, day] of Object.entries(merged.sparkles)) {
+        if (allIds.has(key)) { out[key] = day; continue; }             // already id-keyed
+        const hits = idsByKey.get(key);
+        if (hits && hits.length) { for (const id of hits) out[id] = day; }
+        else out[key] = day;                                            // points at nothing; harmless, kept
+      }
+      merged.sparkles = out;
+    }
+  }
   const legacyParty = o.birthdayParty || merged.birthdayParty;
   const anyOpened = legacyParty && legacyParty.opened && Object.values(legacyParty.opened).some(Boolean);
   merged.partyGiftArchived = !!merged.partyGiftArchived || !!anyOpened;
   delete merged.birthdayParty;   // never carry the retired sub-object forward
   merged.version = VERSION;
   return merged;
+}
+
+// v24 (RUN21F F5): take the next placement id and advance the counter. EVERY new placement
+// goes through here, wherever it is created — the drawer, a wish, a gift landmark, the Boo
+// House seed, a best-friend portrait — so no placement in the save is ever without an identity
+// and no id is ever handed out twice. Call it INSIDE the same mutate() that pushes the
+// placement, so the counter and the item are written in one go.
+export function nextPlacementId(st) {
+  if (!st || typeof st !== 'object') return 1;
+  if (!st.town || typeof st.town !== 'object') st.town = { areas: {}, nextId: 1 };
+  const n = Number.isInteger(st.town.nextId) && st.town.nextId > 0 ? st.town.nextId : 1;
+  st.town.nextId = n + 1;
+  return n;
 }
 
 // Old 6x4 grid placements spread across the Meadow, keeping their order.

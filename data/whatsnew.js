@@ -30,7 +30,12 @@ export const WHATSNEW = [
       { icon: '✨', title: 'Your town is always ready', blurb: 'Open the tray at the bottom and drag anything straight onto the grass, any time. The Boos hold still while you arrange, then carry on the moment you finish.', route: 'town', params: { area: 'meadow' } },
       { icon: '🪣', title: 'The Path Pot', blurb: 'Look in Landscape for the little pot of stones. Pick it up and drag along the ground to lay a path — paint over it to sweep it away. Paths curve round corners now!', route: 'town', params: { area: 'meadow' } },
       { icon: '🧱', title: 'New ways to lay a path', blurb: 'Bricks, stepping stones and a rainbow path are waiting on the Town shelf in the shop. Once one is yours, it is yours forever.', route: 'shop', params: { shelf: 'town' } },
-      { icon: '🐾', title: 'The Boos walk on your paths', blurb: 'Lay a path near your Boos and watch: they will pad along it instead of wandering anywhere. It is theirs now, because you made it.', route: 'town', params: { area: 'meadow' } },
+      // RUN21C-5 is BLOCKED (B1): the path pull is real in the code and measured, but a
+      // child watching for 90s cannot SEE it — goals drive a Boo 56-62% of the time and
+      // swamp the micro-wander the pull lives in. Re-measured independently at the F5/F6
+      // gate: with the path on the RIGHT the drift went further LEFT than with no path at
+      // all. Telling a child to watch for something that does not happen is worse than
+      // saying nothing, so the entry is withdrawn until the behaviour is visible.
       { icon: '↩️', title: 'Changed your mind? Undo!', blurb: 'Move something, put something away, or paint a path, and a little Undo button pops up for a few seconds. Tap it to put things back — up to five times.', route: 'town', params: { area: 'meadow' } }
     ]
   },

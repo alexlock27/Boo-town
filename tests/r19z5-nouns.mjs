@@ -338,7 +338,13 @@ console.log('== Sprinkle: 5 dust, a visible sparkle, and it ends at midnight =='
   // no double-charging: a second long press on an already-sparkling item offers nothing
   const again = await page.evaluate(async () => {
     const st = window.BooTown.State;
-    st.mutate(s => { s.sparkles['meadow:0.2:deco_bench'] = (window.__bootownDay || new Date().toISOString().slice(0, 10)); });
+    // RE-POINTED at v24 (RUN21F F5): a sparkle stamp is keyed by the PLACEMENT ID now, not by
+    // `zone:x:item`. Same rigour — the point of the block is that an already-sparkling thing
+    // offers no second sprinkle, and that needs the stamp to land on the bench she is pressing.
+    // Reading the id from the save is stronger than the literal it replaces, which silently
+    // stopped matching the bench the moment the key form changed.
+    const benchId = window.__townLife.idOf('deco_bench');
+    st.mutate(s => { s.sparkles[String(benchId)] = (window.__bootownDay || new Date().toISOString().slice(0, 10)); });
     window.__townLife.applySparkles();
     window.__townLife.openPlayCardFor('deco_bench');
     await new Promise(r => setTimeout(r, 250));

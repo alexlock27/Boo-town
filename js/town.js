@@ -4,7 +4,7 @@
 // navigation lives in worldmap.js; this file only ever renders one already-unlocked area.
 
 import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './ui.js';
-import { getState, mutate, commit } from './state.js';
+import { getState, mutate, commit, nextPlacementId } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
 import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX } from './art.js';
@@ -79,10 +79,15 @@ const itemScaleOf = (t, max = ITEM_SCALE_MAX) => Math.max(ITEM_SCALE_MIN, Math.m
 // save the v23 migration has not touched.
 const planeOf = (t) => (t && t.plane) || (t && t.row === WALL_ROW ? 'wall' : 'floor');
 const isWallPlane = (t) => planeOf(t) === 'wall';
-// The stable identity of a placement, used as a surface child's `parent`. Deliberately the
-// same shape as town.js's own itemKeyOf and Z5's placementIdOf, so there is one answer to
-// "which placement is this" rather than three.
-const placeKey = (t) => `${t.zone}:${t.x}:${t.item}`;
+// The stable identity of a placement (save v24, RUN21F F5): the monotonic `id` the save hands
+// out, and NOT the old `zone:x:item` place-key. The place-key baked the thing's own x into its
+// name, so the instant she nudged a table its name changed, every lamp on it pointed at a
+// parent that no longer existed, and groundOrphans swept them onto the floor. An id does not
+// move. It is the one answer to "which placement is this" for the three things that used to ask
+// separately: a surface child's `parent`, socket occupancy (itemKeyOf) and a sparkle stamp.
+// A placement without an id can only be one that has not been through migrate() — every
+// creation path takes one from nextPlacementId() — so the fallback is a diagnostic, not a path.
+const pidOf = (t) => (t && t.id != null ? t.id : null);
 const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
 // RUN13 T4: every lamp carries a night state, not just the original table lamp.
 const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp']);
@@ -741,8 +746,8 @@ export function mount(container, params, ctx) {
       st.seen = st.seen || {};
       st.seen.boohouseSeeded = true;
       const items = areaItems(st);
-      items.push({ zone: 'boohouse', x: 0.36, row: 1, item: 'deco_rug', scale: 1.2 });
-      items.push({ zone: 'boohouse', x: 0.64, row: 1, item: 'deco_tablelamp', scale: 1 });
+      items.push({ id: nextPlacementId(st), zone: 'boohouse', x: 0.36, row: 1, item: 'deco_rug', scale: 1.2 });
+      items.push({ id: nextPlacementId(st), zone: 'boohouse', x: 0.64, row: 1, item: 'deco_tablelamp', scale: 1 });
     });
   }
   // The Meadow begins with one permanent magic landmark. If it is put away, the
@@ -765,7 +770,7 @@ export function mount(container, params, ctx) {
         if (x != null) { position = { x, row }; break; }
       }
       position ||= { x:.92, row:0 };
-      items.push({ zone:'meadow', ...position, item:'deco_wishwell', scale:1.1 });
+      items.push({ id: nextPlacementId(st), zone:'meadow', ...position, item:'deco_wishwell', scale:1.1 });
       st.seen.wishWellSeeded = true;
     });
   }
@@ -792,7 +797,7 @@ export function mount(container, params, ctx) {
         if (x != null) { position = { x, row }; break; }
       }
       if (!position) return;   // a full Meadow keeps it in the Build drawer instead
-      items.push({ zone:'meadow', ...position, item:'deco_jokestage', scale:1.05 });
+      items.push({ id: nextPlacementId(st), zone:'meadow', ...position, item:'deco_jokestage', scale:1.05 });
       st.seen.jokeStageSeeded = true;
     });
   }
@@ -1716,7 +1721,8 @@ export function mount(container, params, ctx) {
   // null if the parent has gone — the caller then grounds the child rather than leaving it
   // floating (see groundOrphans), because a thing she put somewhere is never deleted.
   function surfaceSeatFor(child, st) {
-    const parent = (areaItems(st) || []).find(p => placeKey(p) === child.parent);
+    if (child == null || child.parent == null) return null;
+    const parent = (areaItems(st) || []).find(p => pidOf(p) === child.parent);
     if (!parent) return null;
     const slots = slotsFor(parent.item);
     if (!slots) return null;
@@ -1749,34 +1755,66 @@ export function mount(container, params, ctx) {
     for (const p of items) {
       const slots = slotsFor(p.item);
       if (!slots) continue;
-      const key = placeKey(p);
+      const pid = pidOf(p);
+      if (pid == null) continue;
       for (let i = 0; i < slots.length; i++) {
-        if (items.some(c => c !== exclude && c.parent === key && Number(c.slot) === i)) continue;   // taken
-        const seat = surfaceSeatFor({ parent: key, slot: i }, st);
-        if (seat) out.push({ parentKey: key, parentItem: p.item, slot: i, x: seat.x, y: seat.y });
+        if (items.some(c => c !== exclude && c.parent === pid && Number(c.slot) === i)) continue;   // taken
+        const seat = surfaceSeatFor({ parent: pid, slot: i }, st);
+        if (seat) out.push({ parentId: pid, parentItem: p.item, slot: i, x: seat.x, y: seat.y });
       }
     }
     return out;
   }
-  // A child whose parent has been put away is GROUNDED at the parent's x, on the floor, in the
-  // same row — never deleted. Called before every render, so it holds however the parent went.
+  // A child whose parent has been PUT AWAY is GROUNDED at the parent's last spot, on the floor,
+  // in the same row — never deleted. Called before every render, so it holds however the parent
+  // went.
+  //
+  // RUN21F F5: this used to fire on a MOVE as well, because the parent's identity contained its
+  // own x and so changed under it. It cannot now: an id survives a move, so the only way to be
+  // an orphan is for the parent to genuinely leave the area — put away, or picked up to be
+  // carried somewhere else. The landing spot is the child's own x, which moveChildrenWith() has
+  // been keeping equal to the parent's x all along, so it is precisely "where the table stood".
   function groundOrphans() {
     const st = getState();
     const items = areaItems(st);
-    const keys = new Set(items.map(placeKey));
-    const orphans = items.filter(t => t.parent && !keys.has(t.parent));
+    const ids = new Set(items.map(pidOf));
+    const orphans = items.filter(t => t.parent != null && !ids.has(t.parent));
     if (!orphans.length) return false;
     mutate(stt => {
       for (const t of areaItems(stt)) {
-        if (!t.parent || keys.has(t.parent)) continue;
-        // the parent's x is baked into its own key, so the child lands where the parent stood
-        const px = parseFloat(String(t.parent).split(':')[1]);
-        if (Number.isFinite(px)) t.x = +px.toFixed(3);
+        if (t.parent == null || ids.has(t.parent)) continue;
         t.plane = 'floor';
         delete t.parent; delete t.slot;
       }
     });
     return true;
+  }
+  // RUN21F F5 — CHILDREN RIDE WITH THEIR PARENT. A seated child's stored zone/x/row have always
+  // mirrored its parent's (that is what the seating code writes), and the renderer positions it
+  // from the parent anyway — so the only thing a move has to do is keep that mirror true, which
+  // is what makes "put the table away" land the lamp at the table's LAST spot rather than its
+  // first. It is not what makes the lamp travel: the lamp travels because it keeps its parent's
+  // id and surfaceSeatFor reads the parent's new position. Returns the children it touched.
+  function moveChildrenWith(items, parent) {
+    const pid = pidOf(parent);
+    if (pid == null) return [];
+    const kids = items.filter(c => c !== parent && c.parent === pid);
+    for (const c of kids) { c.zone = parent.zone; c.x = parent.x; c.row = parent.row; }
+    return kids;
+  }
+  // The live save record for a placement, BY ID. Every caller used to hunt for it by
+  // `item + zone + x`, which is fragile in two ways that both bit: two copies of the same item
+  // at the same x in different rows are indistinguishable, and `x` is the field a drag changes,
+  // so the lookup had to happen before the write and could never be repeated after it.
+  // Falls back to the old positional match for a record that predates its id (a hand-built
+  // fixture, or `place` objects the QA hooks synthesise).
+  function findPlacement(place, items) {
+    if (!place) return null;
+    const list = items || areaItems(getState());
+    const pid = pidOf(place);
+    if (pid != null) { const byId = list.find(t => pidOf(t) === pid); if (byId) return byId; }
+    return list.find(t => t.item === place.item && t.zone === place.zone
+      && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
   }
 
   function renderPlaced() {
@@ -1816,6 +1854,11 @@ export function mount(container, params, ctx) {
       const size = baseSize * itemScaleOf(t, scaleMaxFor(item, isInterior));
       
       let wrapIndex = existing.findIndex(w => w._placeRef === t);
+      // RUN21F F5: then by placement id — a wrap keeps its node across a move now, so the drag
+      // ghost's classes and the resize handle survive the re-render that follows a commit.
+      if (wrapIndex < 0 && t.id != null) {
+        wrapIndex = existing.findIndex(w => !w._matched && w.dataset.pid === String(t.id));
+      }
       // Fallback if re-loaded from string or manual DOM insertion
       if (wrapIndex < 0) {
         wrapIndex = existing.findIndex(w => !w._matched && w.dataset.item === t.item && Math.abs(parseFloat(w.dataset.x || '0') - t.x) < 0.001 && w.dataset.row === String(row));
@@ -1849,6 +1892,8 @@ export function mount(container, params, ctx) {
       wrap.dataset.zone = t.zone;
       wrap.dataset.x = String(t.x);
       wrap.dataset.item = t.item;
+      if (t.id != null) wrap.dataset.pid = String(t.id);   // RUN21F F5: the placement's identity
+      else delete wrap.dataset.pid;
       wrap.dataset.row = String(row);
       wrap.dataset.plane = planeOf(t);
       wrap.dataset.scale = String(itemScaleOf(t, scaleMaxFor(item, isInterior)));
@@ -2718,10 +2763,14 @@ export function mount(container, params, ctx) {
   // circle at night, and Boos near a Boo House curl up asleep between 21:00 and
   // 07:00. The old bench-seat and pond-paddle promises (RUN2 C3) live here too.
   // Idempotent: safe to re-run every few seconds and on every re-render.
-  const benchCooldown = new Map();   // 'zone:x:item' -> timestamp
+  const benchCooldown = new Map();   // placement id -> timestamp
   // ---- activity sockets (RUN10 P2): each placed item's seats, tracked by instance ----
-  const socketUse = new Map();       // 'zone:x:item' -> array of actor|null, length = SOCKETS[item].length
-  function itemKeyOf(t) { return t.zone + ':' + t.x + ':' + t.item; }
+  const socketUse = new Map();       // placement id -> array of actor|null, length = SOCKETS[item].length
+  // RUN21F F5: the placement id, not the old `zone:x:item`. These three Maps are session state
+  // in this mount's closure, never save data — so there is nothing here to migrate — but they
+  // were keyed on a string that changed the moment a bench was nudged, which quietly emptied
+  // every seat on it. The id holds across a move, so a Boo keeps her seat while the bench slides.
+  function itemKeyOf(t) { const pid = pidOf(t); return pid != null ? 'p' + pid : t.zone + ':' + t.x + ':' + t.item; }
   function socketArrFor(t) {
     const sockets = SOCKETS[t.item]; if (!sockets) return null;
     const key = itemKeyOf(t);
@@ -2742,7 +2791,14 @@ export function mount(container, params, ctx) {
   }
   // Hoisted to mount level (not just assignRoles' sweep) so stepGoal's arrival handler
   // can also claim a socket the instant a Boo reaches an activity (RUN10 P2).
-  const wrapFor = (t) => [...ground.querySelectorAll('.t-item')].find(w => w.dataset.zone === t.zone && Math.abs(+w.dataset.x - t.x) < 0.001 && w.dataset.item === t.item);
+  // RUN21F F5: by placement id when there is one, which is the only way to tell two copies of
+  // the same item at the same x in different depth rows apart. Position is the fallback.
+  const wrapFor = (t) => {
+    const nodes = [...ground.querySelectorAll('.t-item')];
+    const pid = pidOf(t);
+    return (pid != null ? nodes.find(w => w.dataset.pid === String(pid)) : null)
+      || nodes.find(w => w.dataset.zone === t.zone && Math.abs(+w.dataset.x - t.x) < 0.001 && w.dataset.item === t.item);
+  };
   // Use the Boo's CURRENT position (home + wander offset) so a Boo that walked
   // UP to an activity (C1 behaviour engine) gets claimed on arrival, not just one
   // that happened to be placed beside it. Goal-pursuers aren't yanked mid-act.
@@ -3483,6 +3539,7 @@ export function mount(container, params, ctx) {
   // ---- RUN21C-5: Boos use her paths --------------------------------------------------
   const PATH_REACH_X = 0.12;      // "any path cell within 12% of zone width" of where it stands
   const PATH_PULL_CHANCE = 0.6;   // "60% chance its walk target is set along that path run"
+  const PATH_WALK_MAX_MS = 4200;  // how long an AIMED walk may last (an aimless one keeps 500-1400ms)
   // The dx (px offset from this actor's home) of a spot along the nearest path RUN in this
   // Boo's own depth row, or null when there is no path within reach. Row-filtered because a
   // wanderer walks along its row: a path two rows back is not a path it could pad along.
@@ -3920,8 +3977,9 @@ export function mount(container, params, ctx) {
       // `at` (RUN19 Z2): when this thing was put here. The 'try' request needs "placed
       // within the last day" and nothing in the save recorded that before now. Absent on
       // every pre-Z2 placement, which reads correctly as "not new".
-      mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, plane: 'wall', y: clampWallY(WALL_Y_FRAC), item: id, scale: holdingScale, at: nowMs() }); });
-      pushUndo('place', [], [{ zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id }]);   // RUN21C-7
+      let placedId = null;
+      mutate(st => { placedId = nextPlacementId(st); areaItems(st).push({ id: placedId, zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, plane: 'wall', y: clampWallY(WALL_Y_FRAC), item: id, scale: holdingScale, at: nowMs() }); });
+      pushUndo('place', [], [{ id: placedId, zone: ZONES[zi].key, x: +wallX.toFixed(3), row: WALL_ROW, item: id }]);   // RUN21C-7
       holdingScale = 1;
       holding = null; placeMode = false;
       renderPlaced(); renderDrawer(); updateHint();
@@ -3936,8 +3994,9 @@ export function mount(container, params, ctx) {
       const near = nearestFreeSlot(cx, cy);
       if (near) {
         const id = holding;
-        mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, plane: 'surface', parent: near.parentKey, slot: near.slot, item: id, scale: holdingScale, at: nowMs() }); });
-        pushUndo('place', [], [{ zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, item: id }]);   // RUN21C-7
+        let placedId = null;
+        mutate(st => { placedId = nextPlacementId(st); areaItems(st).push({ id: placedId, zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, plane: 'surface', parent: near.parentId, slot: near.slot, item: id, scale: holdingScale, at: nowMs() }); });
+        pushUndo('place', [], [{ id: placedId, zone: ZONES[zi].key, x: +near.xFrac.toFixed(3), row: near.row, item: id }]);   // RUN21C-7
         holdingScale = 1; holding = null; placeMode = false;
         clearSlotGlow();
         renderPlaced(); renderDrawer(); updateHint();
@@ -3951,8 +4010,9 @@ export function mount(container, params, ctx) {
     const landing = spotTaken(zi, x, row) ? nearestLegalSpot(zi, x, row) : { x, row };
     if (!landing) { spotWobble(); return; }
     const id = holding;
-    mutate(st => { areaItems(st).push({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, plane: 'floor', item: id, scale: holdingScale, at: nowMs() }); });
-    pushUndo('place', [], [{ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id }]);   // RUN21C-7
+    let placedId = null;
+    mutate(st => { placedId = nextPlacementId(st); areaItems(st).push({ id: placedId, zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, plane: 'floor', item: id, scale: holdingScale, at: nowMs() }); });
+    pushUndo('place', [], [{ id: placedId, zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: id }]);   // RUN21C-7
     holdingScale = 1;
     holding = null; placeMode = false;
     clearSlotGlow();
@@ -3983,7 +4043,7 @@ export function mount(container, params, ctx) {
       if (d < bestD) { bestD = d; best = s; }
     }
     if (!best || bestD > SLOT_SNAP_PX) return null;
-    const parent = areaItems(getState()).find(p => placeKey(p) === best.parentKey);
+    const parent = areaItems(getState()).find(p => pidOf(p) === best.parentId);
     return { ...best, xFrac: parent ? parent.x : 0, row: parent ? rowOf(parent) : 1 };
   }
   // The soft --star ring on the slot she is hovering. One node, reused, never a queue.
@@ -4230,10 +4290,16 @@ export function mount(container, params, ctx) {
   // wish actors to the SAME card — the cross-run wiring note is explicit that there must
   // never be two competing long-press behaviours on a placed item.
   let longPressTimer = null;
-  const placementIdOf = (place) => `${place.zone}:${place.x}:${place.item}`;
+  // RUN21F F5 (save v24): a sparkle is stamped against the placement's id. It used to be
+  // `zone:x:item`, so moving a sprinkled bench lost its sparkle for the rest of the day and
+  // sprinkling it again cost another five dust. `null` for a record with no id — sparkleDayOf
+  // then reads nothing, which is the safe answer.
+  const placementIdOf = (place) => { const pid = pidOf(findPlacement(place) || place); return pid == null ? null : String(pid); };
   function sparkleDayOf(place) {
+    const key = placementIdOf(place);
+    if (key == null) return null;
     const sp = (getState().sparkles) || {};
-    return sp[placementIdOf(place)] || null;
+    return sp[key] || null;
   }
   function isSparkling(place) { return sparkleDayOf(place) === todayKeyLocal(); }
   function openPlayCard(wrap, place, item) {
@@ -4281,6 +4347,7 @@ export function mount(container, params, ctx) {
       const dust = (getState().stardust || 0);
       if (dust < SPRINKLE_COST) { hint.textContent = `Not quite enough stardust — you have ✨${dust}.`; return; }
       const id = placementIdOf(place), day = todayKeyLocal();
+      if (id == null) return;
       mutate(st => {
         st.stardust = (st.stardust || 0) - SPRINKLE_COST;
         st.sparkles = st.sparkles || {};
@@ -4302,15 +4369,21 @@ export function mount(container, params, ctx) {
     if (stale.length) mutate(st => { for (const k of stale) delete st.sparkles[k]; });
     let painted = 0;
     for (const wrap of ground.querySelectorAll('.t-item')) {
-      const id = `${wrap.dataset.zone}:${wrap.dataset.x}:${wrap.dataset.item}`;
-      const on = sp[id] === day && painted < SPARKLE_SCENE_CAP;
+      const id = wrap.dataset.pid;   // RUN21F F5: the placement id renderPlaced stamped on the wrap
+      const on = !!id && sp[id] === day && painted < SPARKLE_SCENE_CAP;
       wrap.classList.toggle('t-sprinkled', on);
       if (on) painted++;
     }
   }
 
   // ---- placed-item pointer: tap (squeak+menu) or drag-move ----------------
-  function attachItemPointer(wrap, place, item) {
+  function attachItemPointer(wrap, born, item) {
+    // RUN21F F5: a wrap now OUTLIVES the record it was created for. renderPlaced matches wraps
+    // by placement id, so the same node survives a move instead of being torn down and rebuilt,
+    // and the undo stack replaces records wholesale with fresh objects. Every handler therefore
+    // reads the placement through the wrap's `_placeRef`, which renderPlaced re-stamps on every
+    // pass, rather than through the object this listener was born holding.
+    const placeNow = () => wrap._placeRef || born;
     let down = false, moved = false, dsx = 0, dsy = 0, ghost = null;
     wrap.addEventListener('pointerdown', e => {
       if (placeMode) return;
@@ -4334,7 +4407,7 @@ export function mount(container, params, ctx) {
         if (!down || moved) return;
         down = false;
         try { wrap.releasePointerCapture(e.pointerId); } catch {}
-        openPlayCard(wrap, place, item);
+        openPlayCard(wrap, placeNow(), item);
       }, LONG_PRESS_MS);
     });
     const onWall = !!item.wall;
@@ -4364,10 +4437,10 @@ export function mount(container, params, ctx) {
         wrap.dataset._zi = zi; wrap.dataset._x = x; wrap.dataset._row = String(row);
         if (onWall) wrap.dataset._y = String(wallY);
         // ...and a small item being moved gets the same slot glow a newly-held one does.
-        if (isSmall(place.item)) showSlotGlow(nearestFreeSlot(e.clientX, e.clientY, place));
+        const live = findPlacement(placeNow());
+        if (isSmall(placeNow().item)) showSlotGlow(nearestFreeSlot(e.clientX, e.clientY, live));
         if (!onWall) {
-          const cur = areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
-          showDropPreview(wrap, zi, x, row, cur);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
+          showDropPreview(wrap, zi, x, row, live);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
         }
       }
     });
@@ -4378,9 +4451,11 @@ export function mount(container, params, ctx) {
       hideDropPreview(wrap);
       if (moved) {
         const zi = +wrap.dataset._zi, x = +wrap.dataset._x, row = +wrap.dataset._row;
-        const cur = onWall
-          ? areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && isWallPlane(t))
-          : areaItems(getState()).find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001 && rowOf(t) === rowOf(place));
+        const place = placeNow();
+        // RUN21F F5: the live record is found by ID. The three positional lookups this replaces
+        // matched on `x` — the very field a drag is about to change — which is why they had to
+        // run BEFORE the mutate and could never be re-taken after it.
+        const cur = findPlacement(place);
         // RUN19 Z6 — released over a free slot? Then it SEATS there rather than landing on the
         // floor. Checked before the floor logic, and only for a small item, so nothing else
         // about dragging changes.
@@ -4389,14 +4464,17 @@ export function mount(container, params, ctx) {
         if (seat && canPlaceIn(zi)) {
           mutate(st => {
             const items = areaItems(st);
-            const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001);
-            if (t) { t.zone = ZONES[zi].key; t.x = +seat.xFrac.toFixed(3); t.row = seat.row; t.plane = 'surface'; t.parent = seat.parentKey; t.slot = seat.slot; delete t.y; }
+            const t = items.find(t => t === cur) || findPlacement(place, items);
+            if (t) {
+              t.zone = ZONES[zi].key; t.x = +seat.xFrac.toFixed(3); t.row = seat.row; t.plane = 'surface'; t.parent = seat.parentId; t.slot = seat.slot; delete t.y;
+              moveChildrenWith(items, t);   // RUN21F F5: anything on it comes too
+            }
           });
           clearSlotGlow();
           hint.textContent = `On the ${resolveItem(seat.parentItem)?.name || 'shelf'}!`;
           notePlacement();
-          if (moveBefore) pushUndo('move', [moveBefore], [{ zone: ZONES[zi].key, x: +seat.xFrac.toFixed(3), row: seat.row, item: place.item }]);   // RUN21C-7
-          keepResizeHandle({ zone: ZONES[zi].key, x: +seat.xFrac.toFixed(3), item: place.item });   // RUN21C-6
+          if (moveBefore) pushUndo('move', [moveBefore], [{ id: pidOf(cur), zone: ZONES[zi].key, x: +seat.xFrac.toFixed(3), row: seat.row, item: place.item }]);   // RUN21C-7
+          keepResizeHandle(cur || { zone: ZONES[zi].key, x: +seat.xFrac.toFixed(3), item: place.item });   // RUN21C-6
           renderPlaced();
           return;
         }
@@ -4408,7 +4486,7 @@ export function mount(container, params, ctx) {
           const wallY = onWall ? clampWallY(+wrap.dataset._y) : null;
           mutate(st => {
             const items = areaItems(st);
-            const t = items.find(t => t === cur) || items.find(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001);
+            const t = items.find(t => t === cur) || findPlacement(place, items);
             if (t) {
               t.zone = ZONES[zi].key; t.x = +landing.x.toFixed(3); t.row = landing.row;
               // Z6: dragging a thing off a surface makes it a floor item again — it stops being
@@ -4416,21 +4494,26 @@ export function mount(container, params, ctx) {
               if (onWall) { t.plane = 'wall'; t.y = wallY; }
               else { t.plane = 'floor'; delete t.y; }
               delete t.parent; delete t.slot;
+              // RUN21F F5 — THE ITEM: whatever is standing ON this thing travels with it. The
+              // child keeps its `parent` id, so it re-renders seated at the new position; this
+              // only keeps its stored x in step, which is what makes a later put-away ground it
+              // where the table ENDED UP rather than where it started.
+              moveChildrenWith(items, t);
             }
           });
           if (taken) hint.textContent = 'Tucked into the nearest free spot!';
           notePlacement();   // a 'visit' request may have just become true (RUN19 Z2)
-          if (moveBefore) pushUndo('move', [moveBefore], [{ zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: place.item }]);   // RUN21C-7
+          if (moveBefore) pushUndo('move', [moveBefore], [{ id: pidOf(cur), zone: ZONES[zi].key, x: +landing.x.toFixed(3), row: landing.row, item: place.item }]);   // RUN21C-7
           // RUN21C-6: the handle is there the moment she lets go, for four seconds, so
           // "move it, then make it bigger" needs nothing in between.
-          keepResizeHandle({ zone: ZONES[zi].key, x: +landing.x.toFixed(3), item: place.item });
+          keepResizeHandle(cur || { zone: ZONES[zi].key, x: +landing.x.toFixed(3), item: place.item });
         } else if (canPlaceIn(zi)) {
           spotWobble();   // occupied — snap back
         }
         clearSlotGlow();
         renderPlaced();
       } else {
-        onTap(wrap, place, item);
+        onTap(wrap, placeNow(), item);
       }
     });
     wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); clearSlotGlow(); });   // RUN21B-4
@@ -4556,7 +4639,7 @@ export function mount(container, params, ctx) {
     setTimeout(() => {
       if (!ground.isConnected) return;
       wishPuffAt(spot);
-      mutate(st => { areaItems(st).push({ zone: AREA.key, x: spot.x, row: spot.row, item: id }); });
+      mutate(st => { areaItems(st).push({ id: nextPlacementId(st), zone: AREA.key, x: spot.x, row: spot.row, item: id }); });
       renderPlaced();
       const node = ground.querySelector(`.t-item[data-item="${id}"]`);
       if (node && !REDUCED) { node.classList.remove('wish-arrive'); void node.offsetWidth; node.classList.add('wish-arrive'); }
@@ -4874,8 +4957,18 @@ export function mount(container, params, ctx) {
   const undoStack = [];
   let undoChip = null, undoChipTimer = null;
   const snapPlacement = (t) => t ? JSON.parse(JSON.stringify(t)) : null;
-  const samePlacement = (t, r) => t && r && t.item === r.item && t.zone === r.zone
-    && Math.abs((t.x || 0) - (r.x || 0)) < 0.0015 && rowOf(t) === rowOf(r);
+  // RUN21F F5: the ID decides, when both sides have one — a snapshot taken before a move and
+  // the record after it now agree on WHO they are even though every position field differs.
+  // That is what makes the stack round-trip ids: `before` restores the placement complete with
+  // its id (so anything seated on it is still seated on it), and `after` is found and removed by
+  // that same id rather than by a position the undo has just changed. The positional fallback
+  // stays for id-less records (QA-synthesised `place` objects, pre-migrate fixtures).
+  const samePlacement = (t, r) => {
+    if (!t || !r) return false;
+    if (t.id != null && r.id != null) return t.id === r.id;
+    return t.item === r.item && t.zone === r.zone
+      && Math.abs((t.x || 0) - (r.x || 0)) < 0.0015 && rowOf(t) === rowOf(r);
+  };
   // `before` and `after` are arrays of placement snapshots (or, for kind 'paths', of cells).
   function pushUndo(kind, before, after) {
     undoStack.push({ kind, before: (before || []).map(snapPlacement), after: (after || []).map(snapPlacement) });
@@ -4897,7 +4990,14 @@ export function mount(container, params, ctx) {
       mutate(st => {
         const items = areaItems(st);
         for (const a of step.after) { const i = items.findIndex(t => samePlacement(t, a)); if (i >= 0) items.splice(i, 1); }
-        for (const b of step.before) items.push(JSON.parse(JSON.stringify(b)));
+        for (const b of step.before) {
+          const restored = JSON.parse(JSON.stringify(b));
+          items.push(restored);
+          // RUN21F F5: the snapshot carries its ID, so a restored table is the SAME table as far
+          // as everything standing on it is concerned — and putting it back is a move like any
+          // other, so its children's stored positions come back with it.
+          moveChildrenWith(items, restored);
+        }
       });
       commit();
       renderPlaced(); renderDrawer();
@@ -4926,7 +5026,7 @@ export function mount(container, params, ctx) {
   // an undo has to take before an edit, and take again after one. It must be a copy: the
   // resize path writes straight into the live record, so handing back a reference meant
   // "before" and "after" were the same object and the step recorded no change at all.
-  const liveRecord = (place) => snapPlacement(areaItems(getState()).find(t => samePlacement(t, place)));
+  const liveRecord = (place) => snapPlacement(findPlacement(place));
 
   // ---- RUN21C-6: the resize handle without the mode -------------------------------------
   // The handle used to need build mode to exist. Now it attaches whenever an item's MENU
@@ -4941,7 +5041,7 @@ export function mount(container, params, ctx) {
   let lingerResize = null, lingerResizeTimer = null;
   function keepResizeHandle(t) {
     if (!t || !t.item) return;
-    lingerResize = { zone: t.zone, x: t.x, item: t.item };
+    lingerResize = { id: pidOf(t), zone: t.zone, x: t.x, row: t.row, item: t.item };
     clearTimeout(lingerResizeTimer);
     lingerResizeTimer = setTimeout(() => {
       lingerResize = null;
@@ -4951,8 +5051,7 @@ export function mount(container, params, ctx) {
   }
   function applyLingerResize() {
     if (!lingerResize) return;
-    const t = areaItems(getState()).find(p => p.item === lingerResize.item && p.zone === lingerResize.zone
-      && Math.abs((p.x || 0) - lingerResize.x) < 0.001);
+    const t = findPlacement(lingerResize);
     if (!t) return;
     const w = wrapFor(t), it = resolveItem(t.item);
     if (w && it) attachResizeHandle(w, t, it);
@@ -5152,7 +5251,12 @@ export function mount(container, params, ctx) {
   }
 
   function removePlacement(place) {
-    mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
+    mutate(st => {
+      const items = areaItems(st);
+      const target = findPlacement(place, items);
+      const i = target ? items.indexOf(target) : -1;
+      if (i >= 0) items.splice(i, 1);
+    });
   }
   function pickUp(place) { closeMenu(); holdingScale = itemScaleOf(place); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); updateSoftened(); }
   function putAway(place) {
@@ -5321,7 +5425,13 @@ export function mount(container, params, ctx) {
           if (aim != null) {
             const delta = aim - a.dx;
             a.vx = (delta < 0 ? -1 : 1) * speed;
-            a.next = Math.max(500, Math.min(1400, Math.abs(delta) / speed));
+            // A walk that is GOING somewhere lasts as long as it needs, up to PATH_WALK_MAX_MS.
+            // The ordinary 500-1400ms window is a walk with no destination; capping an aimed
+            // walk at it meant a Boo took a step towards the path and then re-rolled, so the
+            // pull was real in the numbers and invisible on screen — which fails the ACCEPT.
+            // It still stops the moment it arrives (see the walk step), so this lengthens only
+            // the walks that have somewhere to be.
+            a.next = Math.max(500, Math.min(PATH_WALK_MAX_MS, Math.abs(delta) / speed));
             a.walkTo = aim;
           } else {
             a.vx = (Math.random() < 0.5 ? -1 : 1) * speed;
@@ -6060,7 +6170,21 @@ export function mount(container, params, ctx) {
       wallYOf: (itemId) => { const t = areaItems(getState()).find(x => x.item === itemId); return t && isWallPlane(t) ? clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : null; },
       // ---- RUN19 Z6 --------------------------------------------------------------------
       planeOf: (itemId) => { const t = areaItems(getState()).find(x => x.item === itemId); return t ? planeOf(t) : null; },
-      freeSlots: () => freeSurfaceSlots(getState()).map(s2 => ({ parentItem: s2.parentItem, slot: s2.slot, x: Math.round(s2.x), y: Math.round(s2.y) })),
+      freeSlots: () => freeSurfaceSlots(getState()).map(s2 => ({ parentItem: s2.parentItem, parentId: s2.parentId, slot: s2.slot, x: Math.round(s2.x), y: Math.round(s2.y) })),
+      // ---- RUN21F F5: placement ids ----------------------------------------------------
+      // Read-only. Everything a suite needs to say "this is the SAME thing it was before the
+      // move", without reverse-engineering identity out of a position that just changed.
+      placements: () => areaItems(getState()).map(t => ({ id: t.id, item: t.item, x: t.x, row: t.row, plane: planeOf(t), parent: t.parent, slot: t.slot, scale: t.scale })),
+      idOf: (itemId) => { const t = areaItems(getState()).find(x => x.item === itemId); return t ? t.id : null; },
+      childrenOf: (itemId) => {
+        const p = areaItems(getState()).find(x => x.item === itemId);
+        return p ? areaItems(getState()).filter(c => c !== p && c.parent === pidOf(p)).map(c => c.item) : [];
+      },
+      nextId: () => (getState().town || {}).nextId,
+      sparkleKeys: () => Object.keys(getState().sparkles || {}),
+      // The rendered seat, in on-screen pixels, of whatever is standing on `itemId` — so a suite
+      // can prove the lamp is still ON the table after the table has moved, from the art.
+      seatRectOf: (itemId) => { const w = [...ground.querySelectorAll('.t-item')].find(n => n.dataset.item === itemId); if (!w) return null; const r = w.getBoundingClientRect(); return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }; },
       slotGlowing: () => !!(ground.parentElement && ground.parentElement.querySelector('.t-slot-glow.show')) || !!document.querySelector('.t-slot-glow.show'),
       dressingApplied: (slot) => { const d = dressingApplied(slot); return d ? d.id : null; },
       renderDecorate: () => renderDecorateTab(),

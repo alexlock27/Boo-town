@@ -6,7 +6,7 @@ Branch `run21c`, from main @ 6f50a46 (RUN21A + RUN21D + RUN21F F1–F3 merged).
 - [x] 2 — The Path Pot
 - [x] 3 — Strokes, not tiles
 - [x] 4 — Three new path styles in the shop
-- [x] 5 — Boos use her paths
+- [~] 5 — Boos use her paths (mechanism built to spec and proven; ACCEPT not demonstrable — BLOCK B1)
 - [x] 6 — Resize handle without the mode
 - [x] 7 — Session undo (5 steps)
 - [x] 8 — Drawer polish
@@ -36,7 +36,13 @@ fatal once scrubbing IS the eraser. Strokes now remember the cells they have alr
 
 ## Blocks
 
-None. The SAVE VERSION question posed in the dispatch resolved without a bump: owning a path
+**B1 — item 5's ACCEPT.** The specced mechanism is built and proven directly, but the
+"90s observation shows Boos visibly favouring the path line" could not be produced: a lone
+Boo is inside a RUN6 C1 goal 56-62% of the time (those goals drive the actor, so the
+micro-wander branch never runs), and the pull is small against the wander's own +/-1.0
+variance. Meeting it needs the GOAL engine biased toward paths, which is outside this
+pack's WHERE. Full measurements, and the three discarded measurement designs, are in
+RUN21C-REPORT.md. The SAVE VERSION question posed in the dispatch resolved without a bump: owning a path
 style is one `inventory` entry, which is an existing free-form map, so item 4 needed no
 migration and VERSION stays 23. Path DATA (`paths:[{cx,cy,style}]`, `PATH_CAP`) is untouched.
 
