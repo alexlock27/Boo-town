@@ -57,7 +57,9 @@ const DISCO_DOOR_X = 0.51;
 const INTERIOR_W_VIEWPORTS = 1.5;
 const INTERIOR_WALL_FRAC = 0.55;   // room backdrop: wall band = top 55%, floor band = the rest
 const WALL_ROW = 3;                // sentinel row value for wall-hung items (floor uses 0-2)
-const WALL_Y_FRAC = 0.30;          // wall items hang at a fixed height, no depth variation
+const WALL_Y_FRAC = 0.30;          // DEFAULT hang height for a wall item with no dragged `y`.
+                                   // Since RUN19 Z6 the height is per item: clampWallY(t.y ??
+                                   // WALL_Y_FRAC) inside data/surfaces.js's 0.18-0.42 band.
 const ITEM_SCALE_MIN = 0.70, ITEM_SCALE_MAX = 1.60, ITEM_SCALE_STEP = 0.15;
 // RUN19 Z6 — drag-handle resize replaces the +/- buttons. The range is the same 0.70-1.60 the
 // buttons stepped through, except that furniture indoors (and a bed anywhere) may go to 2.0,
@@ -593,8 +595,10 @@ export function mount(container, params, ctx) {
   pathStyleRow.addEventListener('pointerdown', e => e.stopPropagation());
   viewport.append(toolRow, pathStyleRow);
 
-  // Town drawer (RUN10 P2): js/drawer.js tabs [Boos | Rides & fun | Decorations | Special],
-  // plus a Build-only Landscape tab (RUN10 P3, tab button hidden outside build mode).
+  // Town drawer (RUN10 P2): js/drawer.js tabs. DRAWER_TABS_SPEC below is the list — Boos,
+  // Rides & fun, Decorations, Furniture (RUN13 T4), Special, Landscape (RUN10 P3, hidden
+  // outside build mode), Wishes (RUN20 W1) and Decorate (RUN19 Z6, rooms only). Which of
+  // them are visible depends on indoors/outdoors and build mode; see updateBuildUI().
   // `item.act` (catalogue.js) marks the playground/activity decos; ultra-rarity decos are
   // the "Special" showpieces.
   const DRAWER_TABS_SPEC = [
@@ -4305,7 +4309,8 @@ export function mount(container, params, ctx) {
     setTimeout(() => heart.remove(), 900);
     const tag = el('div', { class: 'squeak-name', text: getDisplayName(item.id) + heartBadge(item.id) }); wrap.appendChild(tag);
     setTimeout(() => tag.remove(), 1100);
-    // Personality catchphrase (RUN10 P5): 20% of taps, spoken via a guide-style bubble on
+    // Personality catchphrase (RUN10 P5): 45% of taps (CATCHPHRASE_RATE, raised from 0.2 by
+    // RUN19 Z2 — a Boo you tap should mostly say something), spoken via a guide-style bubble on
     // the Boo herself, not the guide's own avatar — it's HER line, not the guide's.
     if (item.kind === 'boo' && Math.random() < CATCHPHRASE_RATE) {
       // RUN20 W3: a pirate says "Yarr!" instead of its temperament's line — capped by the SAME
@@ -5502,7 +5507,7 @@ export function mount(container, params, ctx) {
       drawerTabs: () => [...drawer.querySelectorAll('.bd-tab')].filter(n => getComputedStyle(n).display !== 'none').map(n => n.textContent),
       // RUN10 P5 QA hooks: personalities + hide-and-seek 2.0.
       personalityOf: (booId) => personalityOf(booId),
-      // Taps once (the real squeak() path, 20% catchphrase odds) and reports whether the
+      // Taps once (the real squeak() path, CATCHPHRASE_RATE = 45% odds) and reports whether the
       // bubble showed THIS time — cleans it up immediately rather than waiting its own
       // 2200ms lifetime, so a test can sample hundreds of taps quickly.
       // Returns the catchphrase bubble's exact text if this tap showed one, else null.
