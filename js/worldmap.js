@@ -5,7 +5,9 @@
 
 import { el, clear, confetti, REDUCED, backControl } from './ui.js';
 import { getState, mutate, todayKey } from './state.js';
-import { AREAS, MAP_POS, AREA_UNLOCK_STARS } from './areas.js';
+import { AREAS, MAP_POS, AREA_UNLOCK_STARS, HOUSE_ROOM_KEYS, flattenTownItems } from './areas.js';
+import { activeRequests } from './requests.js';
+import { getDisplayName } from './accessories.js';
 
 // RUN20 W4: how many nodes each badge's flourish needs. Capped at three by the pack; most want
 // one or two, and the CSS drives all of them off one shared 6s loop.
@@ -81,6 +83,23 @@ export function mount(container, params, ctx) {
     stage.appendChild(boo);
   }
 
+  // RUN21D-2: which unlocked area is somebody wondering something in? A request is created
+  // at area entry or at app open and then waits, invisibly, until she happens to walk back
+  // into the right area — so the map has to say where. Keyed by BADGE, which means the Boo
+  // House's three room storage keys all fold into the one `boohouse` badge.
+  function wonderByArea() {
+    const s = getState();
+    const asking = new Set(activeRequests().map(r => r.booId));
+    if (!asking.size) return {};
+    const out = {};
+    for (const t of flattenTownItems(s)) {
+      if (!asking.has(t.item)) continue;
+      const badgeKey = HOUSE_ROOM_KEYS.includes(t.area) ? 'boohouse' : t.area;
+      if (!out[badgeKey]) out[badgeKey] = `${getDisplayName(t.item)} is wondering something…`;
+    }
+    return out;
+  }
+
   const badgeEls = {};
   let justUnlocked = new Set();
   function render() {
@@ -88,15 +107,19 @@ export function mount(container, params, ctx) {
     const s = getState();
     ensureHide();   // idempotent: keeps the daily hider (and its area) current even before entering town
     const hide = currentHide();
+    const wondering = wonderByArea();
     for (const a of AREAS) {
       const unlocked = a.unlocked(s);
       const pos = MAP_POS[a.key] || { x: 50, y: 50 };
       const threshold = AREA_UNLOCK_STARS[a.key] || 0;
       const hiding = unlocked && hide && hide.spot && hide.spot.zone === a.key;
+      const wonder = unlocked ? (wondering[a.key] || null) : null;
       const badge = el('button', {
         class: 'map-badge' + (unlocked ? '' : ' locked'),
         style: { left: pos.x + '%', top: pos.y + '%' },
-        'aria-label': a.name + (hiding ? ' — someone is hiding here' : '')
+        // The chip carries the authored sentence itself, but a button's aria-label wins over
+        // its children — so the badge repeats it, exactly as the hide chip already does.
+        'aria-label': a.name + (hiding ? ' — someone is hiding here' : '') + (wonder ? ' — ' + wonder : '')
       }, [
         el('div', { class: 'mb-dot', html: unlocked ? areaIcon(a.key) : '🔒' }),
         el('div', { class: 'mb-label', text: a.name }),
@@ -104,6 +127,9 @@ export function mount(container, params, ctx) {
         // hide-and-seek 2.0 (RUN10 P5): a tiny peek chip so the hunt spans the world
         // without turning into a chore — only the area actually hiding someone gets one.
         hiding ? el('div', { class: 'mb-hide-chip', text: '👀' }) : null,
+        // RUN21D-2: …and the same idea for a Boo with something on its mind. The chip is
+        // decoration on the badge: tapping anywhere on the badge still just opens the area.
+        wonder ? el('div', { class: 'mb-wonder-chip', role: 'img', text: '💭', title: wonder, 'aria-label': wonder }) : null,
         // RUN20 W4: one tiny LIVE flourish per unlocked badge, on a shared 6s loop with
         // per-area content — grass sways, the river ripples, a leaf drifts, a wave laps, a
         // fair light twinkles, a ball rolls, a window glows, a spotlight breathes. At most
@@ -177,7 +203,15 @@ export function mount(container, params, ctx) {
       justUnlocked: () => [...justUnlocked],
       // RUN10 P5 QA hook: which area (if any) shows the hide-and-seek 👀 chip
       hidingArea: () => { const h = currentHide(); return h && h.spot ? h.spot.zone : null; },
-      hideChipShown: (key) => !!(badgeEls[key] && badgeEls[key].querySelector('.mb-hide-chip'))
+      hideChipShown: (key) => !!(badgeEls[key] && badgeEls[key].querySelector('.mb-hide-chip')),
+      // RUN21D-2 QA hooks: the 💭 chip and the exact sentence it carries
+      wonderAreas: () => Object.keys(wonderByArea()),
+      wonderChip: (key) => {
+        const n = badgeEls[key] && badgeEls[key].querySelector('.mb-wonder-chip');
+        return n ? { text: n.textContent, title: n.getAttribute('title'), aria: n.getAttribute('aria-label') } : null;
+      },
+      badgeAria: (key) => badgeEls[key] && badgeEls[key].getAttribute('aria-label'),
+      rerender: () => render()
     };
   }
 

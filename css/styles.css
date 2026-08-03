@@ -1920,8 +1920,12 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   display: grid; place-items: center; cursor: pointer;
   background: var(--card); border: 2px solid var(--ink); border-radius: 50%;
   box-shadow: var(--card-shadow); z-index: 8;
-  animation: rq-bob 2s ease-in-out infinite;
+  /* RUN21D-2: the bob says "a thought"; the breathe says "still waiting" — a gentle
+     1 → 1.06 once every six seconds. It rides the individual `scale` property so the bob
+     keeps its own transform; two animations, two properties, no fight. */
+  animation: rq-bob 2s ease-in-out infinite, rq-breathe 6s ease-in-out infinite;
 }
+@keyframes rq-breathe { 0%, 86%, 100% { scale: 1; } 93% { scale: 1.06; } }
 /* The tail: two shrinking dots, so it reads as a THOUGHT and not a speech bubble. */
 .request-thought::after {
   content: ''; position: absolute; left: 50%; bottom: -12px; width: 8px; height: 8px;
@@ -1932,6 +1936,19 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .request-thought .rq-ask { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--pop); line-height: 1; }
 .request-thought:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
 @keyframes rq-bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+/* RUN21D-1: the Pulse breathes a bubble three times to say "over here". It animates the
+   INDIVIDUAL `scale` property rather than `transform`, so the bob above keeps running
+   underneath it instead of the two fighting over one transform. 3 × 0.8s = PULSE_BUBBLE_MS. */
+.request-thought.rq-pulse3 { animation: rq-bob 2s ease-in-out infinite, rq-pulse3-scale 0.8s ease-in-out 3; }
+@keyframes rq-pulse3-scale { 0%,100% { scale: 1; } 50% { scale: 1.14; } }
+/* RUN21D-2: "Show me" lands the camera on the thing and rings it for two seconds, so the
+   arrival names its own subject. A ring, not the card's drop-shadow glow — this one has to
+   read against ride art and painted paths as well as against grass. */
+.rq-ring { animation: rq-ring-pulse 1s ease-in-out 2; border-radius: 12px; }
+@keyframes rq-ring-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,122,198,0); }
+  40%     { box-shadow: 0 0 0 6px rgba(255,122,198,0.85), 0 0 16px 8px rgba(255,201,60,0.45); }
+}
 
 /* The request card */
 .request-card { max-width: 360px; padding: 20px; text-align: center; }
@@ -1962,10 +1979,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   z-index: 9; text-shadow: 0 0 3px var(--card), 0 1px 0 var(--card);
 }
 @media (prefers-reduced-motion: reduce) {
-  .request-thought { animation: none !important; }
+  .request-thought, .request-thought.rq-pulse3 { animation: none !important; scale: 1 !important; }
   .rq-glow, .rq-thanks, .rq-fly { animation: none !important; }
+  /* the ring still MARKS the target, it just stops flashing: a static outline instead */
+  .rq-ring { animation: none !important; box-shadow: 0 0 0 5px rgba(255,122,198,0.9) !important; }
 }
-.reduced .request-thought, .reduced .rq-glow, .reduced .rq-thanks { animation: none !important; }
+.reduced .request-thought, .reduced .request-thought.rq-pulse3, .reduced .rq-glow, .reduced .rq-thanks { animation: none !important; scale: 1 !important; }
+.reduced .rq-ring { animation: none !important; box-shadow: 0 0 0 5px rgba(255,122,198,0.9) !important; }
 
 /* the 8 dance moves (applied one per beat to a Boo svg) */
 .move-bounce { animation: mv-bounce 0.6s ease-in-out; transform-origin: 50% 100%; }
@@ -2399,6 +2419,51 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .town-header h2 { color: var(--card); margin: 0; font-size: 22px; flex: 1; text-align: center; }
 .town-hint { flex: 1; color: var(--star); font-family: var(--font-display); font-size: 16px; text-align: right; }
 .town-hint-bar { min-height: 20px; padding: 0 14px 4px; color: var(--star); font-family: var(--font-display); font-size: 14px; text-align: center; }
+/* ---- RUN21D-3: the landmark dots -------------------------------------------------------
+   Four named screens, above the hint bar. The PIP is the pack's 12px at 35% ink (pink when
+   it is the screen you are on); the BUTTON around it is 44px, the house tap-target floor,
+   so the dots stay a comfortable target for a nine-year-old on a phone without turning
+   into four big blobs of chrome. */
+.t-dots { display: flex; justify-content: center; align-items: center; gap: 4px; flex: 0 0 auto; height: 44px; }
+.t-dot {
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; margin: 0;
+  background: none; border: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center;
+}
+.t-dot-pip {
+  width: 12px; height: 12px; border-radius: 50%; display: block;
+  /* The pack says "ink at 35%". Ink is #2A1B4E and this strip sits on the app's own dark
+     chrome (--sky-deep), where ink at 35% is invisible — dark on dark. Same 35% dimness,
+     on the colour that reads against THIS surface: card at 35%, which measures 3.0:1
+     against --sky-deep (the non-text contrast floor) while still reading as "not this one". */
+  background: rgba(255,248,240,0.35);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.t-dot.sel .t-dot-pip { background: var(--pop); transform: scale(1.15); }
+.t-dot:focus-visible { outline: 3px solid var(--star); outline-offset: -4px; }
+.t-dot:active .t-dot-pip { transform: scale(0.9); }
+@media (prefers-reduced-motion: reduce) { .t-dot-pip { transition: none; } .t-dot.sel .t-dot-pip { transform: none; } }
+/* The edge shimmer: one soft sweep on whichever edge has town beyond it, once per visit.
+   Same gradient language as the rarity shimmer (.rfx-shimmer), scaled to an edge. */
+.t-edge-shim {
+  position: absolute; top: 0; bottom: 0; width: 54px; pointer-events: none; z-index: 9;
+  background: linear-gradient(90deg, transparent, rgba(255,248,240,0.45), transparent);
+}
+.t-edge-shim.left { left: 0; animation: tEdgeShimL 2.6s ease-in-out 2 both; }
+.t-edge-shim.right { right: 0; animation: tEdgeShimR 2.6s ease-in-out 2 both; }
+@keyframes tEdgeShimR {
+  0%   { opacity: 0; transform: translateX(-26px); }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(26px); }
+}
+@keyframes tEdgeShimL {
+  0%   { opacity: 0; transform: translateX(26px); }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-26px); }
+}
+@media (prefers-reduced-motion: reduce) { .t-edge-shim { display: none; } }
 .town-hammer-btn { font-size: 20px; }   /* RUN10 P3: build mode toggle */
 .town-hammer-btn.active { background: #5F4FC4; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset; }
 /* entry/exit crossfade (P1): the map badge scales up into this scene, 300ms */
@@ -2462,7 +2527,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); animation: mbPeek 2.4s ease-in-out infinite;
 }
 @keyframes mbPeek { 0%, 82%, 100% { transform: translateY(0); } 90% { transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) { .mb-hide-chip { animation: none; } }
+/* RUN21D-2: …and a thought chip on whichever area has somebody wondering something. Left
+   shoulder, so it never sits on top of the 👀 chip when one area has both. */
+.mb-wonder-chip {
+  position: absolute; top: -4px; left: -2px; font-size: 15px; line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); animation: mbWonder 3.6s ease-in-out infinite;
+}
+@keyframes mbWonder { 0%, 80%, 100% { transform: scale(1); } 90% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .mb-hide-chip, .mb-wonder-chip { animation: none; } }
 .map-toast {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%) translateY(10px);
   background: rgba(20,12,48,0.82); color: var(--card); font-family: var(--font-display); font-size: 15px;
@@ -3280,6 +3352,28 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .ff-disco-stars { color: var(--star); font-size: 20px; }
 .ff-disco-enter { padding: 5px 13px; border-radius: 10px; background: var(--zing); color: var(--ink); font-size: 11px; }
 @keyframes discoSign { 50% { filter: brightness(1.5); transform: scale(1.04); } }
+/* RUN21D-4: two small hanging signs at the fair's entrance, in the house sticker language
+   (cream board, ink outline, soft shadow) — the same construction as the disco door above,
+   scaled down to a plaque on a rope. They swing very gently, which is what a hanging sign
+   does; reduced motion holds them still. */
+.ff-sign {
+  position: absolute; transform: translateX(-50%); padding: 0; border: 0; background: none;
+  display: flex; flex-direction: column; align-items: center; cursor: pointer;
+  min-width: 56px; min-height: 56px;
+  transform-origin: 50% 0; animation: ffSignSwing 4.4s ease-in-out infinite;
+}
+.ff-sign-disco { animation-delay: -2.2s; }
+.ffs-rope { width: 3px; height: 16px; background: #8A5A44; border-radius: 2px; }
+.ffs-plaque {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
+  background: var(--card); border: 3px solid var(--ink); border-radius: 12px;
+  padding: 5px 11px; box-shadow: var(--card-shadow); white-space: nowrap; line-height: 1.2;
+}
+.ff-sign:active .ffs-plaque { transform: scale(0.94); }
+.ff-sign:focus-visible .ffs-plaque { outline: 3px solid var(--star); outline-offset: 3px; }
+@keyframes ffSignSwing { 0%,100% { rotate: -2.2deg; } 50% { rotate: 2.2deg; } }
+@media (prefers-reduced-motion: reduce) { .ff-sign { animation: none; rotate: 0deg; } }
+.reduced .ff-sign { animation: none; rotate: 0deg; }
 .disco-hall { display: flex; flex-direction: column; min-height: 100%; overflow: hidden; background: #12082E; }
 .disco-header { height: 58px; flex: none; display: grid; grid-template-columns: 52px 1fr 72px; align-items: center; gap: 8px; padding: 0 12px; background: #26104D; border-bottom: 2px solid rgba(255,255,255,.12); }
 .disco-header h2 { margin: 0; color: #fff; text-align: center; }
