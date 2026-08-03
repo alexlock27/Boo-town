@@ -20,9 +20,15 @@ import { sfx, music } from './sfx.js';
 import { ensureHide, currentHide } from './delights.js';
 
 export function mount(container, params, ctx) {
+  // RUN21F F6: this mount can be a VISIT — a friend's island, rebuilt in memory from a Town
+  // Postcard (js/visit.js). Three things change and nothing else: the map is theirs, so it
+  // is not "My Town"; there is no 💌, because a visitor has no business copying somebody
+  // else's town out again under her own name; and no unlock ceremony fires, because the
+  // postcard carries no stars and the areas were opened by the snapshot, not earned here.
+  const READONLY = !!(ctx && ctx.readonly);
   const root = el('div', { class: 'worldmap' });
-  const back = backControl(() => ctx.go('hub'));
-  const title = el('h2', { text: 'My Town' });
+  const back = backControl(() => ctx.go(READONLY ? 'grownups' : 'hub'));
+  const title = el('h2', { text: READONLY ? 'A friend’s town' : 'My Town' });
   function exportTown() {
     sfx.tap();
     try {
@@ -51,8 +57,8 @@ export function mount(container, params, ctx) {
       toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
     } catch(e) {}
   }
-  const exportBtn = el('button', { class: 'icon-btn', text: '💌', 'aria-label': 'Share a Town Postcard', onclick: exportTown });
-  const header = el('header', { class: 'town-header' }, [back, title, exportBtn]);
+  const exportBtn = READONLY ? null : el('button', { class: 'icon-btn', text: '💌', 'aria-label': 'Share a Town Postcard', onclick: exportTown });
+  const header = el('header', { class: 'town-header' }, [back, title, exportBtn].filter(Boolean));
   const stage = el('div', { class: 'map-stage' });
   const toast = el('div', { class: 'map-toast' });
   root.append(header, stage, toast);
@@ -159,13 +165,18 @@ export function mount(container, params, ctx) {
   function enterArea(key) {
     sfx.tap();
     // The Gallery is its own dedicated screen (RUN10 P4), not a town.js area scene.
-    if (key === 'gallery') { ctx.go('gallerymuseum'); return; }
+    // F6: and it is the one badge a visit cannot honour — a museum of paintings, jams and
+    // trophies that live in this device's OWN IndexedDB and trophy list, none of which a
+    // postcard carries. Rather than show the visitor her own gallery under a friend's
+    // banner, the badge stays where it is and simply does not open.
+    if (key === 'gallery') { if (!READONLY) ctx.go('gallerymuseum'); return; }
     ctx.go('town', { area: key, enterPan: justUnlocked.has(key) });
   }
 
   // Unlock moment (P1): a threshold crossing detected on map open plays the existing
   // zone-unlock ceremony, panning INTO that area once she steps through.
   function maybeCelebrateUnlock() {
+    if (READONLY) return;   // F6: nothing was unlocked here — the snapshot simply opened it
     const s = getState();
     const seen = (s.seen && s.seen.areasUnlocked) || [];
     // Only star-gated areas ever play the "just discovered" ceremony — always-open areas
@@ -211,7 +222,10 @@ export function mount(container, params, ctx) {
         return n ? { text: n.textContent, title: n.getAttribute('title'), aria: n.getAttribute('aria-label') } : null;
       },
       badgeAria: (key) => badgeEls[key] && badgeEls[key].getAttribute('aria-label'),
-      rerender: () => render()
+      rerender: () => render(),
+      // RUN21F F6 QA: is this map a visit, and did the 💌 stay away?
+      readonly: () => READONLY,
+      hasExport: () => !!exportBtn
     };
   }
 

@@ -541,14 +541,46 @@ export function initNew(name, guide) {
   return state;
 }
 
+// ---- RUN21F F6: the VISIT session (a friend's town, in memory only) ---------------------
+// Visiting is a LOOK, not an edit, and the privacy promise is the whole feature: while a
+// visit is open THIS MODULE WRITES NOTHING. Her own save object is held aside here and
+// handed straight back by endVisit(), so it is not merely "not saved over" — it is never
+// touched. Every write path in the app funnels through the three functions below, which is
+// why the read-only screens need no discipline of their own to be safe:
+//   mutate()       — does not even run its callback (the pack's "all mutate() calls no-op")
+//   scheduleSave() — schedules nothing
+//   commit()       — writes nothing to localStorage
+// beginVisit() flushes any pending save OF HERS before the swap, so nothing of hers is lost
+// on the way in either.
+let visitHeld = null;   // { real: <her state> } while a visit is open; null otherwise
+export function isVisiting() { return !!visitHeld; }
+export function beginVisit(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+  if (visitHeld) endVisit();
+  commit();                      // her last write, BEFORE the swap (commit is gated after it)
+  visitHeld = { real: state };
+  state = snapshot;
+  return true;
+}
+export function endVisit() {
+  if (!visitHeld) return false;
+  const held = visitHeld;
+  visitHeld = null;              // cleared first: the app is live again from this line on
+  state = held.real;
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  return true;
+}
+
 // Mutate then schedule a debounced save.
 export function mutate(fn) {
   if (!state) return;
+  if (visitHeld) return;   // F6: visiting a friend's town — nothing she taps may change it
   fn(state);
   scheduleSave();
 }
 
 export function scheduleSave() {
+  if (visitHeld) return;   // F6: no visit may ever arm a write
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(commit, 2000);
 }
@@ -622,6 +654,7 @@ export function onSaveError(cb) { saveErrorCb = cb; }
 
 // Write immediately.
 export function commit() {
+  if (visitHeld) return;   // F6: a visit NEVER reaches localStorage, by any route
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (!state) return;
   state.lastPlayed = Date.now();

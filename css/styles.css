@@ -7267,3 +7267,38 @@ html.bigger-text { --vz: 1.125; }
   .amb-seed, .amb-leaf, .amb-strayball, .amb-steam { display: none; }
   .t-skip, .t-footprint, .t-train, .t-petal, .t-kernel { animation: none !important; }
 }
+
+/* ===== RUN21F F6 — "Visit a Town" ==========================================
+   A visit is a read-only look at a friend's town, rebuilt in memory from a
+   Town Postcard. The banner lives on <body>, OUTSIDE #screen, so it survives
+   every navigation the visit can make (map ↔ area ↔ room) and cannot be
+   scrolled away from inside a screen; `body.visiting` is what makes room for
+   it, by moving the screen root down by exactly the banner's own height.
+   Ink on --star: 11.5:1, comfortably past AA at every size.
+   ========================================================================== */
+.visit-banner {
+  position: fixed; top: 0; left: 0; right: 0; height: 54px; z-index: 9000;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 12px; background: var(--star); color: var(--ink);
+  border-bottom: 3px solid var(--ink); box-shadow: 0 3px 10px rgba(20,12,48,0.28);
+}
+.visit-banner-line {
+  font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.15;
+  color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.visit-leave.btn.soft {
+  flex: none; min-height: 44px; min-width: 44px; padding: 8px 22px; font-size: 18px;
+  background: var(--card); color: var(--ink); border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 rgba(42,27,78,0.35);
+}
+body.visiting .screen-root { top: 54px; }
+@media (max-width: 600px), (max-height: 500px) {
+  .visit-banner { height: 48px; padding: 0 8px; gap: 8px; }
+  .visit-banner-line { font-size: 15px; }
+  .visit-leave.btn.soft { padding: 6px 16px; font-size: 16px; }
+  body.visiting .screen-root { top: 48px; }
+}
+
+/* the paste box in the Grown-ups corner */
+.gu-visit-code { font-size: 13px; }
+.gu-visit .gu-visit-go { font-size: 18px; padding: 12px 22px; }
