@@ -1,8 +1,17 @@
-// tests/r10p3-buildmode.mjs — RUN10 P3: Town 4.0 build mode, paths, landscape, pond fishing.
-// Acceptance: toggle freeze/resume frames; grid overlay only in build; painted paths
-// persist across reload and never overdraw items (z-order pixel test); toggle-erase and
-// Erase tool both work; landscape excluded from 500 simulated box rolls; FISH full frame
-// run with both outcomes forced via seeded rand; ripple frames; path cap message.
+// tests/r10p3-buildmode.mjs — RUN10 P3's paths/landscape/fishing, RE-POINTED BY RUN21C.
+//
+// There is no build MODE any more and no hammer to enter one (RUN21C item 1). What this
+// suite pins now is the contract that replaced it:
+//   · the world SOFTENS — actors freeze, .building goes on the root — whenever the drawer is
+//     open or something is held on her finger, and wakes when it is not. `toggleBuild()`
+//     survives as a QA alias that opens/shuts the tray, which is what it always meant.
+//   · painting is the PATH POT, a permanent first chip in Landscape (item 2). Lifting it
+//     shows the grid and the style row; there is no tool row and no Erase tool — scrubbing
+//     (same style over the same cell) is the eraser it always really was.
+//   · adjacent same-style cells render as ONE stroke, not as tiles (item 3), so the node
+//     count is per STROKE while `paths()` stays per CELL and the data shape is unchanged.
+// Everything else here — the z-order pixel test, the 300-cell cap, landscape being outdoor
+// only and never dropping from a box, the fishing state machine — is unchanged.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
@@ -86,13 +95,22 @@ async function dragChipToGround(page, itemId, xFrac = 0.5, yFrac = 0.62) {
   await sleep(250);
   return lifted;
 }
+// RUN21C-2: painting starts by picking the Path Pot up out of the Landscape tab. Every
+// block below that used to say `toggleBuild(); setBuildTool('paths')` says this instead.
+async function liftPathPot(page) {
+  await page.evaluate(() => window.__townLife.toggleBuild());   // open the tray
+  await sleep(300);
+  const ok = await page.evaluate(() => { const p = document.querySelector('.drawer-item.path-pot'); if (!p) return false; p.click(); return true; });
+  await sleep(350);
+  return ok && await page.evaluate(() => window.__townLife.potHeld());
+}
 const tabDisplay = (page, label) => page.evaluate((lbl) => {
   const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes(lbl));
   return tab ? getComputedStyle(tab).display : 'missing';
 }, label);
 
 // ==================== toggle freeze/resume ====================
-console.log('== build mode: living behaviours freeze, then resume ==');
+console.log('== the softened world: living behaviours freeze, then resume ==');
 {
   const items = [
     { zone: 'meadow', x: 0.05, row: 2, item: 'deco_swings' },
@@ -104,41 +122,57 @@ console.log('== build mode: living behaviours freeze, then resume ==');
   await sleep(400);
   const before = [];
   for (let k = 0; k < 5; k++) { before.push(await page.evaluate(() => [...document.querySelectorAll('.t-item.boo svg')].map(s => s.style.transform).join('|'))); await sleep(250); }
-  assert(distinct(before) >= 2, `motion happens before build mode (${distinct(before)}/5 distinct frames)`);
-  await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(200);
+  assert(distinct(before) >= 2, `motion happens while she is playing (${distinct(before)}/5 distinct frames)`);
+  // RUN21C-1 re-point: no hammer exists to press. Opening the DRAWER is the softening.
+  assert(await page.$('.town-hammer-btn') === null, 'there is no hammer button anywhere');
+  await page.evaluate(() => document.querySelector('.bd-collapsed').click());
+  await sleep(400);
   const buildingClass = await page.evaluate(() => document.querySelector('.town2').classList.contains('building'));
-  assert(buildingClass, 'root gains .building on toggle');
-  const hammerActive = await page.evaluate(() => document.querySelector('.town-hammer-btn').classList.contains('active'));
-  assert(hammerActive, 'the hammer button shows active');
+  assert(buildingClass, 'root gains .building when the drawer opens');
+  assert(await page.evaluate(() => window.__townLife.softened()) === true, 'and the world reports itself softened');
   const frozen = [];
   for (let k = 0; k < 5; k++) { frozen.push(await page.evaluate(() => [...document.querySelectorAll('.t-item.boo svg')].map(s => s.style.transform).join('|'))); await sleep(250); }
-  assert(distinct(frozen) === 1, `frozen while building (${distinct(frozen)}/5 distinct frames)`);
-  await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(200);
+  assert(distinct(frozen) === 1, `frozen while she is arranging (${distinct(frozen)}/5 distinct frames)`);
+  await page.evaluate(() => document.querySelector('.bd-collapsed').click());
+  await sleep(400);
   const resumedNotBuilding = await page.evaluate(() => !document.querySelector('.town2').classList.contains('building'));
-  assert(resumedNotBuilding, 'root loses .building on the second toggle');
+  assert(resumedNotBuilding, 'root loses .building when the drawer shuts');
   const after = [];
   for (let k = 0; k < 6; k++) { after.push(await page.evaluate(() => [...document.querySelectorAll('.t-item.boo svg')].map(s => s.style.transform).join('|'))); await sleep(250); }
-  assert(distinct(after) >= 2, `motion resumes after build mode (${distinct(after)}/6 distinct frames)`);
+  assert(distinct(after) >= 2, `motion resumes within a second (${distinct(after)}/6 distinct frames)`);
+  // ...and the OTHER softener: something held on her finger, with the drawer shut.
+  await page.evaluate(() => window.__townLife.forceHold('deco_bench'));
+  await sleep(200);
+  assert(await page.evaluate(() => window.__townLife.softened()) === true, 'holding a chip softens the world too, with the drawer shut');
+  await page.evaluate(() => window.__townLife.placeAt(0.12, 0.8));
+  await sleep(300);
+  assert(await page.evaluate(() => window.__townLife.softened()) === false, 'and putting it down hands the world back');
   await page.screenshot({ path: 'screenshots/r10p3/build-toggle-1024x700.png' });
   await ctx.close();
 }
 
 // ==================== grid overlay only in build ====================
-console.log('== grid overlay: hidden outside build mode, visible inside it ==');
+// RUN21C-2 re-point: the paint grid belongs to the BRUSH, not to a mode. It appears when
+// the Path Pot is in her hand and goes when she puts it down — a 5% grid over the whole
+// world every time the tray opened would be noise, since the tray is now how she places
+// everything.
+console.log('== grid overlay: hidden until the Path Pot is held, gone when it is put away ==');
 {
   const { ctx, page } = await openArea('meadow', []);
   const opBefore = await page.evaluate(() => window.__townLife.gridOpacity());
-  assert(parseFloat(opBefore) === 0, `grid hidden before build mode (opacity ${opBefore})`);
+  assert(parseFloat(opBefore) === 0, `grid hidden while she is playing (opacity ${opBefore})`);
   await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(300);
+  await sleep(350);
+  const opTrayOnly = await page.evaluate(() => window.__townLife.gridOpacity());
+  assert(parseFloat(opTrayOnly) === 0, `an open tray alone does NOT show the paint grid (opacity ${opTrayOnly})`);
+  assert(await page.evaluate(() => { document.querySelector('.drawer-item.path-pot').click(); return true; }), 'the Path Pot is there to pick up');
+  await sleep(350);
   const opDuring = await page.evaluate(() => window.__townLife.gridOpacity());
-  assert(parseFloat(opDuring) === 1, `grid visible in build mode (opacity ${opDuring})`);
-  await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(300);
+  assert(parseFloat(opDuring) === 1, `grid visible while the Pot is held (opacity ${opDuring})`);
+  await page.evaluate(() => document.querySelector('.drawer-item.path-pot').click());
+  await sleep(350);
   const opAfter = await page.evaluate(() => window.__townLife.gridOpacity());
-  assert(parseFloat(opAfter) === 0, `grid hidden again after exiting build mode (opacity ${opAfter})`);
+  assert(parseFloat(opAfter) === 0, `grid hidden again once the Pot is away (opacity ${opAfter})`);
   await ctx.close();
 }
 
@@ -147,8 +181,8 @@ console.log('== painted paths: persist across reload, z-order below items ==');
 {
   const items = [{ zone: 'meadow', x: 0.05, row: 1, item: 'deco_bench' }];
   const { ctx, page } = await openArea('meadow', items);
-  await page.evaluate(() => { window.__townLife.toggleBuild(); window.__townLife.setBuildTool('paths'); window.__townLife.setPathStyle('stone'); });
-  await sleep(100);
+  assert(await liftPathPot(page), 'the Path Pot lifts out of the Landscape tab');
+  await page.evaluate(() => window.__townLife.setPathStyle('stone'));
   await page.evaluate(() => { window.__townLife.paintCellAt(2, 2); window.__townLife.paintCellAt(3, 2); window.__townLife.paintCellAt(4, 2); });
   const painted = await page.evaluate(() => window.__townLife.paths());
   assert(painted.length === 3, `three cells painted (${painted.length})`);
@@ -158,7 +192,7 @@ console.log('== painted paths: persist across reload, z-order below items ==');
   assert(zOrder.path != null && zOrder.item != null && +zOrder.path < +zOrder.item, `path cell (z${zOrder.path}) renders below the item (z${zOrder.item})`);
   await page.screenshot({ path: 'screenshots/r10p3/paths-painted-1024x700.png' });
   // reload: paths must survive (state was committed, not just held in memory)
-  await page.evaluate(() => window.__townLife.toggleBuild());   // exit build mode too, for good measure (also commits)
+  await page.evaluate(() => document.querySelector('.drawer-item.path-pot').click());   // putting the Pot away commits too
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
   await page.evaluate(() => window.BooTown.go('town', { area: 'meadow' }));
@@ -168,15 +202,28 @@ console.log('== painted paths: persist across reload, z-order below items ==');
   const afterReload = await page.evaluate(() => window.__townLife.paths());
   assert(afterReload.length === 3 && afterReload.every(c => c.style === 'stone'), `paths survive a reload (${JSON.stringify(afterReload)})`);
   const cellCount = await page.evaluate(() => window.__townLife.pathCellCount());
-  assert(cellCount === 3, `3 path cells render after reload (${cellCount})`);
+  assert(cellCount === 3, `3 path cells survive in the save after reload (${cellCount})`);
+  // RUN21C-3 re-point: three ADJACENT same-style cells are no longer three tiles. They are
+  // ONE stroke — that is the whole item — so the node count is 1 while the cell count is 3.
+  const runs = await page.evaluate(() => window.__townLife.pathRunBoxes());
+  const rows = runs.filter(r => r.row != null);
+  assert(rows.length === 1, `and they draw as ONE continuous stroke, not three tiles (${rows.length} nodes)`);
+  const geom = await page.evaluate(() => window.__townLife.cellGeom());
+  assert(rows[0].w > geom.cellW * 2.5, `the stroke spans all three cells (${rows[0].w}px vs ${Math.round(geom.cellW)}px per cell)`);
+  assert(Math.abs(parseFloat(rows[0].radius) - geom.cellH * 0.45) < 1.5, 'with end caps rounded at 45% of cell height');
   await ctx.close();
 }
 
 // ==================== toggle-erase + Erase tool ====================
-console.log('== toggle-erase (same cell/style) and the Erase tool ==');
+// RUN21C-1/2 re-point: the Erase TOOL is deleted. Scrubbing — painting the same style over
+// a cell that already has it — is the eraser, and always was; it is the whole reason a
+// separate tool could go. Its two siblings (a different style REPLACES; a fresh cell paints)
+// are unchanged, and are pinned here as tightly as before.
+console.log('== scrubbing is the eraser: paint / repaint / scrub, with no Erase tool ==');
 {
   const { ctx, page } = await openArea('meadow', []);
-  await page.evaluate(() => { window.__townLife.toggleBuild(); window.__townLife.setBuildTool('paths'); window.__townLife.setPathStyle('sand'); });
+  assert(await liftPathPot(page), 'the Path Pot lifts');
+  await page.evaluate(() => window.__townLife.setPathStyle('sand'));
   await page.evaluate(() => window.__townLife.paintCellAt(5, 5));
   let list = await page.evaluate(() => window.__townLife.paths());
   assert(list.length === 1 && list[0].style === 'sand', 'a fresh cell is painted sand');
@@ -188,10 +235,12 @@ console.log('== toggle-erase (same cell/style) and the Erase tool ==');
   await page.evaluate(() => { window.__townLife.setPathStyle('stone'); window.__townLife.paintCellAt(5, 5); window.__townLife.setPathStyle('flower'); window.__townLife.paintCellAt(5, 5); });
   list = await page.evaluate(() => window.__townLife.paths());
   assert(list.length === 1 && list[0].style === 'flower', `a different style replaces rather than erasing (${JSON.stringify(list)})`);
-  // Erase tool clears any style, no toggle-back
-  await page.evaluate(() => { window.__townLife.setBuildTool('erase'); window.__townLife.paintCellAt(5, 5); });
+  // ...and scrubbing clears it, whatever style it happens to be wearing: pick that style up
+  // and paint over it. This is what the Erase tool used to do, in one fewer control.
+  await page.evaluate(() => { window.__townLife.setPathStyle('flower'); window.__townLife.paintCellAt(5, 5); });
   list = await page.evaluate(() => window.__townLife.paths());
-  assert(list.length === 0, 'the Erase tool clears a cell regardless of style');
+  assert(list.length === 0, 'scrubbing clears the cell — the Erase tool is not needed and no longer exists');
+  assert(await page.evaluate(() => !document.querySelector('.t-tool-row') && !window.__townLife.buildTool), 'and neither the tool row nor a buildTool hook survives');
   await ctx.close();
 }
 
@@ -199,7 +248,8 @@ console.log('== toggle-erase (same cell/style) and the Erase tool ==');
 console.log('== path cap: 300 cells/area, L_PATH_FULL on the 301st ==');
 {
   const { ctx, page } = await openArea('meadow', []);
-  await page.evaluate(() => { window.__townLife.toggleBuild(); window.__townLife.setBuildTool('paths'); window.__townLife.setPathStyle('stone'); });
+  assert(await liftPathPot(page), 'the Path Pot lifts');
+  await page.evaluate(() => window.__townLife.setPathStyle('stone'));
   const result = await page.evaluate(() => {
     // 15 rows x 20 columns = exactly 300 distinct, never-before-painted cells
     for (let y = 0; y < 15; y++) for (let x = 0; x < 20; x++) window.__townLife.paintCellAt(x, y);
@@ -226,11 +276,13 @@ console.log('== landscape items: outdoor areas only ==');
   const { ctx, page } = await openArea('boohouse', []);
   // RUN21A item 15 dropped the `buildMode &&` conjunct from the landscape gate, so the tab
   // is now purely a KIND question — which means indoors it must be hidden in BOTH modes.
-  assert(await tabDisplay(page, 'Landscape') === 'none', 'the Landscape tab is hidden indoors with the hammer off');
+  assert(await tabDisplay(page, 'Landscape') === 'none', 'the Landscape tab is hidden indoors with the tray shut');
   await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(100);
+  await sleep(200);
   const tabHiddenIndoors = await tabDisplay(page, 'Landscape') === 'none';
-  assert(tabHiddenIndoors, 'the Landscape tab is hidden indoors, even in build mode');
+  assert(tabHiddenIndoors, 'the Landscape tab is hidden indoors with the tray open too');
+  // RUN21C-2: and there is no Path Pot indoors either — the Pot lives with its tab.
+  assert(await page.$('.drawer-item.path-pot') === null, 'and no Path Pot indoors, since paths are an outdoor thing');
   await page.evaluate(() => { window.__townLife.forceHold('deco_palm'); window.__townLife.placeAt(0.5, 0.75); });
   await sleep(150);
   const placedIndoors = await page.evaluate(() => document.querySelectorAll('.t-item[data-item^="deco_palm"], .t-item[data-item^="deco_oak"], .t-item[data-item^="deco_pine"], .t-item[data-item^="deco_bush"], .t-item[data-item^="deco_rock"], .t-item[data-item^="deco_flowerbed"]').length);
@@ -253,55 +305,69 @@ console.log('== landscape items: outdoor areas only ==');
   await sleep(150);
   const placedOutdoors = await page.evaluate(() => document.querySelectorAll('.t-item[data-item^="deco_palm"], .t-item[data-item^="deco_oak"], .t-item[data-item^="deco_pine"], .t-item[data-item^="deco_bush"], .t-item[data-item^="deco_rock"], .t-item[data-item^="deco_flowerbed"]').length);
   assert(placedOutdoors === 1, `a landscape item places fine outdoors (${placedOutdoors})`);
-  // RUN21A item 15 moved this pin. The Landscape tab used to be Build-only ("hides the
-  // moment build mode is off"); the build-mode conjunct is gone, so outdoors the tab is
-  // visible with the hammer OFF too — the toybox is no longer locked behind the hammer.
-  await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(150);
+  // RUN21A item 15 moved this pin off the hammer; RUN21C-1 removed the hammer entirely. The
+  // Landscape tab is purely a KIND question now, and stays put whatever the tray is doing.
+  // `toggleBuild()` is a TOGGLE of the tray, and selectHold already shut it when she picked
+  // the Palm up — so shut it only if it is actually open, then check the world woke.
+  await page.evaluate(() => { if (window.__townLife.softened()) window.__townLife.toggleBuild(); });
+  await sleep(300);
   const notBuilding = await page.evaluate(() => !document.querySelector('.town2').classList.contains('building'));
-  assert(notBuilding, 'the hammer is off again');
-  assert(await tabDisplay(page, 'Landscape') !== 'none', 'the Landscape tab STAYS visible outdoors with the hammer off (RUN21A item 15)');
+  assert(notBuilding, 'the tray is shut again and the world has woken up');
+  assert(await tabDisplay(page, 'Landscape') !== 'none', 'the Landscape tab STAYS visible outdoors with the tray shut');
   await page.screenshot({ path: 'screenshots/r10p3/landscape-1024x700.png' });
   await ctx.close();
 }
 
-// ==================== RUN21A item 15: the build tool row is exactly Paths + Erase ====================
-// The `place` tool was a ghost — no line of code ever read `buildTool === 'place'` — so item
-// 15 deleted it and made 'paths' the default and the on-entry reset. Pinning the row's exact
-// membership is the guard that stops it creeping back.
-console.log('== build tools: exactly Paths + Erase, no Place tool (RUN21A item 15) ==');
+// ==================== RUN21C items 1 + 2: the tool row is GONE, the Path Pot replaced it =====
+// RUN21A item 15 pinned the row's exact membership (Paths + Erase) as the guard against the
+// dead `place` tool creeping back. RUN21C item 1 deletes the row itself and item 2 puts the
+// Pot in its place, so the guard moves with it: nothing that used to be chrome on the right
+// edge of the world may come back, and the one control that survived — the style row — is
+// tied to the Pot actually being in her hand.
+console.log('== the Path Pot replaced the tool row (RUN21C items 1 + 2) ==');
 {
   const { ctx, page } = await openArea('meadow', []);
-  const readTools = () => page.evaluate(() => [...document.querySelectorAll('.t-tool-row .t-tool-btn')]
-    .map(b => ({ label: b.querySelector('.tool-lbl').textContent, aria: b.getAttribute('aria-label'), sel: b.classList.contains('sel') })));
-  assert((await page.evaluate(() => window.__townLife.buildTool())) === 'paths', 'buildTool defaults to "paths"');
+  assert(await page.$('.t-tool-row') === null, 'no tool row survives anywhere in the world');
+  assert(await page.$('.town-hammer-btn') === null, 'and no hammer button');
+  assert(await page.evaluate(() => typeof window.__townLife.buildTool) === 'undefined', 'no buildTool state survives');
+  const rowHidden = await page.evaluate(() => getComputedStyle(document.querySelector('.t-path-style-row')).display === 'none');
+  assert(rowHidden, 'the style row is out of the way until she picks the Pot up');
   await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(150);
-  const tools = await readTools();
-  assert(tools.length === 2, `the tool row holds exactly two tools (${tools.length}: ${tools.map(t => t.label).join(', ')})`);
-  assert(tools.map(t => t.label).join('|') === 'Paths|Erase', `the two tools are Paths then Erase ("${tools.map(t => t.label).join('|')}")`);
-  assert(!tools.some(t => /place/i.test(t.label) || /place/i.test(t.aria || '')), 'no Place tool exists in the row');
-  assert((await page.evaluate(() => window.__townLife.buildTool())) === 'paths', 'entering build mode resets the tool to "paths", not "place"');
-  assert(tools[0].sel && !tools[1].sel, 'Paths is the selected tool on entry');
-  // ACCEPT (item 15): the path-style strip belongs to the Paths tool only.
-  const styleShownForPaths = await page.evaluate(() => getComputedStyle(document.querySelector('.t-path-style-row')).display !== 'none');
-  assert(styleShownForPaths, 'the path-style row shows while Paths is picked');
-  await page.evaluate(() => window.__townLife.setBuildTool('erase'));
-  await sleep(100);
-  const styleHiddenForErase = await page.evaluate(() => getComputedStyle(document.querySelector('.t-path-style-row')).display === 'none');
-  assert(styleHiddenForErase, 'the path-style row hides while Erase is picked');
+  await sleep(300);
+  const potChip = await page.evaluate(() => {
+    const strip = [...document.querySelectorAll('.town-drawer-strip')].find(x => x.querySelector('.path-pot'));
+    if (!strip) return null;
+    return { first: strip.firstElementChild.classList.contains('path-pot'), svg: !!strip.querySelector('.path-pot .pot-svg') };
+  });
+  assert(potChip && potChip.first, 'the Path Pot is the FIRST chip in Landscape');
+  assert(potChip && potChip.svg, 'and it is house-style SVG art, not an emoji');
+  await page.evaluate(() => document.querySelector('.drawer-item.path-pot').click());
+  await sleep(350);
+  assert(await page.evaluate(() => window.__townLife.potHeld()) === true, 'tapping it puts it in her hand');
+  const docked = await page.evaluate(() => {
+    const r = document.querySelector('.t-path-style-row').getBoundingClientRect();
+    const d = document.querySelector('.boo-drawer').getBoundingClientRect();
+    return { shown: getComputedStyle(document.querySelector('.t-path-style-row')).display !== 'none', above: r.bottom <= d.top + 2, n: document.querySelectorAll('.t-style-btn').length };
+  });
+  assert(docked.shown && docked.above, 'the style row docks above the drawer while it is held');
+  assert(docked.n === 6, `and shows all six styles — three free, three from the shop (${docked.n})`);
+  assert(await page.$eval('.town-hint-bar', n => n.textContent) === 'Drag along the ground to lay a path — paint over it to sweep it away.',
+    'with the authored hint, exactly');
+  await page.evaluate(() => document.querySelector('.drawer-item.path-pot').click());
+  await sleep(300);
+  assert(await page.evaluate(() => getComputedStyle(document.querySelector('.t-path-style-row')).display === 'none'), 'and it all goes away when she puts the Pot down');
   await ctx.close();
 }
 
 // ==================== RUN21A item 15: Landscape + Wishes place by DRAG with the hammer off ====================
-console.log('== play mode (hammer off): Landscape and Wishes tabs are reachable and place by drag ==');
+console.log('== no mode at all: Landscape and Wishes tabs are reachable and place by drag ==');
 {
   // one unlocked wish → the Wishes tab must show; wish_tree is a plain ground wish (not one
   // of the sky items, not a LIVING_WISHES flyer), so it lands as a normal .t-item.
   const { ctx, page } = await openArea('meadow', [], { over: { wishes: { unlocked: { tree: true } } } });
-  assert(await page.evaluate(() => !document.querySelector('.town2').classList.contains('building')), 'the hammer starts off');
-  assert(await tabDisplay(page, 'Landscape') !== 'none', 'the Landscape tab is visible outdoors with the hammer off');
-  assert(await tabDisplay(page, 'Wishes') !== 'none', 'the Wishes tab is visible with the hammer off when a wish is unlocked');
+  assert(await page.evaluate(() => !document.querySelector('.town2').classList.contains('building')), 'the world starts awake — nothing open, nothing held');
+  assert(await tabDisplay(page, 'Landscape') !== 'none', 'the Landscape tab is visible outdoors');
+  assert(await tabDisplay(page, 'Wishes') !== 'none', 'the Wishes tab is visible when a wish is unlocked');
   // Landscape chip → dragged onto the ground, hammer still off
   assert(await openDrawerTab(page, 'Landscape'), 'the Landscape tab opens in play mode');
   const liftedPalm = await dragChipToGround(page, 'deco_palm', 0.42);
@@ -314,8 +380,13 @@ console.log('== play mode (hammer off): Landscape and Wishes tabs are reachable 
   assert(liftedWish, 'dragging the Tree wish chip upward lifts a ghost');
   const wishes = await page.evaluate(() => document.querySelectorAll('.t-item[data-item="wish_tree"]').length);
   assert(wishes === 1, `the Tree wish places by drag with the hammer off (${wishes} placed)`);
+  // RUN21C-1 re-point: there is no hammer to have avoided. What this proves now is that both
+  // placements happened with nothing but the TRAY open — no mode was entered — and that the
+  // moment the tray shuts the world is awake again.
+  await page.evaluate(() => document.querySelector('.bd-collapsed').click());
+  await sleep(400);
   const stillPlay = await page.evaluate(() => !document.querySelector('.town2').classList.contains('building'));
-  assert(stillPlay, 'both placements happened without the hammer ever being tapped');
+  assert(stillPlay, 'both placements happened with only the tray open, and the world wakes when it shuts');
   const saved = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items.map(i => i.item));
   assert(saved.filter(i => i === 'deco_palm').length === 1 && saved.filter(i => i === 'wish_tree').length === 1,
     `both drops are committed to the save (${JSON.stringify(saved)})`);
@@ -326,10 +397,10 @@ console.log('== play mode (hammer off): Landscape and Wishes tabs are reachable 
   // the other half of the wishes gate: no unlocked wish, no tab — the gate lost its
   // build-mode conjunct (item 15) but kept its "any unlocked wish" test.
   const { ctx, page } = await openArea('meadow', []);
-  assert(await tabDisplay(page, 'Wishes') === 'none', 'the Wishes tab is hidden when no wish is unlocked (hammer off)');
+  assert(await tabDisplay(page, 'Wishes') === 'none', 'the Wishes tab is hidden when no wish is unlocked');
   await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(150);
-  assert(await tabDisplay(page, 'Wishes') === 'none', 'the Wishes tab stays hidden with no wish unlocked, even in build mode');
+  await sleep(250);
+  assert(await tabDisplay(page, 'Wishes') === 'none', 'and stays hidden with the tray open too');
   await ctx.close();
 }
 
