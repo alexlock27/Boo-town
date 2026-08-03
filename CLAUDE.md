@@ -85,8 +85,15 @@ The full-board-per-run regime proved too heavy. The regime now is TARGETED:
 - Runner mechanics (unchanged): `./_runall.sh` shards across N worker lanes (default 3,
   auto 4 on 8+ cores, `--workers N`) balanced by tests/lib/board-durations.json, then runs
   the `@serial` set alone at the end; `--serial` forces one-at-a-time.
+- **PRE-MERGE SMOKE (RUN21F F10): `tests/walk.mjs`.** Before any branch merges to main,
+  run the walk: `BASE=http://127.0.0.1:PORT node tests/walk.mjs`. It walks every area and
+  every room at 1024x768, 768x1024 and 390x844 for ten minutes total with the error hooks
+  armed (console, pageerror, window.onerror, unhandledrejection, non-aborted request
+  failures), screenshots every stop to `_evidence/walk/<date>/`, and exits non-zero on any
+  one of them. `WALK_MIN=n` shortens it while iterating. It is minutes long by design, so
+  it is NOT a board suite — `walk` is an excluded prefix in `_runall.sh` and it runs alone.
 - New tests join tests/ so the glob finds them; avoid the excluded prefixes shoot,
-  sim-blocks, device-qa.
+  sim-blocks, device-qa, walk.
 - Pitfalls: seed saves in a FRESH browser context (live autosave overwrites seeds);
   hub fixtures need `ageAsked:true`; frame-sampling suites can flake under batch
   load — re-run a FAIL directly once before treating it as real.

@@ -43,7 +43,9 @@ if [ "$MODE" = "smoke" ]; then
   # files you edited — that is the whole shape of the bug. ~14s.
   ALL="r12s1-routes r12s4-contrast r8p1-migrations r18a-copyguard $SMOKE_EXTRA"
 else
-  ALL=$(ls tests/*.mjs | grep -v "shoot\|sim-blocks\|device-qa" | sed 's#tests/##;s#.mjs##')
+  # `walk` joins the excluded prefixes (RUN21F F10): tests/walk.mjs is the minutes-long
+  # PRE-MERGE SMOKE, run on its own, not a board suite — see CLAUDE.md.
+  ALL=$(ls tests/*.mjs | grep -v "shoot\|sim-blocks\|device-qa\|walk" | sed 's#tests/##;s#.mjs##')
 fi
 
 # split @serial (tagged in-file) from the parallel pool
