@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21f-20260803` (sw.js; 159 precached assets)
+- BUILD_STAMP: `run21b-20260803` (sw.js; 159 precached assets)
 - SAVE VERSION: 23 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
@@ -269,6 +269,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 - RUN21A-PROGRESS.md: ## BLOCKED
 - RUN21A-PROGRESS.md: - NEEDS_ALEX gates for F8/F9 are ABSENT in NEEDS_ALEX.md → both will log SKIPPED-GATED.
+- RUN21B-PROGRESS.md: ## BLOCKED
 - RUN21F-PROGRESS.md: - [ ] F8 — SKIPPED-GATED: NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE`
 - RUN21F-PROGRESS.md: - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
 - RUN21F2-PROGRESS.md: SKIPPED-GATED (NEEDS_ALEX.md lacks their approval lines). Nothing else in the pack is
