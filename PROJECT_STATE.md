@@ -6,8 +6,8 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21c-20260803` (sw.js; 158 precached assets)
-- SAVE VERSION: 23 (js/state.js)
+- BUILD_STAMP: `run21f-20260804` (sw.js; 159 precached assets)
+- SAVE VERSION: 24 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
 
@@ -24,23 +24,23 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - `boohouse` — The Boo House (interior)
 - `gallery` — The Gallery (interior)
 
-## Catalogue — 156 items by kind (data/catalogue.js)
+## Catalogue — 152 items by kind (data/catalogue.js)
 
 - accessory: 34
 - boo: 44
 - deco: 27
-- furniture: 38
-- landscape: 9
-- path: 4
+- furniture: 36
+- landscape: 8
+- path: 3
 
 ## Content counts
 
 - wishes: 60 (data/wishes.js WISH_WORDS)
 - dressings: 24 (data/dressings.js DRESSINGS, free defaults included)
 
-## Tests — 210 files under tests/
+## Tests — 212 files under tests/
 
-- board suites: 185 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
+- board suites: 187 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
 - `npm test` runs `node tests/run.mjs` — `tests/run.mjs` EXISTS (resolves)
 
 ### Suite list
@@ -175,6 +175,8 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - r21a-reach-truth.mjs
 - r21d-alive.mjs
 - r21f10-journal.mjs
+- r21f5-placementids.mjs
+- r21f6-visit.mjs
 - r21f7-beds.mjs
 - r3p1-spellboo.mjs
 - r3p2-smartmix.mjs
