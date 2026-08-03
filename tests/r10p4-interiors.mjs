@@ -158,6 +158,15 @@ console.log('== Boo House: furniture tray and useful resize controls ==');
   // percentage to do what one drag does was the thing being fixed, so asserting the buttons
   // still exist would be asserting the defect. The contract restated: selecting shows a
   // handle, dragging it grows the item, the new size is saved, and the ± buttons are GONE.
+  // RE-POINTED BY RUN21C. Two things changed under this block. (1) The handle no longer
+  // needs a mode at all (item 6): tapping the bed attaches it in the ordinary world, so the
+  // tray is SHUT for this half — which is also the only way to reach a row-1 item, because
+  // (2) the tray got taller in item 8 (every chip now carries its name and one line about
+  // what it does) and an open bottom sheet covers the front of a room. A child cannot tap
+  // what she cannot see either, so testing it with the tray open was testing a fiction.
+  await page.evaluate(() => { if (window.__townLife.softened()) window.__townLife.toggleBuild(); });
+  await sleep(400);
+  assert(await page.evaluate(() => !window.__townLife.softened()), 'the tray is shut — the handle needs no mode (RUN21C item 6)');
   await page.click('.t-item[data-item="deco_bed"]');
   await page.waitForSelector('.t-resize');
   const before = await page.$eval('.t-item[data-item="deco_bed"]', n => n.getBoundingClientRect().width);

@@ -299,7 +299,12 @@ export function mount(container, params, ctx) {
     const wrap = el('div', { class: 'shop-bought' }, [
       el('div', { class: 'sb-card', role: 'status' }, [
         el('div', { class: 'sb-art', html: renderDressingSwatch(d, { size: 96 }) }),
-        el('p', { class: 'sb-line', text: `${d.name} is yours! Put it up in the ${roomNameOf(d.room)} — tap Build, then Decorate.` })
+        // RUN21C-1: this line used to say "tap Build, then Decorate." RUN21A's report flagged
+        // it forward as the one live string that dies with the hammer, and it has: there is
+        // no Build button to tap. "The tray" is the app's own word for the drawer
+        // (js/town.js's resting hint is "Drag from the tray"), so the directions stay
+        // directions rather than becoming a riddle.
+        el('p', { class: 'sb-line', text: `${d.name} is yours! Put it up in the ${roomNameOf(d.room)} — open the tray, then Decorate.` })
       ])
     ]);
     root.querySelectorAll('.shop-bought').forEach(old => old.remove());

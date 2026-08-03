@@ -308,8 +308,11 @@ console.log('== the shelf sells a dressing, the room applies it, and it persists
   const shelf = await page.evaluate(async () => {
     window.BooTown.go('shop');
     await new Promise(r => setTimeout(r, 900));
-    const cards = [...document.querySelectorAll('.sd-card')].map(n => n.dataset.dressing);
-    const chips = [...document.querySelectorAll('.sd-room-chip')].map(n => n.textContent);
+    const cards = [...document.querySelectorAll('.shop-shelf[data-shelf="house"] .sd-card')].map(n => n.dataset.dressing);
+    // RUN21C-4 re-point: `.sd-room-chip` is now the shared heading for any shelf GROUP —
+    // the Town shelf's "Paths" borrows it — and every shelf's panel stays mounted, so this
+    // has to read the HOUSE shelf's own chips rather than every chip in the document.
+    const chips = [...document.querySelectorAll('.shop-shelf[data-shelf="house"] .sd-room-chip')].map(n => n.textContent);
     return { cards: cards.length, chips, hasStarry: cards.includes('lounge_walls_starry') };
   });
   assert(shelf.cards === 18, `the shop's House shelf lists all 18 dressings (${shelf.cards})`);

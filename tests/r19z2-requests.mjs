@@ -282,17 +282,32 @@ assert(Array.isArray(jumps.wear) && jumps.wear.some(b => /wardrobe/i.test(b)), "
 assert(Array.isArray(jumps.dance) && jumps.dance.some(b => /Disco/i.test(b)), "'dance' offers the Disco Hall door (" + JSON.stringify(jumps.dance) + ')');
 assert(jumps.visitHint === 'pop them side by side!', "'visit' offers no jump and says what to do: " + jumps.visitHint);
 
-// ---- bubbles never appear during build mode ----------------------------------------
-console.log('== build mode ==');
+// ---- bubbles never appear while she is arranging ------------------------------------
+// RE-POINTED BY RUN21C item 1. There is no build MODE and no Build button to click; the
+// world SOFTENS whenever the drawer is open or something is held on her finger, and Z2's
+// rule — she is arranging, not being asked — attaches to that instead. Both softeners are
+// pinned, and so is the wake-up, which the old block never checked at all.
+console.log('== bubbles hide while she is arranging ==');
 const buildHides = await page.evaluate(async () => {
   document.querySelectorAll('.request-card-ov').forEach(n => n.remove());
-  const btn = [...document.querySelectorAll('button')].find(b => /build/i.test(b.textContent));
-  if (!btn) return 'no build button found';
-  btn.click();
+  if ([...document.querySelectorAll('button')].some(b => /^build$|^done$/i.test(b.textContent.trim()))) return 'a Build button still exists';
+  const shown = () => document.querySelectorAll('.request-thought').length;
+  const before = shown();
+  document.querySelector('.bd-collapsed').click();          // open the tray
   await new Promise(r => setTimeout(r, 500));
-  return document.querySelectorAll('.request-thought').length === 0;
+  const withTray = shown();
+  document.querySelector('.bd-collapsed').click();          // shut it again
+  await new Promise(r => setTimeout(r, 600));
+  const after = shown();
+  window.__townLife.forceHold('boo_plum');                  // something on her finger
+  await new Promise(r => setTimeout(r, 300));
+  const withHeld = shown();
+  return { before, withTray, after, withHeld };
 });
-assert(buildHides === true, 'no request bubble is shown in build mode (she is arranging, not being asked)');
+assert(buildHides && buildHides.before > 0, 'a bubble is showing while she is playing (' + JSON.stringify(buildHides) + ')');
+assert(buildHides && buildHides.withTray === 0, 'no request bubble is shown while the drawer is open (she is arranging, not being asked)');
+assert(buildHides && buildHides.after > 0, 'and it comes back the moment she shuts it');
+assert(buildHides && buildHides.withHeld === 0, 'nor while something is held on her finger');
 
 // ---- the wild Boo also turns up in the daytime -------------------------------------
 console.log('== the wild Boo gets a daytime hour ==');

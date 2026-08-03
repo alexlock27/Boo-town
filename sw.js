@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21d-20260803';  // RUN21D "Alive on Arrival": every area takes an opening breath, a map chip for whoever is wondering something, four named screens per area, signs to the fair's band and disco, and a fair chance at the hider.
+const BUILD_STAMP = 'run21c-20260803';  // RUN21C "Build Dissolved": the hammer is gone and the world simply softens while she arranges; painting is a Path Pot she picks up out of the tray; paths draw as continuous strokes; three new path styles on the Town shelf; Boos pad along the paths she lays; the resize handle and a five-step Undo need no mode; and the tray says what everything is.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21d-20260803` (sw.js; 158 precached assets)
+- BUILD_STAMP: `run21c-20260803` (sw.js; 158 precached assets)
 - SAVE VERSION: 23 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
@@ -24,13 +24,14 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - `boohouse` — The Boo House (interior)
 - `gallery` — The Gallery (interior)
 
-## Catalogue — 149 items by kind (data/catalogue.js)
+## Catalogue — 156 items by kind (data/catalogue.js)
 
 - accessory: 34
 - boo: 44
 - deco: 27
-- furniture: 36
-- landscape: 8
+- furniture: 38
+- landscape: 9
+- path: 4
 
 ## Content counts
 

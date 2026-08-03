@@ -9,7 +9,8 @@ Branch `run21c`, from main @ 6f50a46 (RUN21A + RUN21D + RUN21F F1–F3 merged).
 - [x] 5 — Boos use her paths
 - [x] 6 — Resize handle without the mode
 - [x] 7 — Session undo (5 steps)
-- [ ] 8 — Drawer polish
+- [x] 8 — Drawer polish
+- [x] gate — suites re-pointed, hint audit re-run, stamp + What's New, PROJECT_STATE
 
 ## Deviations
 

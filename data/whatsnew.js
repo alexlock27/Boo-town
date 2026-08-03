@@ -21,6 +21,19 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21C "Build Dissolved". The hammer is the thing that went, so every entry is about
+  // what she can DO now and never about a mode that no longer exists — she should not have
+  // to learn that build mode used to be there in order to understand that it is not.
+  {
+    version: 'run21c-20260803',
+    entries: [
+      { icon: '✨', title: 'Your town is always ready', blurb: 'Open the tray at the bottom and drag anything straight onto the grass, any time. The Boos hold still while you arrange, then carry on the moment you finish.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🪣', title: 'The Path Pot', blurb: 'Look in Landscape for the little pot of stones. Pick it up and drag along the ground to lay a path — paint over it to sweep it away. Paths curve round corners now!', route: 'town', params: { area: 'meadow' } },
+      { icon: '🧱', title: 'New ways to lay a path', blurb: 'Bricks, stepping stones and a rainbow path are waiting on the Town shelf in the shop. Once one is yours, it is yours forever.', route: 'shop', params: { shelf: 'town' } },
+      { icon: '🐾', title: 'The Boos walk on your paths', blurb: 'Lay a path near your Boos and watch: they will pad along it instead of wandering anywhere. It is theirs now, because you made it.', route: 'town', params: { area: 'meadow' } },
+      { icon: '↩️', title: 'Changed your mind? Undo!', blurb: 'Move something, put something away, or paint a path, and a little Undo button pops up for a few seconds. Tap it to put things back — up to five times.', route: 'town', params: { area: 'meadow' } }
+    ]
+  },
   // RUN21D "Alive on Arrival". Four entries — the four things she can now DO or SEE that
   // she could not before. The Pulse itself is deliberately NOT sold to her: a town that
   // says hello should feel like a town that says hello, not like a feature.
