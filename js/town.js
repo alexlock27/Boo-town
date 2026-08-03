@@ -4649,9 +4649,11 @@ export function mount(container, params, ctx) {
     clearTimeout(undoChipTimer); undoChipTimer = null;
     if (undoChip) undoChip.classList.remove('show');
   }
-  // The record in the save that matches this placement right now — the thing an undo has to
-  // photograph before an edit, and find again after one.
-  const liveRecord = (place) => areaItems(getState()).find(t => samePlacement(t, place));
+  // A PHOTOGRAPH of the record in the save that matches this placement right now — the thing
+  // an undo has to take before an edit, and take again after one. It must be a copy: the
+  // resize path writes straight into the live record, so handing back a reference meant
+  // "before" and "after" were the same object and the step recorded no change at all.
+  const liveRecord = (place) => snapPlacement(areaItems(getState()).find(t => samePlacement(t, place)));
 
   // ---- RUN21C-6: the resize handle without the mode -------------------------------------
   // The handle used to need build mode to exist. Now it attaches whenever an item's MENU
