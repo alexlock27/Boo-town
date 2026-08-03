@@ -36,7 +36,7 @@ import { createDrawer } from './drawer.js';
 import { personalityOf, personalityMult, SHY_GREET_DIST_PX, CATCHPHRASES, CATCHPHRASE_RATE } from '../data/personalities.js';
 import { openCare, bondLevel, isBestFriend, heartBadge, trickFor, renderBffPortrait, careActions, heartsMarkup } from './care.js';
 import { openWishWell } from './wishwell.js';
-import { wishId, wishItem, LIVING_WISHES } from '../data/wishes.js';
+import { wishId, wishItem, LIVING_WISHES, WISH_GROUPS, WISH_GROUP_FALLBACK } from '../data/wishes.js';
 // RUN20 W1 — wish life. The table says which of the nine classes each of the sixty wishes
 // gets; js/wishlife.js is the machinery they share.
 import { WISH_LIFE, lifeFor, classOf, isOutdoorOnly, INDOOR_TIP, SKY_BAND, CATCHABLE } from '../data/wishlife.js';
@@ -1033,7 +1033,8 @@ export function mount(container, params, ctx) {
     'aria-label': potHeld ? 'Put the Path Pot away' : 'Path Pot — lay a path',
     onclick: () => togglePot()
   }, [
-    el('div', { class: 'drawer-art', html: renderPathPot({ size: 60 }) })
+    el('div', { class: 'drawer-art', html: renderPathPot({ size: 60 }) }),
+    el('span', { class: 'drawer-name', text: 'Path Pot' })
   ]);
   function togglePot() { potHeld ? putPotAway() : liftPot(); }
   function liftPot() {
@@ -3872,7 +3873,55 @@ export function mount(container, params, ctx) {
   }
   function clearSlotGlow() { if (slotGlow) slotGlow.classList.remove('show'); }
 
+  // ---- RUN21C-8: what a drawer chip SAYS ------------------------------------------------
+  // One line under the name, in the pack's exact words, and only when it is TRUE.
+  //  · `Seats <n> Boos` is driven by data/sockets.js, not by the catalogue's `act` flag: the
+  //    sandpit, climbing frame and roundabout are act items with no sockets at all, and
+  //    "Seats 0 Boos" is a lie printed at a child. The bench and the pond have sockets
+  //    without an `act`, and for them the line is both true and the useful thing to know.
+  //  · DEVIATION, logged: the pack's template is `Seats <n> Boos`, which prints "Seats 1
+  //    Boos" for the swings, the pond and the bumper car. One-seat items say "Seats 1 Boo".
+  //    Everything else is the template verbatim.
+  //  · moon / owl / campfire are named individually in the pack, so their line wins over the
+  //    more general ones — including `Needs the sky`, which the moon would otherwise take.
+  const NIGHT_LOVELY = new Set(['wish_moon', 'wish_owl', 'deco_campfire']);
+  function chipInfoLine(id, item) {
+    if (NIGHT_LOVELY.has(id)) return 'Loveliest after dark';
+    if (item && item.kind === 'wish' && wishNeedsSky(id)) return 'Needs the sky';
+    const seats = (SOCKETS[id] || []).length;
+    if (seats > 0) return seats === 1 ? 'Seats 1 Boo' : `Seats ${seats} Boos`;
+    if (isSmall(id)) return 'Sits on tables and shelves';
+    return null;
+  }
+  // ---- RUN21C-8 CHANGE A: the Wishes strip, under headed rows ---------------------------
+  // Sixty wishes on one endless sideways ribbon is a haystack. The strip becomes a column of
+  // named rows; only rows with something in them survive the render (pruneEmptyWishGroups).
+  const wishGroupNodes = new Map();
+  function wishGroupRow(word) {
+    const group = WISH_GROUPS.find(g => g.words.includes(word)) || WISH_GROUPS.find(g => g.label === WISH_GROUP_FALLBACK);
+    const label = group ? group.label : WISH_GROUP_FALLBACK;
+    if (!wishGroupNodes.has(label)) {
+      const row = el('div', { class: 'wish-group-row' });
+      const block = el('div', { class: 'wish-group', dataset: { group: label } }, [
+        el('div', { class: 'wish-group-h', text: label }), row
+      ]);
+      wishGroupNodes.set(label, { block, row });
+    }
+    return wishGroupNodes.get(label).row;
+  }
+  // Rebuilt in the authored order every render, so the rows never drift about as she unlocks.
+  function pruneEmptyWishGroups() {
+    const strip = drawerStrips.wishes;
+    strip.classList.add('wish-grouped');
+    for (const g of WISH_GROUPS) {
+      const held = wishGroupNodes.get(g.label);
+      if (held && held.row.children.length) strip.appendChild(held.block);
+    }
+    wishGroupNodes.clear();
+  }
+
   function renderDrawer() {
+    wishGroupNodes.clear();
     const st = getState();
     const placed = {};
     for (const t of areaItems(st)) placed[t.item] = (placed[t.item] || 0) + 1;
@@ -3941,21 +3990,32 @@ export function mount(container, params, ctx) {
       // child only found out by picking it up, carrying it in, and being told no. Saying it
       // on the chip is the difference between a rule and a rebuff. (RUN20 QA finding B.)
       const skyOnly = wishRefusedIndoors(id);
+      // RUN21C-8: the chip says what it IS and what it DOES. The old chip was art and nothing
+      // else — a child had to pick a thing up to learn whether it could be sat on.
+      const info = chipInfoLine(id, item);
       const chip = el("button", { class: 'drawer-item' + (holding === id ? ' holding' : '') + (skyOnly ? ' needs-sky' : ''), dataset: { item: id },
         'aria-label': skyOnly ? `${chipName} — ${INDOOR_TIP}` : (showCount ? `${chipName} (${free[id]})` : chipName),
         title: skyOnly ? INDOOR_TIP : null,
         onclick: () => { if (skyOnly) { skyChipNudge(chip, chipName); return; } selectHold(id); } }, [
         el('div', { class: 'drawer-art', html: renderItem(item, { size: 60, equipArt: item.kind === 'boo' ? equippedArt(item.id) : null }) }),
-        showCount ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null,
-        skyOnly ? el('span', { class: 'drawer-skytip', text: 'sky only' }) : null
+        el('span', { class: 'drawer-name', text: chipName }),
+        info ? el('span', { class: 'drawer-info', text: info }) : null,
+        showCount ? el('span', { class: 'drawer-badge', text: 'x' + free[id] }) : null
+        // RUN21C-8: the old absolute-positioned "sky only" tag is gone — the info line under
+        // the name says `Needs the sky` for exactly the same chips, in the pack's own words,
+        // and two labels saying one thing over each other is what "polish" is here to fix.
       ]);
       // drag-to-lift is delegated to the strip's own pointer handler (attachStripMomentum,
       // RUN10 P2) — it decides scroll-vs-lift by gesture direction since chips tile edge-to-edge
       const ti = DRAWER_TABS_SPEC.findIndex(spec => spec.test(item));
       const spec = DRAWER_TABS_SPEC[ti] || DRAWER_TABS_SPEC[2];   // fall back to Decorations
-      drawerStrips[spec.id].appendChild(chip);
+      // RUN21C-8 CHANGE A: the Wishes strip is grouped under headed rows, so a wish chip goes
+      // into its group's row rather than onto one endless ribbon.
+      if (spec.id === 'wishes') wishGroupRow(wordOfWishId(id)).appendChild(chip);
+      else drawerStrips[spec.id].appendChild(chip);
       counts[ti >= 0 ? ti : 2]++;
     }
+    pruneEmptyWishGroups();
     DRAWER_TABS_SPEC.forEach((spec, i) => {
       if (!drawerStrips[spec.id].children.length) drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Nothing here yet!' }));
       if (tabButtons[i]) tabButtons[i].textContent = spec.label + (counts[i] ? ` (${counts[i]})` : '');
@@ -3982,10 +4042,17 @@ export function mount(container, params, ctx) {
   function attachStripMomentum(strip) {
     let phase = 'idle';   // idle -> deciding -> scroll | lift
     let sx = 0, sy = 0, startScroll = 0, vel = 0, lastX = 0, lastT = 0, raf = null, downChip = null;
+    let track = strip;    // RUN21C-8: what a sideways drag actually scrolls (a wish group row, or the strip)
     strip.addEventListener('pointerdown', e => {
       if (raf) { cancelAnimationFrame(raf); raf = null; }
-      phase = 'deciding'; sx = e.clientX; sy = e.clientY; startScroll = strip.scrollLeft; vel = 0; lastX = e.clientX; lastT = performance.now();
       downChip = e.target.closest ? e.target.closest('.drawer-item') : null;
+      // RUN21C-8: the grouped Wishes strip is a COLUMN of rows. A gesture that did not start
+      // on a chip is her scrolling that column, so this handler keeps out of the way entirely
+      // and lets the browser do it — capture here would swallow the scroll.
+      if (!downChip && strip.classList.contains('wish-grouped')) { phase = 'idle'; return; }
+      // ...and inside a group, the thing that scrolls sideways is the ROW, not the strip.
+      track = (downChip && downChip.closest('.wish-group-row')) || strip;
+      phase = 'deciding'; sx = e.clientX; sy = e.clientY; startScroll = track.scrollLeft; vel = 0; lastX = e.clientX; lastT = performance.now();
       // capture: once a lift is underway the pointer travels well outside the strip's own
       // box (up into the world) — without capture the browser would stop routing events here
       try { strip.setPointerCapture(e.pointerId); } catch {}
@@ -4002,7 +4069,7 @@ export function mount(container, params, ctx) {
         else { phase = 'lift'; beginChipLift(downChip, downChip.dataset.item); }
       }
       if (phase === 'scroll') {
-        strip.scrollLeft = startScroll - dx;
+        track.scrollLeft = startScroll - dx;
         const now = performance.now(); const dt = now - lastT;
         if (dt > 0) vel = (e.clientX - lastX) / dt;
         lastX = e.clientX; lastT = now;
@@ -4015,7 +4082,8 @@ export function mount(container, params, ctx) {
     const end = (e) => {
       if (phase === 'scroll') {
         let v = vel * 16;
-        if (Math.abs(v) >= 0.5 && !REDUCED) (function mom() { strip.scrollLeft -= v; v *= 0.94; if (Math.abs(v) > 0.4) raf = requestAnimationFrame(mom); })();
+        const t = track;
+        if (Math.abs(v) >= 0.5 && !REDUCED) (function mom() { t.scrollLeft -= v; v *= 0.94; if (Math.abs(v) > 0.4) raf = requestAnimationFrame(mom); })();
       } else if (phase === 'lift') {
         endChipLift(e.clientX, e.clientY);
       } else if (phase === 'potpaint') {
