@@ -25,7 +25,7 @@ export const WHATSNEW = [
   // The rest of the pack fixed things never announced in the first place (a hint line, a
   // request glyph, a tray shield) — not news to a child.
   {
-    version: 'run21a-20260802',
+    version: 'run21a-20260803',
     entries: [
       { icon: '🎠', title: 'Boos can be in two clubs at once — not two places!', blurb: 'Put a Boo somewhere new and it hops off its ride to come with you. No more hiding!', route: 'town', params: { area: 'funfair' } },
       { icon: '✨', title: 'Wish words land the right way round', blurb: 'Spell a wish and watch the gold letters spin a full twirl — then read your word!', route: 'town', params: { area: 'meadow', openWishWell: true } },

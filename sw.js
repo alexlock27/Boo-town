@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21a-20260802';  // RUN21A "Reach & Truth": seated Boos render everywhere, readable gold wishes, honest Town Postcard, taps never budget-gated.
+const BUILD_STAMP = 'run21a-20260803';  // RUN21A "Reach & Truth": seated Boos render everywhere, readable gold wishes, honest Town Postcard, taps never budget-gated.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
