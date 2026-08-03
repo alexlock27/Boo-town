@@ -1689,6 +1689,33 @@ export function renderWish(item, { size = 120, cls = '' } = {}) {
     `<text x="60" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="${INK}" font-family="Fredoka, sans-serif">${escapeHTML(item.name)}</text></svg>`;
 }
 
+// ---- RUN21C-2: the Path Pot ---------------------------------------------------------
+// The permanent first chip in the town drawer's Landscape tab: pick it up and drag along
+// the ground to lay a path. A cream pot with three stone chips spilling out of it, in the
+// house sticker style (ink outline, flat fills, a soft ground shadow). Not a catalogue item
+// — it is a TOOL, so it has no rarity, no inventory entry and no place in the world; it is
+// drawn here because every piece of art in this game is drawn here.
+export function renderPathPot({ size = 120, cls = '' } = {}) {
+  const cream = '#FFF3E2', creamDark = '#F0DFC4', stone = '#C7C2B8', stoneDark = '#ADA79C';
+  const ink = (w = 4) => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+  return `<svg viewBox="0 0 120 130" width="${size}" height="${size * 130 / 120}" class="pot-svg ${cls}" role="img" aria-label="Path Pot" xmlns="http://www.w3.org/2000/svg">` +
+    `<ellipse cx="60" cy="112" rx="38" ry="8" fill="rgba(42,27,78,.18)"/>` +
+    // the three chips, spilling forward out of the tipped mouth
+    `<ellipse cx="34" cy="99" rx="13" ry="8.5" fill="${stone}" ${ink(3.4)}/>` +
+    `<ellipse cx="31" cy="97" rx="5" ry="3" fill="${stoneDark}" opacity=".55"/>` +
+    `<ellipse cx="57" cy="104" rx="14.5" ry="9" fill="${stone}" ${ink(3.4)}/>` +
+    `<ellipse cx="54" cy="102" rx="5.5" ry="3.2" fill="${stoneDark}" opacity=".55"/>` +
+    `<ellipse cx="81" cy="98" rx="11.5" ry="7.5" fill="${stone}" ${ink(3.4)}/>` +
+    `<ellipse cx="79" cy="96" rx="4.5" ry="2.6" fill="${stoneDark}" opacity=".55"/>` +
+    // the pot, tipped a little to the left so it reads as pouring
+    `<g transform="rotate(-14 66 62)">` +
+      `<path d="M44 42 L48 88 Q66 98 84 88 L88 42 Z" fill="${cream}" ${ink(4)}/>` +
+      `<path d="M48 70 Q66 78 84 70" fill="none" stroke="${creamDark}" stroke-width="3.4" stroke-linecap="round"/>` +
+      `<ellipse cx="66" cy="42" rx="22" ry="9" fill="${creamDark}" ${ink(4)}/>` +
+      `<ellipse cx="66" cy="42" rx="15" ry="5.5" fill="#8B857A"/>` +
+    `</g></svg>`;
+}
+
 // Generic render router used by collection/town.
 // opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {

@@ -4380,6 +4380,11 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 /* RUN12 S4 (G7): this was white-on-cream — 1.04:1 against the drawer's actual
    #FFF8F0 strip, i.e. genuinely invisible. #5A4D84 measures 7.04:1 there. */
 .drawer-empty { color: #5A4D84; font-size: 16px; padding: 0 10px; }
+/* RUN21C-2: the Path Pot — the one chip in the tray that is a TOOL rather than a thing to
+   put down. A warm tint and a dotted edge say "this one behaves differently" without a
+   label; `.holding` (shared with every other chip) says it is in her hand right now. */
+.drawer-item.path-pot { background: #FFF3E2; border-style: dashed; }
+.drawer-item.path-pot.holding { border-style: solid; }
 .drag-ghost { position: fixed; transform: translate(-50%,-50%); pointer-events: none; z-index: 9500; width: 80px; height: 80px; transition: filter 0.1s ease; }
 .drag-ghost svg { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 /* illegal-drop preview (RUN10 P2): a red tint on the dragged ghost/item + a ghost ring at
