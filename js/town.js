@@ -1176,14 +1176,20 @@ export function mount(container, params, ctx) {
           const f = el('i', { class: 't-footprint', style: { left: (worldX + i * 30) + 'px', top: (r.height * (fy + i * 0.02)) + 'px', animationDelay: (i * 120) + 'ms' } });
           put(f, 4000 + i * 120);
         }
+        // RUN21B-6: the sand answers back, the way the river already does. Deliberately no
+        // once-per-visit gate — the pack asks for an echo on footprint taps, plural.
+        hint.textContent = 'Squish, squish!';
         return true;
       }
       case 'hilltop': {
         if (yFrac > 0.42) return false;
         if (areaSeen.train || REDUCED) return false;   // once per visit; never under reduced motion
         areaSeen.train = true;
-        const train = el('i', { class: 't-train', style: { top: (r.height * 0.34) + 'px' } });
+        // RUN21B-6: the train is 24px taller now, so it would hang that much lower on the
+        // same sightline — take half the growth back to keep it where it always ran.
+        const train = el('i', { class: 't-train', style: { top: (r.height * 0.34 - 12) + 'px' } });
         put(train, 4200);
+        hint.textContent = 'Choo choo! There goes the little train!';
         if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.chime(4);
         return true;
       }
