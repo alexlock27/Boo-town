@@ -1260,7 +1260,17 @@ export function mount(container, params, ctx) {
     const word = wordOfWishId(place.item);
     const key = placementIdOf(place);
     const svg = wrap.querySelector('svg');
-    const playOnce = (cls, ms) => { if (REDUCED || !svg) return; svg.classList.remove(cls); void svg.offsetWidth; svg.classList.add(cls); setTimeout(() => svg.classList.remove(cls), ms + 40); };
+    // Each play carries a token, and only the play that started a pose may end it. Without
+    // this, tapping the instant a pose finishes lets the OLD cleanup timer (already queued,
+    // ~40ms out) strip the class the NEW tap just added — the second tap looks ignored. It
+    // only became reachable once RUN21A-5 stopped budget-gating taps, because before that
+    // the too-soon tap was refused anyway. (RUN21B, found merging D into B.)
+    const playOnce = (cls, ms) => {
+      if (REDUCED || !svg) return;
+      const token = (svg._playToken = (svg._playToken || 0) + 1);
+      svg.classList.remove(cls); void svg.offsetWidth; svg.classList.add(cls);
+      setTimeout(() => { if (svg._playToken === token) svg.classList.remove(cls); }, ms + 40);
+    };
     const say = (lineKey, scope, vars) => {
       // RUN21A-5: no budget consultation on a tap path — budgets exist to stop the town
       // talking unprompted, never to mute a response to her finger. (`scope` kept for
@@ -1283,7 +1293,9 @@ export function mount(container, params, ctx) {
         wrap.classList.add('wish-airborne');
         playOnce('wish-launch', life.ms + life.backMs);
         if (wishSound.allow(key, { tapped: true })) sfx.whirr();
-        setTimeout(() => wrap.classList.remove('wish-airborne'), life.ms + life.backMs);
+        // Same token rule as playOnce: only this flight may declare itself landed.
+        const flightToken = (wrap._flightToken = (wrap._flightToken || 0) + 1);
+        setTimeout(() => { if (wrap._flightToken === flightToken) wrap.classList.remove('wish-airborne'); }, life.ms + life.backMs);
         return true;
       }
       case 'crown': {
