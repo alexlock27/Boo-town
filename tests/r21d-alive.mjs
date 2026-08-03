@@ -624,6 +624,101 @@ console.log('== item 4: a first-time visitor reaches the Disco in ≤2 taps ==')
   await ctx.close();
 }
 
+// ============================================================================
+// Item 5 — The hider gets a fair chance
+// ============================================================================
+// A hider parked three screens right, on an oak she would have to drag to find.
+const HIDER = BOOS[0];
+const FAR_HIDE = { zone: 'meadow', x: 0.88, item: 'deco_oak' };
+const hidingSave = (over = {}) => SAVE(Object.assign({
+  town: { areas: withItems('meadow', [...boosIn('meadow'), { zone: 'meadow', x: 0.88, row: 1, item: 'deco_oak', scale: 1 }]) },
+  delights: { hideDay: today, hideFound: false, hideBoo: HIDER, hideSpot: FAR_HIDE }
+}, over));
+
+console.log('== item 5: a far hider gets a pan toward it and a line ==');
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow' });
+  const before = await page.evaluate(() => window.__townLife.hiderNudge());
+  assert(before.hasPeek, 'the peek is rendered in this area');
+  assert(before.onScreen === false, 'and it starts off-screen, three screens right');
+  await sleep(2200);                                   // the beat is at 900ms, then this
+  const after = await page.evaluate(() => window.__townLife.hiderNudge());
+  assert(after.nudged && after.panned, `the town panned toward the hider (nudged=${after.nudged}, panned=${after.panned})`);
+  assert(after.screensAway <= 1, `the peek is within one screen of view (${after.screensAway.toFixed(3)} screens away)`);
+  assert(after.hint === "Someone's hiding nearby… 👀", `and the line is exactly: "${after.hint}"`);
+  // Toward it, NOT onto it: it stops half a screen short of centring, so the peek is left
+  // at the far edge of the view rather than delivered — the finding is still hers.
+  const off = await page.evaluate(() => {
+    const n = window.__townLife.hidePeekEl(); const v = document.querySelector('.t-viewport').getBoundingClientRect();
+    const r = n.getBoundingClientRect();
+    return Math.abs((r.left + r.width / 2) - (v.left + v.width / 2)) / v.width;
+  });
+  assert(off >= 0.4, `and it is not handed to her — the peek is ${off.toFixed(2)} of a screen off centre, not centred`);
+  await page.screenshot({ path: `${SHOTS}/item5-hider-fair-chance.png` });
+  await ctx.close();
+}
+
+console.log('== item 5: the pop-out interaction is unchanged ==');
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow' });
+  await sleep(2200);
+  // scroll the last half-screen the way she would, then tap the peek
+  await page.evaluate(() => window.__townLife.scrollToFrac(0.88));
+  await sleep(200);
+  const starsBefore = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')).stars.total);
+  const box = await page.evaluate(() => { const b = window.__townLife.hidePeekBBox(); return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null; });
+  assert(!!box, 'the peek is tappable once she gets there');
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down(); await page.mouse.up();
+  await sleep(600);
+  await page.evaluate(async () => { const s = await import('./js/state.js'); s.commit(); });   // past the 2s autosave debounce
+  const found = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('bootown.save.v1'));
+    return { found: !!(s.delights || {}).hideFound, peekGone: !window.__townLife.hidePeekEl(),
+             treat: !!document.querySelector('.request-treat') };
+  });
+  assert(found.found, 'tapping it still finds the hider');
+  assert(found.peekGone, 'the peek disappears');
+  assert(found.treat, 'and the "Found you!" treat still floats up');
+  await ctx.close();
+}
+
+console.log('== item 5: once per visit; REDUCED skips the pan and keeps the line ==');
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow' });
+  await sleep(2200);
+  const first = await page.evaluate(() => window.__townLife.scrollX());
+  // drive the camera back to the gate; the nudge must not fire a second time this visit
+  await page.evaluate(() => window.__townLife.scrollTo(0));
+  await sleep(1200);
+  const now = await page.evaluate(() => ({ x: window.__townLife.scrollX(), n: window.__townLife.hiderNudge() }));
+  assert(first > 0, `the nudge really moved the camera (${Math.round(first)}px)`);
+  assert(now.x === 0, 'and it does not re-fire when she scrolls back (once per visit)');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow', reduced: 'reduce' });
+  await sleep(2200);
+  const r = await page.evaluate(() => ({ n: window.__townLife.hiderNudge(), x: window.__townLife.scrollX() }));
+  assert(r.n.nudged && !r.n.panned, `REDUCED: no pan (panned=${r.n.panned})`);
+  assert(r.x === 0, `REDUCED: the camera did not move (${r.x})`);
+  assert(r.n.hint === "Someone's hiding nearby… 👀", `REDUCED: the line still shows: "${r.n.hint}"`);
+  await ctx.close();
+}
+
+console.log('== item 5: nothing happens in an area nobody is hiding in ==');
+{
+  const { ctx, page } = await open(SAVE({
+    town: { areas: withItems('riverside', boosIn('riverside')) },
+    delights: { hideDay: today, hideFound: false, hideBoo: HIDER, hideSpot: FAR_HIDE }
+  }), { area: 'riverside' });
+  await sleep(2200);
+  const r = await page.evaluate(() => window.__townLife.hiderNudge());
+  assert(!r.nudged && !r.hasPeek, 'the Riverside says nothing about a Meadow hider');
+  assert(r.hint !== "Someone's hiding nearby… 👀", `and its hint bar is its own ("${r.hint}")`);
+  await ctx.close();
+}
+
 console.log(pageErrors.length ? `PAGE ERRORS: ${JSON.stringify(pageErrors.slice(0, 6))}` : 'no page errors');
 if (pageErrors.length) failed = true;
 await browser.close();

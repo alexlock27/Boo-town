@@ -7,7 +7,7 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
 - [x] 2 — Requests you can find
 - [x] 3 — Landmark dots
 - [x] 4 — Signposting the fair's best rooms
-- [ ] 5 — The hider gets a fair chance
+- [x] 5 — The hider gets a fair chance
 
 ## Deviations
 - **Item 1 — "rotating daily per area".** Pack said the 9s invitation rotates daily per area,

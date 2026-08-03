@@ -303,6 +303,14 @@ const FAIR_SIGNS = [
   { id: 'band',  x: 0.055, text: '🎵 Band',  aria: 'Go to the bandstand' },
   { id: 'disco', x: 0.150, text: '🕺 Disco', aria: 'Enter the Disco Hall' }
 ];
+
+// ---- RUN21D-5: the hider gets a fair chance --------------------------------------------
+// The day's hide-and-seek Boo can land three screens away in an area she never scrolls, and
+// then it is not a game of hide-and-seek at all — it is a lottery. One pan TOWARD the peek
+// spot, stopping half a screen short so the finding is still hers, and one line so she
+// knows there is something to find.
+const HIDER_NEARBY_LINE = 'Someone\'s hiding nearby… 👀';
+const HIDER_PAN_MS = 600;
 // "Prefer things not shown today" — a SESSION set, never the save. There is no ledger of
 // what the town has already shown her; it resets on load like every other pacing memory
 // here (js/ack.js, js/encouragement.js, wishlife's visit tokens).
@@ -1883,6 +1891,7 @@ export function mount(container, params, ctx) {
       if (revealShowing || revealQueue.length) { pulseBeat = 'skipped:reveal'; return; }
       // REDUCED: no movement beats at all — the invitation is the whole pulse.
       pulseBeat = REDUCED ? 'reduced' : (playPulseBeat() || 'none');
+      hiderFairChance();   // RUN21D-5: after the beat, in the hider's area only
       pulseHintTimer = setTimeout(showPulseInvitation, Math.max(0, PULSE_HINT_MS - PULSE_DELAY_MS));
     }, PULSE_DELAY_MS);
   }
@@ -2043,6 +2052,30 @@ export function mount(container, params, ctx) {
   }
   function nearestActorToScreen() {
     return nearestActorTo((scrollX + viewW / 2) / (zoneW || 1));
+  }
+
+  // ---- RUN21D-5: the hider gets a fair chance ------------------------------------------
+  // Runs immediately after the opening beat, in the hider's area only, once per visit.
+  let hiderNudged = false, hiderPanned = false;
+  function hiderFairChance() {
+    if (hiderNudged) return;
+    const h = currentHide();
+    if (!h || (ZONE_INDEX[h.spot.zone] ?? -1) < 0) return;   // hiding somewhere else today
+    const peek = ground.querySelector('.t-hide-peek');
+    if (!peek) return;
+    hiderNudged = true;
+    const peekPx = (parseFloat(peek.style.left) || 0) + peek.offsetWidth / 2;
+    const xFrac = peekPx / (zoneW || 1);
+    // The pan is the part reduced motion skips; the LINE always shows. Nor does it fight a
+    // camera she has already claimed, or one the beat is still moving.
+    if (!REDUCED && !cameraClaimed && !panRaf && !fracOnScreen(xFrac)) {
+      // Toward it, not onto it: land half a screen short, so the peek is just beyond the
+      // edge she can see and spotting it is still her doing.
+      const dir = peekPx > scrollX + viewW / 2 ? 1 : -1;
+      panToPx(peekPx - viewW / 2 - dir * (viewW / 2), HIDER_PAN_MS);
+      hiderPanned = true;
+    }
+    hint.textContent = HIDER_NEARBY_LINE;
   }
 
   // The invitation: a hint-bar line, never spoken, never while she is busy arranging.
@@ -5555,6 +5588,19 @@ export function mount(container, params, ctx) {
                  w: Math.round(r.width), h: Math.round(r.height) };
       }),
       tapFairSign: (id) => { const n = ground.querySelector('.ff-sign-' + id); if (!n) return false; n.click(); return true; },
+      // RUN21D-5: the hider's fair chance — did it run, did it pan, and where is the peek now?
+      hiderNudge: () => {
+        const peek = ground.querySelector('.t-hide-peek');
+        const v = viewport.getBoundingClientRect();
+        const r = peek ? peek.getBoundingClientRect() : null;
+        return {
+          nudged: hiderNudged, panned: hiderPanned, line: HIDER_NEARBY_LINE, hint: hint.textContent,
+          hasPeek: !!peek,
+          // how many screens away the peek is from the visible window (0 = on screen)
+          screensAway: r ? Math.max(0, Math.max(v.left - r.right, r.left - v.right)) / (v.width || 1) : null,
+          onScreen: r ? (r.right > v.left && r.left < v.right) : null
+        };
+      },
       // What every actor is actually DOING — the state proof behind a movement beat.
       goals: () => actors.map(a => ({ item: a.place && a.place.item, goal: a.goal && a.goal.kind, role: a.role && a.role.kind, state: a.state })),
       behaviourSample: (i, n) => {
