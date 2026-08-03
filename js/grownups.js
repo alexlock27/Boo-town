@@ -21,6 +21,9 @@ import { feelingsTierOk } from './feelings.js';
 // window.__bootownQA seam the rest of the app's test hooks use — so with the flag unset
 // nothing below is built and the panel is byte-for-byte what it was before.
 import { qaAvailable, journalOn, setJournalOn, downloadNotes, journalSnapshot, JOURNAL_LABEL, DOWNLOAD_LABEL } from './playjournal.js';
+// RUN21F F6: "Visit a Town". The paste box below is the only way into a visit; everything
+// it needs — reading the code, building the in-memory town, the banner — lives in visit.js.
+import { startVisit } from './visit.js';
 
 // Rough platform sniff, only to word the "where did it save?" helper text. Never gates
 // behaviour — the buttons feature-detect (canShareFiles) regardless.
@@ -343,6 +346,32 @@ export function mount(container, params, ctx) {
     el('div', { class: 'gu-row' }, [restoreMsg])
   ]);
 
+  // ---- Visit a Town (RUN21F F6) --------------------------------------------------------
+  // The other half of RUN21A item 11's 💌 postcard. It sits beside the restore box on
+  // purpose: pasting a postcard THERE is answered with "That's a Town Postcard for visiting,
+  // not a backup", and this is where that sentence sends a grown-up.
+  //
+  // A visit is a look at a snapshot held in memory. Nothing about it is written to this
+  // tablet — not the friend's town, not a trace that it happened — and her own save is not
+  // touched while it is open (js/state.js beginVisit).
+  const visitMsg = el('span', { class: 'gu-msg gu-visit-msg' });
+  const visitInput = el('textarea', {
+    class: 'gu-code gu-visit-code', rows: '3',
+    placeholder: 'Paste a Town Postcard code here…', 'aria-label': 'Paste a Town Postcard code to visit'
+  });
+  const visitBtn = el('button', { class: 'btn gu-visit-go', text: 'Visit this town', onclick: () => {
+    const r = startVisit(visitInput.value, ctx);
+    if (r.ok) { visitMsg.classList.remove('err'); visitMsg.textContent = ''; visitInput.value = ''; }
+    else { visitMsg.classList.add('err'); visitMsg.textContent = r.error; }
+  } });
+  const visitCard = el('div', { class: 'gu-card gu-visit' }, [
+    el('h3', { text: 'Visit a Town' }),
+    el('p', { class: 'gu-note', text: 'A friend can send a Town Postcard from their own Boo Town map (the 💌 button). Paste it here to look around their town together.' }),
+    visitInput,
+    el('div', { class: 'gu-row' }, [visitBtn, visitMsg]),
+    el('p', { class: 'gu-note', text: 'Looking only: nothing can be moved or changed, nothing is saved to this tablet, and her own town is left exactly as it is. Tap Leave at the top to come back.' })
+  ]);
+
   // ---- reset ----
   const resetInput = el('input', { class: 'text-input small', type: 'text', placeholder: 'type RESET', 'aria-label': 'type RESET to confirm' });
   const resetBtn = el('button', { class: 'btn danger', text: 'Reset everything', disabled: true, onclick: () => {
@@ -393,7 +422,7 @@ export function mount(container, params, ctx) {
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },
-    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), ...journalCards(), reset] }
+    { id: 'data',     label: 'Backup & data', cards: [backup, visitCard, diagnostics(), ...journalCards(), reset] }
   ];
   const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });
   const panels = el('div', { class: 'gu-panels' });

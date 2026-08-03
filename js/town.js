@@ -491,6 +491,17 @@ const isNight = (h) => h >= 19 || h < 7;
 
 export function mount(container, params, ctx) {
   const s = getState();
+  // ---- RUN21F F6: VISITING (read-only) --------------------------------------------------
+  // The router sets ctx.readonly from the visit session (js/visit.js), so this mount is
+  // looking at a friend's town rebuilt from a Town Postcard. The save is already sealed —
+  // state.js makes mutate/commit inert for the whole visit, so nothing below CAN write. What
+  // READONLY does here is the other half of the promise: it takes the arranging away, so the
+  // town is a place to look at rather than a thing that quietly refuses to be edited. The
+  // tray never mounts, a placed thing cannot be dragged or put away, the doors out (shop,
+  // bandstand, disco, joke stage, rides) are scenery — and every tap that is a DELIGHT
+  // rather than an edit still fires: squeaks, care arcs, wish verbs, pond ripples, waking a
+  // napper, the area signatures, the opening Pulse, and all the living wandering.
+  const READONLY = !!(ctx && ctx.readonly);
   // RUN10 P1: town.js renders ONE area per mount — the world map is what knows about
   // all 8 areas and their unlock state. Defaults to the Meadow (always unlocked, always
   // the natural "put a new item somewhere" destination for ceremony/onboarding callers
@@ -517,7 +528,10 @@ export function mount(container, params, ctx) {
   const ZONES = [{ key: STORE_KEY, name: ROOM ? ROOM.name : AREA.name, unlock: 0 }];
   const ZONE_INDEX = { [STORE_KEY]: 0 };
   music.play('calm');
-  noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
+  // F6: a visitor's tap does not tick somebody else's daily quests, and does not start their
+  // Boos wondering things (below). Both write through mutate, which is inert for the whole
+  // visit — these guards say the same thing out loud rather than relying on it.
+  if (!READONLY) noteQuest('townVisit');   // daily quest: visit the town (RUN3 C4)
   // Hide-and-seek Boo, once per local day (RUN4 C9): picks across ALL areas (delights.js),
   // so renderHide() below only shows something on the area it actually landed in — graceful
   // no-op elsewhere. A world-map "someone's hiding over here" chip is P5's job.
@@ -529,7 +543,7 @@ export function mount(container, params, ctx) {
   // Occasional Boo requests (RUN3 C8): check at app open (town is an "open").
   // RUN19 Z2 makes AREA ENTRY a trigger too (not just app open), and passes the storage key
   // so the five verbs can name something that is actually standing here.
-  checkRequestOpen(requestableBooIds(), STORE_KEY);
+  if (!READONLY) checkRequestOpen(requestableBooIds(), STORE_KEY);
   // Boos that may be asked to ask for something. Excludes the day's hide-and-seek Boo:
   // renderHide() sets display:none on the hider's wrap and draws a peeking stand-in
   // instead, so a bubble parented to it would be a 0x0 invisible button — a request the
@@ -705,7 +719,11 @@ export function mount(container, params, ctx) {
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
   updateDrawerTabs();   // which tabs this area shows at all (outdoor/indoor/wishes)
   renderDecorateTab();   // RUN21A-2: populated at mount too, not only via the hammer
-  root.append(header, ...(dots ? [dots] : []), hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
+  // F6: "drawer hidden" — it is never put in the page at all. The drawerApi object stays
+  // alive (a dozen helpers ask it whether it is open, and `overDrawer` measures it), and a
+  // detached tray answers all of them honestly: closed, and zero by zero. That is why the
+  // world does not soften and the Path Pot cannot be reached during a visit.
+  root.append(header, ...(dots ? [dots] : []), hint, ...(roomTabs ? [roomTabs] : []), viewport, ...(READONLY ? [] : [drawer]));
   container.appendChild(root);
 
   // Day / night tint.
@@ -718,7 +736,7 @@ export function mount(container, params, ctx) {
   // The Boo House starts with a rug + table lamp pre-placed (RUN10 P4) — a one-time seed,
   // not a grant (they aren't added to inventory, so they don't count as "collected" until
   // she wins her own copy from a box).
-  if (STORE_KEY === 'boohouse' && !((getState().seen || {}).boohouseSeeded)) {
+  if (!READONLY && STORE_KEY === 'boohouse' && !((getState().seen || {}).boohouseSeeded)) {
     mutate(st => {
       st.seen = st.seen || {};
       st.seen.boohouseSeeded = true;
@@ -729,7 +747,7 @@ export function mount(container, params, ctx) {
   }
   // The Meadow begins with one permanent magic landmark. If it is put away, the
   // same well remains available in Build → Landscape.
-  if (AREA.key === 'meadow' && !((getState().seen || {}).wishWellSeeded)) {
+  if (!READONLY && AREA.key === 'meadow' && !((getState().seen || {}).wishWellSeeded)) {
     mutate(st => {
       st.seen = st.seen || {};
       const items = areaItems(st);
@@ -753,7 +771,7 @@ export function mount(container, params, ctx) {
   }
   // RUN17 X1: the Joke Boo's stage, on the same terms as the well above — a gift landmark
   // that never displaces anything, and stays in Build → Landscape if she puts it away.
-  if (AREA.key === 'meadow' && !((getState().seen || {}).jokeStageSeeded)) {
+  if (!READONLY && AREA.key === 'meadow' && !((getState().seen || {}).jokeStageSeeded)) {
     mutate(st => {
       st.seen = st.seen || {};
       // THE FLAG IS SET ONLY ONCE THE STAGE IS ACTUALLY PLACED (RUN18A H3). It used to be
@@ -809,11 +827,14 @@ export function mount(container, params, ctx) {
     if (params && params.openWishWell) setTimeout(() => openWellHere(), 350);
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
     // finished while she was away, the next town open plays the reveal.
-    const gt = tickGrowth();
+    // F6: a visited town's milestones and Builders are NOT the visitor's to advance or to be
+    // congratulated for. The ticks are skipped outright (they read stars this snapshot only
+    // has so every area opens) and the fair simply renders what the postcard's town has.
+    const gt = READONLY ? { readyToReveal: null, spawned: [] } : tickGrowth();
     if (!gt.readyToReveal && gt.spawned.length) renderPlaced();   // a fresh site fence appears
     // Funfair rides via the Boo Builders (RUN6 C1b): reveal a finished ride, else render the
     // (always-open, RUN7 C1) fair so its day-one Carousel/scenery/bandstand show on the first mount.
-    const ft = tickFunfair();
+    const ft = READONLY ? { readyToReveal: null, spawned: [], catchUp: null } : tickFunfair();
     if (!ft.readyToReveal) renderFunfair();
     // RUN21A-16: the rides COMPLETE on whichever tick finds them (that is the fix — no four
     // queued days), but the combined celebration waits for the fair itself, which is what
@@ -1235,7 +1256,7 @@ export function mount(container, params, ctx) {
       const stallX = zoneW * 0.42;
       const stall = el('button', {
         class: 't-shop-stall', 'aria-label': 'Go to the Boo Shop',
-        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); ctx.go('shop', { from: 'town', fromArea: AREA.key }); }   // RUN21A-9
+        html: shopStallSVG(), onclick: (e) => { e.stopPropagation(); sfx.tap(); if (!READONLY) ctx.go('shop', { from: 'town', fromArea: AREA.key }); }   // RUN21A-9 (F6: not a door in a visited town)
       });
       stall.style.left = stallX + 'px';
       stall.style.top = (groundY - 118) + 'px';
@@ -2455,6 +2476,7 @@ export function mount(container, params, ctx) {
           e.stopPropagation();
           sfx.tap();
           if (sg.id === 'band') { cameraClaimed = true; panToFrac(BANDSTAND_X, DOT_PAN_MS); }
+          else if (READONLY) { /* F6: a visitor may look at the fair, not walk into its rooms */ }
           // The Disco keeps the door's own route EXACTLY — `ctx.go('discohall')`, no params.
           // The pack asks for "`from` preserved"; discohall reads no params at all and its
           // own back control already returns to the funfair, so preserving the return path
@@ -2477,7 +2499,7 @@ export function mount(container, params, ctx) {
     const door = el('button', {
       class: 'ff-disco-door',
       'aria-label': 'Enter the Disco Hall',
-      onclick: e => { e.stopPropagation(); sfx.tap(); ctx.go('discohall'); }
+      onclick: e => { e.stopPropagation(); sfx.tap(); if (!READONLY) ctx.go('discohall'); }   // F6: scenery in a visited fair
     }, [
       el('span', { class: 'ff-disco-sign', text: 'DISCO' }),
       el('span', { class: 'ff-disco-stars', text: '✦  ♪  ✦' }),
@@ -2524,7 +2546,7 @@ export function mount(container, params, ctx) {
     let down = false, moved = false, sx = 0, sy = 0;
     box.addEventListener('pointerdown', e => { e.stopPropagation(); down = true; moved = false; sx = e.clientX; sy = e.clientY; box.setPointerCapture(e.pointerId); });
     box.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) moved = true; });
-    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) { sfx.tap(); ctx.go('band'); } down = false; });
+    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) { sfx.tap(); if (!READONLY) ctx.go('band'); } down = false; });   // F6: scenery in a visited fair
     box.addEventListener('pointercancel', () => { down = false; });
   }
   function onBandNote(ev) {
@@ -2554,7 +2576,7 @@ export function mount(container, params, ctx) {
     let down = false, moved = false, sx = 0, sy = 0;
     box.addEventListener('pointerdown', e => { e.stopPropagation(); down = true; moved = false; sx = e.clientX; sy = e.clientY; box.setPointerCapture(e.pointerId); });
     box.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) moved = true; });
-    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) openRidePicker(ride); down = false; });
+    box.addEventListener('pointerup', e => { e.stopPropagation(); if (down && !moved) { if (READONLY) sfx.tap(); else openRidePicker(ride); } down = false; });   // F6: seating is arranging
     box.addEventListener('pointercancel', () => { down = false; });
   }
   function openRidePicker(ride) {
@@ -4300,7 +4322,10 @@ export function mount(container, params, ctx) {
       // cross-run wiring note is explicit that there must never be two competing long-press
       // behaviours here). Build mode keeps its own tap menu; this is for playing.
       clearTimeout(longPressTimer);
-      if (!softened) longPressTimer = setTimeout(() => {
+      // F6: the play card's only option is Sprinkle, which spends stardust a visitor does
+      // not have and marks a placement she does not own. A long press in a visited town is
+      // simply a press.
+      if (!softened && !READONLY) longPressTimer = setTimeout(() => {
         if (!down || moved) return;
         down = false;
         try { wrap.releasePointerCapture(e.pointerId); } catch {}
@@ -4310,6 +4335,12 @@ export function mount(container, params, ctx) {
     const onWall = !!item.wall;
     wrap.addEventListener('pointermove', e => {
       if (!down) return;
+      // F6: LOOK, DON'T TOUCH. A move-drag is the one interaction that would otherwise be
+      // half-alive in a visit — the drop's mutate() is inert, so the thing would slide under
+      // her finger and then snap back on the next render, which reads as a bug rather than
+      // as a rule. Never starting the drag means the press stays a tap, and the tap still
+      // delights.
+      if (READONLY) return;
       if (!moved && Math.hypot(e.clientX - dsx, e.clientY - dsy) > 10) {
         moved = true; wrap.classList.add('dragging');
         clearTimeout(longPressTimer);   // a drag is not a long press (RUN19 Z5)
@@ -4422,9 +4453,13 @@ export function mount(container, params, ctx) {
     // RUN20 W1: every wish has a verb now. It runs INSTEAD of the item menu, because a wished
     // thing that opens "Move / Put away" when you poke it is the dead prop this run removes.
     if (!softened && wishTap(wrap, place, item)) return;
-    if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
-    if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
+    // F6: the well grants wishes into a save and the stage is a door to another screen —
+    // neither belongs to a visitor. They stay drawn (they are part of what her friend built)
+    // and simply do not open.
+    if (item.id === 'deco_wishwell') { if (!READONLY) openWellHere(wrap); return; }
+    if (item.id === 'deco_jokestage') { sfx.tap(); if (!READONLY) ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
+    if (READONLY) return;   // …and the arranging menu (Move / Put away / size) never opens
     openMenu(wrap, place, item);
   }
 
@@ -4694,14 +4729,19 @@ export function mount(container, params, ctx) {
       button.addEventListener('pointerdown', e => e.stopPropagation());
       arc.appendChild(button);
     });
-    const manage = el('button', {
-      class: 'town-care-manage',
-      text: '•••',
-      'aria-label': `Move or dress ${getDisplayName(item.id)}`,
-      onclick: e => { e.stopPropagation(); clearCareArc(); openMenu(wrap, place, item); }
-    });
-    manage.addEventListener('pointerdown', e => e.stopPropagation());
-    arc.appendChild(manage);
+    // F6: the ••• is Move / Put away / Dress up — the arranging menu by another door. The
+    // care flourish itself still opens on a visitor's tap, hearts and all; it just has no
+    // way through to editing somebody else's town.
+    if (!READONLY) {
+      const manage = el('button', {
+        class: 'town-care-manage',
+        text: '•••',
+        'aria-label': `Move or dress ${getDisplayName(item.id)}`,
+        onclick: e => { e.stopPropagation(); clearCareArc(); openMenu(wrap, place, item); }
+      });
+      manage.addEventListener('pointerdown', e => e.stopPropagation());
+      arc.appendChild(manage);
+    }
     // RUN13 T2: the flourish states the relationship and the pocket inline, so a child
     // can see how the friendship is going without opening anything.
     const treats = (getState().care && getState().care.treats) || 0;
@@ -5178,6 +5218,11 @@ export function mount(container, params, ctx) {
     // Every path that changes what she is holding already ends in updateHint(), so this is
     // the one place that cannot be forgotten. updateSoftened() no-ops unless the state moved.
     updateSoftened();
+    // F6: every standing hint here describes arranging ("Drag from the tray…"), and RUN21A
+    // item 18 is standing law that no hint may promise an action she cannot take. A visitor
+    // has no tray, so the bar simply says nothing — the banner across the top is what this
+    // screen has to say — and the verb lines that write to it still land normally.
+    if (READONLY) { hint.textContent = ''; return; }
     hint.textContent = potHeld
       ? PATH_POT_HINT
       : holding
@@ -6173,6 +6218,9 @@ export function mount(container, params, ctx) {
       // into arranging", and the drawer is what does both. Nothing in the UI reads them.
       softened: () => softened,
       buildMode: () => softened,
+      // RUN21F F6 QA: is this mount a visit, and did the tray really stay out of the page?
+      readonly: () => READONLY,
+      drawerInDom: () => document.body.contains(drawer),
       toggleBuild: () => { drawerApi.isOpen() ? drawerApi.close() : drawerApi.open(); updateSoftened(); updateHint(); return softened; },
       potHeld: () => potHeld,
       pathStyleSel: () => pathStyle,

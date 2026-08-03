@@ -35,6 +35,7 @@ const ASSETS = [
   'js/editguide.js',
   'js/town.js',
   'js/worldmap.js',
+  'js/visit.js',            // RUN21F F6: "Visit a Town" (the read-only Town Postcard viewer)
   'js/gallerymuseum.js',
   'js/areas.js',
   'js/grownups.js',

@@ -11,6 +11,10 @@ import { qaSuspendRound, qaResumeRound } from './intro.js';
 // RUN21F F10B: the play journal listens here for screens and dwell. It is inert — no
 // listener, no entry, no DOM — unless a grown-up has switched it on behind the QA flag.
 import { noteScreen } from './playjournal.js';
+// RUN21F F6: "Visit a Town". A visit is a read-only session over an in-memory snapshot; the
+// router owns two halves of it — `ctx.readonly` (below) and the rule that a visit can only
+// ever be on the world map or in an area, so no other screen can be reached inside one.
+import { leaveVisit } from './visit.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -97,6 +101,16 @@ export async function go(name, params = {}) {
   }
   current = null;
   State.commit(); // flush any pending debounced save before leaving a screen
+  // RUN21F F6 — the visit's boundary, in the one place every navigation passes through.
+  // Anything that is not the world map or an area ENDS the visit first, so the Leave button
+  // is simply `go('grownups')` and the phone's back gesture cannot strand her inside a
+  // friend's town either. Deliberately AFTER the commit above: commit is inert while a visit
+  // is open, so the round trip into a postcard and back leaves her save byte-for-byte as it
+  // was — the pack's "her own save is untouched throughout", literally.
+  if (State.isVisiting() && name !== 'town' && name !== 'worldmap') leaveVisit();
+  // Read-only is never a screen's own opinion: it is the visit session's, refreshed here on
+  // every mount so it can neither be forgotten nor leak into the screen after it.
+  ctx.readonly = State.isVisiting();
   clearConfetti(); // don't let celebration particles linger across a navigation
   // A first-play intro is tied to its game; never let it bleed onto the next screen.
   document.querySelectorAll('.intro-overlay').forEach(o => o.remove());
