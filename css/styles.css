@@ -2419,6 +2419,51 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .town-header h2 { color: var(--card); margin: 0; font-size: 22px; flex: 1; text-align: center; }
 .town-hint { flex: 1; color: var(--star); font-family: var(--font-display); font-size: 16px; text-align: right; }
 .town-hint-bar { min-height: 20px; padding: 0 14px 4px; color: var(--star); font-family: var(--font-display); font-size: 14px; text-align: center; }
+/* ---- RUN21D-3: the landmark dots -------------------------------------------------------
+   Four named screens, above the hint bar. The PIP is the pack's 12px at 35% ink (pink when
+   it is the screen you are on); the BUTTON around it is 44px, the house tap-target floor,
+   so the dots stay a comfortable target for a nine-year-old on a phone without turning
+   into four big blobs of chrome. */
+.t-dots { display: flex; justify-content: center; align-items: center; gap: 4px; flex: 0 0 auto; height: 44px; }
+.t-dot {
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; margin: 0;
+  background: none; border: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center;
+}
+.t-dot-pip {
+  width: 12px; height: 12px; border-radius: 50%; display: block;
+  /* The pack says "ink at 35%". Ink is #2A1B4E and this strip sits on the app's own dark
+     chrome (--sky-deep), where ink at 35% is invisible — dark on dark. Same 35% dimness,
+     on the colour that reads against THIS surface: card at 35%, which measures 3.0:1
+     against --sky-deep (the non-text contrast floor) while still reading as "not this one". */
+  background: rgba(255,248,240,0.35);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.t-dot.sel .t-dot-pip { background: var(--pop); transform: scale(1.15); }
+.t-dot:focus-visible { outline: 3px solid var(--star); outline-offset: -4px; }
+.t-dot:active .t-dot-pip { transform: scale(0.9); }
+@media (prefers-reduced-motion: reduce) { .t-dot-pip { transition: none; } .t-dot.sel .t-dot-pip { transform: none; } }
+/* The edge shimmer: one soft sweep on whichever edge has town beyond it, once per visit.
+   Same gradient language as the rarity shimmer (.rfx-shimmer), scaled to an edge. */
+.t-edge-shim {
+  position: absolute; top: 0; bottom: 0; width: 54px; pointer-events: none; z-index: 9;
+  background: linear-gradient(90deg, transparent, rgba(255,248,240,0.45), transparent);
+}
+.t-edge-shim.left { left: 0; animation: tEdgeShimL 2.6s ease-in-out 2 both; }
+.t-edge-shim.right { right: 0; animation: tEdgeShimR 2.6s ease-in-out 2 both; }
+@keyframes tEdgeShimR {
+  0%   { opacity: 0; transform: translateX(-26px); }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(26px); }
+}
+@keyframes tEdgeShimL {
+  0%   { opacity: 0; transform: translateX(26px); }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-26px); }
+}
+@media (prefers-reduced-motion: reduce) { .t-edge-shim { display: none; } }
 .town-hammer-btn { font-size: 20px; }   /* RUN10 P3: build mode toggle */
 .town-hammer-btn.active { background: #5F4FC4; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset; }
 /* entry/exit crossfade (P1): the map badge scales up into this scene, 300ms */

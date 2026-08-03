@@ -427,6 +427,135 @@ console.log('== item 2C: an in-area bubble breathes every 6s ==');
   }
 }
 
+// ============================================================================
+// Item 3 — Landmark dots
+// ============================================================================
+console.log('== item 3: four named dots per outdoor area, read by a screen reader ==');
+{
+  const WANT = {
+    meadow: ['The Oak', 'The Stage', 'The Shop', 'The Well'],
+    riverside: ['The Bank', 'The Bridge', 'The Reeds', 'The Shallows'],
+    hilltop: ['The Foot', 'The Climb', 'The Windmill', 'The Crest'],
+    beach: ['The Palms', 'The Hut', 'The Shore', 'The Rockline'],
+    playground: ['The Gate', 'The Green', 'The Corner', 'The Far Fence'],
+    funfair: ['The Gate', 'The Rides', 'The Booth', 'The Bandstand']
+  };
+  for (const [area, names] of Object.entries(WANT)) {
+    const { ctx, page } = await open(SAVE({ town: { areas: withItems(area, boosIn(area)) } }), { area });
+    const dots = await page.evaluate(() => window.__townLife.dots());
+    assert(dots.length === 4, `${area}: four dots`);
+    assert(JSON.stringify(dots.map(d => d.label)) === JSON.stringify(names), `${area}: ${JSON.stringify(dots.map(d => d.label))}`);
+    assert(dots.every(d => d.w >= 44 && d.h >= 44), `${area}: every dot is a ≥44px target (${dots[0].w}x${dots[0].h})`);
+    // the accessible name is what a screen reader reads, and only the current one is current
+    const currents = dots.filter(d => d.current === 'true');
+    assert(currents.length === 1, `${area}: exactly one dot is aria-current (${currents.length})`);
+    assert(dots[0].sel === true, `${area}: she arrives on screen 1, so dot 1 is filled`);
+    await ctx.close();
+  }
+}
+
+console.log('== item 3: the pip is 12px, ink at 35%, pink when filled ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow' });
+  await sleep(400);                                    // past the 0.2s fill transition
+  const pip = await page.evaluate(() => window.__townLife.dotPip());
+  assert(pip.w === '12px' && pip.h === '12px', `12px pip (${pip.w} × ${pip.h})`);
+  // DEVIATION (logged in RUN21D-PROGRESS.md): the pack's "ink at 35%" is invisible on the
+  // town's own dark chrome, so the 35% dimness is kept and the colour is the card.
+  assert(pip.bg === 'rgba(255, 248, 240, 0.35)', `unfilled = 35% dim, readable on dark chrome (${pip.bg})`);
+  assert(pip.selBg === 'rgb(255, 122, 198)', `filled = pink (${pip.selBg})`);
+  await page.screenshot({ path: `${SHOTS}/item3-dots-meadow.png` });
+  await ctx.close();
+}
+
+console.log('== item 3: the dots track manual scrolling, and a tap pans ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('beach', boosIn('beach')) } }), { area: 'beach' });
+  await sleep(1400);
+  const filled = async () => page.evaluate(() => window.__townLife.dots().findIndex(d => d.sel));
+  for (const screen of [1, 2, 3, 0]) {
+    // scroll by hand, exactly as a drag would: the dot state is derived from scrollX
+    await page.evaluate(s => { const v = window.__townLife.scrollTo(s * (document.querySelector('.t-viewport').clientWidth)); return v; }, screen);
+    await sleep(120);
+    assert(await filled() === screen, `manual scroll to screen ${screen + 1} fills dot ${screen + 1}`);
+  }
+  // …and a tap pans smoothly rather than jumping
+  await page.evaluate(() => window.__townLife.scrollTo(0));
+  await sleep(100);
+  await page.evaluate(() => window.__townLife.tapDot(2));
+  await sleep(180);
+  const mid = await page.evaluate(() => window.__townLife.scrollX());
+  await sleep(700);
+  const end = await page.evaluate(() => window.__townLife.scrollX());
+  const viewW = await page.evaluate(() => document.querySelector('.t-viewport').clientWidth);
+  assert(mid > 0 && mid < end, `the tap PANS (mid-flight ${Math.round(mid)} → landed ${Math.round(end)})`);
+  assert(Math.abs(end - 2 * viewW) < 8, `dot 3 lands screen 3 (${Math.round(end)} vs ${2 * viewW})`);
+  assert(await filled() === 2, 'and dot 3 is now the filled one');
+  await ctx.close();
+}
+
+console.log('== item 3: the funfair\'s fourth dot lands the bandstand, music and all ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) }, settings: { sound: false, music: true, voice: false, content: 'full', requests: false } }), { area: 'funfair' });
+  await sleep(1400);
+  const before = await page.evaluate(() => window.__townLife.zoneMusic());
+  assert(before !== 'band', `the band is not playing from the gate (${before})`);
+  await page.evaluate(() => window.__townLife.tapDot(3));
+  await sleep(1000);
+  const box = await page.evaluate(() => {
+    const n = document.querySelector('.ff-bandstand'); if (!n) return null;
+    const v = document.querySelector('.t-viewport').getBoundingClientRect(); const r = n.getBoundingClientRect();
+    return { inView: r.right > v.left && r.left < v.right, centred: Math.abs((r.left + r.width / 2 - v.left) / v.width - 0.5) };
+  });
+  assert(box && box.inView, 'the bandstand is in view');
+  assert(box && box.centred <= 0.2, `and centred ±20% (off by ${box && box.centred.toFixed(3)})`);
+  const after = await page.evaluate(() => window.__townLife.zoneMusic());
+  assert(after === 'band', `its music takes over (${after})`);
+  // The bandstand dot is a deviation from the pack's even geometry (see RUN21D-PROGRESS.md),
+  // so its own dot-state has to stay coherent: standing at the bandstand fills dot 4, and
+  // every other screen still fills its own dot.
+  const dots = await page.evaluate(() => window.__townLife.dots());
+  assert(dots[3].sel === true, 'standing at the bandstand fills dot 4');
+  const viewW = await page.evaluate(() => document.querySelector('.t-viewport').clientWidth);
+  for (const [screen, want] of [[0, 0], [1, 1], [2, 2], [3, 3]]) {
+    await page.evaluate(px => window.__townLife.scrollTo(px), screen * viewW);
+    await sleep(100);
+    const f = await page.evaluate(() => window.__townLife.dots().findIndex(d => d.sel));
+    assert(f === want, `funfair screen ${screen + 1} fills dot ${want + 1} (got ${f + 1})`);
+  }
+  await page.screenshot({ path: `${SHOTS}/item3-funfair-bandstand-dot.png` });
+  await ctx.close();
+}
+
+console.log('== item 3: no dots indoors; one edge shimmer per visit ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('boohouse', boosIn('boohouse', 2, 0.3)) } }), { area: 'boohouse', room: 'lounge' });
+  const dots = await page.evaluate(() => window.__townLife.dots());
+  assert(dots.length === 0, `the Boo House has no landmark dots (${dots.length})`);
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'and no edge shimmer indoors');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow' });
+  const shims = await page.evaluate(() => window.__townLife.edgeShims());
+  assert(shims.length === 1 && /right/.test(shims[0]), `arriving at screen 1: one shimmer, on the right (${JSON.stringify(shims)})`);
+  await page.screenshot({ path: `${SHOTS}/item3-edge-shimmer.png` });
+  await sleep(6000);
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'it lets go on its own');
+  // …and it does not come back later in the same visit
+  await page.evaluate(() => window.__townLife.scrollTo(0));
+  await sleep(400);
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'once per visit, not once per scroll');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow', reduced: 'reduce' });
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'REDUCED: no edge shimmer at all');
+  const dots = await page.evaluate(() => window.__townLife.dots());
+  assert(dots.length === 4, 'REDUCED: the dots themselves are still there (they are navigation, not motion)');
+  await ctx.close();
+}
+
 console.log(pageErrors.length ? `PAGE ERRORS: ${JSON.stringify(pageErrors.slice(0, 6))}` : 'no page errors');
 if (pageErrors.length) failed = true;
 await browser.close();
