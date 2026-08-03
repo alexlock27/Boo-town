@@ -1,8 +1,7 @@
 # Pick up here — RUN21 programme, mid-flight (3 Aug 2026)
 
-Live build: **`run21d-20260803`** at https://alexlock27.github.io/Boo-town/
-`main` carries **RUN21A** ("Reach & Truth", 17 items), **RUN21D** ("Alive on Arrival", 5
-items) and **RUN21F F1–F3** (art tools + PROJECT_STATE generator). All verified live.
+Live build: **`run21b-20260803`** at https://alexlock27.github.io/Boo-town/
+`main` carries **RUN21A**, **RUN21B**, **RUN21D** and **RUN21F F1–F4, F7, F10**. RUN21C is at its gate; RUN21E is deferred to a separate session (see `RUN21-programme/RUN21E-HANDOVER.md`).
 
 Reports on main: `RUN21A-REPORT.md`, `RUN21D-REPORT.md` (+ their `*-PROGRESS.md` ledgers).
 Packs live in `RUN21-programme/` (gitignored, private).
