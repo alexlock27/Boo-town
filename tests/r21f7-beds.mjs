@@ -4,7 +4,7 @@
 // INSTRUMENTATION LOGS (house evidence standard), never by ear: setAudioLog() captures every
 // scheduled bed event with its bus and tag, bedInfo() reports the live bus gain and layers,
 // and a `bedtick` line times the scheduler itself so the CPU claim carries a real number.
-// Expected runtime: ~70s (three 12-second cap windows run in parallel contexts).
+// Expected runtime: ~45s (three 12-second cap windows run in parallel contexts).
 import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 let failed = false;

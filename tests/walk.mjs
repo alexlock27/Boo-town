@@ -81,7 +81,21 @@ const note = (m, ok = true) => { if (!ok) failed = true; steps.push(`${ok ? '  o
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 
+// One retry on a boot that never comes up. This cannot mask an app fault: anything the
+// error hooks caught on the failed attempt is already in `errors` and still fails the run.
+// It exists because a local dev server that hiccups after twenty minutes of hammering must
+// not be reported as "the app does not start".
 async function armedPage(viewport) {
+  try {
+    return await bootOnce(viewport);
+  } catch (e) {
+    console.log(`  … boot at ${viewport.name} did not come up (${String(e).split('\n')[0]}) — one retry`);
+    steps.push(`  -- ${viewport.name}: boot retried once`);
+    return await bootOnce(viewport);
+  }
+}
+
+async function bootOnce(viewport) {
   // A FRESH context per viewport: live autosave overwrites a seed dropped into a warm one.
   const ctx = await browser.newContext({ viewport: { width: viewport.w, height: viewport.h } });
   const page = await ctx.newPage();
@@ -103,10 +117,17 @@ async function armedPage(viewport) {
     window.addEventListener('error', e => window.__walkErrors.push('onerror: ' + (e.message || '')));
     window.addEventListener('unhandledrejection', e => window.__walkErrors.push('unhandledrejection: ' + ((e.reason && e.reason.message) || String(e.reason))));
   });
-  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
-  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE);
-  await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 30000 });
+  try {
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 30000 });
+  } catch (e) {
+    // drain the hooks before throwing, so a real app fault is still on the record
+    try { (await page.evaluate(() => window.__walkErrors || [])).forEach(x => errors.push(`[${where}] ${x}`)); } catch {}
+    await ctx.close();
+    throw e;
+  }
   return { ctx, page };
 }
 
@@ -115,9 +136,16 @@ async function arrive(page, area, room) {
   await page.waitForSelector('.town2', { timeout: 15000 });
   await page.waitForFunction(() => window.__townLife, { timeout: 10000 });
   await sleep(500);
-  // A growth reveal legitimately opens on a mount. Dismiss it rather than fighting it.
-  const reveal = await page.$('.overlay.growth-reveal .btn');
-  if (reveal) { await reveal.click(); await sleep(350); }
+  // Reveals legitimately open on a mount: a growth reveal, the Funfair's grand opening, the
+  // "look how the fair has grown" catch-up. Each is one acknowledge button and they can
+  // stack. Dismiss up to three rather than fighting them — or every funfair screenshot in
+  // this walk is a photograph of a modal instead of the fair.
+  for (let i = 0; i < 3; i++) {
+    const ack = await page.$('.overlay.growth-reveal .btn, .overlay.funfair-grand .fg-go, .overlay .btn');
+    if (!ack) break;
+    await ack.click();
+    await sleep(700);
+  }
 }
 
 // One real-mouse visit: tap a placement (opens its little menu), close it, then a short
