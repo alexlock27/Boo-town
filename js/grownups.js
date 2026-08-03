@@ -422,7 +422,12 @@ export function mount(container, params, ctx) {
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },
-    { id: 'data',     label: 'Backup & data', cards: [backup, visitCard, diagnostics(), ...journalCards(), reset] }
+    // F6: its own tab, and BEFORE 'data' — a grown-up who has just been told "that's a Town
+    // Postcard for visiting" should find visiting by reading the tab strip, not by scrolling
+    // past the whole backup card; and RUN6 C0.2's rule (Settings first, Backup & data last)
+    // still holds, tab for tab.
+    { id: 'visit',    label: 'Visit a Town', cards: [visitCard] },
+    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), ...journalCards(), reset] }
   ];
   const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });
   const panels = el('div', { class: 'gu-panels' });
