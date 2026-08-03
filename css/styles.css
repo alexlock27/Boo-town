@@ -6740,7 +6740,9 @@ html.bigger-text { --vz: 1.125; }
   border: 3px solid var(--star); box-shadow: 0 0 12px var(--star), inset 0 0 8px rgba(255,201,60,0.5);
   pointer-events: none; opacity: 0; transition: opacity 120ms ease-out; z-index: 40;
 }
-.t-slot-glow.show { opacity: 1; animation: slot-pulse 1.1s ease-in-out infinite; }
+/* RUN21B-4 restates the ring: 70% opacity, soft 900ms pulse. It sits UNDER the dragged
+   item, so at full opacity it competed with the thing she is carrying. */
+.t-slot-glow.show { opacity: 0.7; animation: slot-pulse 900ms ease-in-out infinite; }
 @keyframes slot-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { .t-slot-glow.show { animation: none; } }
 

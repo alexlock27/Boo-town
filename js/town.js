@@ -3562,7 +3562,7 @@ export function mount(container, params, ctx) {
         onTap(wrap, place, item);
       }
     });
-    wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); });
+    wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); clearSlotGlow(); });   // RUN21B-4
   }
 
   function onTap(wrap, place, item) {
@@ -4060,11 +4060,21 @@ export function mount(container, params, ctx) {
     const ly = cy - LIFT;
     liftGhost.style.left = cx + 'px'; liftGhost.style.top = ly + 'px';
     const r = viewport.getBoundingClientRect();
-    if (ly >= r.top && ly <= r.bottom) { const { zi, x } = zoneAndXAt(clientToWorld(cx)); showDropPreview(liftGhost, zi, x, rowAtClient(ly)); }
-    else hideDropPreview(liftGhost);
+    if (ly >= r.top && ly <= r.bottom) {
+      const { zi, x } = zoneAndXAt(clientToWorld(cx));
+      showDropPreview(liftGhost, zi, x, rowAtClient(ly));
+      // RUN21B-4: THE slot glow was wired to the two rarest gestures and not to this one —
+      // lifting a chip out of the drawer is how a child actually carries a lamp to a table,
+      // and the pointer is captured by the strip, so the viewport's own move handler never
+      // sees it. Aim at ly (the point endChipLift places from), so the ring marks the spot
+      // the item will really land on.
+      if (isSmall(holding)) showSlotGlow(nearestFreeSlot(cx, ly)); else clearSlotGlow();
+    }
+    else { hideDropPreview(liftGhost); clearSlotGlow(); }
   }
   function endChipLift(cx, cy) {
     hideDropPreview(liftGhost);
+    clearSlotGlow();
     if (liftGhost) { liftGhost.remove(); liftGhost = null; }
     const ly = cy - LIFT;
     const r = viewport.getBoundingClientRect();
@@ -4073,6 +4083,7 @@ export function mount(container, params, ctx) {
   }
   function cancelChipLift() {
     hideDropPreview(liftGhost);
+    clearSlotGlow();   // RUN21B-4: a cancelled lift must not leave a ring pulsing on screen
     if (liftGhost) { liftGhost.remove(); liftGhost = null; }
   }
 
