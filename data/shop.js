@@ -31,8 +31,14 @@ export const SHELVES = [
       // they are not repriced here; the shelf stocks what the shop can genuinely sell.
       ['deco_lamppost', 20], ['deco_signpost', 12],
       ['deco_bench', 16], ['deco_picnic', 14], ['deco_pond', 40], ['deco_fountain', 55],
-      ['deco_flowers', 10], ['deco_toadstool', 8], ['deco_tree', 18], ['deco_campfire', 22]
-    ]
+      ['deco_flowers', 10], ['deco_toadstool', 8], ['deco_tree', 18], ['deco_campfire', 22],
+      // RUN21C-4: the Paths group. Maths stars, because the shelf-currency contract is what
+      // decides this and the Town shelf is maths — noted as an intended deviation from the
+      // ledger's "creative-star" line, in the pack itself. stone/sand/flower stay free.
+      ['path_brick', 6], ['path_stepping', 6], ['path_rainbow', 10]
+    ],
+    // Cards whose item kind is 'path' are shown under their own "Paths" heading (js/shop.js).
+    groups: [{ id: 'paths', label: 'Paths', kind: 'path' }]
   },
   {
     id: 'playground', label: 'Playground', currency: 'puzzle',

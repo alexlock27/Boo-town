@@ -4457,6 +4457,39 @@ body.care-teaching .intro-overlay { z-index: 12500; }
     radial-gradient(circle at 6px 5px, rgba(255,255,255,0.40) 0 1px, transparent 1.5px);
   background-size: 11px 9px, 17px 13px;
 }
+/* RUN21C-4's three bought styles. Render specs are binding (pack item 4). */
+.t-path-run.path-brick {
+  background-color: #C9714B;
+  background-image:
+    /* the mortar: vertical joints every 26px, horizontal courses every 6px */
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(42,27,78,0.22) 23px 26px),
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(42,27,78,0.22) 5px 6px),
+    linear-gradient(#E08D63, #E08D63);
+  box-shadow: inset 0 0 0 2px rgba(42,27,78,0.12);
+}
+/* the RUNNING bond: the lower courses take their joints half a brick along, so the
+   vertical joints never line up all the way down the path. */
+.t-path-run.path-brick::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background-image: repeating-linear-gradient(90deg, transparent 0 23px, rgba(42,27,78,0.22) 23px 26px);
+  background-position: 13px 0;
+  clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%);
+}
+/* spaced oval stones with the GRASS showing between them: no base colour at all */
+.t-path-run.path-stepping {
+  background-color: transparent;
+  background-image:
+    radial-gradient(ellipse 11px 5px at 15px 5px, rgba(42,27,78,0.20) 0 99%, transparent 100%),
+    radial-gradient(ellipse 11px 5px at 15px 4px, #C7C2B8 0 99%, transparent 100%);
+  background-size: 34px 11px;
+}
+/* a soft three-band repeating wash */
+.t-path-run.path-rainbow {
+  background-color: #FFE39A;
+  background-image: repeating-linear-gradient(0deg,
+    #FFB3C7 0 4px, #FFE39A 4px 8px, #A9D8F5 8px 12px);
+  box-shadow: inset 0 0 0 2px rgba(42,27,78,0.10);
+}
 .t-path-run.path-flower {
   background-color: #DCEFC6;
   background-image:
@@ -5387,6 +5420,16 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .t-tool-btn.sel { background: var(--pop); color: var(--ink); border-color: var(--ink); box-shadow: 0 0 0 3px var(--ink); }
 .t-tool-btn .tool-ic { font-size: 24px; line-height: 1; }
 .t-tool-btn .tool-lbl { font-family: var(--font-display); font-size: 12px; font-weight: 700; line-height: 1.1; text-align: center; }
+
+/* RUN21C-4: an unowned style still shows in the row, dimmed, with its shelf price. Tapping
+   it is a DOOR — it routes to the shop with the card ringed — never a refusal. */
+.t-style-btn.locked { opacity: 0.55; filter: saturate(0.45); }
+.t-style-btn.locked .style-lock {
+  position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%);
+  background: var(--ink); color: var(--card); border-radius: 9px; padding: 1px 6px;
+  font-family: var(--font-display); font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.t-style-btn { position: relative; }
 
 /* RUN21C-2: docked above the drawer, centred, only while the Path Pot is in her hand. It
    sits at the bottom of the VIEWPORT — the drawer is the next sibling down in the town's
@@ -6936,6 +6979,10 @@ html.bigger-text { --vz: 1.125; }
 }
 .sd-slot { font-size: 12.5px; color: var(--ink); opacity: 0.8; }
 .sd-for-room { font-size: 12px; color: var(--ink); opacity: 0.65; }   /* RUN21A-2 */
+/* RUN21C-4 — a shelf GROUP (the Town shelf's "Paths"), in the same visual language as the
+   dressings' room chips, and the one-line blurb a path style's card carries. */
+.shop-group { margin-top: 16px; }
+.sc-blurb { font-size: 12px; line-height: 1.25; color: var(--ink); opacity: 0.75; margin: 2px 0 0; }
 /* RUN19 Z6: the card a Decorate-tab deep-link just brought her to. */
 .shop-card.sc-highlight { outline: 4px solid var(--star); outline-offset: 2px; animation: sc-highlight 900ms ease-out 2; }
 @keyframes sc-highlight { 0%,100% { transform: none; } 50% { transform: scale(1.04); } }

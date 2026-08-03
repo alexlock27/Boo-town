@@ -256,6 +256,17 @@ export const CATALOGUE = [
   { id: 'acc_set_astronaut', kind: 'accessory', slot: 'set', name: 'Astronaut Costume', rarity: 'ultra', art: 'astrohelmet', pieces: { hat: 'astrohelmet', feet: 'astroboots' }, idle: 'moonbounce', walk: 'lowgravity', blurb: 'Helmet sealed, boots heavy, gravity strictly optional.' },
   { id: 'acc_set_pirate',    kind: 'accessory', slot: 'set', name: 'Pirate Costume',    rarity: 'ultra', art: 'piratehat',  pieces: { hat: 'piratehat', face: 'eyepatch' }, idle: 'spyglass', walk: 'swagger', blurb: 'Hat on, patch down, and a wave for every passing friend.' },
 
+  // --- RUN21C-4: PATH STYLES. kind:'path' is not a thing she places — it is a way of
+  // laying a path, bought once and hers forever, which is why it is the one kind with no
+  // count, no drawer chip and no place in the collection grid. Owning one is a single
+  // `inventory` entry, so no save-schema change and no VERSION bump: the shop's existing
+  // buyItem() is the whole purchase route. stone / sand / flower stay free and are not
+  // listed here at all — they have never been anything to own.
+  // Blurb transcribed EXACTLY from the pack; all three share it.
+  { id: 'path_brick',    kind: 'path', name: 'Brick Path',      rarity: 'common', style: 'brick',    shopOnly: true, blurb: 'A new way to lay your paths — yours forever once it’s yours.' },
+  { id: 'path_stepping', kind: 'path', name: 'Stepping Stones', rarity: 'common', style: 'stepping', shopOnly: true, blurb: 'A new way to lay your paths — yours forever once it’s yours.' },
+  { id: 'path_rainbow',  kind: 'path', name: 'Rainbow Path',    rarity: 'rare',   style: 'rainbow',  shopOnly: true, blurb: 'A new way to lay your paths — yours forever once it’s yours.' },
+
   // --- Free Easel (RUN3 C6): granted with the Studio, never drops from boxes ---
   { id: 'deco_easel', kind: 'deco', name: 'Art Easel', rarity: 'rare', deco: 'easel', free: true, blurb: 'Show off your own artwork in the town!' },
 
@@ -275,7 +286,9 @@ export const BY_ID = Object.fromEntries(CATALOGUE.map(it => [it.id, it]));
 
 // Collectibles (Boos + decorations) fill the collection grid + "found X of N" counter.
 // Accessories are a separate wardrobe (equipped, not counted here).
-export const COLLECTIBLES = CATALOGUE.filter(it => it.kind !== 'accessory' && !it.free);
+// RUN21C-4: a path STYLE is not a collectible either — it is a way of drawing, not a thing
+// you find, so it never joins the "found X of N" grid.
+export const COLLECTIBLES = CATALOGUE.filter(it => it.kind !== 'accessory' && it.kind !== 'path' && !it.free);
 export const ACCESSORIES  = CATALOGUE.filter(it => it.kind === 'accessory');
 export const BIRTHDAY_BOOS = CATALOGUE.filter(it => it.birthdayOnly);
 
@@ -286,6 +299,7 @@ export const BY_TYPE_RARITY = CATALOGUE.reduce((m, it) => {
   // route for living things and rare treasures; these are the whole route for the shop.
   if (it.shopOnly) return m;
   if (it.kind === 'landscape') return m;   // Build-mode toybox items (RUN10 P3) never drop either
+  if (it.kind === 'path') return m;        // RUN21C-4: path styles are shop-only, like their `shopOnly` flag says
   // Furniture (RUN10 P4) joins the box pools "at decoration odds" — bucketed under the
   // same 'deco' type-roll weight, not a separate furniture type/weight of its own.
   const bucketKind = it.kind === 'furniture' ? 'deco' : it.kind;
