@@ -133,6 +133,51 @@ export function layoutFloor(count) {
   return { cells, rail };
 }
 
+// ---- RUN21B item 7: nobody stands on anybody -------------------------------------------
+// layoutFloor above is a PURE spread and stays that way — it is unit-tested and it cannot
+// see pixels. But a fraction is only as good as the box it is a fraction OF: the same 0.144
+// column step is 142px of daylight at 1280 and 55px at 390, while a dancer is 64px wide
+// there. So the spacing has to be decided where the widths are known, and that is a second,
+// width-aware pass over the cells.
+//
+// gapFor(row) is the minimum CENTRE-TO-CENTRE distance that row needs, as a fraction of the
+// dancer container: 0.9 x the dancer's own drawn width (the pack's number), measured at that
+// row's scale. Rows that cannot seat everyone at that distance hand the overflow DOWN to the
+// next row — which is exactly the pack's "overflow rows stagger depth instead of
+// overlapping", since the rows ARE the depth. Anything still homeless goes to the rail,
+// which is where extra guests already stand.
+export function spaceFloor(cells, gapFor, rowCap = FLOOR_ROW_CAPACITY) {
+  const span = COL_MAX - COL_MIN;
+  const queues = FLOOR_ROWS.map(() => []);
+  for (const c of cells) queues[Math.min(c.row, queues.length - 1)].push(c);
+  const out = [];
+  let carry = [];
+  for (let row = 0; row < FLOOR_ROWS.length; row++) {
+    const waiting = carry.concat(queues[row]);
+    carry = [];
+    const gap = Math.max(0, gapFor(row));
+    // How many fit in this row at that distance? +1 because n dancers need n-1 gaps.
+    const fitAtGap = gap > 0 ? Math.floor(span / gap) + 1 : waiting.length;
+    const take = Math.max(1, Math.min(waiting.length, rowCap[row], fitAtGap));
+    const seated = waiting.slice(0, take);
+    carry = waiting.slice(take);
+    // Prefer the authored inset spread (c+1)/(n+1); it keeps dancers off the walls and is
+    // what the room has always looked like. Only when that is too tight do we widen to the
+    // full span, which is the most room this row can possibly offer.
+    const insetStep = span / (take + 1);
+    const wide = insetStep < gap && take > 1;
+    const step = wide ? span / (take - 1) : insetStep;
+    // Jitter is charm, not geometry: keep it only while it cannot eat the gap.
+    const jitterOK = step - 2 * COL_JITTER >= gap;
+    seated.forEach((cell, i) => {
+      const base = wide ? COL_MIN + i * step : COL_MIN + (i + 1) * step;
+      const jitter = jitterOK ? (((cell.index * 53) % 7) / 6 - 0.5) * 2 * COL_JITTER : 0;
+      out.push({ row, col: Math.max(COL_MIN, Math.min(COL_MAX, base + jitter)), index: cell.index });
+    });
+  }
+  return { cells: out, overflow: carry.map(c => ({ index: c.index })) };
+}
+
 export function mount(container, params, ctx) {
   music.stop();
   // RUN19 Z2: "«name» has a wiggle that needs music!" — ANY visit here fulfils it, because
@@ -181,6 +226,7 @@ export function mount(container, params, ctx) {
   }
   let rosterIds = chosenRoster();
   let dancerNodes = [], layout = null, floorNodes = [], railNodes = [];
+  let minGapFrac = 0;   // RUN21B-7: the measured 0.9x-Boo-width gap, as a container fraction
 
   // ---- RUN19 Z1: place onto the floor's projected-cell table, overflow to the rail ----
   // Rebuildable (buildFloor), so a guest-list change re-lays the floor live.
@@ -196,13 +242,34 @@ export function mount(container, params, ctx) {
         title: getDisplayName(id)
       }, [el('div', { html: renderItem(item, { size: 104, equipArt: equippedArt(id) }) })]);
     });
-    layout = layoutFloor(dancerNodes.length);
+    const spread = layoutFloor(dancerNodes.length);
+    // Attach first, position second: the dancer's drawn width is a CSS clamp on the
+    // viewport, so it cannot be known until the node is in the document (RUN21B-7).
+    spread.cells.forEach(cell => {
+      const node = dancerNodes[cell.index];
+      node.dataset.row = String(cell.row);
+      node.style.setProperty('--row-scale', FLOOR_ROWS[cell.row].scale);
+      dancers.appendChild(node);
+    });
+    const boxW = dancers.getBoundingClientRect().width || dancers.clientWidth || 0;
+    // One measured dancer is enough — they are all the same CSS box; the row scale is
+    // applied per row rather than measured per node, so an empty row still has a number.
+    const sample = spread.cells.length ? dancerNodes[spread.cells[0].index].getBoundingClientRect().width : 0;
+    const unscaled = sample / (FLOOR_ROWS[spread.cells.length ? spread.cells[0].row : 0].scale || 1);
+    const gapFor = (row) => (boxW > 0 && unscaled > 0)
+      ? (0.9 * unscaled * FLOOR_ROWS[row].scale) / boxW
+      : 0;
+    const spaced = spaceFloor(spread.cells, gapFor);
+    layout = { cells: spaced.cells, rail: spread.rail.concat(spaced.overflow) };
+    minGapFrac = gapFor(0);   // row 0 is the only row the spotlight moves (RUN21B-7)
+
     floorNodes = [];
     layout.cells.forEach(cell => {
       const node = dancerNodes[cell.index];
       node.dataset.row = String(cell.row);
       node.style.left = (cell.col * 100).toFixed(1) + '%';
       node.style.setProperty('--row-scale', FLOOR_ROWS[cell.row].scale);
+      node.classList.remove('disco-rail-dancer');
       dancers.appendChild(node);
       floorNodes.push(node);
     });
@@ -210,6 +277,7 @@ export function mount(container, params, ctx) {
     layout.rail.forEach(r => {
       const node = dancerNodes[r.index];
       node.classList.add('disco-rail-dancer');
+      node.style.left = '';
       rail.appendChild(node);
       railNodes.push(node);
     });
@@ -407,15 +475,33 @@ export function mount(container, params, ctx) {
   // the centre step politely outwards for the eight bars, then step back.
   const CENTRE = 0.5, CENTRE_CLEAR = 0.11, STEP_ASIDE = 0.15;
   function vacateCentre(spotlit) {
-    floorNodes.forEach(n => {
-      if (n === spotlit || n.dataset.row !== '0') return;
-      const cell = layout.cells.find(c => dancerNodes[c.index] === n);
-      if (!cell || Math.abs(cell.col - CENTRE) >= CENTRE_CLEAR) return;
-      const side = cell.col < CENTRE ? -1 : 1;
-      const to = Math.max(COL_MIN, Math.min(COL_MAX, CENTRE + side * STEP_ASIDE));
-      n.dataset.steppedAside = '1';
-      n.style.left = (to * 100).toFixed(1) + '%';
+    // RUN21B-7: this used to nudge each crowded dancer to a FIXED column (0.35 / 0.65),
+    // which is not enough once the spotlit dancer has itself taken the centre: at 1280 a
+    // neighbour left at 0.572 sits 71px from a spotlit Boo at 0.5, and a Boo is 129px wide.
+    // Nudging one at a time cannot fix that — whichever way you move it, someone is close.
+    // So row 0 RE-SPREADS around the spotlight instead: everyone keeps their side, and is
+    // laid out from the centre outwards at the same measured gap the floor was built with.
+    // Five dancers at 0.117 apart need 0.47 of a 0.72 span, so there is room; the clamp is
+    // only insurance for a very narrow phone.
+    const gap = Math.max(minGapFrac, 0.06);
+    const mates = floorNodes
+      .filter(n => n !== spotlit && n.dataset.row === '0')
+      .map(n => ({ n, col: (layout.cells.find(x => dancerNodes[x.index] === n) || {}).col }))
+      .filter(m => m.col != null);
+    if (!mates.length) return;
+    const left = mates.filter(m => m.col < CENTRE).sort((a, b) => b.col - a.col);   // inner first
+    const right = mates.filter(m => m.col >= CENTRE).sort((a, b) => a.col - b.col);
+    const park = (list, side) => list.forEach((m, i) => {
+      const want = CENTRE + side * gap * (i + 1);
+      const to = Math.max(COL_MIN, Math.min(COL_MAX, want));
+      // Only actually move the ones the spotlight crowds; anyone already further out than
+      // this keeps their authored column, so the room does not reshuffle for no reason.
+      if (Math.abs(m.col - CENTRE) >= Math.abs(to - CENTRE) - 1e-6) return;
+      m.n.dataset.steppedAside = '1';
+      m.n.style.left = (to * 100).toFixed(1) + '%';
     });
+    park(left, -1);
+    park(right, 1);
   }
 
   function routines() {
@@ -634,6 +720,7 @@ export function mount(container, params, ctx) {
     tileHues: () => tiles.map(tile => tile.style.getPropertyValue('--tile-hue')),
     reduced: () => REDUCED,
     floorLayout: () => layout,
+    floorGap: () => minGapFrac,   // RUN21B-7
     floorCount: () => floorNodes.length,
     railCount: () => railNodes.length,
     // the guest list (v20)
