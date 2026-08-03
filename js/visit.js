@@ -178,6 +178,16 @@ export function snapshotFromPostcard(pc, own = getState()) {
 // (world map ↔ area ↔ room) without each screen having to draw it. `body.visiting` is what
 // makes room for it — see css/styles.css.
 let bannerEl = null;
+let bannerResize = null;
+// The banner's own height, published to the stylesheet so `.screen-root` starts exactly
+// below it. It is measured rather than hard-coded because the line WRAPS on a phone (the
+// authored sentence must never be cut off) and because "Bigger text" zooms the whole page:
+// either can change the height, and a magic number in the CSS would then either overlap the
+// screen's header or leave a stripe of nothing.
+function syncBannerHeight() {
+  if (!bannerEl) return;
+  document.documentElement.style.setProperty('--visit-banner-h', Math.ceil(bannerEl.getBoundingClientRect().height) + 'px');
+}
 function showBanner(ctx) {
   if (bannerEl) return bannerEl;
   const leave = el('button', {
@@ -190,11 +200,17 @@ function showBanner(ctx) {
   ]);
   document.body.appendChild(bannerEl);
   document.body.classList.add('visiting');
+  syncBannerHeight();
+  requestAnimationFrame(syncBannerHeight);   // …and again once the font has settled
+  bannerResize = () => syncBannerHeight();
+  window.addEventListener('resize', bannerResize);
   return bannerEl;
 }
 function hideBanner() {
+  if (bannerResize) { window.removeEventListener('resize', bannerResize); bannerResize = null; }
   if (bannerEl) { try { bannerEl.remove(); } catch {} bannerEl = null; }
   document.body.classList.remove('visiting');
+  document.documentElement.style.removeProperty('--visit-banner-h');
 }
 export function visitBanner() { return bannerEl; }
 

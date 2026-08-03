@@ -557,7 +557,11 @@ export function isVisiting() { return !!visitHeld; }
 export function beginVisit(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return false;
   if (visitHeld) endVisit();
-  commit();                      // her last write, BEFORE the swap (commit is gated after it)
+  // Flush a save of HERS that is still on the 2s debounce, so nothing she just did is left
+  // riding on a tab that might close mid-visit. ONLY when one is actually pending: commit()
+  // restamps `lastPlayed`, and a visit that had no reason to write must leave her save
+  // byte-for-byte alone — which is exactly what the ACCEPT's unchanged hash measures.
+  if (saveTimer) commit();
   visitHeld = { real: state };
   state = snapshot;
   return true;

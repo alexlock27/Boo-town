@@ -7277,26 +7277,29 @@ html.bigger-text { --vz: 1.125; }
    Ink on --star: 11.5:1, comfortably past AA at every size.
    ========================================================================== */
 .visit-banner {
-  position: fixed; top: 0; left: 0; right: 0; height: 54px; z-index: 9000;
+  position: fixed; top: 0; left: 0; right: 0; min-height: 54px; z-index: 9000;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 0 12px; background: var(--star); color: var(--ink);
+  padding: 5px 12px; background: var(--star); color: var(--ink);
   border-bottom: 3px solid var(--ink); box-shadow: 0 3px 10px rgba(20,12,48,0.28);
 }
 .visit-banner-line {
   font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.15;
-  color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink); min-width: 0;
 }
 .visit-leave.btn.soft {
   flex: none; min-height: 44px; min-width: 44px; padding: 8px 22px; font-size: 18px;
   background: var(--card); color: var(--ink); border: 3px solid var(--ink);
   box-shadow: 0 3px 0 rgba(42,27,78,0.35);
 }
-body.visiting .screen-root { top: 54px; }
+/* js/visit.js measures the banner and publishes --visit-banner-h; the fallback is the
+   min-height above, for the one frame before it lands. */
+body.visiting .screen-root { top: var(--visit-banner-h, 54px); }
 @media (max-width: 600px), (max-height: 500px) {
-  .visit-banner { height: 48px; padding: 0 8px; gap: 8px; }
-  .visit-banner-line { font-size: 15px; }
+  /* the authored sentence is never cut off — on a phone it takes two lines and the banner
+     grows to fit, which is why the offset above is measured rather than a constant. */
+  .visit-banner { padding: 5px 8px; gap: 8px; }
+  .visit-banner-line { font-size: 14px; line-height: 1.2; }
   .visit-leave.btn.soft { padding: 6px 16px; font-size: 16px; }
-  body.visiting .screen-root { top: 48px; }
 }
 
 /* the paste box in the Grown-ups corner */

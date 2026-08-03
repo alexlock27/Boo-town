@@ -3889,6 +3889,11 @@ export function mount(container, params, ctx) {
   function hideDropPreview(dragEl) { if (dragEl) dragEl.classList.remove('invalid-drop'); dropGhost.classList.remove('show'); }
 
   function placeAtClient(cx, cy) {
+    // F6: the one function every "put a new thing here" path ends in — the chip lift, the
+    // tap-to-place, the shop's handoff and the QA hook. state.js already makes the push
+    // itself inert; refusing here as well means an attempted placement in a friend's town
+    // does not even get as far as the drop ghost.
+    if (READONLY) return;
     const { zi, x } = zoneAndXAt(clientToWorld(cx));
     if (!canPlaceIn(zi)) { flashLocked(zi); return; }
     const heldItem = resolveItem(holding);
