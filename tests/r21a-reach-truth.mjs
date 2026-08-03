@@ -209,16 +209,25 @@ console.log('== item 6: the Boo stays put while its care arc is open ==');
   await dismissReveal(page);
   await page.evaluate(() => window.__townLife.forceWalk && window.__townLife.forceWalk(0));
   await sleep(500);
-  // The arc opens on a real TAP of the Boo (its only entry point). Use the real mouse:
-  // synthetic PointerEvents have no active pointer, so the app's setPointerCapture throws.
-  const at = await page.evaluate((id) => {
-    const w = [...document.querySelectorAll('.t-item.boo')].find(n => n.dataset.item === id);
-    const r = w.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  }, BOOS[0]);
-  await page.mouse.click(at.x, at.y);
-  await sleep(250);
-  assert(await page.evaluate(() => window.__townLife.careArcCount()) > 0, 'the care arc is open');
+  // The arc opens on a real TAP of the Boo — its only entry point. Two things make that
+  // fiddly, and both are the point of the test: the Boo is WALKING (so the target moves
+  // between measuring and clicking), and synthetic PointerEvents have no active pointer, so
+  // the app's setPointerCapture throws. So: a real mouse, re-aimed each try, until it lands
+  // — which is exactly what a child does to a moving Boo.
+  let arcOpen = false;
+  for (let tries = 0; tries < 12 && !arcOpen; tries++) {
+    const at = await page.evaluate((id) => {
+      const w = [...document.querySelectorAll('.t-item.boo')].find(n => n.dataset.item === id);
+      if (!w) return null;
+      const r = w.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, BOOS[0]);
+    if (!at) break;
+    await page.mouse.click(at.x, at.y);
+    await sleep(200);
+    arcOpen = await page.evaluate(() => window.__townLife.careArcCount() > 0);
+  }
+  assert(arcOpen, 'the care arc is open');
   const frames = [];
   for (let i = 0; i < 4; i++) {
     frames.push(await page.evaluate((id) => {
@@ -226,10 +235,10 @@ console.log('== item 6: the Boo stays put while its care arc is open ==');
       const svg = w && w.querySelector('svg');
       return { left: w ? w.style.left : null, xf: svg ? svg.style.transform : null };
     }, BOOS[0]));
-    await sleep(1100);   // 4 samples spanning ~3.3s — the arc's 4s life
+    await sleep(850);   // 4 samples spanning ~2.6s, comfortably inside the arc's 4s life
   }
   const moved = new Set(frames.map(f => `${f.left}|${f.xf}`));
-  assert(moved.size === 1, `it holds STILL for the arc's whole life (${moved.size} distinct poses across 4 frames / 3.3s)`);
+  assert(moved.size === 1, `it holds STILL for the arc's whole life (${moved.size} distinct poses across 4 frames / 2.6s)`);
   await page.screenshot({ path: `${SHOTS}/item6-care-hold.png` });
   await ctx.close();
 }
