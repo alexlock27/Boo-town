@@ -9,7 +9,8 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
 - [x] Item 1 — Sixty standalone wish artworks (all 60 in `WISH_ART`; evidence:
       `_evidence/run21b/all60-meadow.png`, `all60-room.png`, `all60-silhouette.png`;
       r20-wishlife + r10p20-wishwell + r18b-wish-arrives all still green)
-- [ ] Item 2 — Ambient life per class (FLIER / BOB / STEAM / GLEAM)
+- [x] Item 2 — Ambient life per class (FLIER / BOB / STEAM / GLEAM) — added as a SEPARATE
+      axis from `cls`; see deviation 6
 - [ ] Item 3 — Proportion re-baseline (furniture measured against Boo height B)
 - [x] Item 4 — Slot glow visible (root cause was NOT layering — see deviation 5;
       evidence `_evidence/run21b/item4-glow-indoor-table.png`, `item4-glow-indoor-bookshelf.png`)
@@ -66,6 +67,25 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
      a surface parent anywhere. Adding one would be new scope (a new placement surface), and
      RUN21E item E9 "Surfaces wave two" is the pack that owns adding parents. Verified on
      the two real surface classes instead (a table and a bookshelf) and flagged for E9.
+
+6. **Item 2's premise was false, and following it literally would have broken taps.**
+   - Pack: "the wish idle runner in town.js". There is no such runner — wishes never become
+     actors (`makeActor` is gated on `item.kind === 'boo'`), and no loop, timer or scheduler
+     for wish idles existed anywhere. One had to be built.
+   - Pack: treats FLIER/BOB/STEAM/GLEAM as classes to assign. But `cls` IS THE TAP
+     DISPATCHER — town.js switches on it to pick the verb — so re-classing butterfly (FLYER),
+     teapot (TAP/steam), crown (TAP/crown), key (TAP/jiggle) or lamp (TAP/lightCone) would
+     have silently deleted their tap responses, contradicting the pack's own "Existing tap
+     verbs unchanged" in the same paragraph. It would also have failed two structural
+     assertions in tests/r20-wishlife.mjs.
+   - What I did: added `WISH_IDLE` as a SEPARATE table beside the untouched `cls` table, and
+     a second class token `wishidle-*` beside the `wish-<cls>` the verbs bind to. Idle and
+     tap are two different questions about the same object; they now have two fields.
+   - Also: the wisp is `wish-wisp`, not `wish-steam` — that class already exists as the
+     teapot's TAP pose and would have collided silently.
+   - Judgement logged: `crown` is in the pack's GLEAM list but is `cls: TAP`; it gets the
+     GLEAM *idle* while keeping its crown verb. `balloon` is `cls: FLYER` but is NOT in the
+     pack's FLIER list, so it gets no new idle — left as the pack has it.
 
 ## Session notes
 - Wish art lives in `renderWish()` (js/art.js ~1670), shared 120×130 deco viewBox, caption
