@@ -39,8 +39,9 @@ import { wishId, wishItem, LIVING_WISHES } from '../data/wishes.js';
 // RUN20 W1 — wish life. The table says which of the nine classes each of the sixty wishes
 // gets; js/wishlife.js is the machinery they share.
 import { WISH_LIFE, lifeFor, classOf, isOutdoorOnly, INDOOR_TIP, SKY_BAND, CATCHABLE } from '../data/wishlife.js';
-import { wordOfWishId, isWish, wishClass, wishLife, wishNeedsSky, createSoundBudget, newVisit,
+import { wordOfWishId, isWish, wishClass, wishIdleClass, wishLife, wishNeedsSky, createSoundBudget, newVisit,
          maydaySay, skyYFor, skyDriftX, bandOfHour, bandAllows, chooseDiner, tallestNear, crownPick } from './wishlife.js';
+import { WISH_IDLE_EPISODIC, WHALE_SPOUT_MS, WISH_IDLE_SCENE_PER_MIN } from '../data/wishlife.js';
 
 // Area list, positions and unlock thresholds now live in js/areas.js (RUN10 P1) — the
 // world map is the only place that knows about all 8 areas at once. town.js mounts ONE
@@ -1441,6 +1442,12 @@ export function mount(container, params, ctx) {
       const newClass = 't-item' + (item.kind === 'boo' ? ' boo' : '') + (onWall ? ' on-wall' : '')
         + (onSurface ? ' on-surface' : '') + (onSky ? ' on-sky' : '')
         + (isWish(t.item) ? ' t-wish wish-' + (wishClass(t.item) || 'none').toLowerCase() : '')
+        // RUN21B-2: the ambient idle rides on its own token, so it can never disturb the
+        // wish-<cls> token the tap verbs and RUN20's behaviours bind to. The continuous
+        // idles (FLIER, BOB) are pure CSS on this class; the episodic ones are paced by
+        // pumpWishIdles below. Recomputed here every render, which is also how the owl's
+        // night gate re-evaluates as the clock rolls over.
+        + (isWish(t.item) ? ' wishidle-' + (wishIdleClass(t.item, isNight(currentHour())) || 'none').toLowerCase() : '')
         + (bff ? ' care-bff' : '');
       if (wrap.className !== newClass) wrap.className = newClass;
 
@@ -3715,6 +3722,68 @@ export function mount(container, params, ctx) {
   function sparkleAtNode(node) {
     try { const b = node.getBoundingClientRect(); sparkleAt(b.left + b.width / 2, b.top + b.height / 2); } catch {}
   }
+
+  // ---- RUN21B-2: episodic wish idles ------------------------------------------------------
+  // The continuous idles (FLIER, BOB) are CSS loops on the wishidle-* class and cost nothing
+  // to schedule. These are the ones that happen NOW AND THEN, so they need pacing: a wisp of
+  // steam every 20-30s, a sparkle pass every 25-40s, the whale's spout once every 45s.
+  //
+  // Two caps, both modelled on the species-idle pattern (maybeIdle): a per-item next-due time
+  // kept on the wrap, and one shared rolling-minute scene cap so a room full of teapots never
+  // becomes weather. REDUCED never idles at all — the static pose IS the reduced experience.
+  let wishIdleLog = [];
+  function wishIdleDue(wrap, now, cls) {
+    if (wrap._wishIdleNextAt == null) {
+      // Stagger first-due across the scene so everything placed in one go does not fire in
+      // lockstep on the same tick.
+      const [lo, hi] = cls === 'WHALE' ? [WHALE_SPOUT_MS, WHALE_SPOUT_MS] : (WISH_IDLE_EPISODIC[cls] || [25000, 40000]);
+      wrap._wishIdleNextAt = now + lo * 0.3 + Math.random() * (hi - lo * 0.3);
+      return false;
+    }
+    return now >= wrap._wishIdleNextAt;
+  }
+  function armNextWishIdle(wrap, now, cls) {
+    const [lo, hi] = cls === 'WHALE' ? [WHALE_SPOUT_MS, WHALE_SPOUT_MS] : (WISH_IDLE_EPISODIC[cls] || [25000, 40000]);
+    wrap._wishIdleNextAt = now + lo + Math.random() * Math.max(0, hi - lo);
+  }
+  function playWishIdle(wrap, cls) {
+    const svg = wrap.querySelector('svg');
+    if (cls === 'GLEAM') { sparkleAtNode(wrap); return true; }
+    if (cls === 'STEAM' || cls === 'WHALE') {
+      // A wisp: three soft pips rising off the top of the thing. Named wish-wisp, NOT
+      // wish-steam — that class already exists as the teapot's TAP pose and would collide.
+      for (let i = 0; i < 3; i++) {
+        const pip = el('i', { class: 'wish-wisp' + (cls === 'WHALE' ? ' wish-wisp-spout' : '') });
+        pip.style.left = (34 + i * 14) + '%';
+        pip.style.animationDelay = (i * 180) + 'ms';
+        wrap.appendChild(pip);
+        setTimeout(() => pip.remove(), 1800 + i * 180);
+      }
+      if (svg) { svg.classList.remove('wish-wobble'); void svg.offsetWidth; svg.classList.add('wish-wobble'); setTimeout(() => svg.classList.remove('wish-wobble'), 740); }
+      return true;
+    }
+    return false;
+  }
+  function pumpWishIdles() {
+    if (REDUCED) return;
+    const now = performance.now();
+    wishIdleLog = wishIdleLog.filter(t => now - t < 60000);   // the rolling minute
+    for (const wrap of ground.querySelectorAll('.t-wish')) {
+      if (wishIdleLog.length >= WISH_IDLE_SCENE_PER_MIN) break;   // scene cap, shared
+      if (wrap.style.display === 'none') continue;
+      const id = wrap.dataset.item;
+      const word = wordOfWishId(id);
+      const idle = wishIdleClass(id, isNight(currentHour()));
+      // The whale is a BOB that also spouts; its spout is on its own 45s clock.
+      const cls = (word === 'whale') ? 'WHALE' : idle;
+      if (cls !== 'STEAM' && cls !== 'GLEAM' && cls !== 'WHALE') continue;
+      // offscreen things do not perform (the same courtesy stepActors extends to actors)
+      const px = parseFloat(wrap.style.left) - scrollX;
+      if (px < -140 || px > viewW + 140) continue;
+      if (!wishIdleDue(wrap, now, cls)) continue;
+      if (playWishIdle(wrap, cls)) { wishIdleLog.push(now); armNextWishIdle(wrap, now, cls); }
+    }
+  }
   // Twiggy, in the world — shown and spoken, so a voice-off house gets the same moment.
   function sayInWorld(text) {
     speakMaybe(text);
@@ -4821,6 +4890,11 @@ export function mount(container, params, ctx) {
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
   // eventually curl back up, and day/night transitions take hold (RUN4 C5).
   const roleTimer = setInterval(() => { if (!document.hidden) assignRoles(); }, 4000);
+  // RUN21B-2: the EPISODIC wish idles — a teapot's wisp, a trophy's sparkle, the whale's
+  // spout. The continuous ones (FLIER's figure-8, BOB's rise and fall) are CSS loops and
+  // need no clock. This one paces the rest against a shared scene cap, so a Meadow full of
+  // teapots stays a place rather than a fireworks display.
+  const wishIdleTimer = setInterval(() => { if (!document.hidden && !buildMode) pumpWishIdles(); }, 2000);
   // RUN13 T4: a placed wall clock keeps real time — hands only, no re-render of the item.
   const clockTimer = setInterval(() => {
     if (document.hidden) return;
@@ -5010,6 +5084,17 @@ export function mount(container, params, ctx) {
       litLamps: () => [...ground.querySelectorAll('.t-item.lit')].map(n => n.dataset.item),
       // RUN13 T5 QA hooks: idles and the behaviour-changing accessories.
       idleCaps: () => ({ minGapMs: IDLE_MIN_GAP_MS, maxPerMin: IDLE_MAX_PER_MIN, sceneCap: IDLE_SCENE_CAP, ms: IDLE_MS }),
+      // RUN21B-2: the ambient wish idles.
+      wishIdleCaps: () => ({ scenePerMin: WISH_IDLE_SCENE_PER_MIN, episodic: WISH_IDLE_EPISODIC, whaleMs: WHALE_SPOUT_MS }),
+      wishIdleLog: () => wishIdleLog.slice(),
+      wishIdles: () => [...ground.querySelectorAll('.t-wish')].map(w => ({
+        item: w.dataset.item,
+        idle: (String(w.className).match(/wishidle-(\w+)/) || [, 'none'])[1],
+        anim: (() => { const s = w.querySelector('svg'); return s ? getComputedStyle(s).animationName : null; })(),
+        nextAt: w._wishIdleNextAt == null ? null : Math.round(w._wishIdleNextAt - performance.now())
+      })),
+      pumpWishIdles: () => pumpWishIdles(),
+      wisps: () => ground.querySelectorAll('.wish-wisp').length,
       idleFor: (i) => { const a = actors[i]; return a ? { species: (a.item && a.item.species) || null, blink: IDLE_BLINK, flavour: SPECIES_IDLE[(a.item && a.item.species) || 'bloop'] } : null; },
       forceIdle: (i, which) => { const a = actors[i]; if (!a) return null; a.idleNextAt = 0; a.idleUntil = 0; return maybeIdle(a, performance.now(), which || true); },
       tryIdle: (i) => { const a = actors[i]; if (!a) return null; return maybeIdle(a, performance.now()); },
@@ -5138,6 +5223,7 @@ export function mount(container, params, ctx) {
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);
+      clearInterval(wishIdleTimer);   // RUN21B-2
       clearInterval(clockTimer);
       if (starTimer) clearTimeout(starTimer);
       if (pathCommitTimer) clearInterval(pathCommitTimer);

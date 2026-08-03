@@ -6886,9 +6886,45 @@ html.bigger-text { --vz: 1.125; }
 .wish-lit { filter: drop-shadow(0 0 12px var(--star)); }
 .wish-band-off { opacity: 0.88; }
 
+/* ---- RUN21B item 2: ambient life ---------------------------------------------------------
+   Two continuous idles, both transform-only so they cost the compositor and nothing else.
+   These ride on the `wishidle-*` token, which is a separate axis from `wish-<cls>` — the
+   class the tap verbs bind to — so a butterfly can fly AND still respond to a finger.
+   FLIER: a slow figure-8 that stays within ~120px of home, 21s (the pack's 18-24s band).
+   BOB:   a gentle 6px rise and fall, as if the water were breathing under it. */
+.wishidle-flier svg { animation: wish-flier 21s ease-in-out infinite; }
+@keyframes wish-flier {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  12%  { transform: translate(28px, -20px) rotate(5deg); }
+  25%  { transform: translate(52px, -4px) rotate(-3deg); }
+  37%  { transform: translate(28px, 16px) rotate(4deg); }
+  50%  { transform: translate(0, 0) rotate(0deg); }
+  62%  { transform: translate(-28px, -20px) rotate(-5deg); }
+  75%  { transform: translate(-52px, -4px) rotate(3deg); }
+  87%  { transform: translate(-28px, 16px) rotate(-4deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.wishidle-bob svg { animation: wish-bob 3.4s ease-in-out infinite; }
+@keyframes wish-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* The episodic wisp — steam off a teapot, the whale's spout. Named wish-wisp, NOT
+   wish-steam: that class is already the teapot's TAP pose and would collide. */
+.wish-wisp {
+  position: absolute; top: 4%; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--card); opacity: 0; pointer-events: none; z-index: 2;
+  animation: wish-wisp 1.6s ease-out forwards;
+}
+.wish-wisp.wish-wisp-spout { background: #BFE6FF; width: 12px; height: 12px; }
+@keyframes wish-wisp {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  25%  { opacity: 0.85; }
+  100% { opacity: 0; transform: translateY(-34px) scale(1.5); }
+}
+
 /* Reduced motion: the pose stays, the motion goes — a wish you can still poke is calm, not off. */
 @media (prefers-reduced-motion: reduce) {
   .t-item.on-sky, .wish-sky, .wish-sway svg, .wish-gleam svg,
+  .wishidle-flier svg, .wishidle-bob svg, .wish-wisp,
   .wish-wobble, .wish-wobble2, .wish-hop, .wish-launch, .wish-glint,
   .wish-steam, .wish-peek, .wish-sparkle, .wish-unroll, .wish-jiggle, .wish-popLid,
   .wish-tryOn, .wish-roll, .wish-peekaboo, .wish-sniff, .wish-stretchRoar, .wish-ring { animation: none !important; }

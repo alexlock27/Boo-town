@@ -14,13 +14,21 @@
 //
 // The town owns the DOM and the actor loop; this module owns the decisions.
 
-import { lifeFor, classOf, SKY_BAND, SKY_DRIFT_X, SKY_DRIFT_MS, SOUND_GAP_MS, AREA_SOUND_GAP_MS, isOutdoorOnly } from '../data/wishlife.js';
+import { lifeFor, classOf, idleOf, WISH_IDLE_NIGHT_ONLY, SKY_BAND, SKY_DRIFT_X, SKY_DRIFT_MS, SOUND_GAP_MS, AREA_SOUND_GAP_MS, isOutdoorOnly } from '../data/wishlife.js';
 
 export const wordOfWishId = (id) => (typeof id === 'string' && id.startsWith('wish_')) ? id.slice(5) : null;
 export const isWish = (id) => !!wordOfWishId(id);
 export const wishClass = (id) => { const w = wordOfWishId(id); return w ? classOf(w) : null; };
 export const wishLife = (id) => { const w = wordOfWishId(id); return w ? lifeFor(w) : null; };
 export const wishNeedsSky = (id) => { const w = wordOfWishId(id); return !!w && isOutdoorOnly(w); };
+// RUN21B-2: the AMBIENT idle class, which is not the same axis as `cls` (the tap verb).
+// `night` gates the owl, whose idle the pack scopes to after dark.
+export const wishIdleClass = (id, night = true) => {
+  const w = wordOfWishId(id);
+  if (!w) return null;
+  if (!night && WISH_IDLE_NIGHT_ONLY.has(w)) return null;
+  return idleOf(w);
+};
 
 // ---- the sound budget ------------------------------------------------------------------
 // One limiter for the whole area, plus a per-item one. Tap-triggered sounds beat ambient ones,
