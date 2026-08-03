@@ -17,6 +17,20 @@ export const WISH_ICONS = {
   swing:'🪢',slide:'🛝',tent:'⛺',campfire:'🔥',guitar:'🎸',trophy:'🏆',medal:'🏅',map:'🗺️',key:'🔑',present:'🎁'
 };
 
+// RUN21C-8 — how the town drawer's Wishes strip is grouped, under headed rows. Transcribed
+// exactly from the pack. NOTE: the six lists name 57 of the sixty lexicon words; `bench`,
+// `swing` and `slide` are not in any of them, and fall into "Out & About" at render time
+// (js/town.js) rather than being added to the authored list here.
+export const WISH_GROUPS = [
+  { label: 'Sky',           words: ['sun', 'star', 'moon', 'cloud', 'rainbow', 'snowman', 'rocket', 'kite', 'balloon'] },
+  { label: 'Food',          words: ['cake', 'apple', 'pizza', 'banana', 'carrot', 'cheese', 'cookie', 'egg'] },
+  { label: 'Music & Magic', words: ['drum', 'guitar', 'bell', 'wand', 'crown', 'lamp', 'torch', 'teapot'] },
+  { label: 'Creatures',     words: ['butterfly', 'bee', 'robot', 'crab', 'duck', 'frog', 'snake', 'zebra', 'fish', 'whale', 'owl', 'lion'] },
+  { label: 'Out & About',   words: ['boat', 'book', 'umbrella', 'tent', 'campfire', 'map', 'key', 'ladder', 'present', 'hat', 'sock', 'boot', 'ball', 'mushroom', 'flower', 'tree', 'palm'] },
+  { label: 'Prizes',        words: ['trophy', 'medal', 'castle'] }
+];
+export const WISH_GROUP_FALLBACK = 'Out & About';
+
 export const SHORT_WISHES = WISH_WORDS.filter(word => word.length <= 4);
 export const LIVING_WISHES = ['butterfly', 'fish', 'frog'];
 export const wishId = word => `wish_${word}`;

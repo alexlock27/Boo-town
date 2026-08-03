@@ -4350,7 +4350,7 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @keyframes drawerShake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) { .town-drawer.taken { animation: none; } }
 .town-drawer-strip {
-  display: flex; gap: 10px; overflow-x: auto; padding: 6px 24px; min-height: 92px; align-items: center;
+  display: flex; gap: 10px; overflow-x: auto; padding: 6px 24px; min-height: 118px; align-items: center;
   width: 100%; touch-action: pan-x; cursor: grab; scrollbar-width: none;
   /* 24px edge fade (RUN10 P2) */
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
@@ -4358,21 +4358,30 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 .town-drawer-strip::-webkit-scrollbar { display: none; }
 .town-drawer-strip:active { cursor: grabbing; }
-.drawer-item { position: relative; border: 3px solid var(--ink); background: var(--card); border-radius: 16px; padding: 4px; cursor: pointer; flex-shrink: 0; touch-action: none; }
+/* RUN21C-8: the chip carries its NAME and one true line about what it does, so she can
+   read the tray instead of picking things up to find out. A fixed 108px column keeps the
+   strip an even rhythm whatever the line says. */
+.drawer-item {
+  position: relative; border: 3px solid var(--ink); background: var(--card); border-radius: 16px;
+  padding: 4px 5px 6px; cursor: pointer; flex-shrink: 0; touch-action: none;
+  width: 108px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
 .drawer-item.holding { border-color: var(--star); box-shadow: 0 0 12px rgba(255,201,60,0.6); }
 .drawer-art { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+.drawer-name {
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 700; color: var(--ink);
+  line-height: 1.1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* #5A4D84 on the drawer's own #FFF8F0 measures 7.04:1 — the same colour .drawer-empty was
+   corrected to in RUN12 S4, for the same surface. */
+.drawer-info { font-size: 10.5px; line-height: 1.15; color: #5A4D84; text-align: center; max-width: 100%; }
 .drawer-badge { position: absolute; top: -6px; right: -6px; background: var(--pop); color: var(--ink); font-family: var(--font-display); font-size: 13px; padding: 1px 7px; border-radius: 10px; border: 2px solid var(--ink); }
 /* RUN20 QA finding B: a sky-only wish, seen from indoors. Dimmed rather than hidden — she
    owns it, it is simply not for in here — and it says WHY on the chip itself. It stays a
    real button so the tap can wobble and explain; only its look says "not now". */
 .drawer-item.needs-sky .drawer-art { opacity: 0.42; filter: saturate(0.5); }
-/* "sky only", not "needs the sky!": the chip is ~78px wide (64px on a phone, where .drawer-art
-   drops to 50px), and the longer line at nowrap spilled over its neighbours. The full sentence
-   lives in the guide line the tap produces, where there is room to say it warmly. 11px is the
-   floor here — this is the one chip that most needs reading. */
-.drawer-skytip { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); white-space: nowrap;
-  background: var(--ink); color: var(--card); font-family: var(--font-display); font-size: 11px;
-  padding: 1px 6px; border-radius: 8px; pointer-events: none; }
+/* RUN21C-8 retired the floating "sky only" tag: the chip has room for a real line now, and
+   the info line under the name says `Needs the sky` for exactly those chips. */
 /* A nudge, not a rejection: a single soft tilt, no shake, no red. */
 .drawer-item.sky-nudge { animation: skyNudge 0.5s ease-out 1; }
 @keyframes skyNudge { 0% { transform: translateY(0) rotate(0deg); } 40% { transform: translateY(-5px) rotate(-3deg); } 100% { transform: translateY(0) rotate(0deg); } }
@@ -4385,6 +4394,25 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    label; `.holding` (shared with every other chip) says it is in her hand right now. */
 .drawer-item.path-pot { background: #FFF3E2; border-style: dashed; }
 .drawer-item.path-pot.holding { border-style: solid; }
+
+/* ---- RUN21C-8 CHANGE A: the Wishes strip, grouped under headed rows -------------------
+   Sixty wishes on one endless sideways ribbon is a haystack. This strip alone becomes a
+   COLUMN of named rows; each row still scrolls sideways for a long group, and the column
+   scrolls down. `touch-action: pan-y` (rather than the strip default `pan-x`) is what lets
+   a finger on the headings scroll it; a finger on a CHIP still lifts the chip, which is how
+   every other tab works and how a wish gets placed. */
+.town-drawer-strip.wish-grouped {
+  flex-direction: column; align-items: stretch; gap: 4px;
+  overflow-x: hidden; overflow-y: auto; max-height: 46vh; touch-action: pan-y;
+  -webkit-mask-image: none; mask-image: none; padding: 6px 14px;
+}
+.wish-group { display: flex; flex-direction: column; gap: 2px; }
+.wish-group-h {
+  font-family: var(--font-display); font-size: 13.5px; font-weight: 700; color: #5A4D84;
+  letter-spacing: 0.3px; padding-left: 2px;
+}
+.wish-group-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.wish-group-row::-webkit-scrollbar { display: none; }
 .drag-ghost { position: fixed; transform: translate(-50%,-50%); pointer-events: none; z-index: 9500; width: 80px; height: 80px; transition: filter 0.1s ease; }
 .drag-ghost svg { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 /* illegal-drop preview (RUN10 P2): a red tint on the dragged ghost/item + a ghost ring at
@@ -5147,9 +5175,15 @@ body.care-teaching .intro-overlay { z-index: 12500; }
   .result-bubble { font-size: clamp(15px, 4.2vw, 18px); }
 
   /* the town drawer shrinks (kit stays tappable) */
-  .town-drawer-strip { min-height: 76px; padding: 6px 18px; gap: 8px; }
+  .town-drawer-strip { min-height: 102px; padding: 6px 18px; gap: 8px; }
   .drawer-art { width: 50px; height: 50px; }
   .drawer-art svg { width: 50px; height: 50px; }
+  /* RUN21C-8: the chip keeps its name and its one line at phone width — that is the width
+     where reading the tray matters most — on a narrower column with a smaller line. */
+  .drawer-item { width: 94px; }
+  .drawer-name { font-size: 11.5px; }
+  .drawer-info { font-size: 10px; }
+  .town-drawer-strip.wish-grouped { max-height: 40vh; padding: 6px 12px; }
   .town-header h2 { font-size: 22px; }
   .town-hint { font-size: 12px; }
 
