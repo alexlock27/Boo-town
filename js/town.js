@@ -18,7 +18,7 @@ import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreograph
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
-import { sfx, music, ambient } from './sfx.js';
+import { sfx, music, ambient, bed } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
@@ -4798,6 +4798,10 @@ export function mount(container, params, ctx) {
   if (!isInterior) buildAmbient(air, night, AREA.key);
   renderWeather();
   ambient.play(night ? 'night' : 'day');   // gentle bed under the music, obeys the mute (C1)
+  // RUN21F F7: and the place itself has a voice — surf, river, wind, birdsong, distant
+  // play. The table in sfx.js decides: the Funfair (its jingle owns that air) and the
+  // interiors are not in it, so they stay exactly as quiet as they were.
+  bed.play(AREA.key);
   scheduleShootingStar();
 
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
@@ -5126,6 +5130,7 @@ export function mount(container, params, ctx) {
       commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)
       if (hideWiggleTimer) clearTimeout(hideWiggleTimer);
       ambient.stop();
+      bed.stop();
       stopBand();
       window.removeEventListener('resize', onResize);
       closeMenu();
