@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21f-20260803';  // RUN21F F7/F10: every outdoor area has its own quiet sound, plus the grown-ups' QA walk and session notes.
+const BUILD_STAMP = 'run21b-20260803';  // RUN21B "Look & Feel": sixty real wish artworks, wishes that live on their own, furniture sized beside a Boo, a visible slot glow, a bigger train and an uncrowded disco.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
