@@ -23,8 +23,25 @@ replace the single gold star medallion every wish currently shows (see
 Item 1 is the one place in this programme where wide fan-out genuinely pays: the 60 SVGs are
 independent, each has a one-line binding brief in the pack, and the style guide is explicit
 (ink `#2A1B4E`, stroke 6 at a 120 viewBox, round caps, white sticker halo, flat fills,
-readable at 60px). Confirm the palette hexes against `css/styles.css` custom properties
-first — the pack says vars win. Everything else in the pack is sequential.
+readable at 60px).
+
+**Already checked, and it is a DEVIATION waiting to happen.** The pack's style guide says
+"confirm exact values against css vars before starting; vars win" — and three of its six
+anchors do NOT match the house palette. The real source of truth for SVG art is
+`js/art.js` `COLORS` (CSS vars only cover ink/star/pop):
+
+| Pack anchor | Reality | Verdict |
+|---|---|---|
+| ink `#2A1B4E` | `--ink` `#2A1B4E` | matches |
+| star gold `#FFC93C` | `COLORS.gold` / `--star` `#FFC93C` | matches |
+| pink `#FF7AC6` | `COLORS.pink` / `--pop` `#FF7AC6` | matches |
+| cream `#F8ECD2` | `COLORS.cream` / `--card` **`#FFF8F0`** | **use the real one** |
+| teal `#4E9A8F` | `COLORS.teal` **`#35D0BA`** | **use the real one** |
+| purple `#B9A6F5` | `COLORS.lilac` **`#C6A9F0`** | **use the real one** |
+
+Log that as `DEVIATION` in `RUN21B-PROGRESS.md` and author all 60 against `COLORS`, or the
+new art will sit slightly off-palette beside every existing Boo. Everything else in the
+pack is sequential.
 
 ---
 
