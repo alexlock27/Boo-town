@@ -11,10 +11,21 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
       r20-wishlife + r10p20-wishwell + r18b-wish-arrives all still green)
 - [x] Item 2 — Ambient life per class (FLIER / BOB / STEAM / GLEAM) — added as a SEPARATE
       axis from `cls`; see deviation 6
-- [ ] Item 3 — Proportion re-baseline (furniture measured against Boo height B)
+- [x] Item 3 — Proportion re-baseline. **B = 74.36px MEASURED** (the standing Boo's DRAWN
+      height at scale 1, row 1, 1024x768: six of the ten starter Boos; the eared species reach
+      87.4 and 93.5; the SVG box is 99.66). 15 `ACT_SIZE` entries re-based, sockets re-measured,
+      resize range re-verified on pixels. See deviations 10–14, 19, 20 and 21.
+      Evidence: `_evidence/run21b/ACCEPT-bench-sit.png`, `ACCEPT-bed-nap.png`,
+      `ACCEPT-table-snack.png`, `ACCEPT-table-snack-little.png`, `ACCEPT-sofa-lounge.png`,
+      `ACCEPT-stool-sit.png` (each `before | after` at 1024x768), `B-boos-row1-before.png`,
+      and `seat-*-before.png` / `seat-*-final.png` for all 17 socketed items.
 - [x] Item 4 — Slot glow visible (root cause was NOT layering — see deviation 5;
       evidence `_evidence/run21b/item4-glow-indoor-table.png`, `item4-glow-indoor-bookshelf.png`)
-- [ ] Item 5 — Seat offset polish
+- [x] Item 5 — Seat offset polish. Worst float **0.12px** across table, kitchentable, counter,
+      toybox and all three bookshelves — every slot, lamp/plant/frame, at parent scales
+      0.8 / 1.0 / 1.3 (the ACCEPT asks for ≤2px; it was up to 25.6px). See deviations 15–18.
+      Evidence: `_evidence/run21b/ACCEPT-lamp-on-table.png` and
+      `item5-<parent>-scale0p8|1|1p3-a.png` (21 frames).
 - [x] Item 6 — Feedback scale-up (train 2.2×, ripples, sand, river) — see deviation 8;
       evidence `_evidence/run21b/item6-train-1024x768.png`
 - [x] Item 7 — Disco floor spacing (worst overlap 51.7% → 10.2%; see deviation 7;
@@ -150,6 +161,116 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
    e. "pot plant" is unnamed in the pack; there are three. `deco_plant1` is the only one in
       `SMALL_ITEMS` (it is the one that stands on tables), so it is the one meant.
 
+10. **The ruling needed one more clause: WHICH ground line heights are measured from.**
+    Deviation 9a settles that B is the Boo's DRAWN height. It does not say what an item's
+    "seat top off ground" is measured from, and the two candidates differ by up to 40%: the
+    viewBox's nominal ground line (y=120) or the item's OWN DRAWN BASE (a table's legs stop at
+    y=102, a bench's at y=114, a bed's frame at y=108 — none of them reach y=120).
+    Measured both ways against the pack's targets:
+    - from y=120: bed 0.706→0.45 (shrink 36%), sofa 0.740→0.5 (shrink 32%), armchair 0.583→0.5,
+      table 0.914→0.72, kitchentable 0.968→0.78 — SIX of the targets shrink the furniture.
+    - from each item's own drawn base: bench 0.310→0.52, stool 0.319→0.50, armchair 0.379→0.50,
+      table 0.672→0.72, kitchentable 0.757→0.78, sofa 0.481→0.50 — every one grows or holds.
+    The second reading is the one the pack's WHY describes, and it is also what the eye reads as
+    the floor. **Heights are measured from each item's own drawn base.** Recorded because it
+    changes every number in the table and someone will ask.
+11. **The bed's seat target was already met; its LENGTH was the one that was short.** Pack:
+    "bed length = 1.9×B, mattress top = 0.45×B". Measured at 150, the mattress top was already
+    0.504×B — so ruling 9b (seat height wins) would have SHRUNK the bed to 134, and ruling 9c
+    forbids shrinking the very item the WHY names first. Photographed at 150, the ACCEPT
+    ("duvet covers the Boo, head on pillow") plainly fails: the bed is shorter than the Boo
+    lying in it. Took the LENGTH target instead — 1.345×B → 1.90×B, i.e. `ACT_SIZE` 150 → 212.
+    Mattress top lands at 0.71×B, which is a tall bed but is what the art's own proportions
+    give once the length is right.
+12. **Two of deviation 9c's four "shrinks" are not shrinks.** 9c lists wall clock, photo frame,
+    pot plant and table lamp as targets that would REDUCE the item. Re-measured against B as
+    DRAWN height on both sides (9a's own rule, applied to the item as well as to the Boo):
+    table lamp is 0.682×B against a 0.85 target and pot plant 0.678×B against 0.9 — both GROW,
+    which is what the WHY says they should do. `deco_tablelamp` 105→131, `deco_plant1` 110→146.
+    Only wall clock (0.800×B vs 0.55) and photo frame (0.988×B vs 0.5) genuinely shrink; both
+    are left exactly as they were, per 9c, and a side-by-side shows neither oversized.
+13. **The bed's socket pointed at the pillow twice, and the ACCEPT was never met at any size.**
+    `yFrac -0.262` is the pillow's BOTTOM (y=86), which left the sleeper's drawn bottom at
+    y=80.7 — half a unit ABOVE the duvet's top edge (y=82), so the duvet crossed none of it and
+    only the bed frame occluded anything. RUN19 Z3's own comment names the value it meant
+    ("bottom at y=100") and then writes its arithmetic with the sign inverted. Re-measured to
+    **-0.242** (y=88.5): drawn bottom at 84, inside the duvet band 82..102, with 18.3 viewBox
+    units — 37px at 1024x768, 14px at 390 — of head clear above the pillow's top edge. x stays
+    at the pillow's centre; -0.10 and -0.04 were photographed and both slide the head off the
+    pillow. **Bounded by the two artworks, not by the numbers:** a Boo's face sits in the LOWER
+    half of its own art (eyes at viewBox y 66..94 of a 21..118 body) while the bed occludes
+    from y=66 down, so a sleeper cannot show its face AND be under the covers. Photographed
+    -0.185, -0.200, -0.238, -0.278, -0.300 and -0.262 to establish that. What ships is the read
+    the art supports: the top of the head and the ears above the pillow, body under the bedding.
+    Flagged for RUN21C/E: this needs a bed drawn with a lower footboard, or a lying-down pose.
+14. **Two socket bugs the re-measure surfaced, both pre-existing.** (a) `deco_table`,
+    `deco_kitchentable` and `deco_counter` all carried `yFrac -0.138`, which is y=102 — the
+    LITTLE table's floor line. The kitchen table's legs end at y=106 and the counter's carcass
+    at y=108, so a Boo at either stood 4–6 viewBox units above its own floor. Each now names
+    its own line (-0.108, -0.092). (b) The tables' socket x (±0.30/±0.32) put two Boos so close
+    that they covered the entire tabletop — the "table-snack" ACCEPT photographed as two Boos
+    and no table. Widened to ±0.40, which flanks the top and leaves its middle (and its drawn
+    cup and dish) visible.
+15. **The brief's premise about the two surface comments is not what the code does — and the
+    code is still the truth.** The brief says surfaces.js measures from the ground line while
+    town.js measures from the parent's rendered BOX BOTTOM. Measured: `renderPlaced` sets an
+    item's box top to `rowGround - size + 8`, which lands the art's **y=120 GROUND LINE** at
+    `rowGround + 8` — the box bottom is a further `size*10/120` below that. So town.js's
+    `(pGround + 8) - surfaceY * pHeight` measures from the ground line after all, and it is
+    town.js's own comment that was wrong. Changed no arithmetic; corrected BOTH comments to
+    state the identity that makes the numbers checkable: `surfaceY = (120 - S)/130`.
+16. **Item 5's residual has a CHILD term, and no value of `surfaceY` can absorb it.** town.js
+    landed every small item with one flat `placedSize * (10/130)` nudge, which is exactly right
+    only for art that stops at viewBox y = 110.8 — and nothing does. The lamp's foot stops at
+    104 (so it floated 5.7% of its own size) and the plant's pot at 114 (so it sank 2.7%).
+    Added `SMALL_ITEM_BASE_Y` to data/surfaces.js and replaced the nudge with
+    `seat.y - placedSize * (baseY/120)`, so each item's own drawn base lands on the surface.
+    Exact by construction at every scale; measured worst residual 0.12px.
+17. **Every authored `surfaceY` named a line that is not in the art.** table 0.55 = y 48.5,
+    above the tabletop entirely; counter 0.62 = y 39.4, 15 units above the worktop; toybox 0.45
+    = y 61.5, half a lid DOWN so a lamp sank into it; bookshelf slot 0 at 0.35 = y 74.5, mid-air
+    between the divider and the shelf, and slot 1 at 0.68 = y 31.6, above the top of the books.
+    All re-read off the art. r19z6-objectmodel pinned two of these numbers, so both pins were
+    **re-pointed, not deleted**: its contact check now reads the tabletop off the ART (viewBox
+    y=56) and compares the lamp's own DRAWN base, the way r10p2-sockets reads a seat line, and
+    its tolerance TIGHTENS from 4px to the pack's 2px; its shelf pin now asserts the
+    `(120 - S)/130` identity against each shelf's own books instead of restating two constants.
+    Both are strictly stronger than what they replace and neither can go stale again.
+18. **FIX, found by r10p4-interiors: bigger furniture made the resize handle unreachable.**
+    Not a stale pin — a real regression, reproduced by hand. Three causes, all consequences of
+    taller boxes: the handle flipped UP unconditionally when the drawer covered its bottom-right
+    corner, and on a 40%-taller item the flipped-up corner lands under the build-mode tool rows
+    (`elementFromPoint` at the ring's own centre returned `.t-style-btn`); the placement test ran
+    once, on the frame after selection, while build mode's drawer was still sliding in; and every
+    `.t-item` is a full 120x130 box however little of it the art fills, so a re-baselined rug is
+    a 256x277 rectangle of mostly nothing that sat over the bed's handle — neighbours share a
+    z-index, so DOM order was deciding. Now: four candidate corners (bottom-right, up, and the
+    two on the LEFT, which clear the right-edge tool rows), a real `elementFromPoint` hit test
+    instead of a list of named panels, a second pass after the drawer settles, and the SELECTED
+    item drawing above its neighbours while its menu is open. Measured: reachable, and the drag
+    takes a bed 212px → 396px. **Left for RUN21C/E:** the drag maths sums raw dx+dy, so on the
+    flipped corners "away from the item" is the wrong sign — a pre-existing quirk of Z6's up-flip
+    that this inherits rather than introduces, and changing it would re-point r10p4's fixed drag
+    vector for reasons unrelated to size.
+19. **Ruling 9d's three additions, and what each is worth.** `deco_bench` is in the pack's list
+    and gets its bench ratio (→154). `deco_bookshelf3` is not the pack's "low bookshelf" — it is
+    the tall ladder shelf — but at the 92 fallback it rendered 0.99×B, SHORTER than the low shelf
+    would now be, which is incoherent for a surface parent whose slots hold lamps. Added at 139
+    (1.50×B) so the three read low 1.10 / standard 1.40 / ladder 1.50 as one family.
+    `deco_pond` is in NEITHER the indoor list nor the outdoor sanity list, and photographed with
+    a fishing Boo it does fit — so it is added explicitly at its current 92 with no visual
+    change. It does read small (0.90×B wide, so the Boo covers it); flagged for RUN21C/E rather
+    than resized on no mandate.
+20. **The resize contract is wider than the pack states, and holds.** The pack's ACCEPT says
+    "0.70–1.60 (beds 2.0)". The code is `scaleMaxFor`: 2.0 for the bed anywhere AND for **any**
+    furniture indoors, 1.6 otherwise. Verified on rendered pixels, not on the constant, for all
+    14 re-based items: every one clamps to exactly 0.70 and to its own max, and the rendered
+    width tracks it (bed 172.1px / 245.9px / 491.8px at 0.7 / 1.0 / 2.0). Nothing changed.
+21. **Outdoor sanity pass: no change.** Photographed one Boo on each of swings, slide, seesaw,
+    trampoline, picnic and paddlepool at the new bases. Every Boo fits; none is touched. The
+    "cosy bench" is `deco_bench`, the same object as the indoor bench, and it takes the bench
+    ratio as the pack instructs.
+
 ## Session notes
 - Wish art lives in `renderWish()` (js/art.js ~1670), shared 120×130 deco viewBox, caption
   `<text x="60" y="124" font-size="11">`. Classes `wish-svg wish-<word>` must survive —
@@ -157,3 +278,22 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
 - Helpers available in art.js: `path()`, `rrect()`, `ell()`, `starPath()`, `silhouette()`,
   `COLORS`, `INK`, `HALO`.
 - No new runtime file: `WISH_ART` goes INTO js/art.js, so sw.js ASSETS is untouched.
+- Items 3 and 5 (2026-08-03). B was measured, not assumed: `_probe_measure.mjs` reads every
+  drawable's `getBBox` out of the live app in viewBox units, and `_probe_scene.mjs` converts
+  to screen px. Boo drawn height at scale 1, row 1 = **74.36px** (97 of 130 viewBox units at
+  size 92); box height 99.66px. The ruling's "~76px" is right to within 2%.
+- The one identity everything in items 3 and 5 rests on: an item's art ground line (viewBox
+  y=120) is drawn at `rowGround + 8`, and one viewBox unit is `ACT_SIZE * ROW_SCALE / 120` px.
+  From it, `yFrac = (S - 120)/130` and `surfaceY = (120 - S)/130` for a line at viewBox y = S —
+  both SCALE-INVARIANT, which is why re-sizing furniture did not move a single seat.
+- Probes left in the tree (all gitignored `_probe*.mjs`, none ship): `_probe_measure.mjs`
+  (art bboxes), `_probe_scene.mjs` (B + every socket + screenshots), `_probe_surf.mjs`
+  (item 5's float table), `_probe_resize.mjs` (the clamp range on pixels), `_probe_bed.mjs` /
+  `_probe_bedsweep.mjs` (nap candidates), `_probe_ring.mjs` (handle reachability),
+  `_probe_eye.mjs` (where a Boo's eyes are in its own art), `_probe_sbs.mjs` (side-by-sides).
+- Working-tree note: mid-task the coordinator checked out `main` in this tree and switched back.
+  Every "before" measurement was RE-TAKEN afterwards on a confirmed-clean `run21b` and came back
+  byte-identical, and the committed `ACT_SIZE` at 04cf6ba matches what those numbers imply, so
+  nothing had to be redone.
+- NOT done here (belongs to whoever closes RUN21B, per the pack's own Final gate section):
+  BUILD_STAMP bump, What's New block, sw cache id, live-URL check, `RUN21B-REPORT.md`.
