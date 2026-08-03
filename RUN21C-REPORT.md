@@ -168,8 +168,11 @@ any UI path. The only surviving "hammer" strings are the Boo Builders' construct
 Server on **:8031** from this worktree. Affected suites + the fixed core, per the Board Law.
 No full board.
 
-**26/26 PASS.** Parallel phase 431s + serial 0s on 2 lanes for the first 25; the four
-re-pointed suites and the deploy-gate pair were then re-verified directly.
+**First pass: 22/26, wall time 742s on 2 lanes** (parallel 475s + serial 267s). The four
+failures were all stale pins describing a world that no longer exists (or, in two cases, my
+own test queries being wrong about scope) — see below. After re-pointing, every one was
+re-verified directly, and a second full batch of the fourteen most exposed suites plus the
+core was run again after the deploy-gate edits (stamp, What's New, the shop copy fix).
 
 `r12s1-routes` (120s) · `r8p1-migrations` (0s) · `m3-pwa` (3s) · `r12s4-contrast` (141s) ·
 `r18a-copyguard` (14s) · `r10p3-buildmode` (48s) · `r10p1-worldmap` (32s) ·
