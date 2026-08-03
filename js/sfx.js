@@ -22,6 +22,15 @@ let ambientLoop = null;  // 'day' | 'night' | null
 let ambientTimer = null;
 let ambientNext = 0;
 
+// Per-area ambient beds (RUN21F F7) — see the BEDS section near the bottom.
+let bedGain = null;      // bed bus: same mute + duck contract as the ambient bus
+let bedArea = null;      // 'beach' | 'riverside' | 'hilltop' | 'meadow' | 'playground' | null
+let bedTimer = null;     // sparse-event scheduler (gulls / birdsong / babble)
+let bedNext = 0;
+let bedNodes = [];       // live nodes of the continuous layer, torn down on stop
+const bedLastEvent = {}; // area -> audio-clock time of its last sparse event
+const BED_GAIN = 0.12, BED_DUCK = 0.04;   // pack F7: gain <= 0.12, ducks to 0.04
+
 // ---- instrumentation (test-only): prove note scheduling, ducking, mute obedience ----
 let audioLog = null;     // null = off; array = capturing
 export function setAudioLog(on) { audioLog = on ? [] : null; return audioLog; }
@@ -39,6 +48,7 @@ export function initAudio() {
     sfxGain = ctx.createGain(); sfxGain.gain.value = 0.9; sfxGain.connect(master);
     musicGain = ctx.createGain(); musicGain.gain.value = musicOn ? 0.18 : 0; musicGain.connect(master);
     ambientGain = ctx.createGain(); ambientGain.gain.value = musicOn ? 0.10 : 0; ambientGain.connect(master);
+    bedGain = ctx.createGain(); bedGain.gain.value = musicOn ? BED_GAIN : 0; bedGain.connect(master);
     started = true;
     resume();
     return true;
@@ -64,9 +74,13 @@ export function setMusicEnabled(on) {
   if (ambientGain && ctx) {
     try { ambientGain.gain.setTargetAtTime(musicOn ? 0.10 : 0, ctx.currentTime, 0.05); } catch {}
   }
+  if (bedGain && ctx) {
+    try { bedGain.gain.setTargetAtTime(musicOn ? BED_GAIN : 0, ctx.currentTime, 0.05); } catch {}
+  }
   logEvent({ kind: 'mute', target: 'music', on: musicOn });
   if (musicOn && currentLoop) startScheduler(); else if (!musicOn) stopScheduler();   // muting stops scheduling (silent + no waste)
   if (musicOn && ambientLoop) startAmbient(); else if (!musicOn) stopAmbient();
+  if (musicOn && bedArea) startBed(); else if (!musicOn) stopBed();
 }
 export function getSoundEnabled() { return soundOn; }
 export function getMusicEnabled() { return musicOn; }
@@ -88,7 +102,10 @@ function envTone(freq, t0, dur, type = 'sine', peak = 0.5, bus = sfxGain, tag = 
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g); g.connect(bus);
   o.start(t0); o.stop(t0 + dur + 0.02);
-  if (audioLog) logEvent({ kind: 'note', t: t0, freq: Math.round(freq), dur, bus: bus === musicGain ? 'music' : bus === ambientGain ? 'ambient' : 'sfx', tag });
+  if (audioLog) logEvent({ kind: 'note', t: t0, freq: Math.round(freq), dur, bus: busName(bus), tag });
+}
+function busName(bus) {
+  return bus === musicGain ? 'music' : bus === ambientGain ? 'ambient' : bus === bedGain ? 'bed' : 'sfx';
 }
 
 function play(fn) {
@@ -239,6 +256,8 @@ export const music = {
     if (!musicGain || !ctx) return;
     try { musicGain.gain.setTargetAtTime(on ? 0.05 : (musicOn ? 0.18 : 0), ctx.currentTime, 0.08); } catch {}
     if (ambientGain) { try { ambientGain.gain.setTargetAtTime(on ? 0.03 : (musicOn ? 0.10 : 0), ctx.currentTime, 0.08); } catch {} }
+    // The area beds duck with everything else, to BED_DUCK (RUN21F F7).
+    if (bedGain) { try { bedGain.gain.setTargetAtTime(on ? BED_DUCK : (musicOn ? BED_GAIN : 0), ctx.currentTime, 0.08); } catch {} }
   }
 };
 
@@ -276,6 +295,191 @@ function scheduleAmbient() {
       envTone(2600, ambientNext + 0.06, 0.03, 'square', 0.02, ambientGain, 'ambient-cricket');
       ambientNext += 0.5 + Math.random() * 0.6;
     }
+  }
+}
+
+// ---- per-area ambient beds (RUN21F F7) -------------------------------------------------
+// Five looping beds, one per outdoor area that has a landscape to sound like. They are the
+// day/night ambient bed's sibling, not a rival: same context, same master, same music mute,
+// same duck() call, same instrumentation log — only the bus and the synthesis differ, so a
+// bed can sit at its own level (BED_GAIN) under the chirps without dragging them with it.
+// The Funfair is deliberately absent: its jingle/bandstand rules already own that air. The
+// house rooms are absent too — a room is quiet (RUN13B T7: outdoor ambience stays outdoors).
+//
+// Every bed is SYNTHESISED. No audio files, no network: house law.
+//   beach      · filtered noise wash on an 8s cycle + sparse gull chirps (<=2/min)
+//   riverside  · low burble: filtered noise with a slow sine wobble on the filter
+//   hilltop    · soft wind: bandpassed noise that swells and falls (~12.5s)
+//   meadow     · sparse birdsong: three-note motifs (<=3/min)
+//   playground · distant chatter: soft filtered babble swells (<=2/min)
+export const BEDS = {
+  beach:      { wash: { filter: 'lowpass',  freq: 820, q: 0.7, level: 0.50, lfoHz: 0.125, lfoDepth: 0.34 },
+                event: 'gull',     minGap: 30, spread: 12 },
+  riverside:  { wash: { filter: 'lowpass',  freq: 380, q: 4.0, level: 0.42, lfoHz: 0.22,  lfoDepth: 0.16, wobbleHz: 0.22, wobbleDepth: 165 } },
+  hilltop:    { wash: { filter: 'bandpass', freq: 700, q: 1.2, level: 0.46, lfoHz: 0.08,  lfoDepth: 0.40 } },
+  meadow:     { event: 'birdsong', minGap: 20, spread: 10 },
+  playground: { event: 'babble',   minGap: 30, spread: 14 }
+};
+export const BED_AREAS = Object.keys(BEDS);
+
+// One 2-second noise table, made once and looped by every wash — cheaper than a buffer per
+// mount, and the beds are the only long-lived noise sources in the app.
+let _noiseBuf = null;
+function noiseBuffer() {
+  if (!ctx) return null;
+  if (!_noiseBuf || _noiseBuf.sampleRate !== ctx.sampleRate) {
+    const n = Math.floor(ctx.sampleRate * 2);
+    _noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = _noiseBuf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return _noiseBuf;
+}
+
+export const bed = {
+  // area: one of BED_AREAS, or anything else (funfair, boohouse, gallery, null) for silence.
+  play(area) {
+    if (!ctx) { if (!initAudio()) return; }
+    resume();
+    const key = area && BEDS[area] ? area : null;
+    if (bedArea === key) return;
+    stopBed();
+    bedArea = key;
+    logEvent({ kind: 'bed', area: key, layers: bedLayers(key) });
+    if (key && musicOn) startBed();
+  },
+  stop() {
+    if (bedArea !== null) logEvent({ kind: 'bed', area: null, layers: [] });
+    bedArea = null;
+    stopBed();
+  }
+};
+function bedLayers(key) {
+  const spec = key && BEDS[key];
+  if (!spec) return [];
+  const out = [];
+  if (spec.wash) out.push(`wash:${spec.wash.filter}@${spec.wash.freq}`);
+  if (spec.event) out.push(`event:${spec.event}`);
+  return out;
+}
+// Test seam: the bed's live state without listening to the speakers.
+export function bedInfo() {
+  return {
+    area: bedArea,
+    gain: bedGain ? +bedGain.gain.value.toFixed(4) : null,
+    nodes: bedNodes.length,
+    scheduling: !!bedTimer,
+    layers: bedLayers(bedArea)
+  };
+}
+
+function startBed() {
+  if (!ctx || !bedArea || !musicOn) return;
+  const spec = BEDS[bedArea];
+  if (!spec) return;
+  const t = ctx.currentTime;
+  if (spec.wash && !bedNodes.length) {
+    const w = spec.wash;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(); src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = w.filter; f.frequency.value = w.freq; f.Q.value = w.q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(w.level, t + 1.2);   // never a click on arrival
+    src.connect(f); f.connect(g); g.connect(bedGain);
+    src.start(t);
+    bedNodes.push(src, f, g);
+    // the cycle: a slow sine on the wash's own gain (beach 8s, hilltop ~12.5s swells)
+    if (w.lfoHz) {
+      const lfo = ctx.createOscillator(), lg = ctx.createGain();
+      lfo.type = 'sine'; lfo.frequency.value = w.lfoHz; lg.gain.value = w.lfoDepth * w.level;
+      lfo.connect(lg); lg.connect(g.gain); lfo.start(t);
+      bedNodes.push(lfo, lg);
+    }
+    // riverside's burble: the same slow sine, but on the filter corner rather than the level
+    if (w.wobbleHz) {
+      const wo = ctx.createOscillator(), wg = ctx.createGain();
+      wo.type = 'sine'; wo.frequency.value = w.wobbleHz; wg.gain.value = w.wobbleDepth;
+      wo.connect(wg); wg.connect(f.frequency); wo.start(t);
+      bedNodes.push(wo, wg);
+    }
+  }
+  if (spec.event && !bedTimer) {
+    // First call soon after arrival (a bed you never hear is a bed that isn't there), then
+    // never closer than minGap. bedLastEvent is module-level, so re-entering an area cannot
+    // be used to beat the per-minute cap.
+    bedNext = t + 3 + Math.random() * 3;
+    bedTimer = setInterval(scheduleBed, 200);
+  }
+}
+
+function stopBed() {
+  if (bedTimer) { clearInterval(bedTimer); bedTimer = null; }
+  if (!bedNodes.length) return;
+  const nodes = bedNodes; bedNodes = [];
+  const t = ctx ? ctx.currentTime : 0;
+  for (const n of nodes) {
+    try { if (n.gain && n.gain.cancelScheduledValues) { n.gain.cancelScheduledValues(t); n.gain.setTargetAtTime(0.0001, t, 0.12); } } catch {}
+  }
+  for (const n of nodes) {
+    try { if (n.stop) n.stop(t + 0.5); } catch {}
+  }
+  setTimeout(() => { for (const n of nodes) { try { n.disconnect(); } catch {} } }, 900);
+}
+
+function scheduleBed() {
+  // When the audio log is capturing (tests only), time the tick so a suite can put a real
+  // number on "total CPU impact <2ms/frame" instead of asserting it by eye.
+  const t0 = audioLog ? performance.now() : 0;
+  scheduleBedInner();
+  if (audioLog) logEvent({ kind: 'bedtick', ms: +(performance.now() - t0).toFixed(4) });
+}
+function scheduleBedInner() {
+  if (!ctx || !bedArea || !musicOn) return;
+  const spec = BEDS[bedArea];
+  if (!spec || !spec.event) return;
+  const horizon = ctx.currentTime + 0.5;
+  while (bedNext < horizon) {
+    const last = bedLastEvent[bedArea];
+    const earliest = last === undefined ? bedNext : Math.max(bedNext, last + spec.minGap);
+    if (earliest >= horizon) { bedNext = earliest; return; }
+    bedEvent(spec.event, earliest);
+    bedLastEvent[bedArea] = earliest;
+    bedNext = earliest + spec.minGap + Math.random() * spec.spread;
+  }
+}
+
+function bedEvent(kind, t) {
+  if (kind === 'gull') {
+    // two thin cries, the second answering the first
+    glideTone(t, 1500, 2150, 0.10, 'triangle', 0.30, bedGain, 'bed:beach:gull');
+    glideTone(t + 0.16, 1980, 1320, 0.14, 'triangle', 0.26, bedGain);
+  } else if (kind === 'birdsong') {
+    // exactly three notes, a little motif picked from a friendly set
+    const MOTIFS = [[2400, 3000, 2650], [2200, 2900, 3300], [2800, 2350, 2600], [2500, 2500, 3100]];
+    const m = MOTIFS[Math.floor(Math.random() * MOTIFS.length)];
+    m.forEach((f, i) => envTone(f, t + i * 0.13, 0.09, 'triangle', 0.22, bedGain, i === 0 ? 'bed:meadow:birdsong' : null));
+  } else if (kind === 'babble') {
+    // a swell of distant chatter: bandpassed noise, breathing in and out over ~2.6s, with a
+    // slow wobble so it reads as voices rather than as a hiss
+    if (!ctx || !bedGain) return;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(); src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 620; f.Q.value = 2.4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.30, t + 0.9);
+    g.gain.linearRampToValueAtTime(0.0001, t + 2.6);
+    const wo = ctx.createOscillator(), wg = ctx.createGain();
+    wo.type = 'sine'; wo.frequency.value = 3.1; wg.gain.value = 190;
+    wo.connect(wg); wg.connect(f.frequency);
+    src.connect(f); f.connect(g); g.connect(bedGain);
+    src.start(t); wo.start(t);
+    src.stop(t + 2.7); wo.stop(t + 2.7);
+    setTimeout(() => { for (const n of [src, f, g, wo, wg]) { try { n.disconnect(); } catch {} } }, 4000);
+    logEvent({ kind: 'note', t, freq: 620, dur: 2.6, bus: 'bed', tag: 'bed:playground:babble' });
   }
 }
 
@@ -345,7 +549,7 @@ export const beatvoice = {
 // ---- Toddler Animal Sounds voices (RUN7 C4): a synthesised, clearly-distinct ----
 // cartoon call per animal. No files; on the effects bus; obeys the sound mute; each
 // logs a single note tagged `animal:<key>` so headless tests can prove distinctness.
-function glideTone(t0, f0, f1, dur, type, peak) {
+function glideTone(t0, f0, f1, dur, type, peak, bus = null, tag = null) {
   if (!ctx) return;
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type;
@@ -354,7 +558,9 @@ function glideTone(t0, f0, f1, dur, type, peak) {
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(peak, t0 + 0.03);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g); g.connect(sfxGain); o.start(t0); o.stop(t0 + dur + 0.03);
+  o.connect(g); g.connect(bus || sfxGain); o.start(t0); o.stop(t0 + dur + 0.03);
+  // Only tagged glides log, so the animal calls keep logging exactly one line each.
+  if (audioLog && tag) logEvent({ kind: 'note', t: t0, freq: Math.round(f0), dur, bus: busName(bus || sfxGain), tag });
 }
 export const ANIMAL_KEYS = ['cow', 'cat', 'dog', 'duck', 'sheep', 'owl', 'bee', 'snake', 'frog', 'lion'];
 export const ANIMAL_WORDS = { cow: 'Moo', cat: 'Meow', dog: 'Woof', duck: 'Quack', sheep: 'Baa', owl: 'Twit twoo', bee: 'Buzz', snake: 'Sssss', frog: 'Ribbit', lion: 'ROAR' };
@@ -382,7 +588,7 @@ export const animal = {
 // Pause loops when the tab is hidden (spec §11.3).
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { stopScheduler(); stopAmbient(); }
-    else { if (currentLoop && musicOn) startScheduler(); if (ambientLoop && musicOn) startAmbient(); }
+    if (document.hidden) { stopScheduler(); stopAmbient(); stopBed(); }
+    else { if (currentLoop && musicOn) startScheduler(); if (ambientLoop && musicOn) startAmbient(); if (bedArea && musicOn) startBed(); }
   });
 }

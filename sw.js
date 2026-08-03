@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21d-20260803';  // RUN21D "Alive on Arrival": every area takes an opening breath, a map chip for whoever is wondering something, four named screens per area, signs to the fair's band and disco, and a fair chance at the hider.
+const BUILD_STAMP = 'run21f-20260803';  // RUN21F F7/F10: every outdoor area has its own quiet sound, plus the grown-ups' QA walk and session notes.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -38,6 +38,7 @@ const ASSETS = [
   'js/gallerymuseum.js',
   'js/areas.js',
   'js/grownups.js',
+  'js/playjournal.js',
   'js/ceremony.js',
   'js/questions.js',
   'js/picker.js',

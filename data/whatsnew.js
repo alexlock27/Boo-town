@@ -21,6 +21,15 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21F F7/F10. ONE entry: the ambient beds are the only child-facing half. The play
+  // journal is behind the grown-up QA flag, and this file's own rule is never to advertise
+  // anything a grown-up has to switch on — so it is deliberately absent.
+  {
+    version: 'run21f-20260803',
+    entries: [
+      { icon: '🌊', title: 'Every place has its own sound', blurb: 'Listen closely — the beach has waves, the river burbles, the hilltop has wind and the meadow has birds.', route: 'town', params: { area: 'beach' } }
+    ]
+  },
   // RUN21D "Alive on Arrival". Four entries — the four things she can now DO or SEE that
   // she could not before. The Pulse itself is deliberately NOT sold to her: a town that
   // says hello should feel like a town that says hello, not like a feature.
