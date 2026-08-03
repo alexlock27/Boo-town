@@ -21,6 +21,18 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21D "Alive on Arrival". Four entries — the four things she can now DO or SEE that
+  // she could not before. The Pulse itself is deliberately NOT sold to her: a town that
+  // says hello should feel like a town that says hello, not like a feature.
+  {
+    version: 'run21d-20260803',
+    entries: [
+      { icon: '💭', title: 'See who is wondering something', blurb: 'A little thought bubble sits on your Town map wherever a Boo is waiting to ask you something. Go and see!', route: 'worldmap' },
+      { icon: '⚪', title: 'Four dots, four places', blurb: 'Every outdoor place is four screens wide. Tap a dot at the top to slide along to the Oak, the Bridge, the Windmill — wherever you fancy.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🎵', title: 'Signs to the band and the disco', blurb: 'Two little signs hang at the funfair gate. Tap Band to slide over to the bandstand, or Disco to go straight in and dance.', route: 'town', params: { area: 'funfair' } },
+      { icon: '👀', title: 'A nudge towards the hider', blurb: 'When someone is hiding a long way off, the town looks that way for you — just far enough. You still have to spot them!', route: 'worldmap' }
+    ]
+  },
   // RUN21A "Reach & Truth". Four entries: the ones that change what she can DO or SEE.
   // The rest of the pack fixed things never announced in the first place (a hint line, a
   // request glyph, a tray shield) — not news to a child.

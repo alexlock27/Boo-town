@@ -2189,9 +2189,12 @@ export function mount(container, params, ctx) {
           e.stopPropagation();
           sfx.tap();
           if (sg.id === 'band') { cameraClaimed = true; panToFrac(BANDSTAND_X, DOT_PAN_MS); }
-          // The Disco keeps the door's own route exactly; `from` rides along the way the
-          // shop's handoff carries it (RUN21A-9), so a later back-path change has it.
-          else ctx.go('discohall', { from: 'town', fromArea: AREA.key });
+          // The Disco keeps the door's own route EXACTLY — `ctx.go('discohall')`, no params.
+          // The pack asks for "`from` preserved"; discohall reads no params at all and its
+          // own back control already returns to the funfair, so preserving the return path
+          // means calling it identically to the door, not inventing two params nothing
+          // reads (which tests/r12s1-routes rightly flags as an undriven contract).
+          else ctx.go('discohall');
         }
       }, [
         el('span', { class: 'ffs-rope', 'aria-hidden': 'true' }),
