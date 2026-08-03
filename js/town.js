@@ -5025,7 +5025,10 @@ export function mount(container, params, ctx) {
       }
       if (a.t >= a.next) {
         a.t = 0;
-        if (maybePickBehaviour(a, now)) continue;        // sometimes pick a richer act than a micro-wander
+        // A richer act (visit / approach / chase / watch / nap, RUN6 C1) wins over a
+        // micro-wander when one is chosen, and it drives the actor itself — so any path
+        // target from a previous wander is stale the moment a goal takes over.
+        if (maybePickBehaviour(a, now)) { a.walkTo = null; continue; }
         const roll = Math.random();
         // RUN19 Z4: this is "arrival" for a wanderer — it has stopped walking and is about to
         // stand still. If it happens to have landed on a path she painted, the town notices
@@ -5952,6 +5955,11 @@ export function mount(container, params, ctx) {
       // How far each wanderer has strayed from its home spot, as a fraction of the wander
       // range: -1 is as far left as it may go, +1 as far right. Sign is the whole point.
       actorDrift: () => actors.map(a => (a.dx || 0) / (zoneW * WANDER_FRAC || 1)),
+      // RUN21C-5 QA: what the path finder computes for each wanderer right now (null = no
+      // path within reach in its row), and what each actor is currently doing — the two
+      // things that decide whether the micro-wander branch is reached at all.
+      pathAim: () => actors.map(a => { const d = pathWalkTargetDx(a); return d == null ? null : +(d / (zoneW * WANDER_FRAC || 1)).toFixed(3); }),
+      actorStates: () => actors.map(a => ({ state: a.state, goal: a.goal ? a.goal.kind : null, role: a.role ? a.role.kind : null, walkTo: a.walkTo == null ? null : +(a.walkTo / (zoneW * WANDER_FRAC || 1)).toFixed(2) })),
       pathCellCount: () => currentPaths().length,
       pathRunCount: () => ground.querySelectorAll('.t-path-run').length,
       pathRunBoxes: () => [...ground.querySelectorAll('.t-path-run')].map(n => ({
