@@ -11,7 +11,8 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
       r20-wishlife + r10p20-wishwell + r18b-wish-arrives all still green)
 - [ ] Item 2 — Ambient life per class (FLIER / BOB / STEAM / GLEAM)
 - [ ] Item 3 — Proportion re-baseline (furniture measured against Boo height B)
-- [ ] Item 4 — Slot glow visible
+- [x] Item 4 — Slot glow visible (root cause was NOT layering — see deviation 5;
+      evidence `_evidence/run21b/item4-glow-indoor-table.png`, `item4-glow-indoor-bookshelf.png`)
 - [ ] Item 5 — Seat offset polish
 - [ ] Item 6 — Feedback scale-up (train 2.2×, ripples, sand, river)
 - [ ] Item 7 — Disco floor spacing
@@ -46,6 +47,25 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
    footprint (44/64/84px), but `ACT_SIZE` in town.js had no wish entries at all — all 60
    rendered at the generic default of 92. Exported `WISH_SIZE`/`WISH_PX` from art.js and
    seeded `ACT_SIZE` from them, so the size column the pack authored is actually honoured.
+
+5. **Item 4's diagnosis was wrong, and its ACCEPT names a surface that does not exist.**
+   - Pack: "wired on both drag paths yet never seen — almost certainly layering." It is NOT
+     layering: the glow lives in the `air` layer at z-index 40 (above every `.t-item`), with
+     the same `-scrollX` transform as `ground`, so its world coordinates already line up and
+     nothing clips it. The real cause is that it was wired to the two rarest gestures and
+     NOT to the common one: the drawer chip-lift. During a lift the drawer strip holds
+     pointer capture, so the viewport's `pointermove` never fires; and tap-to-place has no
+     pointermove at all. Fixed in `updateChipLift`, plus clears on cancel paths.
+   - Pack also says to append the glow to "a viewport-level overlay above all items". That
+     overlay already exists and is `air`. Creating a second one would move the glow out of
+     world space into screen space and require every position to change — a needless
+     regression. Kept `air`, per CLAUDE.md's engine-reuse law.
+   - ACCEPT asks for the ring on "a picnic outdoors". **There are no outdoor surface
+     parents in the game**: `SURFACE_SLOTS` (data/surfaces.js) holds only table,
+     kitchentable, counter, three bookshelves and toybox — all indoor. `deco_picnic` is not
+     a surface parent anywhere. Adding one would be new scope (a new placement surface), and
+     RUN21E item E9 "Surfaces wave two" is the pack that owns adding parents. Verified on
+     the two real surface classes instead (a table and a bookshelf) and flagged for E9.
 
 ## Session notes
 - Wish art lives in `renderWish()` (js/art.js ~1670), shared 120×130 deco viewBox, caption
