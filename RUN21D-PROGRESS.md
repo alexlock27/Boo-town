@@ -45,7 +45,19 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
   the house sticker language. Copy, aria and behaviour are exactly as authored.
 
 ## Blocks
-(none yet)
+None. Every item shipped; the four deviations above are logged and evidenced.
+
+## Gate
+- `tests/r21d-alive.mjs` — new, @serial, ~4m22s, 209 checks, PASS (fresh + rich saves).
+- Affected suites + fixed core: all green (table in RUN21D-REPORT.md).
+- Stale pin re-pointed: `tests/r19z2-requests` bubble-animation assertion — now asserts the
+  2s bob exactly as before PLUS the new 6s breathe PLUS "exactly those two". More coverage.
+- `p3-town` flaked three times on `.hub`; proved environmental by running it green against
+  the exported `fec9641` baseline on its own port, with 2081 TIME_WAIT sockets on the box.
+  Passed unchanged on the next attempt.
+- Deploy gate: BUILD_STAMP `run21d-20260803`, What's New block (4 entries, routes resolve),
+  sw ASSETS unchanged (no new js/ or data/ files), PROJECT_STATE.md regenerated.
+- SAVE VERSION stays 23 — nothing here writes to the save.
 
 ## Notes
 - Item 1's five beats are a priority ladder with a per-day, per-area, SESSION-only seen-set

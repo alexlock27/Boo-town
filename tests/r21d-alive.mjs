@@ -1,3 +1,4 @@
+// @serial
 // tests/r21d-alive.mjs — RUN21D "Alive on Arrival": the pack's own ACCEPT criteria, made
 // permanent.
 //
@@ -7,9 +8,12 @@
 // one of them is a regression risk for the rest of the programme (RUN21B/C/E all rewrite
 // js/town.js on top of them), so the ACCEPTs live here rather than in a throwaway probe.
 //
-// Expected runtime: ~150s (board law: state it when adding a suite). The pulse blocks each
-// have to wait out a real 9-second invitation, which is what makes it long; no @serial need,
-// since nothing here samples animation frames.
+// Expected runtime: ~4m (board law: state it when adding a suite) — over the 120s budget,
+// @serial, and justified in tests/board-serial-baseline.md. The reason for both is the same:
+// every ACCEPT here is a REAL-CLOCK one. The beat is due 900ms after first paint, the
+// invitation at 9s, the request bubble breathes on a 6s cycle. A timer starved by parallel
+// load and a pulse that never fired read identically, so this cannot share a lane, and
+// thirty mounts each waiting out a nine-second invitation is what the wall time IS.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 
@@ -112,6 +116,16 @@ async function watchBeat(page, ms = 3000) {
   }, ms);
 }
 
+// The authored invitation, per area, exactly. Asserted inside the ten-mount block below
+// rather than in a second sweep of its own — the pack wants both proofs from the same
+// mount, and thirty seconds of a real nine-second wait is worth not paying twice.
+const INVITATION = {
+  meadow: 'Try tapping a flower…', riverside: 'Try tapping the river…',
+  hilltop: 'Try tapping the sky…', beach: 'Try tapping the sand…',
+  playground: 'Try the swings…', funfair: 'The bandstand plays if you wander right…',
+  boohouse: 'Try tapping a sleepy Boo…'
+};
+
 console.log('== item 1: every mount takes one opening breath ==');
 {
   // TEN scripted mounts across areas: the six outdoor areas, two Boo House rooms, and the
@@ -165,8 +179,9 @@ console.log('== item 1: every mount takes one opening breath ==');
     await sleep(Math.max(0, 9800 - (Date.now() - mounted)));
     const q = await pulse(page);
     assert(q.invited === true, `${m.name}: the invitation showed at ~9s`);
-    assert(q.hint === q.invitation, `${m.name}: the hint bar reads exactly "${q.invitation}"`);
+    assert(q.hint === INVITATION[m.area], `${m.name}: the hint bar reads exactly "${q.hint}"`);
     assert(q.beats.length === 1, `${m.name}: still exactly one beat after the invitation`);
+    if (/\(/.test(m.name) === false) await page.screenshot({ path: `${SHOTS}/item1-invitation-${m.area}${m.room ? '-' + m.room : ''}.png` });
     await ctx.close();
   }
   // The five beats are a priority ladder, not a single hard-coded trick: the ten mounts
@@ -176,29 +191,15 @@ console.log('== item 1: every mount takes one opening breath ==');
     'every beat that fired was one of the pack\'s five');
 }
 
-console.log('== item 1: the authored invitations, per area ==');
+console.log('== item 1: the third Boo House room says it too ==');
 {
-  const WANT = {
-    meadow: 'Try tapping a flower…', riverside: 'Try tapping the river…',
-    hilltop: 'Try tapping the sky…', beach: 'Try tapping the sand…',
-    playground: 'Try the swings…', funfair: 'The bandstand plays if you wander right…'
-  };
-  for (const [area, line] of Object.entries(WANT)) {
-    const { ctx, page } = await open(SAVE({ town: { areas: withItems(area, boosIn(area)) } }), { area });
-    await sleep(9600);
-    const p = await pulse(page);
-    assert(p.hint === line, `${area}: "${p.hint}"`);
-    await page.screenshot({ path: `${SHOTS}/item1-invitation-${area}.png` });
-    await ctx.close();
-  }
-  for (const room of ['lounge', 'kitchen', 'bedroom']) {
-    const key = room === 'lounge' ? 'boohouse' : 'boohouse_' + room;
-    const { ctx, page } = await open(SAVE({ town: { areas: withItems(key, boosIn(key, 2, 0.30)) } }), { area: 'boohouse', room });
-    await sleep(9600);
-    const p = await pulse(page);
-    assert(p.hint === 'Try tapping a sleepy Boo…', `boohouse/${room}: "${p.hint}"`);
-    await ctx.close();
-  }
+  // The Lounge and the Kitchen are covered by the ten mounts above; the Bedroom is the one
+  // storage key those did not reach, and it shares the rooms' authored line.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('boohouse_bedroom', boosIn('boohouse_bedroom', 2, 0.30)) } }), { area: 'boohouse', room: 'bedroom' });
+  await sleep(9600);
+  const p = await pulse(page);
+  assert(p.hint === 'Try tapping a sleepy Boo…', `boohouse/bedroom: "${p.hint}"`);
+  await ctx.close();
 }
 
 console.log('== item 1: REDUCED shows the invitation and no movement beat ==');
@@ -716,6 +717,92 @@ console.log('== item 5: nothing happens in an area nobody is hiding in ==');
   const r = await page.evaluate(() => window.__townLife.hiderNudge());
   assert(!r.nudged && !r.hasPeek, 'the Riverside says nothing about a Meadow hider');
   assert(r.hint !== "Someone's hiding nearby… 👀", `and its hint bar is its own ("${r.hint}")`);
+  await ctx.close();
+}
+
+// ============================================================================
+// The pack's final gate — fresh and rich saves, and the two rules that bind everywhere
+// ============================================================================
+console.log('== gate: a FRESH save ==');
+{
+  // Nothing placed, nothing owned, no stars: the state a child is in for the few seconds
+  // between finishing onboarding and putting her first Boo down.
+  const fresh = {
+    version: 23, name: 'Ada', age: 8, ageAsked: true,
+    guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
+    inventory: {}, stars: { total: 0, byType: {}, spent: {} },
+    town: { areas: AREAS() }, wishes: { unlocked: {} },
+    seen: { ageAsked: true }, settings: { sound: false, music: false, voice: false, content: 'full' }
+  };
+  for (const area of ['meadow', 'funfair', 'playground']) {
+    const { ctx, page } = await open(fresh, { area });
+    await sleep(2600);
+    const p = await pulse(page);
+    assert(p.beats.length <= 1, `${area} (fresh): never more than one beat (${JSON.stringify(p.beats)})`);
+    assert(await page.evaluate(() => window.__townLife.dots().length) === 4, `${area} (fresh): the four dots are there`);
+    if (area === 'meadow') {                            // one full nine-second wait is the proof
+      await sleep(7400);
+      const q = await pulse(page);
+      assert(q.hint === q.invitation, `${area} (fresh): the invitation still lands ("${q.hint}")`);
+    }
+    await ctx.close();
+  }
+}
+
+console.log('== gate: a RICH save ==');
+{
+  // Every area furnished, a live request, the day's hider unfound, the whole fair standing.
+  const areas = AREAS();
+  for (const a of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground']) {
+    areas[a].items = [
+      ...boosIn(a, 4, 0.10),
+      { zone: a, x: 0.34, row: 2, item: 'deco_bench', scale: 1 },
+      { zone: a, x: 0.55, row: 1, item: 'deco_oak', scale: 1 },
+      { zone: a, x: 0.80, row: 1, item: 'deco_flowers', scale: 1 }
+    ];
+    areas[a].paths = [{ cx: 3, cy: 4, style: 'stone' }, { cx: 4, cy: 4, style: 'stone' }];
+  }
+  areas.boohouse.items = boosIn('boohouse', 2, 0.30).concat([{ zone: 'boohouse', x: 0.6, row: 1, item: 'deco_bed', scale: 1 }]);
+  const rich = SAVE({
+    town: { areas },
+    settings: REQUESTS_ON,
+    request: { actives: [{ id: 'threeStar', booId: BOOS[1], text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() },
+    delights: { hideDay: today, hideFound: false, hideBoo: BOOS[0], hideSpot: { zone: 'beach', x: 0.55, item: 'deco_oak' } }
+  });
+  for (const area of ['meadow', 'riverside', 'beach', 'funfair', 'boohouse']) {
+    const { ctx, page } = await open(rich, { area, room: area === 'boohouse' ? 'lounge' : null });
+    await sleep(2600);
+    const p = await pulse(page);
+    assert(p.beats.length === 1, `${area} (rich): exactly one beat (${JSON.stringify(p.beats)})`);
+    if (area === 'meadow' || area === 'beach') {        // beach is where the day's hider is
+      await sleep(7400);
+      const q = await pulse(page);
+      assert(q.beats.length === 1, `${area} (rich): STILL exactly one beat after the invitation`);
+      assert(q.hint === q.invitation || q.hint === "Someone's hiding nearby… 👀", `${area} (rich): the hint bar is one of RUN21D's own lines ("${q.hint}")`);
+    }
+    await page.screenshot({ path: `${SHOTS}/gate-rich-${area}.png` });
+    await ctx.close();
+  }
+}
+
+console.log('== gate: the Pulse never speaks over a reveal, on a rich save ==');
+{
+  // A growth milestone AND a fair catch-up both owed, in the fair, on a furnished save.
+  const areas = AREAS();
+  areas.funfair.items = boosIn('funfair', 4, 0.10);
+  const save = SAVE({
+    town: { areas },
+    funfair: { built: ['carousel'], build: null, pending: [], seats: {}, catchup: [] }
+  });
+  const { ctx, page } = await open(save, { area: 'funfair' });
+  await sleep(2600);
+  const p = await pulse(page);
+  assert(p.beats.length === 0 && p.beat === 'skipped:reveal', `the pulse stood down for the ceremony (${p.beat}, ${JSON.stringify(p.beats)})`);
+  // …and once she dismisses it, the pulse does NOT then fire late over the top of her play
+  const btn = await page.$('.overlay .btn');
+  if (btn) { await btn.click(); await sleep(1200); }
+  const q = await pulse(page);
+  assert(q.beats.length === 0, 'and it does not sneak in afterwards either — the mount is spent');
   await ctx.close();
 }
 
