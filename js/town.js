@@ -790,16 +790,70 @@ export function mount(container, params, ctx) {
     // giant square: ~20 columns x ~20 rows, comfortably above the 300-cell cap.
     return { bandTopPx, bandBotPx, cellW: zoneW * PATH_CELL, cellH: (bandBotPx - bandTopPx) * PATH_CELL };
   }
-  function pathCellEl(c) {
-    const { bandTopPx, cellW, cellH } = cellGeom();
-    const e = el('div', { class: 't-path-cell path-' + c.style, dataset: { cx: String(c.cx), cy: String(c.cy) } });
-    e.style.left = (c.cx * cellW) + 'px';
-    e.style.top = (bandTopPx + c.cy * cellH) + 'px';
-    e.style.width = Math.ceil(cellW) + 'px';
-    e.style.height = Math.ceil(cellH) + 'px';
-    return e;
+  // ---- RUN21C-3: STROKES, NOT TILES ------------------------------------------------------
+  // The DATA is untouched — still `paths:[{cx,cy,style}]`, still capped at PATH_CAP. What
+  // changed is only what those cells LOOK like: adjacent same-style cells in a row merge into
+  // ONE rounded stroke instead of a line of little squares, so a path she draws reads as a
+  // path rather than as pixel art.
+  //
+  // DEVIATION from the pack's mechanism (logged in RUN21C-PROGRESS.md): the pack asks for a
+  // "quarter-round join patch" where a cell has a vertical neighbour. A quarter-round cannot
+  // fill the notch between two rounded strokes without exposing its own rounding on the other
+  // side. What DOES produce the curved corner the ACCEPT asks for is a VERTICAL run drawn
+  // with the same radius: at a turn its rounded corner lands exactly on the horizontal run's,
+  // so the two read as one stroke bending round a corner. Same idea, correct geometry.
+  const PATH_ROUND = 0.45;   // "radius = 45% cell height" — for every run, horizontal or vertical
+  // Maximal spans of adjacent same-style cells. `axis` picks which way: 'h' walks cx within a
+  // row, 'v' walks cy within a column. Both return {style, fixed, a, b} (a..b inclusive).
+  function pathSpans(cells, axis) {
+    const groups = new Map();
+    for (const c of cells) {
+      const fixed = axis === 'h' ? c.cy : c.cx;
+      const k = c.style + ' ' + fixed;
+      if (!groups.has(k)) groups.set(k, { style: c.style, fixed, list: [] });
+      groups.get(k).list.push(axis === 'h' ? c.cx : c.cy);
+    }
+    const out = [];
+    for (const g of groups.values()) {
+      g.list.sort((p, q) => p - q);
+      let start = g.list[0], prev = g.list[0];
+      for (let i = 1; i <= g.list.length; i++) {
+        const n = g.list[i];
+        if (n === prev + 1) { prev = n; continue; }
+        out.push({ style: g.style, fixed: g.fixed, a: start, b: prev });
+        start = prev = n;
+      }
+    }
+    return out;
   }
-  // The saved list while not actively editing, or the in-memory batch while build mode
+  // A vertical span of ONE cell is already drawn by its row's stroke, so it is skipped —
+  // that keeps the node count at roughly "one per stroke" rather than one per cell.
+  function pathRunEls(cells) {
+    const { bandTopPx, cellW, cellH } = cellGeom();
+    const r = (cellH * PATH_ROUND).toFixed(1) + 'px';
+    const out = [];
+    for (const s of pathSpans(cells, 'h')) {
+      const e = el('div', { class: 't-path-run path-' + s.style, dataset: { row: String(s.fixed), style: s.style } });
+      e.style.left = (s.a * cellW) + 'px';
+      e.style.top = (bandTopPx + s.fixed * cellH) + 'px';
+      e.style.width = Math.ceil((s.b - s.a + 1) * cellW) + 'px';
+      e.style.height = Math.ceil(cellH) + 'px';
+      e.style.borderRadius = r;
+      out.push(e);
+    }
+    for (const s of pathSpans(cells, 'v')) {
+      if (s.b === s.a) continue;
+      const e = el('div', { class: 't-path-run t-path-join path-' + s.style, dataset: { col: String(s.fixed), style: s.style } });
+      e.style.left = (s.fixed * cellW) + 'px';
+      e.style.top = (bandTopPx + s.a * cellH) + 'px';
+      e.style.width = Math.ceil(cellW) + 'px';
+      e.style.height = Math.ceil((s.b - s.a + 1) * cellH) + 'px';
+      e.style.borderRadius = r;
+      out.push(e);
+    }
+    return out;
+  }
+  // The saved list while not actively editing, or the in-memory batch while the Path Pot
   // holds one (RUN10 P3: painting doesn't hit the save on every cell — see commitPaths).
   function currentPaths() {
     if (pendingPaths) return pendingPaths;
@@ -807,15 +861,22 @@ export function mount(container, params, ctx) {
     return (a && a.paths) || [];
   }
   function renderPaths() {
-    ground.querySelectorAll('.t-path-cell').forEach(n => n.remove());
+    ground.querySelectorAll('.t-path-run').forEach(n => n.remove());
     const frag = document.createDocumentFragment();
-    for (const c of currentPaths()) frag.appendChild(pathCellEl(c));
+    for (const e of pathRunEls(currentPaths())) frag.appendChild(e);
     ground.appendChild(frag);
   }
+  // Only the runs a changed cell can possibly belong to. Painting (cx,cy) can only split,
+  // merge, extend or restyle a stroke in ROW cy or in COLUMN cx — every other stroke on the
+  // ground is still exactly right, so it is left alone. That is the pack's "rebuild only the
+  // runs containing a changed cell", and it is what keeps a fast drag at frame rate.
   function redrawPathCell(cx, cy) {
-    ground.querySelectorAll(`.t-path-cell[data-cx="${cx}"][data-cy="${cy}"]`).forEach(n => n.remove());
-    const rec = pendingPaths.find(c => c.cx === cx && c.cy === cy);
-    if (rec) ground.appendChild(pathCellEl(rec));
+    ground.querySelectorAll(`.t-path-run[data-row="${cy}"], .t-path-run[data-col="${cx}"]`).forEach(n => n.remove());
+    const cells = currentPaths();
+    const frag = document.createDocumentFragment();
+    for (const e of pathRunEls(cells.filter(c => c.cy === cy))) { if (e.dataset.row != null) frag.appendChild(e); }
+    for (const e of pathRunEls(cells.filter(c => c.cx === cx))) { if (e.dataset.col != null) frag.appendChild(e); }
+    ground.appendChild(frag);
   }
   function loadPendingPaths() {
     const a = getState().town.areas[STORE_KEY];
@@ -5560,8 +5621,17 @@ export function mount(container, params, ctx) {
       cellGeom: () => cellGeom(),
       gridOpacity: () => getComputedStyle(buildGrid).opacity,
       commitPathsNow: () => commitPaths(),
-      pathCellCount: () => ground.querySelectorAll('.t-path-cell').length,
-      pathCellZ: (sel) => { const n = ground.querySelector(sel || '.t-path-cell'); return n ? getComputedStyle(n).zIndex : null; },
+      // RUN21C-3: a painted cell is no longer a node of its own — adjacent same-style cells
+      // in a row are ONE stroke. `pathCellCount` counts the painted CELLS (what the name has
+      // always meant); `pathRunCount` counts the strokes those cells drew.
+      pathCellCount: () => currentPaths().length,
+      pathRunCount: () => ground.querySelectorAll('.t-path-run').length,
+      pathRunBoxes: () => [...ground.querySelectorAll('.t-path-run')].map(n => ({
+        row: n.dataset.row != null ? +n.dataset.row : null, col: n.dataset.col != null ? +n.dataset.col : null,
+        style: n.dataset.style, radius: getComputedStyle(n).borderTopLeftRadius,
+        w: Math.round(n.getBoundingClientRect().width), h: Math.round(n.getBoundingClientRect().height)
+      })),
+      pathCellZ: (sel) => { const n = ground.querySelector(sel || '.t-path-run'); return n ? getComputedStyle(n).zIndex : null; },
       itemZ: (sel) => { const n = ground.querySelector(sel); return n ? (n.style.zIndex || getComputedStyle(n).zIndex) : null; },
       ripple: (sel) => { const w = ground.querySelector(sel || '.t-item[data-item="deco_pond"]'); if (w) spawnPondRipple(w); },
       rippleCount: () => ground.querySelectorAll('.t-ripple').length,
