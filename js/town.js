@@ -7,7 +7,7 @@ import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
-import { renderItem, renderDeco, clockHands } from './art.js';
+import { renderItem, renderDeco, clockHands, WISH_SIZE, WISH_PX } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
@@ -295,6 +295,13 @@ const ACT_SIZE = {
   deco_toybox: 125, deco_wallart1: 110, deco_wallart2: 110, deco_wallart3: 110,
   deco_photoframe: 105
 };
+// RUN21B item 1: every wish used to render at the generic 92, because they were all the
+// same medallion and size carried no meaning. Now that they are real objects, each carries
+// the pack's footprint class — S 44 (bell, key, sock, cookie…), M 64, L 84 (castle, whale,
+// rocket…) — so a key is key-sized beside a castle instead of matching it.
+for (const [word, cls] of Object.entries(WISH_SIZE)) {
+  if (WISH_PX[cls]) ACT_SIZE[wishId(word)] = WISH_PX[cls];
+}
 
 export function totalStars() { const s = getState(); return s ? s.stars.total : 0; }
 
