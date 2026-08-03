@@ -6928,6 +6928,14 @@ html.bigger-text { --vz: 1.125; }
    sit under the build drawer — which, in build mode, it very often does. */
 .t-resize.up { bottom: auto; top: -14px; cursor: nesw-resize; }
 .t-resize.up::after { transform: rotate(45deg) translate(1px, 1px); }
+/* RUN21B item 3: and to the item's LEFT side when BOTH right-hand corners are blocked — which
+   re-baselined furniture manages at 1024x700, with the drawer tabs under the bottom-right
+   corner and the build-mode tool rows over the top-right one. The arrow keeps pointing away
+   from the item, so the gesture still reads as "drag me bigger" from whichever corner it is on. */
+.t-resize.left { right: auto; left: -14px; cursor: nesw-resize; }
+.t-resize.left::after { transform: rotate(135deg) translate(1px, 1px); }
+.t-resize.up.left { cursor: nwse-resize; }
+.t-resize.up.left::after { transform: rotate(-135deg) translate(1px, 1px); }
 
 
 /* RUN19 Z7: Boo Bounce's build-the-answer target. Underscores show how many digits the answer
