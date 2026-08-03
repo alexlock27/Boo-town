@@ -121,6 +121,35 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
    - All three strings stay inline in town.js beside the river's, not in data/guideLines.js:
      the hint bar is not guide speech, and ~25 hint strings are already inline there.
 
+9. **Item 3's method is impossible as written; its ACCEPT is not. Ruling, before any code.**
+   The pack gives most items TWO targets — a width and a seat/top height, both as multiples
+   of the Boo's height B. `ACT_SIZE` scales one shared 120×130 viewBox uniformly, so an
+   item's drawn-width : drawn-seat-height ratio is FIXED BY ITS ART and cannot be changed by
+   sizing. Measured, the pack wants every paired item wider relative to its seat than the art
+   draws it: bench art 1.78 vs pack 3.27 · bed 1.90 vs 4.22 · sofa 2.40 vs 4.80 · armchair
+   2.00 vs 2.60 · little table 1.00 vs 1.81 · kitchen table 1.375 vs 2.44. Both numbers can
+   only hold if the FURNITURE ART IS REDRAWN, which is not this item (and would be scope
+   invention: item 3 is a re-baseline, and item 1 already spent this run's art budget).
+   **Ruling, per the dispatch's Fix rule ("acceptance criteria are the target, not the code
+   shapes"):**
+   a. **B = the Boo's DRAWN height (~76px at scale 1, row 1), not its 99.7px SVG box.** The
+      pack's ratios describe what the eye sees; the box carries ~24px of transparent margin.
+      Using the box would make every re-baselined item ~32% too big — the opposite of the
+      fix. Both readings are recorded here because they differ by 32% and someone will ask.
+   b. **Where the two targets conflict, the SEAT/TOP height wins** — that is the number the
+      ACCEPT actually tests ("a Boo fits every seat without floating"), and the one the WHY
+      is about. Width follows from the art.
+   c. **Nothing shrinks that the WHY calls too small.** Several targets computed against B
+      would REDUCE the item (wall clock 105→42, photo frame 105→38, pot plant 110→68, table
+      lamp 105→65), which contradicts the pack's own opening sentence. Those are treated as
+      authored against a different B and left at or near their current size unless a
+      side-by-side shows them genuinely oversized.
+   d. `deco_bench` "Cosy Bench" is the ONLY bench — the pack's indoor and outdoor lists are
+      the same item. It, `deco_pond` and `deco_bookshelf3` have no `ACT_SIZE` entry at all
+      and render at the 92 fallback, so they are ADDED, not edited.
+   e. "pot plant" is unnamed in the pack; there are three. `deco_plant1` is the only one in
+      `SMALL_ITEMS` (it is the one that stands on tables), so it is the one meant.
+
 ## Session notes
 - Wish art lives in `renderWish()` (js/art.js ~1670), shared 120×130 deco viewBox, caption
   `<text x="60" y="124" font-size="11">`. Classes `wish-svg wish-<word>` must survive —
