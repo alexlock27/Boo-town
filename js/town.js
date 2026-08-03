@@ -209,9 +209,12 @@ const FISH_COOLDOWN_MS = 9000;    // matches the bench's cooldown feel
 
 // ---- Town 4.0 capacity (RUN10 P2) ----
 export const AREA_CAP = 24;      // items per area; a full area refuses drops with a guide line
-// ---- Town 4.0 build mode (RUN10 P3) ----
+// ---- Paths (RUN10 P3; the hammer that used to gate them retired in RUN21C-1) ----
 export const PATH_CAP = 300;      // path cells per area
 const PATH_CELL = 0.05;           // grid cell size: 5% of the area's width, square within the ground band
+// RUN21C-2: the one line the Path Pot says while it is in her hand. Authored copy — exact.
+export const PATH_POT_HINT = 'Drag along the ground to lay a path — paint over it to sweep it away.';
+export const PATH_POT_ID = 'path_pot';   // the permanent first chip in the Landscape tab
 // Landscape items are a Build-mode toybox, not a collectible — always available in the
 // drawer regardless of `inventory` (never granted/decremented there), so a fresh save's
 // inventory stays exactly what she's actually won.
@@ -475,19 +478,30 @@ export function mount(container, params, ctx) {
   let scrollX = 0, worldW = 0, zoneW = 0, viewW = 0, viewH = 0, groundY = 0;
   let raf = null, actors = [], fx = [];
   let currentSeasonName = '', starTimer = null;   // ambient life (RUN6 C1)
-  // ---- build mode (RUN10 P3) ----
-  let buildMode = false, buildTool = 'paths', pathStyle = 'stone';   // RUN21A-15: 'place' removed
+  // ---- RUN21C-1: the world SOFTENS (this replaces RUN10 P3's build mode) ----------------
+  // There is no mode any more, and no hammer to enter one. The world softens — actors pause
+  // mid-pose, request bubbles hide, ambient speech stops — whenever she is plainly ARRANGING
+  // rather than playing: the drawer is open, or something is held on her finger (a drawer
+  // chip, or the Path Pot). Drawer shut and nothing held → everything resumes.
+  //
+  // `softened` is THE gate. Every `!buildMode` in this file became `!softened`; the CSS class
+  // is still `.town2.building` because that is what carries the freeze, and renaming a
+  // stylesheet contract is not what this pack is for.
+  //
+  // *** CROSS-RUN NOTE (RUN21B merges before this branch): the wish ambient-idle scheduler
+  // `pumpWishIdles` is gated `!document.hidden && !buildMode`. There is no `buildMode` any
+  // more — that gate must become `!document.hidden && !softened`, or the wish idles never
+  // pause while she arranges. ***
+  let softened = false, pathStyle = 'stone';
+  let potHeld = false;          // the Path Pot is lifted (RUN21C-2)
   let pendingPaths = null, pathCommitTimer = null, painting = false;
 
   const root = el('div', { class: 'town2 area-' + AREA.key + ' entering' });
   const back = backControl(() => ctx.go('worldmap'));
   const title = el('h2', { text: AREA.name });
-  const hammerBtn = el('button', { class: 'icon-btn town-hammer-btn', 'aria-label': 'Build mode', onclick: () => toggleBuildMode() }, [
-    el('span', { class: 'hammer-ic', text: '🔨' }),
-    el('span', { class: 'hammer-lbl', text: 'Build' })
-  ]);
   if (ROOM) title.textContent = `${AREA.name} \u00b7 ${ROOM.name}`;
-  const header = el('header', { class: 'town-header' }, [back, title, hammerBtn]);
+  // RUN21C-1: no hammer. The drawer carries the intent now, so the header is back + name.
+  const header = el('header', { class: 'town-header' }, [back, title]);
   // RUN13 T3 — the room switcher. A labelled tab strip in the drawer/tab visual language
   // (js/drawer.js's `.bd-tab` pattern), NOT a pair of edge arrows: a child should be able
   // to read where she is going. This is navigation between scenes, not a physical action,
@@ -560,23 +574,12 @@ export function mount(container, params, ctx) {
   air.appendChild(buildGrid);   // never cleared by renderScenery/renderPlaced, like the drop-ghost
   const viewport = el('div', { class: 't-viewport' }, [sky, hills, ground, air]);
 
-  // Build-mode tool row (right edge, vertical, RUN10 P3): Paths | Erase, plus a
-  // secondary path-style strip (stone/sand/flower) that only shows while Paths is picked.
-  // RUN21A-15: the Place tool is gone — no code ever read it, and placing (chip-lift,
-  // tap-to-place, drag-to-move) has always worked in play mode.
-  const BUILD_TOOLS = [
-    { id: 'paths', label: '🛤️', title: 'Paths' },
-    { id: 'erase', label: '🧹', title: 'Erase' }
-  ];
-  const toolBtns = BUILD_TOOLS.map(td => el('button', {
-    class: 't-tool-btn' + (buildTool === td.id ? ' sel' : ''), type: 'button', 'aria-label': td.title,
-    onclick: () => selectBuildTool(td.id)
-  }, [
-    el('span', { class: 'tool-ic', text: td.label }),
-    el('span', { class: 'tool-lbl', text: td.title })
-  ]));
-  const toolRow = el('div', { class: 't-tool-row' }, toolBtns);
-  toolRow.addEventListener('pointerdown', e => e.stopPropagation());
+  // RUN21C-1: the Paths | Erase tool row is GONE, and with it the last thing that needed a
+  // mode to reach. Painting is the Path Pot chip in the Landscape tab (item 2); scrubbing is
+  // painting over what is already there, which is what the eraser always really was.
+  //
+  // The path-style row survives as the strip that docks above the drawer while the Pot is
+  // held (item 2 wires it; item 4 fills it from the shop).
   const PATH_STYLES = [
     { id: 'stone', label: '🪨', title: 'Stone' },
     { id: 'sand', label: '🏖️', title: 'Sand' },
@@ -591,7 +594,8 @@ export function mount(container, params, ctx) {
   ]));
   const pathStyleRow = el('div', { class: 't-path-style-row' }, styleBtns);
   pathStyleRow.addEventListener('pointerdown', e => e.stopPropagation());
-  viewport.append(toolRow, pathStyleRow);
+  pathStyleRow.style.display = 'none';
+  viewport.append(pathStyleRow);
 
   // Town drawer (RUN10 P2): js/drawer.js tabs [Boos | Rides & fun | Decorations | Special],
   // plus a Build-only Landscape tab (RUN10 P3, tab button hidden outside build mode).
@@ -620,11 +624,14 @@ export function mount(container, params, ctx) {
     tabs: drawerTabsNodes, initial: 0, ariaLabel: 'Town items',
     // RUN21A-2: the decorate strip re-renders whenever its tab is picked — it used to be
     // populated only by the hammer toggle, so fresh rooms showed a bare "Nothing here yet!".
-    onTab: (id) => { if (id === 'decorate') renderDecorateTab(); }
+    onTab: (id) => { if (id === 'decorate') renderDecorateTab(); },
+    // RUN21C-1: opening the tray IS the "I am arranging" signal now. The world softens with
+    // it and wakes the moment it shuts with nothing on her finger.
+    onOpen: () => updateSoftened()
   });
   const drawer = drawerApi.root;   // kept as `drawer` — existing wobble/capacity-tint code targets it
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
-  updateBuildUI();   // hides the Landscape tab + build tool rows until the hammer is tapped
+  updateDrawerTabs();   // which tabs this area shows at all (outdoor/indoor/wishes)
   renderDecorateTab();   // RUN21A-2: populated at mount too, not only via the hammer
   root.append(header, ...(dots ? [dots] : []), hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
   container.appendChild(root);
@@ -703,11 +710,12 @@ export function mount(container, params, ctx) {
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
     // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
-    // there", so she arrives IN build mode with that item already selected in its own
-    // drawer tab — no hunting for the hammer and no hunting through six tabs. Selected,
-    // not held on the finger: the pack is explicit that selection is enough.
-    if (params && params.build && !buildMode) {
-      toggleBuildMode();
+    // there", so she arrives with the tray already open on that item's own drawer tab — no
+    // hunting through six tabs. Selected, not held on the finger: the pack is explicit that
+    // selection is enough. (RUN21C-1: `params.build` no longer names a mode — it opens the
+    // tray, which is all it ever meant.)
+    if (params && params.build) {
+      drawerApi.open();
       const held = params.place && resolveItem(params.place);
       if (held) {
         const spec = DRAWER_TABS_SPEC.find(t => t.test(held));
@@ -835,11 +843,11 @@ export function mount(container, params, ctx) {
     if (sfx.oops) sfx.oops();
   }
   function paintCell(cx, cy) {
+    if (!pendingPaths) loadPendingPaths();
     const i = pendingPaths.findIndex(c => c.cx === cx && c.cy === cy);
-    if (buildTool === 'erase') {
-      if (i >= 0) { pendingPaths.splice(i, 1); redrawPathCell(cx, cy); }
-      return;
-    }
+    // RUN21C-1: the Erase tool is gone. Scrubbing IS painting the same style over itself —
+    // the toggle below, which the paths tool has always had and which is the eraser a child
+    // discovers by accident and then uses on purpose.
     if (i >= 0) {
       if (pendingPaths[i].style === pathStyle) pendingPaths.splice(i, 1);   // toggle-erase: same cell, same style
       else pendingPaths[i].style = pathStyle;
@@ -863,48 +871,26 @@ export function mount(container, params, ctx) {
     paintCell(cell.cx, cell.cy);
   }
 
-  // ---- build mode toggle (RUN10 P3) ----------------------------------------
-  function toggleBuildMode() {
-    sfx.tap();
-    buildMode = !buildMode;
-    if (buildMode) {
-      loadPendingPaths();
-      pathCommitTimer = setInterval(commitPaths, 10000);   // "commit on exit or every 10s" (spec)
-      buildTool = 'paths';   // RUN21A-15: build mode is the path workshop now
-      toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === buildTool));
-      renderDecorateTab();   // RUN19 Z6 — the room's wallpaper + floor swatches
-      drawerApi.showTab(isInterior ? 'furniture' : 'boos');
-      drawerApi.open();
-    } else {
-      if (pathCommitTimer) { clearInterval(pathCommitTimer); pathCommitTimer = null; }
-      commitPaths();
-      pendingPaths = null;
-      holding = null; placeMode = false;
-      renderDrawer();
-    }
-    updateBuildUI();
-    renderPlaced();
-    updateHint();
-  }
-  function selectBuildTool(id) {
-    sfx.tap();
-    buildTool = id;
-    toolBtns.forEach((b, i) => b.classList.toggle('sel', BUILD_TOOLS[i].id === id));
-    updateBuildUI();
+  // ---- RUN21C-1: the softened world ----------------------------------------------------
+  // The one place that decides whether the town is arranging or living. Called whenever the
+  // drawer opens or shuts, whenever something is picked up or put down, and whenever the Pot
+  // is lifted or put away. Nothing else may set `softened`.
+  function worldSoftened() { return drawerApi.isOpen() || !!holding || potHeld; }
+  function updateSoftened() {
+    const next = worldSoftened();
+    if (next === softened) return;
+    softened = next;
+    // `.building` is the freeze contract in styles.css (paused CSS animations + the 250ms
+    // ease that lands the last pose instead of cutting it). Kept by name on purpose.
+    root.classList.toggle('building', softened);
+    renderRequestBubble();   // bubbles vanish while soft, and come back when she is done
   }
   function selectPathStyle(id) {
     sfx.tap();
     pathStyle = id;
     styleBtns.forEach((b, i) => b.classList.toggle('sel', PATH_STYLES[i].id === id));
   }
-  function updateBuildUI() {
-    root.classList.toggle('building', buildMode);
-    hammerBtn.classList.toggle('active', buildMode);
-    hammerBtn.classList.toggle('hammer-active', buildMode);
-    hammerBtn.setAttribute('aria-label', buildMode ? 'Exit build mode' : 'Build mode');
-    const hammerLbl = hammerBtn.querySelector('.hammer-lbl');
-    if (hammerLbl) hammerLbl.textContent = buildMode ? 'Done' : 'Build';
-    pathStyleRow.style.display = (buildMode && buildTool === 'paths') ? '' : 'none';
+  function updateDrawerTabs() {
     // Landscape is an outdoor-only toybox (RUN10 P3/P4). RUN21A-15: no longer hidden
     // behind the hammer — chip-lift placement has always worked in play mode.
     const tabs = [...drawer.querySelectorAll('.bd-tabs .bd-tab')];
@@ -1143,7 +1129,7 @@ export function mount(container, params, ctx) {
   // The signature: a tap on the RIGHT part of the scene, once per visit, with its own beat.
   // Returns true when it fired, so the viewport tap handler knows to stop there.
   function areaSignature(clientX, clientY) {
-    if (buildMode || isInterior) return false;
+    if (softened || isInterior) return false;
     const r = viewport.getBoundingClientRect();
     const yFrac = (clientY - r.top) / (r.height || 1);
     const worldX = (clientX - r.left) + scrollX;
@@ -1889,6 +1875,8 @@ export function mount(container, params, ctx) {
       // Reveals win. A growth/funfair ceremony is already the moment; the town does not
       // clear its throat over one. The whole pulse skips this mount, invitation included.
       if (revealShowing || revealQueue.length) { pulseBeat = 'skipped:reveal'; return; }
+      // RUN21C-1: and the softened world does not get cleared throats either.
+      if (softened) { pulseBeat = 'skipped:softened'; return; }
       // REDUCED: no movement beats at all — the invitation is the whole pulse.
       pulseBeat = REDUCED ? 'reduced' : (playPulseBeat() || 'none');
       hiderFairChance();   // RUN21D-5: after the beat, in the hider's area only
@@ -2015,7 +2003,7 @@ export function mount(container, params, ctx) {
   // this camera. Deliberately reads the same anchors areaSignature() tests against, so the
   // pulse can never fire a signature a finger could not have.
   function signaturePoint() {
-    if (buildMode || isInterior) return null;
+    if (softened || isInterior) return null;
     const r = viewport.getBoundingClientRect();
     const atFrac = (xFrac, yFrac) => {
       const px = xFrac * zoneW - scrollX;
@@ -2082,7 +2070,7 @@ export function mount(container, params, ctx) {
   function showPulseInvitation() {
     pulseHintTimer = null;
     if (revealShowing || revealQueue.length) return;
-    if (buildMode || placeMode || holding) return;
+    if (softened || placeMode || holding) return;
     const line = pulseInvitation();
     if (!line) return;
     hint.textContent = line;
@@ -3015,7 +3003,7 @@ export function mount(container, params, ctx) {
   function renderRequestBubble() {
     ground.querySelectorAll('.request-bubble, .request-treat, .request-thought').forEach(n => n.remove());
     // Bubbles never appear during build mode (Z2 addendum) — she is arranging, not being asked.
-    if (!buildMode) for (const r of activeRequests()) {
+    if (!softened) for (const r of activeRequests()) {
       const w = [...ground.querySelectorAll('.t-item.boo')].find(x => x.dataset.item === r.booId);
       if (!w) continue;
       // Never parent a bubble to a hidden wrap: a Boo seated on a funfair ride, or the
@@ -3397,7 +3385,8 @@ export function mount(container, params, ctx) {
     // the scroll drag starts, and only when it actually matched something — a miss falls
     // straight through to the normal pan, so the scene never feels sticky.
     if (!placeMode && areaSignature(e.clientX, e.clientY)) return;
-    if (buildMode && (buildTool === 'paths' || buildTool === 'erase')) {
+    // RUN21C-2: a drag on the ground paints only while the Path Pot is actually in her hand.
+    if (potHeld) {
       painting = true;
       viewport.setPointerCapture(e.pointerId);
       paintAtClient(e.clientX, e.clientY);
@@ -3746,7 +3735,7 @@ export function mount(container, params, ctx) {
     holding = (holding === id) ? null : id;
     holdingScale = 1;
     placeMode = !!holding;
-    renderDrawer(); updateHint();
+    renderDrawer(); updateHint(); updateSoftened();
     // close the tray so it stops covering the ground once she's picked something (RUN10 P2).
     // RUN21A-10: NOT shielded — this close exists to hand her the ground, and her very next
     // tap is the placement. Shielding it ate that tap for up to 400ms.
@@ -3907,7 +3896,7 @@ export function mount(container, params, ctx) {
       // cross-run wiring note is explicit that there must never be two competing long-press
       // behaviours here). Build mode keeps its own tap menu; this is for playing.
       clearTimeout(longPressTimer);
-      if (!buildMode) longPressTimer = setTimeout(() => {
+      if (!softened) longPressTimer = setTimeout(() => {
         if (!down || moved) return;
         down = false;
         try { wrap.releasePointerCapture(e.pointerId); } catch {}
@@ -4021,7 +4010,7 @@ export function mount(container, params, ctx) {
     noteItemTap(place);
     // RUN20 W1: every wish has a verb now. It runs INSTEAD of the item menu, because a wished
     // thing that opens "Move / Put away" when you poke it is the dead prop this run removes.
-    if (!buildMode && wishTap(wrap, place, item)) return;
+    if (!softened && wishTap(wrap, place, item)) return;
     if (item.id === 'deco_wishwell') { openWellHere(wrap); return; }
     if (item.id === 'deco_jokestage') { sfx.tap(); ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
@@ -4041,13 +4030,13 @@ export function mount(container, params, ctx) {
       onSpawn: (word, wished, info) => {
         grantWishIntoWorld(well, word, wished, (info && info.wasNew) !== false);
         renderDrawer();
-        updateBuildUI();
+        updateDrawerTabs();
       },
       // Back to the town exactly as she left it: the drawer and build strip may both be
       // stale (a wish can unlock a new item), and the well keeps the focus ring.
       onClose: () => {
         renderDrawer();
-        updateBuildUI();
+        updateDrawerTabs();
         if (well && typeof well.focus === 'function') { try { well.focus({ preventScroll: true }); } catch {} }
       }
     });
@@ -4121,7 +4110,7 @@ export function mount(container, params, ctx) {
       const node = ground.querySelector(`.t-item[data-item="${id}"]`);
       if (node && !REDUCED) { node.classList.remove('wish-arrive'); void node.offsetWidth; node.classList.add('wish-arrive'); }
       sayInWorld('Your wish came true!');
-      renderDrawer(); updateBuildUI();
+      renderDrawer(); updateDrawerTabs();
     }, REDUCED ? 0 : WISH_BEAT_MS);
     return { placed: spot, id };
   }
@@ -4388,7 +4377,9 @@ export function mount(container, params, ctx) {
     // fingertips is not something a nine-year-old should have to do.
     const active = new Map();
     let pinchStart = 0;
-    wrap.addEventListener('pointerdown', e => { if (buildMode && e.pointerType === 'touch') active.set(e.pointerId, e); }, true);
+    // RUN21C-6: the pinch is live for as long as the handle is — the handle's own lifetime
+    // (menu open, or 4s after a move) is the gate now, not a mode.
+    wrap.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') active.set(e.pointerId, e); }, true);
     wrap.addEventListener('pointermove', e => {
       if (!active.has(e.pointerId)) return;
       active.set(e.pointerId, e);
@@ -4453,7 +4444,9 @@ export function mount(container, params, ctx) {
     // buttons were three taps and a number to do what one drag does, and they had to be read
     // first. The one thing they did that a drag cannot — snap back to 100% — survives as a
     // double-tap on the handle.
-    if (buildMode) attachResizeHandle(wrap, place, item);
+    // RUN21C-6: the handle attaches whenever this menu opens, in the ordinary world. There
+    // is no mode to be in first.
+    attachResizeHandle(wrap, place, item);
     btns.push(el('button', { class: 'btn soft', text: 'Move', onclick: (e) => { e.stopPropagation(); pickUp(place); } }));
     if (item.id !== 'deco_bffportrait') btns.push(el('button', { class: 'btn soft', text: 'Put away', onclick: (e) => { e.stopPropagation(); putAway(place); } }));
     const menu = el('div', { class: 'plot-menu' }, btns);
@@ -4477,8 +4470,8 @@ export function mount(container, params, ctx) {
   function removePlacement(place) {
     mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
   }
-  function pickUp(place) { closeMenu(); holdingScale = itemScaleOf(place); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); }
-  function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); }
+  function pickUp(place) { closeMenu(); holdingScale = itemScaleOf(place); removePlacement(place); holding = place.item; placeMode = true; renderPlaced(); renderDrawer(); updateHint(); updateSoftened(); }
+  function putAway(place) { closeMenu(); sfx.tap(); removePlacement(place); renderPlaced(); renderDrawer(); updateHint(); updateSoftened(); }
 
   // ---- drawer drag to place (delegated from attachStripMomentum, RUN10 P2) ----------
   const LIFT = 70;   // px the dragged item floats ABOVE the fingertip (blocks.js pattern)
@@ -4486,6 +4479,7 @@ export function mount(container, params, ctx) {
   function beginChipLift(chip, id) {
     holding = id; placeMode = true;
     holdingScale = 1;
+    updateSoftened();   // RUN21C-1: something on her finger softens the world
     const rit = resolveItem(id);
     liftGhost = el('div', { class: 'drag-ghost', html: renderItem(rit, { size: 80, equipArt: rit.kind === 'boo' ? equippedArt(id) : null }) });
     document.body.appendChild(liftGhost);
@@ -4505,10 +4499,12 @@ export function mount(container, params, ctx) {
     const r = viewport.getBoundingClientRect();
     if (ly >= r.top && ly <= r.bottom) placeAtClient(cx, ly);
     else { renderDrawer(); updateHint(); }
+    updateSoftened();
   }
   function cancelChipLift() {
     hideDropPreview(liftGhost);
     if (liftGhost) { liftGhost.remove(); liftGhost = null; }
+    updateSoftened();
   }
 
   function flashLocked(zi) {
@@ -4517,12 +4513,24 @@ export function mount(container, params, ctx) {
     hint.textContent = `${ZONES[zi].name}: ${totalStars()} / ${ZONES[zi].unlock} ⭐`;
   }
 
+  // RUN21C-1: the hint bar, re-pointed at the softened world. Every line is the line it
+  // always was — only the CONDITIONS changed, because the mode they described is gone.
+  // "Drag to move. Tap an item for size controls." kept its exact meaning: it is what the
+  // town has to say while the tray is open and she is arranging, which is precisely when
+  // build mode used to say it.
   function updateHint() {
-    hint.textContent = holding
-      ? 'Tap the ground — I’ll find the nearest free spot!'
-      : buildMode
-        ? 'Drag to move. Tap an item for size controls.'
-        : (placeMode ? 'Tap the ground to place it!' : 'Drag from the tray. Tap a Boo to say hi!');
+    // Every path that changes what she is holding already ends in updateHint(), so this is
+    // the one place that cannot be forgotten. updateSoftened() no-ops unless the state moved.
+    updateSoftened();
+    hint.textContent = potHeld
+      ? PATH_POT_HINT
+      : holding
+        ? 'Tap the ground — I’ll find the nearest free spot!'
+        : placeMode
+          ? 'Tap the ground to place it!'
+          : drawerApi.isOpen()
+            ? 'Drag to move. Tap an item for size controls.'
+            : 'Drag from the tray. Tap a Boo to say hi!';
   }
 
   // Zone-unlock ceremony (RUN10 P1): detecting a fresh star-threshold crossing and
@@ -4550,7 +4558,7 @@ export function mount(container, params, ctx) {
       // Build mode pauses living behaviours (RUN10 P3): the loop keeps ticking so a resume
       // is instant, but skips stepping — the CSS transition on .t-item svg (see styles.css)
       // eases the freeze/resume rather than a hard cut.
-      if (!document.hidden && !buildMode) { stepActors(dt); stepFunfairRides(now); }
+      if (!document.hidden && !softened) { stepActors(dt); stepFunfairRides(now); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -5244,7 +5252,10 @@ export function mount(container, params, ctx) {
 
   // Re-check roles every few seconds: benches cycle "now and then", woken Boos
   // eventually curl back up, and day/night transitions take hold (RUN4 C5).
-  const roleTimer = setInterval(() => { if (!document.hidden) assignRoles(); }, 4000);
+  // RUN21C-1: a seat claimed by the role sweep SPEAKS ("Best seat in the Meadow!"). That is
+  // ambient speech, and the softened world has none of it — she is arranging, not being
+  // talked at. The sweep resumes with everything else the moment the tray shuts.
+  const roleTimer = setInterval(() => { if (!document.hidden && !softened) assignRoles(); }, 4000);
   // RUN13 T4: a placed wall clock keeps real time — hands only, no re-render of the item.
   const clockTimer = setInterval(() => {
     if (document.hidden) return;
@@ -5446,11 +5457,14 @@ export function mount(container, params, ctx) {
       // shows the whole area (e.g. the funfair's 5 rides span x 0.18-0.92) — tests that
       // need a specific spot in view should scroll to it directly.
       scrollToFrac: (x) => { scrollX = Math.max(0, Math.min(x * zoneW - viewW / 2, worldW - viewW)); clampScroll(); applyScroll(); },
-      // RUN10 P3 QA hooks: build mode, path painting, landscape restriction, fishing.
-      buildMode: () => buildMode,
-      toggleBuild: () => toggleBuildMode(),
-      buildTool: () => buildTool,
-      setBuildTool: (id) => selectBuildTool(id),
+      // RUN10 P3 QA hooks: path painting, landscape restriction, fishing.
+      // RUN21C-1: `softened` is the real state now. `buildMode` and `toggleBuild` survive as
+      // ALIASES only — the suites that call them mean "is the world arranging" and "put it
+      // into arranging", and the drawer is what does both. Nothing in the UI reads them.
+      softened: () => softened,
+      buildMode: () => softened,
+      toggleBuild: () => { drawerApi.isOpen() ? drawerApi.close() : drawerApi.open(); updateSoftened(); updateHint(); return softened; },
+      potHeld: () => potHeld,
       pathStyleSel: () => pathStyle,
       setPathStyle: (id) => selectPathStyle(id),
       paths: () => currentPaths().slice(),
@@ -5491,7 +5505,7 @@ export function mount(container, params, ctx) {
       // Force-hold any item id directly (bypasses the drawer UI) — for exercising a
       // placement guard regardless of whether that item's tab happens to be reachable
       // in the current area (e.g. Landscape is hidden indoors by design).
-      forceHold: (id) => { holding = id; placeMode = true; renderDrawer(); },
+      forceHold: (id) => { holding = id; placeMode = true; renderDrawer(); updateSoftened(); },
       placeAt: (fx, fy) => { const r = viewport.getBoundingClientRect(); placeAtClient(r.left + r.width * fx, r.top + r.height * fy); },
       openWishWell: () => openWellHere(),
       wishSpawns: () => [...ground.querySelectorAll('.wish-town-spawn')].map(n => ({ word:n.dataset.word, cls:n.className, animation:getComputedStyle(n).animationName })),
