@@ -13,7 +13,7 @@ import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
 import { idbGet } from './idb.js';
 import { voiceBooIds, playVoice } from './voices.js';
-import { checkRequestOpen, activeRequest, activeRequests, takeTreat, takeThanks, noteRequest, pruneImpossible, VERB_BY_KIND, nowMs, REQUEST_REWARD } from './requests.js';
+import { checkRequestOpen, activeRequest, activeRequests, takeTreat, takeThanks, noteRequest, pruneImpossible, VERB_BY_KIND, nowMs, REQUEST_REWARD, TRY_FRESH_MS } from './requests.js';
 import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreographer.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
@@ -242,6 +242,85 @@ const ZONE_BEHAVIOURS = {       // which zone-only acts a Boo may pick, by zone 
   beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]]
 };
 
+// ---- RUN21D: pulse ---------------------------------------------------------------------
+// Delight in this town is probabilistic — dice per pause, per Boo, per behaviour — which is
+// lovely on the fifth minute and empty on the first. A child could walk into a living place
+// and watch nothing happen for a full minute. So every area mount now takes ONE guaranteed
+// opening breath: exactly one beat, chosen by priority rather than by dice, and then a
+// single invitation to touch something.
+//
+// One beat. Never two. The chooser below returns on its first success, and `pulseStarted`
+// makes the whole thing once-per-mount. Reveals win outright (RUN21A-8's queue): if a
+// ceremony is on screen or waiting at the moment the beat is due, the pulse skips that
+// mount entirely rather than talking over it.
+const PULSE_DELAY_MS = 900;      // after first paint: long enough to read as the town's own
+const PULSE_HINT_MS = 9000;      // …and the invitation, once, at nine seconds
+const PULSE_PAN_MS = 600;        // the pack's ease for "come and look at this"
+const PULSE_BUBBLE_PULSES = 3;   // a request bubble breathes three times, then stops
+const PULSE_BUBBLE_MS = 2400;    // 3 × the .rq-pulse3 cycle in styles.css
+// The invitation, per area, exactly as authored. The Playground names the swings until
+// RUN21E lands tag; the pack authors both and says which one binds until then.
+const PULSE_INVITATIONS = {
+  meadow:            'Try tapping a flower…',
+  riverside:         'Try tapping the river…',
+  hilltop:           'Try tapping the sky…',
+  beach:             'Try tapping the sand…',
+  playground:        'Try the swings…',
+  funfair:           'The bandstand plays if you wander right…',
+  boohouse:          'Try tapping a sleepy Boo…',
+  boohouse_kitchen:  'Try tapping a sleepy Boo…',
+  boohouse_bedroom:  'Try tapping a sleepy Boo…'
+};
+const SHOW_ME_RING_MS = 2000;    // RUN21D-2: how long "Show me" rings the thing it landed on
+
+// ---- RUN21D-3: landmark dots -----------------------------------------------------------
+// An outdoor area is FOUR viewports wide and nothing ever said so. A child who never
+// happened to drag left or right met a quarter of her own town. Four dots, one per screen,
+// named — so the width is legible at a glance and reachable in one tap.
+const DOT_SCREEN_X = [0.125, 0.375, 0.625, 0.875];   // the four screen centres, as fractions
+const DOT_PAN_MS = 600;
+const LANDMARK_DOTS = {
+  meadow:     ['The Oak', 'The Stage', 'The Shop', 'The Well'],
+  riverside:  ['The Bank', 'The Bridge', 'The Reeds', 'The Shallows'],
+  hilltop:    ['The Foot', 'The Climb', 'The Windmill', 'The Crest'],
+  beach:      ['The Palms', 'The Hut', 'The Shore', 'The Rockline'],
+  playground: ['The Gate', 'The Green', 'The Corner', 'The Far Fence'],
+  funfair:    ['The Gate', 'The Rides', 'The Booth', 'The Bandstand']
+};
+// A dot pans to its screen's centre — EXCEPT where the thing it is named after is a fixed
+// installation that does not sit on that centre. The funfair's bandstand is the one such
+// case in the world today: BANDSTAND_X is 0.68, which is inside screen 3 (0.50-0.75), so a
+// dot that says "The Bandstand" and panned to 0.875 would show her the helter-skelter and
+// no music. It pans to the bandstand itself instead, which is what its label promises.
+const DOT_TARGET_OVERRIDE = { funfair: { 3: BANDSTAND_X } };
+const EDGE_SHIM_MS = 5400;       // two soft sweeps (2 × 2.6s) at an edge with town beyond it
+
+// ---- RUN21D-4: the fair's two signs ----------------------------------------------------
+// Both hang on the ENTRANCE SCREEN (x < 0.25 of the zone), under the bunting, so they are
+// on screen the moment she walks in — the pack's "from screen 1" is the whole point.
+const FAIR_SIGN_Y = 0.20;        // fraction of viewport height: hanging under the bunting
+const FAIR_SIGNS = [
+  { id: 'band',  x: 0.055, text: '🎵 Band',  aria: 'Go to the bandstand' },
+  { id: 'disco', x: 0.150, text: '🕺 Disco', aria: 'Enter the Disco Hall' }
+];
+
+// ---- RUN21D-5: the hider gets a fair chance --------------------------------------------
+// The day's hide-and-seek Boo can land three screens away in an area she never scrolls, and
+// then it is not a game of hide-and-seek at all — it is a lottery. One pan TOWARD the peek
+// spot, stopping half a screen short so the finding is still hers, and one line so she
+// knows there is something to find.
+const HIDER_NEARBY_LINE = 'Someone\'s hiding nearby… 👀';
+const HIDER_PAN_MS = 600;
+// "Prefer things not shown today" — a SESSION set, never the save. There is no ledger of
+// what the town has already shown her; it resets on load like every other pacing memory
+// here (js/ack.js, js/encouragement.js, wishlife's visit tokens).
+let pulseSeenDay = '';
+let pulseSeen = new Set();
+function pulseSeenSet(dayKey) {
+  if (pulseSeenDay !== dayKey) { pulseSeenDay = dayKey; pulseSeen = new Set(); }
+  return pulseSeen;
+}
+
 function seasonOf(month) {       // month 1..12
   if (month >= 3 && month <= 5) return 'spring';
   if (month >= 6 && month <= 8) return 'summer';
@@ -429,6 +508,50 @@ export function mount(container, params, ctx) {
     }, [el('span', { class: 'rt-thumb', 'aria-hidden': 'true', html: roomThumbSVG(r) }), el('span', { class: 'rt-lbl', text: r.name })]))) : null;
   const hint = el('div', { class: 'town-hint-bar' });
 
+  // RUN21D-3 — the landmark dots. Outdoors only: a Boo House room is 1.5 viewports and its
+  // room tabs already say what else there is. Each dot is a 44px button (house tap-target
+  // floor) around a 12px pip, named after what is on that screen, and it PANS rather than
+  // jumping so the four screens read as one continuous place.
+  const DOT_NAMES = isInterior ? null : (LANDMARK_DOTS[AREA.key] || null);
+  const dotTargetX = (i) => ((DOT_TARGET_OVERRIDE[AREA.key] || {})[i] != null
+    ? DOT_TARGET_OVERRIDE[AREA.key][i]
+    : DOT_SCREEN_X[i]);
+  const dotBtns = DOT_NAMES ? DOT_NAMES.map((name, i) => el('button', {
+    class: 't-dot', type: 'button', 'aria-label': name, dataset: { dot: String(i) },
+    onclick: () => { sfx.tap(); cameraClaimed = true; panToFrac(dotTargetX(i), DOT_PAN_MS); updateDots(); }
+  }, [el('i', { class: 't-dot-pip', 'aria-hidden': 'true' })])) : null;
+  const dots = dotBtns ? el('nav', { class: 't-dots' }, dotBtns) : null;
+  // Which dot is she looking at? Whichever one's landing this camera is nearest to — for
+  // the twenty-three evenly-spaced dots that is exactly "the current screen, from scrollX",
+  // and it stays right for the funfair's bandstand dot too.
+  function updateDots() {
+    if (!dotBtns || !zoneW) return;
+    const centre = (scrollX + viewW / 2) / zoneW;
+    let best = 0;
+    for (let i = 1; i < dotBtns.length; i++) {
+      if (Math.abs(dotTargetX(i) - centre) < Math.abs(dotTargetX(best) - centre)) best = i;
+    }
+    dotBtns.forEach((b, i) => {
+      b.classList.toggle('sel', i === best);
+      if (i === best) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+  }
+  // The edge shimmer: once per visit, whichever edge has town beyond it gets a soft sweep —
+  // the same gradient language the rarity shimmer uses. It says "there is more that way"
+  // without a word, and it never repeats within the visit.
+  function edgeShimmerOnce() {
+    if (isInterior || REDUCED || areaSeen.edge) return;
+    if (worldW <= viewW + 8) return;
+    areaSeen.edge = true;
+    for (const side of ['left', 'right']) {
+      const more = side === 'right' ? scrollX < worldW - viewW - 8 : scrollX > 8;
+      if (!more) continue;
+      const n = el('i', { class: 't-edge-shim ' + side, 'aria-hidden': 'true' });
+      viewport.appendChild(n);
+      setTimeout(() => { try { n.remove(); } catch {} }, EDGE_SHIM_MS);
+    }
+  }
+
   const sky = el('div', { class: 't-layer t-sky' });
   const hills = el('div', { class: 't-layer t-hills' });
   const ground = el('div', { class: 't-layer t-ground' });
@@ -503,7 +626,7 @@ export function mount(container, params, ctx) {
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
   updateBuildUI();   // hides the Landscape tab + build tool rows until the hammer is tapped
   renderDecorateTab();   // RUN21A-2: populated at mount too, not only via the hammer
-  root.append(header, hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
+  root.append(header, ...(dots ? [dots] : []), hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
   container.appendChild(root);
 
   // Day / night tint.
@@ -620,6 +743,10 @@ export function mount(container, params, ctx) {
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
     }
+    edgeShimmerOnce();   // RUN21D-3: "there is more that way", once per visit
+    // RUN21D-1: the town's one guaranteed opening breath. Last, so everything it can choose
+    // from (placed items, actors, the fair, request bubbles) is already on screen.
+    startPulse();
   });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
@@ -982,7 +1109,7 @@ export function mount(container, params, ctx) {
   //
   // Session flags live in memory, per mount, and are never persisted: whether she has already
   // seen today's train is not something the save should carry forever.
-  const areaSeen = { train: false, seed: false, ball: false };
+  const areaSeen = { train: false, seed: false, ball: false, edge: false };
 
   // The ambient: mounted once, then left alone.
   function renderAreaAmbient() {
@@ -1746,6 +1873,226 @@ export function mount(container, params, ctx) {
     fn(() => { revealShowing = false; pumpReveals(); });
   }
 
+  // ---- RUN21D-1: the Pulse Director ----------------------------------------------------
+  // See the `// RUN21D: pulse` block at module scope for the why. This is the wiring: one
+  // beat 900ms after first paint, one invitation at 9s, both cancelled on unmount.
+  let pulseStarted = false, pulseBeat = null, pulseInvited = false;
+  let pulseTimer = null, pulseHintTimer = null;
+  const pulseFired = [];   // every beat this mount played — the "never two" proof
+  const pulseInvitation = () => PULSE_INVITATIONS[STORE_KEY] || PULSE_INVITATIONS[AREA.key] || null;
+
+  function startPulse() {
+    if (pulseStarted) return;        // once per mount, whatever calls it
+    pulseStarted = true;
+    pulseTimer = setTimeout(() => {
+      pulseTimer = null;
+      // Reveals win. A growth/funfair ceremony is already the moment; the town does not
+      // clear its throat over one. The whole pulse skips this mount, invitation included.
+      if (revealShowing || revealQueue.length) { pulseBeat = 'skipped:reveal'; return; }
+      // REDUCED: no movement beats at all — the invitation is the whole pulse.
+      pulseBeat = REDUCED ? 'reduced' : (playPulseBeat() || 'none');
+      hiderFairChance();   // RUN21D-5: after the beat, in the hider's area only
+      pulseHintTimer = setTimeout(showPulseInvitation, Math.max(0, PULSE_HINT_MS - PULSE_DELAY_MS));
+    }, PULSE_DELAY_MS);
+  }
+
+  // Exactly ONE beat: first eligible wins, but a beat this area has not shown today is
+  // preferred over one it has, so a second visit is not a rerun of the first.
+  function playPulseBeat() {
+    const seen = pulseSeenSet(todayKeyLocal());
+    const beats = [
+      ['request',   beatRequest],
+      ['newItem',   beatNewItem],
+      ['zone',      beatZoneBehaviour],
+      ['idle',      beatNearestIdle],
+      ['signature', beatSignature]
+    ];
+    const key = (k) => STORE_KEY + ':' + k;
+    const unshown = beats.filter(([k]) => !seen.has(key(k)));
+    for (const list of [unshown, beats]) {
+      for (const [kind, run] of list) {
+        if (!run()) continue;
+        seen.add(key(kind));
+        pulseFired.push(kind);
+        return kind;                 // one beat. The loop never runs past this.
+      }
+    }
+    return null;
+  }
+
+  // 1 — someone in this area is wondering something. Breathe the bubble, and if she cannot
+  //     see it, take her to it.
+  function beatRequest() {
+    const placed = areaItems(getState());
+    const r = activeRequests().find(x => placed.some(t => t.item === x.booId));
+    if (!r) return false;
+    const bubble = ground.querySelector(`.request-thought[data-boo="${r.booId}"]`);
+    if (!bubble) return false;
+    pulseBubble(bubble);
+    const t = placed.find(x => x.item === r.booId);
+    if (t) pulsePanTo(t.x);
+    return true;
+  }
+  // The pulse may take the camera somewhere — but never AWAY from somewhere the child has
+  // already sent it. She can drag the view, or open a request card and press "Show me",
+  // inside the pulse's own 900ms window, and the ambient breath must not undo that. Same
+  // principle as reveals winning: anything she started outranks the town clearing its
+  // throat. `cameraClaimed` is set by every deliberate camera move she makes.
+  function pulsePanTo(xFrac) {
+    if (cameraClaimed || panRaf) return;
+    if (fracOnScreen(xFrac)) return;
+    panToFrac(xFrac, PULSE_PAN_MS);
+  }
+  function pulseBubble(bubble) {
+    if (REDUCED) return;
+    bubble.classList.remove('rq-pulse3'); void bubble.offsetWidth; bubble.classList.add('rq-pulse3');
+    setTimeout(() => bubble.classList.remove('rq-pulse3'), PULSE_BUBBLE_MS);
+  }
+
+  // 2 — the newest thing she put down does its own verb once. "New" is requests.js's own
+  //     TRY_FRESH_MS, so the town agrees with itself about what counts as new.
+  function beatNewItem() {
+    const now = nowMs();
+    const fresh = areaItems(getState())
+      .filter(t => t.at && now - t.at < TRY_FRESH_MS)
+      .sort((a, b) => b.at - a.at);
+    for (const t of fresh) {
+      const wrap = wrapFor(t);
+      if (!wrap || wrap.style.display === 'none') continue;
+      if (isWish(t.item)) {
+        const item = resolveItem(t.item);
+        if (!item || !wishTap(wrap, t, item)) continue;   // its authored wish verb, played once
+        pulsePanTo(t.x);
+        return true;
+      }
+      // A seat or an activity: the nearest Boo goes and uses it. Walking there IS the
+      // beat; the socket claim that follows is ordinary town life on its own timing.
+      if ((SOCKETS[t.item] && SOCKETS[t.item].length) || ACT_IDS.includes(t.item)) {
+        const a = nearestActorTo(t.x);
+        if (!a) continue;
+        clearRole(a); endWait(a);
+        a.goal = { kind: 'approach', deco: t, targetDx: (t.x - a.place.x) * zoneW, start: performance.now() };
+        pulsePanTo(t.x);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 3 — this place has an act of its own. Start it now instead of waiting for the dice that
+  //     chooseBehaviourKind rolls once every few seconds per Boo.
+  function beatZoneBehaviour() {
+    if (isNight(currentHour())) return false;            // the same daytime gate the dice use
+    const zb = ZONE_BEHAVIOURS[STORE_KEY];
+    if (!zb || !zb.length) return false;
+    const a = nearestActorToScreen();
+    if (!a || a.role || a.parading) return false;
+    clearRole(a); endWait(a); a.goal = null;
+    startBehaviour(a, zb[0][0], performance.now());       // the authored first choice, not a roll
+    return !!a.goal;
+  }
+
+  // 4 — the nearest Boo notices you: its species idle, and one hop.
+  function beatNearestIdle() {
+    const a = nearestActorToScreen();
+    if (!a) return false;
+    const species = (a.item && a.item.species) || 'bloop';
+    // A directed beat, so the per-Boo GAP is cleared (as __townLife.forceIdle does). The
+    // rolling-minute and scene caps still bind — this is a nudge, not an override.
+    a.idleNextAt = 0; a.idleUntil = 0;
+    if (!maybeIdle(a, performance.now(), SPECIES_IDLE[species] || SPECIES_IDLE.bloop)) return false;
+    a.wrap.classList.remove('t-seat-hop'); void a.wrap.offsetWidth; a.wrap.classList.add('t-seat-hop');
+    setTimeout(() => a.wrap.classList.remove('t-seat-hop'), SEAT_HOP_MS + 60);
+    return true;
+  }
+
+  // 5 — the area's own signature, fired once from where a finger would have found it.
+  function beatSignature() {
+    const p = signaturePoint();
+    return !!(p && areaSignature(p.x, p.y));
+  }
+  // Where the signature LIVES on screen right now, or null when it is not reachable from
+  // this camera. Deliberately reads the same anchors areaSignature() tests against, so the
+  // pulse can never fire a signature a finger could not have.
+  function signaturePoint() {
+    if (buildMode || isInterior) return null;
+    const r = viewport.getBoundingClientRect();
+    const atFrac = (xFrac, yFrac) => {
+      const px = xFrac * zoneW - scrollX;
+      if (px < 8 || px > r.width - 8) return null;
+      return { x: r.left + px, y: r.top + r.height * yFrac };
+    };
+    const centre = (yFrac) => ({ x: r.left + r.width / 2, y: r.top + r.height * yFrac });
+    switch (AREA.key) {
+      case 'riverside': return centre(0.44);
+      case 'beach':     return centre(0.72);
+      case 'hilltop':   return centre(0.30);
+      case 'meadow': {
+        const f = areaItems(getState()).find(t => /flower/.test(t.item));
+        return f ? atFrac(f.x, 0.62) : null;
+      }
+      case 'playground': {
+        const f = areaItems(getState()).find(t => /slide|frame|climb/.test(t.item));
+        return f ? atFrac(f.x, 0.60) : null;
+      }
+      case 'funfair': {
+        const cart = ground.querySelector('.ff-scenery-wrap, .ff-consite');
+        if (!cart) return null;
+        const cr = cart.getBoundingClientRect();
+        const cx = cr.left + cr.width / 2;
+        return (cx > r.left + 8 && cx < r.right - 8) ? { x: cx, y: r.top + r.height * 0.60 } : null;
+      }
+      default: return null;
+    }
+  }
+
+  const liveActors = () => actors.filter(a => a.wrap && a.wrap.isConnected && a.wrap.style.display !== 'none');
+  function nearestActorTo(xFrac) {
+    return liveActors().sort((p, q) => Math.abs(p.place.x - xFrac) - Math.abs(q.place.x - xFrac))[0] || null;
+  }
+  function nearestActorToScreen() {
+    return nearestActorTo((scrollX + viewW / 2) / (zoneW || 1));
+  }
+
+  // ---- RUN21D-5: the hider gets a fair chance ------------------------------------------
+  // Runs immediately after the opening beat, in the hider's area only, once per visit.
+  let hiderNudged = false, hiderPanned = false;
+  function hiderFairChance() {
+    if (hiderNudged) return;
+    const h = currentHide();
+    if (!h || (ZONE_INDEX[h.spot.zone] ?? -1) < 0) return;   // hiding somewhere else today
+    const peek = ground.querySelector('.t-hide-peek');
+    if (!peek) return;
+    hiderNudged = true;
+    const peekPx = (parseFloat(peek.style.left) || 0) + peek.offsetWidth / 2;
+    const xFrac = peekPx / (zoneW || 1);
+    // The pan is the part reduced motion skips; the LINE always shows. Nor does it fight a
+    // camera she has already claimed, or one the beat is still moving.
+    if (!REDUCED && !cameraClaimed && !panRaf && !fracOnScreen(xFrac)) {
+      // Toward it, not onto it: land half a screen short, so the peek is just beyond the
+      // edge she can see and spotting it is still her doing.
+      const dir = peekPx > scrollX + viewW / 2 ? 1 : -1;
+      panToPx(peekPx - viewW / 2 - dir * (viewW / 2), HIDER_PAN_MS);
+      hiderPanned = true;
+    }
+    hint.textContent = HIDER_NEARBY_LINE;
+  }
+
+  // The invitation: a hint-bar line, never spoken, never while she is busy arranging.
+  function showPulseInvitation() {
+    pulseHintTimer = null;
+    if (revealShowing || revealQueue.length) return;
+    if (buildMode || placeMode || holding) return;
+    const line = pulseInvitation();
+    if (!line) return;
+    hint.textContent = line;
+    pulseInvited = true;
+  }
+  function stopPulse() {
+    if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
+    if (pulseHintTimer) { clearTimeout(pulseHintTimer); pulseHintTimer = null; }
+  }
+
   // The reveal ceremony: fence drops, confetti, guide line, Journal stamp (C6).
   function playGrowthReveal(m, done = () => {}) {
     sfx.fanfare();
@@ -1804,7 +2151,7 @@ export function mount(container, params, ctx) {
   }
 
   function renderFunfair() {
-    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door').forEach(n => n.remove());
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door, .ff-sign').forEach(n => n.remove());
     if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
@@ -1828,6 +2175,37 @@ export function mount(container, params, ctx) {
     if (view.site) ground.appendChild(ffSiteNode(view.site, zi * zoneW + RIDE_X[view.site] * zoneW));
     renderBandstand(zi);
     renderDiscoDoor(zi);
+    renderFairSigns(zi);
+  }
+  // RUN21D-4 — the fair's two best rooms are its two least findable ones: the bandstand sits
+  // at 0.68 of a four-viewport area and the Disco Hall's door at 0.51, so a child who
+  // arrives at the gate and never drags right meets neither. Two hanging signs at the
+  // entrance say where they are and take her there.
+  function renderFairSigns(zi) {
+    for (const sg of FAIR_SIGNS) {
+      const sign = el('button', {
+        class: 'ff-sign ff-sign-' + sg.id, type: 'button', 'aria-label': sg.aria,
+        onclick: (e) => {
+          e.stopPropagation();
+          sfx.tap();
+          if (sg.id === 'band') { cameraClaimed = true; panToFrac(BANDSTAND_X, DOT_PAN_MS); }
+          // The Disco keeps the door's own route EXACTLY — `ctx.go('discohall')`, no params.
+          // The pack asks for "`from` preserved"; discohall reads no params at all and its
+          // own back control already returns to the funfair, so preserving the return path
+          // means calling it identically to the door, not inventing two params nothing
+          // reads (which tests/r12s1-routes rightly flags as an undriven contract).
+          else ctx.go('discohall');
+        }
+      }, [
+        el('span', { class: 'ffs-rope', 'aria-hidden': 'true' }),
+        el('span', { class: 'ffs-plaque', text: sg.text })
+      ]);
+      sign.style.left = (zi * zoneW + sg.x * zoneW) + 'px';
+      sign.style.top = (viewH * FAIR_SIGN_Y) + 'px';
+      sign.style.zIndex = String(Math.round(groundY) + 3);
+      sign.addEventListener('pointerdown', e => e.stopPropagation());
+      ground.appendChild(sign);
+    }
   }
   function renderDiscoDoor(zi) {
     const door = el('button', {
@@ -2622,6 +3000,17 @@ export function mount(container, params, ctx) {
     if (r.kind === 'dance') return root.querySelector('.ff-disco-door') || null;
     return null;
   }
+  // RUN21D-2: where in THIS area that node stands, as an x-fraction — what the camera needs
+  // to take her to it. Null when the request names nothing here (a wardrobe accessory, a
+  // friend parked in another area): those keep their existing cross-screen buttons.
+  function requestTargetFrac(r) {
+    if (!r || !r.kind) return null;
+    if (r.kind === 'dance') return root.querySelector('.ff-disco-door') ? DISCO_DOOR_X : null;
+    const node = requestTargetNode(r);
+    if (!node) return null;
+    const x = +node.dataset.x;
+    return Number.isFinite(x) ? x : null;
+  }
 
   function renderRequestBubble() {
     ground.querySelectorAll('.request-bubble, .request-treat, .request-thought').forEach(n => n.remove());
@@ -2640,8 +3029,10 @@ export function mount(container, params, ctx) {
       const art = target
         ? el('div', { class: 'rq-pic', html: renderItem(target, { size: 38 }) })
         : el('div', { class: 'rq-pic rq-ask', text: REQUEST_GLYPHS[r.id] || '⭐' });
+      // RUN21D: `data-boo` so a bubble can be found by asker whether it is parented to the
+      // Boo's own wrap or floated over a bed — the Pulse and the 6s breathe both need it.
       const bubble = el('button', {
-        class: 'request-thought', 'aria-label': requestLine(r),
+        class: 'request-thought', 'aria-label': requestLine(r), dataset: { boo: r.booId },
         onclick: (e) => { e.stopPropagation(); openRequestCard(r); }
       }, [art]);
       // A napping Boo's wrap is painted behind its bed, and a stacking context takes its
@@ -2688,6 +3079,17 @@ export function mount(container, params, ctx) {
     } else if (r.kind === 'visit') {
       card.appendChild(el('p', { class: 'rq-card-hint', text: guideLine('request_visit_hint') }));
     }
+    // RUN21D-2: the thing she is being asked about is often two screens away in an area four
+    // viewports wide, and until now the card said its name and left her to go and hunt for
+    // it. When it is HERE, one button takes her to it. Cross-area targets are untouched —
+    // they keep the buttons above, and this adds no routing of its own.
+    const showFrac = requestTargetFrac(r);
+    if (showFrac != null) {
+      btns.appendChild(el('button', {
+        class: 'btn', text: 'Show me',
+        onclick: () => { sfx.tap(); dismiss(); showMeTarget(r, showFrac); }
+      }));
+    }
     btns.appendChild(el('button', { class: 'btn soft', text: 'Okay!', onclick: () => { sfx.tap(); dismiss(); } }));
     card.appendChild(btns);
     ov.appendChild(card);
@@ -2698,6 +3100,17 @@ export function mount(container, params, ctx) {
     // what she needs is on another screen, which is exactly what the pack asks for.
     const tn = requestTargetNode(r);
     if (tn && !REDUCED) { tn.classList.remove('rq-glow'); void tn.offsetWidth; tn.classList.add('rq-glow'); setTimeout(() => tn.classList.remove('rq-glow'), 2400); }
+  }
+  // "Show me": the same 600ms ease everything else in RUN21D pans with, and then a soft ring
+  // so the thing she was taken to says "this one" without a word of copy. The ring is drawn
+  // after the pan starts, not after it lands — it should already be glowing as it arrives.
+  function showMeTarget(r, xFrac) {
+    cameraClaimed = true;                 // her camera now — the Pulse stands off it
+    panToFrac(xFrac, PULSE_PAN_MS);
+    const node = requestTargetNode(r);
+    if (!node) return;
+    node.classList.remove('rq-ring'); void node.offsetWidth; node.classList.add('rq-ring');
+    setTimeout(() => node.classList.remove('rq-ring'), SHOW_ME_RING_MS);
   }
 
   // ---- fulfilment: the ceremony every verb shares ----------------------------------
@@ -2894,6 +3307,7 @@ export function mount(container, params, ctx) {
     sky.style.transform = `translateX(${-scrollX * 0.22}px)`;
     air.style.transform = `translateX(${-scrollX}px)`;
     updateZoneMusic();
+    updateDots();          // RUN21D-3: the dots track every pan, hers or the town's
   }
   // Zone audio (RUN6 C1b/C1c): the calm town loop everywhere, the fair jingle while
   // the (unlocked) funfair is on screen, and — when the bandstand itself is in view —
@@ -2932,6 +3346,34 @@ export function mount(container, params, ctx) {
       if (p < 1) requestAnimationFrame(step);
     })(dt0);
   }
+  // RUN21D — ONE smooth-pan primitive. The pulse, "Show me", the landmark dots, the fair's
+  // signs and the hider's fair chance all want the same thing: take the camera somewhere,
+  // gently, in a stated number of milliseconds. They all go through here rather than each
+  // growing its own easing loop (and its own reduced-motion bug). `panRaf` is held so a
+  // second pan cancels the first instead of the two fighting over scrollX.
+  let panRaf = null;
+  // Set the moment the child takes the camera somewhere herself (a drag, "Show me", a
+  // landmark dot, a fair sign). Read by the Pulse, which then never pans on top of her.
+  let cameraClaimed = false;
+  function panToPx(target, ms = PULSE_PAN_MS) {
+    target = Math.max(0, Math.min(target, Math.max(0, worldW - viewW)));
+    if (panRaf) { cancelAnimationFrame(panRaf); panRaf = null; }
+    if (REDUCED || !ms) { scrollX = target; clampScroll(); applyScroll(); return; }
+    const from = scrollX, t0 = performance.now();
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / ms);
+      const e = 1 - Math.pow(1 - p, 3);                 // ease-out: arrives, never overshoots
+      scrollX = from + (target - from) * e; clampScroll(); applyScroll();
+      panRaf = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    panRaf = requestAnimationFrame(step);
+  }
+  // Centre an area x-fraction. Single-zone areas since RUN10 P1, so zone 0 always.
+  function panToFrac(xFrac, ms = PULSE_PAN_MS) { panToPx(xFrac * zoneW - viewW / 2, ms); }
+  function fracOnScreen(xFrac, pad = 60) {
+    const px = xFrac * zoneW - scrollX;
+    return px > pad && px < viewW - pad;
+  }
   // Zone-unlock reveal (RUN7 C2): pan across the whole new zone so the unlock reads as
   // DISCOVERING a new place — its distinct scenery slides past left→right.
   function panAcrossZone(zi, ms = 2200) {
@@ -2950,7 +3392,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
     // RUN20 W2: a tap on the right PART of the scene is this area's own secret. It runs before
     // the scroll drag starts, and only when it actually matched something — a miss falls
     // straight through to the normal pan, so the scene never feels sticky.
@@ -2972,7 +3414,7 @@ export function mount(container, params, ctx) {
     if (placeMode && holding && isSmall(holding)) showSlotGlow(nearestFreeSlot(e.clientX, e.clientY));
     if (!dragScroll) return;
     const dx = e.clientX - sx;
-    if (Math.abs(dx) > 4) movedScroll = true;
+    if (Math.abs(dx) > 4) { movedScroll = true; cameraClaimed = true; }   // RUN21D-1: her camera now
     scrollX = sScroll - dx; clampScroll(); applyScroll();
     const now = performance.now(); const dt = now - lastT;
     if (dt > 0) vel = (e.clientX - lastX) / dt;
@@ -5105,6 +5547,69 @@ export function mount(container, params, ctx) {
       // Sample chooseBehaviourKind(a) n times without side effects (it only READS the
       // candidate-picker helpers; startBehaviour is what actually sets a.goal) — the
       // chi-square-vs-uniform proof for personality weighting.
+      // ---- RUN21D QA hooks ---------------------------------------------------------------
+      // The pulse's caps ARE the feature (one beat, one invitation, reveals win), so they
+      // are inspectable rather than inferred from pixels.
+      pulse: () => ({
+        beat: pulseBeat, beats: pulseFired.slice(), invited: pulseInvited,
+        invitation: pulseInvitation(), hint: hint.textContent,
+        delayMs: PULSE_DELAY_MS, hintMs: PULSE_HINT_MS
+      }),
+      signaturePoint: () => signaturePoint(),
+      panToFrac: (x, ms) => panToFrac(x, ms),
+      // RUN21D-2: the request card and where "Show me" actually lands the camera.
+      requestBubbles: () => [...ground.querySelectorAll('.request-thought')].map(n => n.dataset.boo),
+      openRequestFor: (booId) => { const r = activeRequests().find(x => x.booId === booId); if (!r) return false; openRequestCard(r); return true; },
+      requestTargetFrac: (booId) => { const r = activeRequests().find(x => x.booId === booId); return r ? requestTargetFrac(r) : null; },
+      // Where the request's target sits in the viewport right now, 0 = left edge, 1 = right.
+      targetViewFrac: (booId) => {
+        const r = activeRequests().find(x => x.booId === booId);
+        const n = r && requestTargetNode(r);
+        if (!n) return null;
+        const vr = viewport.getBoundingClientRect(), nr = n.getBoundingClientRect();
+        return (nr.left + nr.width / 2 - vr.left) / (vr.width || 1);
+      },
+      ringed: () => [...ground.querySelectorAll('.rq-ring')].map(n => n.dataset.item || n.className),
+      // RUN21D-3: the landmark dots — their labels, which is filled, and their tap targets.
+      dots: () => (dotBtns || []).map((b, i) => {
+        const r = b.getBoundingClientRect();
+        return { label: b.getAttribute('aria-label'), sel: b.classList.contains('sel'),
+                 current: b.getAttribute('aria-current'), target: dotTargetX(i),
+                 w: Math.round(r.width), h: Math.round(r.height) };
+      }),
+      tapDot: (i) => { const b = (dotBtns || [])[i]; if (!b) return false; b.click(); return true; },
+      dotPip: () => {
+        const off = dots && dots.querySelector('.t-dot:not(.sel) .t-dot-pip');
+        const on = dots && dots.querySelector('.t-dot.sel .t-dot-pip');
+        if (!off || !on) return null;
+        const cs = getComputedStyle(off);
+        return { w: cs.width, h: cs.height, bg: cs.backgroundColor, selBg: getComputedStyle(on).backgroundColor };
+      },
+      edgeShims: () => [...viewport.querySelectorAll('.t-edge-shim')].map(n => n.className),
+      // RUN21D-4: the fair's two hanging signs.
+      fairSigns: () => [...ground.querySelectorAll('.ff-sign')].map(n => {
+        const v = viewport.getBoundingClientRect(), r = n.getBoundingClientRect();
+        return { id: [...n.classList].find(c => c.startsWith('ff-sign-')), aria: n.getAttribute('aria-label'),
+                 text: (n.querySelector('.ffs-plaque') || {}).textContent,
+                 onScreen: r.left >= v.left && r.right <= v.right && r.top >= v.top && r.bottom <= v.bottom,
+                 w: Math.round(r.width), h: Math.round(r.height) };
+      }),
+      tapFairSign: (id) => { const n = ground.querySelector('.ff-sign-' + id); if (!n) return false; n.click(); return true; },
+      // RUN21D-5: the hider's fair chance — did it run, did it pan, and where is the peek now?
+      hiderNudge: () => {
+        const peek = ground.querySelector('.t-hide-peek');
+        const v = viewport.getBoundingClientRect();
+        const r = peek ? peek.getBoundingClientRect() : null;
+        return {
+          nudged: hiderNudged, panned: hiderPanned, line: HIDER_NEARBY_LINE, hint: hint.textContent,
+          hasPeek: !!peek,
+          // how many screens away the peek is from the visible window (0 = on screen)
+          screensAway: r ? Math.max(0, Math.max(v.left - r.right, r.left - v.right)) / (v.width || 1) : null,
+          onScreen: r ? (r.right > v.left && r.left < v.right) : null
+        };
+      },
+      // What every actor is actually DOING — the state proof behind a movement beat.
+      goals: () => actors.map(a => ({ item: a.place && a.place.item, goal: a.goal && a.goal.kind, role: a.role && a.role.kind, state: a.state })),
       behaviourSample: (i, n) => {
         const a = actors[i]; if (!a) return null;
         const savedGoal = a.goal, savedRole = a.role;
@@ -5120,7 +5625,9 @@ export function mount(container, params, ctx) {
   return {
     unmount() {
       roomScroll.set(STORE_KEY, scrollX);   // RUN21A-9: the pan survives every exit (session only)
+      stopPulse();                          // RUN21D-1: no beat and no invitation after leaving
       if (raf) cancelAnimationFrame(raf);
+      if (panRaf) cancelAnimationFrame(panRaf);
       if (momRaf) cancelAnimationFrame(momRaf);
       if (routineTimer) clearInterval(routineTimer);
       clearInterval(roleTimer);

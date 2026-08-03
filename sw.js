@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21a-20260803';  // RUN21A "Reach & Truth": seated Boos render everywhere, readable gold wishes, honest Town Postcard, taps never budget-gated.
+const BUILD_STAMP = 'run21d-20260803';  // RUN21D "Alive on Arrival": every area takes an opening breath, a map chip for whoever is wondering something, four named screens per area, signs to the fair's band and disco, and a fair chance at the hider.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
