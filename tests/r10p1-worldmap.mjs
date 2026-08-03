@@ -150,7 +150,7 @@ console.log('== entering an area crossfades in ==');
 }
 
 // ==================== header strip on every area ====================
-console.log('== every area has the 56px header strip: back / name / hammer ==');
+console.log('== every area has the 56px header strip: back / name, and NO hammer ==');
 {
   for (const area of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground', 'boohouse', 'gallery']) {
     const { ctx, page } = await openTown(SAVE(), area);
@@ -158,7 +158,12 @@ console.log('== every area has the 56px header strip: back / name / hammer ==');
     assert(h === '56px', `${area}: header is 56px tall (got ${h})`);
     assert(await page.$('.town-header .back-btn'), `${area}: back-to-map button present`);
     assert(await page.$eval('.town-header h2', n => n.textContent.length > 0), `${area}: area name shown`);
-    assert(await page.$('.town-header .town-hammer-btn'), `${area}: hammer button present`);
+    // RUN21C-1 re-point: the hammer is deleted — the drawer carries the intent now. The
+    // strip's HEIGHT is the pin that mattered (a 56px band on every area), and it still is;
+    // what replaces the old "hammer present" assertion is its opposite, so the button cannot
+    // creep back in without this failing.
+    assert(await page.$('.town-header .town-hammer-btn') === null, `${area}: no hammer button — the drawer carries the intent`);
+    assert(await page.$eval('.town-header', n => n.children.length) === 2, `${area}: the strip is exactly back + name`);
     await ctx.close();
   }
 }
