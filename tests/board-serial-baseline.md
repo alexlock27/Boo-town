@@ -37,6 +37,18 @@
 >   Board Law ground: it MEASURES the breathing cycle's authored 4s/2s/6s x4 timings
 >   against a real clock, and a deliberately unhurried 48-second rhythm is exactly the
 >   cadence parallel load starves. Tagged at birth rather than after a flake.
+> - `r21d-alive` (~4m, RUN21D) — OVER the 120s budget, and @serial, for one reason:
+>   RUN21D's entire subject is WHEN things happen. The Pulse's opening beat is due 900ms
+>   after first paint, its invitation at 9s, the request bubble breathes on a 6s cycle, the
+>   "Show me" pan runs 600ms and its ring lets go at 2s. Every one of those is asserted
+>   against a real clock, so a timer starved by parallel load and a pulse that never fired
+>   are the same reading — the suite cannot share a lane without turning its own subject
+>   into noise. The wall time is the waiting itself: roughly thirty area mounts, each of
+>   which has to sit through a genuine nine-second invitation before it can assert that the
+>   invitation arrived. It has already been trimmed once (the per-area copy sweep was folded
+>   into the ten-mount ACCEPT rather than run as a second set of nine-second waits, −100s);
+>   what remains is the ACCEPT's own arithmetic and cannot be cut without cutting coverage.
+>   Tagged at birth rather than after a flake.
 
 > **This file is the official serial comparison baseline for RUN14 packet U-0's sharding
 > acceptance.** A sharded run is accepted only if it reproduces the PASS and FAIL verdicts

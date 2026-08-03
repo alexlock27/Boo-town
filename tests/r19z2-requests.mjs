@@ -214,13 +214,22 @@ assert(bub.tag === 'BUTTON', 'the bubble is a real button, not decoration with p
 assert(bub.hasSvg, 'the bubble shows a picture of the wanted thing (no emoji-as-scene-art)');
 assert(bub.label === 'Inky wants to try the new Cosy Bench!', 'the authored `try` line ships verbatim: ' + bub.label);
 
-// it bobs, and the reduced-motion path kills only the animation
+// it bobs, and the reduced-motion path kills only the animation.
+// RUN21D-2 re-pointed this: the bubble now carries a SECOND animation as well as the bob —
+// a gentle 1 → 1.06 breathe once every six seconds, so a request that is still waiting
+// reads as waiting rather than as furniture. The bob's own contract is unchanged and is
+// still asserted exactly; the breathe is asserted beside it rather than replacing it.
 const bobs = await page.evaluate(() => {
   const n = document.querySelector('.request-thought');
   const cs = getComputedStyle(n);
-  return { name: cs.animationName, dur: cs.animationDuration, iter: cs.animationIterationCount };
+  const split = (s) => s.split(',').map(x => x.trim());
+  const names = split(cs.animationName), durs = split(cs.animationDuration), iters = split(cs.animationIterationCount);
+  const of = (nm) => { const i = names.indexOf(nm); return i < 0 ? null : { dur: durs[i], iter: iters[i] }; };
+  return { names, bob: of('rq-bob'), breathe: of('rq-breathe') };
 });
-assert(bobs.name === 'rq-bob' && bobs.dur === '2s' && bobs.iter === 'infinite', 'the bubble bobs on a 2s loop (' + JSON.stringify(bobs) + ')');
+assert(!!bobs.bob && bobs.bob.dur === '2s' && bobs.bob.iter === 'infinite', 'the bubble bobs on a 2s loop (' + JSON.stringify(bobs.bob) + ')');
+assert(!!bobs.breathe && bobs.breathe.dur === '6s' && bobs.breathe.iter === 'infinite', 'and breathes on a 6s loop (RUN21D-2) (' + JSON.stringify(bobs.breathe) + ')');
+assert(bobs.names.length === 2, 'and carries exactly those two animations (' + JSON.stringify(bobs.names) + ')');
 
 await page.$eval('.request-thought', n => n.click());   // it bobs AND wanders; a finger copes, Playwright's stability check does not
 await page.waitForSelector('.request-card');

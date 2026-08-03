@@ -1,0 +1,813 @@
+// @serial
+// tests/r21d-alive.mjs — RUN21D "Alive on Arrival": the pack's own ACCEPT criteria, made
+// permanent.
+//
+// RUN21D's five items are all about the FIRST fifteen seconds of an area: a guaranteed
+// opening beat, a way to find whoever is wondering something, a way to know the area is
+// four screens wide, signs to the fair's best rooms, and a fair chance at the hider. Every
+// one of them is a regression risk for the rest of the programme (RUN21B/C/E all rewrite
+// js/town.js on top of them), so the ACCEPTs live here rather than in a throwaway probe.
+//
+// Expected runtime: ~4m (board law: state it when adding a suite) — over the 120s budget,
+// @serial, and justified in tests/board-serial-baseline.md. The reason for both is the same:
+// every ACCEPT here is a REAL-CLOCK one. The beat is due 900ms after first paint, the
+// invitation at 9s, the request bubble breathes on a 6s cycle. A timer starved by parallel
+// load and a pulse that never fired read identically, so this cannot share a lane, and
+// thirty mounts each waiting out a nine-second invitation is what the wall time IS.
+import { chromium } from 'playwright';
+import { mkdirSync } from 'fs';
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8000';
+const SHOTS = '_evidence/run21d';
+mkdirSync(SHOTS, { recursive: true });
+let failed = false;
+const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m); } else console.log('  ✓', m); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const today = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date());
+
+const BOOS = ['inky', 'plum', 'pippin', 'lolly', 'chomp', 'mallow'].map(n => 'boo_' + n);
+const AREAS = () => ({
+  meadow: { items: [], paths: [] }, riverside: { items: [], paths: [] },
+  hilltop: { items: [], paths: [] }, beach: { items: [], paths: [] },
+  funfair: { items: [], paths: [] }, playground: { items: [], paths: [] },
+  boohouse: { items: [], paths: [] }, boohouse_kitchen: { items: [], paths: [] },
+  boohouse_bedroom: { items: [], paths: [] }, gallery: { items: [], paths: [] }
+});
+// A fair with every ride already standing, so tickFunfair() finds nothing newly eligible and
+// no ceremony is owed on entry — the funfair blocks below are about the fair, not about a
+// reveal winning (that has its own block).
+const SETTLED_FAIR = { built: ['carousel', 'ferris', 'teacups', 'bouncy', 'helter'], build: null, pending: [], seats: {}, catchup: [] };
+const SAVE = (over = {}) => Object.assign({
+  version: 23, name: 'Ada', age: 8, ageAsked: true,
+  guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
+  inventory: Object.fromEntries(BOOS.map(b => [b, 1])),
+  stars: { total: 400, byType: {}, spent: {} },
+  town: { areas: AREAS() },
+  funfair: SETTLED_FAIR,
+  wishes: { unlocked: {} },
+  // the day's hide-and-seek must never swallow a Boo these blocks are watching
+  delights: { hideDay: today, hideFound: true },
+  seen: { trophyRetro: true, townFirst: true, lastStarsShown: 400, whatsnewVersion: 'x', introSeen: { shop: 1 }, funfairOpened: true },
+  settings: { sound: false, music: false, voice: false, content: 'full', requests: false }
+}, over);
+// Boos standing in a row on the entry screen of `area`.
+const boosIn = (area, n = 3, x0 = 0.10) => BOOS.slice(0, n).map((b, i) => ({ zone: area, x: +(x0 + i * 0.06).toFixed(3), row: 1, item: b, scale: 1 }));
+const withItems = (area, items) => { const a = AREAS(); a[area].items = items; return a; };
+
+const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+const pageErrors = [];
+async function open(save, { area = 'meadow', room = null, w = 1024, h = 768, hour = 13, reduced = 'no-preference', now = null } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: reduced });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => pageErrors.push(String(e).split('\n')[0]));
+  page.on('console', m => { if (m.type() === 'error') pageErrors.push('console: ' + m.text()); });
+  await page.addInitScript(([hr, nw]) => {
+    window.__bootownHour = hr;
+    if (nw != null) window.__bootownNow = nw;
+  }, [hour, now]);
+  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save);
+  await page.reload({ waitUntil: 'load' });
+  // One retry on the boot wait: a cold module graph over a local server occasionally
+  // outruns the wait on a loaded machine, and a reload is cheaper than a false FAIL.
+  try {
+    await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
+  } catch {
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 30000 });
+  }
+  if (area) {
+    await page.evaluate(p => window.BooTown.go('town', p), room ? { area, room } : { area });
+    await page.waitForSelector('.town2', { timeout: 15000 });
+    await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
+  }
+  return { ctx, page };
+}
+const pulse = (page) => page.evaluate(() => window.__townLife.pulse());
+
+// ============================================================================
+// Item 1 — The Pulse Director
+// ============================================================================
+// The visible proof of each beat kind, WATCHED rather than sampled: every beat is a short
+// vignette (a 700ms glint, a 1.1s idle, a 350ms hop), so a single read at 3s photographs the
+// aftermath and calls it a miss. This polls in-page from mount until `ms` and reports
+// whether the beat that fired was ever really on screen inside that window.
+async function watchBeat(page, ms = 3000) {
+  return page.evaluate(async (ms) => {
+    const has = sel => !!document.querySelector(sel);
+    const goals = () => window.__townLife.goals();
+    const PROOF = {
+      request:   () => has('.request-thought.rq-pulse3'),
+      newItem:   () => has('.wish-airborne, .wish-glint, .wish-launch, .wish-wobble, .wish-lit')
+                       || goals().some(g => g.goal === 'approach'),
+      zone:      () => has('.t-kite-wrap, .t-skip-stone, .t-splash, .t-sandcastle, .t-towel')
+                       || goals().some(g => ['paddle', 'shallow', 'skim', 'kite', 'bridgesit', 'sandcastle', 'sunbathe'].includes(g.goal)),
+      idle:      () => window.__townLife.idleClasses().length > 0 || has('.t-seat-hop'),
+      signature: () => has('.t-petal, .t-skip, .t-footprint, .t-train, .t-kernel')
+    };
+    const t0 = performance.now();
+    let beat = null, visible = false, at = null;
+    while (performance.now() - t0 < ms) {
+      beat = window.__townLife.pulse().beat;
+      if (PROOF[beat] && PROOF[beat]()) { visible = true; at = Math.round(performance.now() - t0); break; }
+      await new Promise(r => setTimeout(r, 60));
+    }
+    return { beat, visible, at };
+  }, ms);
+}
+
+// The authored invitation, per area, exactly. Asserted inside the ten-mount block below
+// rather than in a second sweep of its own — the pack wants both proofs from the same
+// mount, and thirty seconds of a real nine-second wait is worth not paying twice.
+const INVITATION = {
+  meadow: 'Try tapping a flower…', riverside: 'Try tapping the river…',
+  hilltop: 'Try tapping the sky…', beach: 'Try tapping the sand…',
+  playground: 'Try the swings…', funfair: 'The bandstand plays if you wander right…',
+  boohouse: 'Try tapping a sleepy Boo…'
+};
+
+console.log('== item 1: every mount takes one opening breath ==');
+{
+  // TEN scripted mounts across areas: the six outdoor areas, two Boo House rooms, and the
+  // two beats that need a fixture of their own (a request, and a brand-new wish).
+  const MOUNTS = [
+    { name: 'meadow', area: 'meadow', save: () => SAVE({ town: { areas: withItems('meadow', [...boosIn('meadow'), { zone: 'meadow', x: 0.20, row: 2, item: 'deco_flowers', scale: 1 }]) } }) },
+    { name: 'riverside', area: 'riverside', save: () => SAVE({ town: { areas: withItems('riverside', boosIn('riverside')) } }) },
+    { name: 'hilltop', area: 'hilltop', save: () => SAVE({ town: { areas: withItems('hilltop', boosIn('hilltop')) } }) },
+    { name: 'beach', area: 'beach', save: () => SAVE({ town: { areas: withItems('beach', boosIn('beach')) } }) },
+    { name: 'playground', area: 'playground', save: () => SAVE({ town: { areas: withItems('playground', boosIn('playground')) } }) },
+    { name: 'funfair', area: 'funfair', save: () => SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) } }) },
+    { name: 'boohouse lounge', area: 'boohouse', room: 'lounge', save: () => SAVE({ town: { areas: withItems('boohouse', boosIn('boohouse', 2, 0.30)) } }) },
+    { name: 'boohouse kitchen', area: 'boohouse', room: 'kitchen', save: () => SAVE({ town: { areas: withItems('boohouse_kitchen', boosIn('boohouse_kitchen', 2, 0.30)) } }) },
+    {
+      // a Boo standing here is wondering something → beat 1
+      name: 'meadow (a request)', area: 'meadow',
+      save: () => SAVE({
+        town: { areas: withItems('meadow', boosIn('meadow')) },
+        settings: { sound: false, music: false, voice: false, content: 'full', requests: true },
+        request: { actives: [{ id: 'threeStar', booId: BOOS[0], text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() }
+      })
+    },
+    {
+      // she put a wish down five minutes ago → beat 2 plays its verb
+      name: 'meadow (a new wish)', area: 'meadow',
+      save: () => SAVE({ town: { areas: withItems('meadow', [...boosIn('meadow'), { zone: 'meadow', x: 0.20, row: 1, item: 'wish_star', scale: 1, at: Date.now() - 300000 }]) } })
+    },
+    {
+      // an area she has not put anything in yet: no bubble, no new thing, nobody to move —
+      // the place itself has to say hello. This is the mount the pulse exists for.
+      name: 'riverside (empty)', area: 'riverside', save: () => SAVE()
+    }
+  ];
+  const seenKinds = new Set();
+  for (const m of MOUNTS) {
+    const { ctx, page } = await open(m.save(), { area: m.area, room: m.room || null });
+    const mounted = Date.now();
+    const acksBefore = await page.evaluate(() => window.__acks.said());
+    const w = await watchBeat(page, 3000);                  // the beat is due at 900ms
+    // photographed the instant the beat proved itself, not after it has finished playing
+    const slug = m.name.replace(/[^a-z]+/gi, '-').toLowerCase();
+    if (w.visible) await page.screenshot({ path: `${SHOTS}/item1-beat-${slug}.png` });
+    const p = await pulse(page);
+    const acksAfter = await page.evaluate(() => window.__acks.said());
+    assert(p.beats.length === 1, `${m.name}: exactly one beat fired (${JSON.stringify(p.beats)})`);
+    assert(w.visible, `${m.name}: the ${p.beat} beat was visible on screen at ${w.at}ms (≤3s)`);
+    assert(acksAfter === acksBefore, `${m.name}: the beat spent no acknowledgement budget (${acksBefore}→${acksAfter})`);
+    seenKinds.add(p.beat);
+    // …and the invitation lands at ~9s from the mount, exactly as authored. Measured from
+    // the mount, not from wherever watchBeat happened to break out.
+    await sleep(Math.max(0, 9800 - (Date.now() - mounted)));
+    const q = await pulse(page);
+    assert(q.invited === true, `${m.name}: the invitation showed at ~9s`);
+    assert(q.hint === INVITATION[m.area], `${m.name}: the hint bar reads exactly "${q.hint}"`);
+    assert(q.beats.length === 1, `${m.name}: still exactly one beat after the invitation`);
+    if (/\(/.test(m.name) === false) await page.screenshot({ path: `${SHOTS}/item1-invitation-${m.area}${m.room ? '-' + m.room : ''}.png` });
+    await ctx.close();
+  }
+  // The five beats are a priority ladder, not a single hard-coded trick: the ten mounts
+  // between them must exercise more than one rung.
+  assert(seenKinds.size >= 3, `the ten mounts exercised ${seenKinds.size} different beats (${[...seenKinds].join(', ')})`);
+  assert([...seenKinds].every(k => ['request', 'newItem', 'zone', 'idle', 'signature'].includes(k)),
+    'every beat that fired was one of the pack\'s five');
+}
+
+console.log('== item 1: the third Boo House room says it too ==');
+{
+  // The Lounge and the Kitchen are covered by the ten mounts above; the Bedroom is the one
+  // storage key those did not reach, and it shares the rooms' authored line.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('boohouse_bedroom', boosIn('boohouse_bedroom', 2, 0.30)) } }), { area: 'boohouse', room: 'bedroom' });
+  await sleep(9600);
+  const p = await pulse(page);
+  assert(p.hint === 'Try tapping a sleepy Boo…', `boohouse/bedroom: "${p.hint}"`);
+  await ctx.close();
+}
+
+console.log('== item 1: REDUCED shows the invitation and no movement beat ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow', reduced: 'reduce' });
+  await sleep(2600);
+  const p = await pulse(page);
+  assert(p.beat === 'reduced' && p.beats.length === 0, `no movement beat under reduced motion (beat=${p.beat})`);
+  const moved = await page.evaluate(() => !!document.querySelector('.t-kite-wrap, .t-splash, .t-petal, .request-thought.rq-pulse3')
+    || window.__townLife.idleClasses().length > 0);
+  assert(!moved, 'nothing moved: no idle, no prop, no particle');
+  await sleep(7200);
+  const q = await pulse(page);
+  assert(q.invited === true && q.hint === 'Try tapping a flower…', `the invitation still shows: "${q.hint}"`);
+  await ctx.close();
+}
+
+console.log('== item 1: a reveal wins — the pulse skips that mount ==');
+{
+  // A funfair with a finished ride owes a reveal on entry. RUN21A-8's queue puts it on
+  // screen at +700ms; the pulse is due at +900ms and must stand down.
+  const save = SAVE({
+    town: { areas: withItems('funfair', boosIn('funfair')) },
+    funfair: { built: ['carousel'], build: null, pending: [], seats: {}, revealed: [] }
+  });
+  const { ctx, page } = await open(save, { area: 'funfair' });
+  await sleep(2600);
+  const p = await pulse(page);
+  const revealUp = await page.evaluate(() => !!document.querySelector('.overlay.growth-reveal, .funfair-reveal, .overlay'));
+  assert(revealUp, 'a reveal really is on screen for this fixture');
+  assert(p.beats.length === 0, `no beat played over the reveal (${JSON.stringify(p.beats)})`);
+  assert(p.beat === 'skipped:reveal', `the pulse recorded why it stood down (${p.beat})`);
+  await sleep(7200);
+  const q = await pulse(page);
+  assert(q.invited === false, 'and no invitation either — the ceremony is the moment');
+  await page.screenshot({ path: `${SHOTS}/item1-reveal-wins.png` });
+  await ctx.close();
+}
+
+console.log('== item 1: a second visit today prefers a beat it has not shown ==');
+{
+  const save = SAVE({ town: { areas: withItems('riverside', boosIn('riverside')) } });
+  const { ctx, page } = await open(save, { area: 'riverside' });
+  await sleep(2600);
+  const first = (await pulse(page)).beat;
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.evaluate(() => window.BooTown.go('town', { area: 'riverside' }));
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
+  await sleep(2600);
+  const second = (await pulse(page)).beat;
+  assert(first !== second, `the second visit chose a different beat (${first} → ${second})`);
+  await ctx.close();
+}
+
+// ============================================================================
+// Item 2 — Requests you can find
+// ============================================================================
+const REQUESTS_ON = { sound: false, music: false, voice: false, content: 'full', requests: true };
+
+console.log('== item 2A: the map says WHERE somebody is wondering something ==');
+{
+  const asker = BOOS[0];
+  const save = SAVE({
+    town: { areas: withItems('riverside', boosIn('riverside')) },
+    settings: REQUESTS_ON,
+    // seeded, and the recharge freshly spent, so nothing new is created underneath the test
+    request: { actives: [{ id: 'threeStar', booId: asker, text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() }
+  });
+  const { ctx, page } = await open(save, { area: null });
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
+  const name = await page.evaluate(id => window.__worldmap.wonderChip('riverside'), asker);
+  const areas = await page.evaluate(() => window.__worldmap.wonderAreas());
+  assert(!!name, 'the riverside badge has a 💭 chip');
+  assert(name && name.text === '💭', `the chip is a thought bubble ("${name && name.text}")`);
+  assert(name && name.title === 'Inky is wondering something…', `tooltip exactly: "${name && name.title}"`);
+  assert(name && name.aria === 'Inky is wondering something…', `aria exactly: "${name && name.aria}"`);
+  assert(JSON.stringify(areas) === '["riverside"]', `only the right area is chipped (${JSON.stringify(areas)})`);
+  const meadowChip = await page.evaluate(() => window.__worldmap.wonderChip('meadow'));
+  assert(meadowChip === null, 'an area with no requester has no chip');
+  const aria = await page.evaluate(() => window.__worldmap.badgeAria('riverside'));
+  assert(aria.includes('Inky is wondering something…'), `the badge announces it too: "${aria}"`);
+  // The chip is decoration: tapping the badge still just opens the area.
+  await page.evaluate(() => window.__worldmap.tap('riverside'));
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  assert(await page.evaluate(() => window.__townLife.area()) === 'riverside', 'tapping the chipped badge opens that area as normal');
+  await ctx.close();
+}
+
+console.log('== item 2A: a request generated on one visit is on the map by the next ==');
+{
+  // No request in the save; three Boos standing in the Meadow; the recharge long spent. Area
+  // entry is a creation trigger (RUN19 Z2), so one visit is all it takes.
+  const save = SAVE({
+    town: { areas: withItems('meadow', boosIn('meadow')) },
+    settings: REQUESTS_ON,
+    request: { actives: [], lastResolvedAt: 0 }
+  });
+  const { ctx, page } = await open(save, { area: 'meadow' });
+  await sleep(600);
+  const made = await page.evaluate(() => (JSON.parse(localStorage.getItem('bootown.save.v1')).request.actives || []).length);
+  assert(made > 0, `one visit to the Meadow generated a request (${made})`);
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
+  const areas = await page.evaluate(() => window.__worldmap.wonderAreas());
+  assert(areas.includes('meadow'), `and the Meadow badge is chipped on the very next visit to the map (${JSON.stringify(areas)})`);
+  await page.screenshot({ path: `${SHOTS}/item2-map-wonder-chip.png` });
+  await ctx.close();
+}
+
+console.log('== item 2B: "Show me" lands the target on screen ==');
+{
+  const asker = BOOS[0];
+  // The bench is at 0.72 of a four-viewport area — nearly three screens right of where she
+  // arrives, which is exactly the walk this button exists to save.
+  const items = [...boosIn('meadow'), { zone: 'meadow', x: 0.72, row: 1, item: 'deco_bench', scale: 1 }];
+  const save = SAVE({
+    town: { areas: withItems('meadow', items) },
+    settings: REQUESTS_ON,
+    request: {
+      actives: [{ id: 'sit', kind: 'sit', booId: asker, area: 'meadow', itemId: 'deco_bench', itemX: 0.72, targetBooId: null, accId: null, createdAt: Date.now() }],
+      lastResolvedAt: Date.now()
+    }
+  });
+  const { ctx, page } = await open(save, { area: 'meadow' });
+  await sleep(1600);                                   // let item 1's opening beat finish first
+  const before = await page.evaluate(id => window.__townLife.targetViewFrac(id), asker);
+  assert(before < 0 || before > 1, `the bench starts off-screen (view fraction ${before && before.toFixed(2)})`);
+  assert(await page.evaluate(id => window.__townLife.openRequestFor(id), asker), 'the request card opens');
+  await sleep(300);
+  const hasShowMe = await page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].some(b => b.textContent === 'Show me'));
+  assert(hasShowMe, 'the card offers "Show me" for a target in this area');
+  await page.screenshot({ path: `${SHOTS}/item2-showme-card.png` });
+  await page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].find(b => b.textContent === 'Show me').click());
+  await sleep(900);                                    // the pan is 600ms
+  const after = await page.evaluate(id => window.__townLife.targetViewFrac(id), asker);
+  assert(Math.abs(after - 0.5) <= 0.2, `the bench lands centred ±20% (view fraction ${after.toFixed(3)})`);
+  const cardGone = await page.evaluate(() => !document.querySelector('.request-card'));
+  assert(cardGone, 'and the card closed on the way');
+  const ringed = await page.evaluate(() => window.__townLife.ringed());
+  assert(ringed.includes('deco_bench'), `the bench wears the soft ring (${JSON.stringify(ringed)})`);
+  await page.screenshot({ path: `${SHOTS}/item2-showme-landed.png` });
+  await sleep(1600);
+  const stillRinged = await page.evaluate(() => window.__townLife.ringed());
+  assert(stillRinged.length === 0, 'and the ring lets go after ~2s');
+  await ctx.close();
+
+  // …and the hard case: she presses "Show me" INSIDE the pulse's own 900ms window. The
+  // ambient beat must not yank the camera back off the thing she just asked to see.
+  const early = await open(save, { area: 'meadow' });
+  await sleep(250);
+  await early.page.evaluate(id => window.__townLife.openRequestFor(id), asker);
+  await early.page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].find(b => b.textContent === 'Show me').click());
+  await sleep(2200);                                   // straight through the 900ms beat
+  const landed = await early.page.evaluate(id => window.__townLife.targetViewFrac(id), asker);
+  assert(Math.abs(landed - 0.5) <= 0.2, `an early "Show me" still lands the bench (view fraction ${landed.toFixed(3)})`);
+  await early.ctx.close();
+}
+
+console.log('== item 2B: a cross-area target keeps its existing button and gains no pan ==');
+{
+  const asker = BOOS[0];
+  // `wear` names an accessory in the wardrobe, not a thing standing in this area.
+  const save = SAVE({
+    town: { areas: withItems('meadow', boosIn('meadow')) },
+    inventory: Object.assign(Object.fromEntries(BOOS.map(b => [b, 1])), { acc_bow: 1 }),
+    settings: REQUESTS_ON,
+    request: {
+      actives: [{ id: 'wear', kind: 'wear', booId: asker, area: 'meadow', itemId: null, itemX: null, targetBooId: null, accId: 'acc_bow', createdAt: Date.now() }],
+      lastResolvedAt: Date.now()
+    }
+  });
+  const { ctx, page } = await open(save, { area: 'meadow' });
+  await sleep(400);
+  assert(await page.evaluate(id => window.__townLife.openRequestFor(id), asker), 'the wardrobe request card opens');
+  await sleep(300);
+  const labels = await page.evaluate(() => [...document.querySelectorAll('.request-card .btn')].map(b => b.textContent));
+  assert(!labels.includes('Show me'), `no "Show me" for a cross-screen target (${JSON.stringify(labels)})`);
+  assert(labels.includes('Open the wardrobe'), 'the existing cross-screen button is untouched');
+  await ctx.close();
+}
+
+console.log('== item 2C: an in-area bubble breathes every 6s ==');
+{
+  const asker = BOOS[0];
+  const save = SAVE({
+    town: { areas: withItems('meadow', boosIn('meadow')) },
+    settings: REQUESTS_ON,
+    request: { actives: [{ id: 'threeStar', booId: asker, text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() }
+  });
+  {
+    const { ctx, page } = await open(save, { area: 'meadow' });
+    await sleep(400);
+    const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.request-thought')).animationName);
+    assert(/rq-breathe/.test(anim), `the bubble carries the 6s breathe (${anim})`);
+    // Wait out item 1's opening beat first: the Pulse breathes this very bubble three times
+    // at scale 1.14 (900ms + PULSE_BUBBLE_MS), and sampling through that would measure the
+    // wrong animation entirely.
+    await sleep(3600);
+    const pulsing = await page.evaluate(() => !!document.querySelector('.request-thought.rq-pulse3'));
+    assert(!pulsing, 'the Pulse\'s 3× breathe has finished before the ambient one is measured');
+    // 7 seconds of samples, so a full 6s cycle is inside the window: the peak has to appear.
+    const samples = await page.evaluate(async () => {
+      const n = document.querySelector('.request-thought'); const out = [];
+      for (let i = 0; i < 29; i++) { out.push(getComputedStyle(n).scale); await new Promise(r => setTimeout(r, 250)); }
+      return out;
+    });
+    const nums = samples.map(v => parseFloat(v)).filter(v => Number.isFinite(v));
+    const max = Math.max(...nums);
+    assert(nums.length >= 24, `${nums.length} frames sampled over 7s`);
+    assert(max > 1.005 && max <= 1.06 + 0.001, `the breathe really scales, peaking at ${max} (1 → 1.06)`);
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await open(save, { area: 'meadow', reduced: 'reduce' });
+    await sleep(400);
+    const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.request-thought')).animationName);
+    const sc = await page.evaluate(() => getComputedStyle(document.querySelector('.request-thought')).scale);
+    assert(anim === 'none', `REDUCED: no bubble animation at all (${anim})`);
+    assert(parseFloat(sc) === 1 || sc === 'none', `REDUCED: the bubble holds still at scale ${sc}`);
+    await ctx.close();
+  }
+}
+
+// ============================================================================
+// Item 3 — Landmark dots
+// ============================================================================
+console.log('== item 3: four named dots per outdoor area, read by a screen reader ==');
+{
+  const WANT = {
+    meadow: ['The Oak', 'The Stage', 'The Shop', 'The Well'],
+    riverside: ['The Bank', 'The Bridge', 'The Reeds', 'The Shallows'],
+    hilltop: ['The Foot', 'The Climb', 'The Windmill', 'The Crest'],
+    beach: ['The Palms', 'The Hut', 'The Shore', 'The Rockline'],
+    playground: ['The Gate', 'The Green', 'The Corner', 'The Far Fence'],
+    funfair: ['The Gate', 'The Rides', 'The Booth', 'The Bandstand']
+  };
+  for (const [area, names] of Object.entries(WANT)) {
+    const { ctx, page } = await open(SAVE({ town: { areas: withItems(area, boosIn(area)) } }), { area });
+    const dots = await page.evaluate(() => window.__townLife.dots());
+    assert(dots.length === 4, `${area}: four dots`);
+    assert(JSON.stringify(dots.map(d => d.label)) === JSON.stringify(names), `${area}: ${JSON.stringify(dots.map(d => d.label))}`);
+    assert(dots.every(d => d.w >= 44 && d.h >= 44), `${area}: every dot is a ≥44px target (${dots[0].w}x${dots[0].h})`);
+    // the accessible name is what a screen reader reads, and only the current one is current
+    const currents = dots.filter(d => d.current === 'true');
+    assert(currents.length === 1, `${area}: exactly one dot is aria-current (${currents.length})`);
+    assert(dots[0].sel === true, `${area}: she arrives on screen 1, so dot 1 is filled`);
+    await ctx.close();
+  }
+}
+
+console.log('== item 3: the pip is 12px, ink at 35%, pink when filled ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow' });
+  await sleep(400);                                    // past the 0.2s fill transition
+  const pip = await page.evaluate(() => window.__townLife.dotPip());
+  assert(pip.w === '12px' && pip.h === '12px', `12px pip (${pip.w} × ${pip.h})`);
+  // DEVIATION (logged in RUN21D-PROGRESS.md): the pack's "ink at 35%" is invisible on the
+  // town's own dark chrome, so the 35% dimness is kept and the colour is the card.
+  assert(pip.bg === 'rgba(255, 248, 240, 0.35)', `unfilled = 35% dim, readable on dark chrome (${pip.bg})`);
+  assert(pip.selBg === 'rgb(255, 122, 198)', `filled = pink (${pip.selBg})`);
+  await page.screenshot({ path: `${SHOTS}/item3-dots-meadow.png` });
+  await ctx.close();
+}
+
+console.log('== item 3: the dots track manual scrolling, and a tap pans ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('beach', boosIn('beach')) } }), { area: 'beach' });
+  await sleep(1400);
+  const filled = async () => page.evaluate(() => window.__townLife.dots().findIndex(d => d.sel));
+  for (const screen of [1, 2, 3, 0]) {
+    // scroll by hand, exactly as a drag would: the dot state is derived from scrollX
+    await page.evaluate(s => { const v = window.__townLife.scrollTo(s * (document.querySelector('.t-viewport').clientWidth)); return v; }, screen);
+    await sleep(120);
+    assert(await filled() === screen, `manual scroll to screen ${screen + 1} fills dot ${screen + 1}`);
+  }
+  // …and a tap pans smoothly rather than jumping
+  await page.evaluate(() => window.__townLife.scrollTo(0));
+  await sleep(100);
+  await page.evaluate(() => window.__townLife.tapDot(2));
+  await sleep(180);
+  const mid = await page.evaluate(() => window.__townLife.scrollX());
+  await sleep(700);
+  const end = await page.evaluate(() => window.__townLife.scrollX());
+  const viewW = await page.evaluate(() => document.querySelector('.t-viewport').clientWidth);
+  assert(mid > 0 && mid < end, `the tap PANS (mid-flight ${Math.round(mid)} → landed ${Math.round(end)})`);
+  assert(Math.abs(end - 2 * viewW) < 8, `dot 3 lands screen 3 (${Math.round(end)} vs ${2 * viewW})`);
+  assert(await filled() === 2, 'and dot 3 is now the filled one');
+  await ctx.close();
+}
+
+console.log('== item 3: the funfair\'s fourth dot lands the bandstand, music and all ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) }, settings: { sound: false, music: true, voice: false, content: 'full', requests: false } }), { area: 'funfair' });
+  await sleep(1400);
+  const before = await page.evaluate(() => window.__townLife.zoneMusic());
+  assert(before !== 'band', `the band is not playing from the gate (${before})`);
+  await page.evaluate(() => window.__townLife.tapDot(3));
+  await sleep(1000);
+  const box = await page.evaluate(() => {
+    const n = document.querySelector('.ff-bandstand'); if (!n) return null;
+    const v = document.querySelector('.t-viewport').getBoundingClientRect(); const r = n.getBoundingClientRect();
+    return { inView: r.right > v.left && r.left < v.right, centred: Math.abs((r.left + r.width / 2 - v.left) / v.width - 0.5) };
+  });
+  assert(box && box.inView, 'the bandstand is in view');
+  assert(box && box.centred <= 0.2, `and centred ±20% (off by ${box && box.centred.toFixed(3)})`);
+  const after = await page.evaluate(() => window.__townLife.zoneMusic());
+  assert(after === 'band', `its music takes over (${after})`);
+  // The bandstand dot is a deviation from the pack's even geometry (see RUN21D-PROGRESS.md),
+  // so its own dot-state has to stay coherent: standing at the bandstand fills dot 4, and
+  // every other screen still fills its own dot.
+  const dots = await page.evaluate(() => window.__townLife.dots());
+  assert(dots[3].sel === true, 'standing at the bandstand fills dot 4');
+  const viewW = await page.evaluate(() => document.querySelector('.t-viewport').clientWidth);
+  for (const [screen, want] of [[0, 0], [1, 1], [2, 2], [3, 3]]) {
+    await page.evaluate(px => window.__townLife.scrollTo(px), screen * viewW);
+    await sleep(100);
+    const f = await page.evaluate(() => window.__townLife.dots().findIndex(d => d.sel));
+    assert(f === want, `funfair screen ${screen + 1} fills dot ${want + 1} (got ${f + 1})`);
+  }
+  await page.screenshot({ path: `${SHOTS}/item3-funfair-bandstand-dot.png` });
+  await ctx.close();
+}
+
+console.log('== item 3: no dots indoors; one edge shimmer per visit ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('boohouse', boosIn('boohouse', 2, 0.3)) } }), { area: 'boohouse', room: 'lounge' });
+  const dots = await page.evaluate(() => window.__townLife.dots());
+  assert(dots.length === 0, `the Boo House has no landmark dots (${dots.length})`);
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'and no edge shimmer indoors');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow' });
+  const shims = await page.evaluate(() => window.__townLife.edgeShims());
+  assert(shims.length === 1 && /right/.test(shims[0]), `arriving at screen 1: one shimmer, on the right (${JSON.stringify(shims)})`);
+  await page.screenshot({ path: `${SHOTS}/item3-edge-shimmer.png` });
+  await sleep(6000);
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'it lets go on its own');
+  // …and it does not come back later in the same visit
+  await page.evaluate(() => window.__townLife.scrollTo(0));
+  await sleep(400);
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'once per visit, not once per scroll');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('meadow', boosIn('meadow')) } }), { area: 'meadow', reduced: 'reduce' });
+  assert(await page.evaluate(() => window.__townLife.edgeShims().length) === 0, 'REDUCED: no edge shimmer at all');
+  const dots = await page.evaluate(() => window.__townLife.dots());
+  assert(dots.length === 4, 'REDUCED: the dots themselves are still there (they are navigation, not motion)');
+  await ctx.close();
+}
+
+// ============================================================================
+// Item 4 — Signposting the fair's best rooms
+// ============================================================================
+console.log('== item 4: two signs at the fair gate, both working from screen 1 ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) }, settings: { sound: false, music: true, voice: false, content: 'full', requests: false } }), { area: 'funfair' });
+  await sleep(1400);
+  const signs = await page.evaluate(() => window.__townLife.fairSigns());
+  assert(signs.length === 2, `two signs (${signs.length})`);
+  assert(signs.every(s => s.onScreen), 'both are fully on screen 1, with no scrolling at all');
+  const band = signs.find(s => s.id === 'ff-sign-band'), disco = signs.find(s => s.id === 'ff-sign-disco');
+  assert(band && band.text === '🎵 Band', `the first reads "${band && band.text}"`);
+  assert(disco && disco.text === '🕺 Disco', `the second reads "${disco && disco.text}"`);
+  assert(band && band.aria === 'Go to the bandstand', `aria: "${band && band.aria}"`);
+  assert(disco && disco.aria === 'Enter the Disco Hall', `aria: "${disco && disco.aria}"`);
+  assert(signs.every(s => s.w >= 44 && s.h >= 44), `both are comfortable targets (${signs.map(s => s.w + 'x' + s.h).join(', ')})`);
+  await page.screenshot({ path: `${SHOTS}/item4-fair-signs.png` });
+  // Band → the bandstand, and the band takes over
+  await page.evaluate(() => window.__townLife.tapFairSign('band'));
+  await sleep(1000);
+  const seen = await page.evaluate(() => {
+    const n = document.querySelector('.ff-bandstand'); if (!n) return null;
+    const v = document.querySelector('.t-viewport').getBoundingClientRect(); const r = n.getBoundingClientRect();
+    return { inView: r.right > v.left && r.left < v.right, music: window.__townLife.zoneMusic() };
+  });
+  assert(seen && seen.inView, 'tapping 🎵 Band pans to the bandstand');
+  assert(seen && seen.music === 'band', `and its music takes over (${seen && seen.music})`);
+  await page.screenshot({ path: `${SHOTS}/item4-band-sign-landed.png` });
+  await ctx.close();
+}
+{
+  // …and on a phone, where "screen 1" is 390px wide and there is the least room to hide in.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) } }), { area: 'funfair', w: 390, h: 844 });
+  await sleep(1200);
+  const signs = await page.evaluate(() => window.__townLife.fairSigns());
+  assert(signs.length === 2 && signs.every(s => s.onScreen), `390x844: both signs still fully on screen 1 (${JSON.stringify(signs.map(s => s.onScreen))})`);
+  await page.screenshot({ path: `${SHOTS}/item4-fair-signs-390.png` });
+  await ctx.close();
+}
+
+console.log('== item 4: a first-time visitor reaches the Disco in ≤2 taps ==');
+{
+  // A save that has never opened the Disco Hall, starting where a child starts: the map.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) } }), { area: null });
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
+  let taps = 0;
+  await page.evaluate(() => window.__worldmap.tap('funfair')); taps++;      // tap 1: the fair
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
+  await sleep(900);
+  assert(await page.evaluate(() => window.__townLife.fairSigns().filter(s => s.onScreen).length) === 2,
+    'she arrives with both signs already on screen');
+  await page.evaluate(() => window.__townLife.tapFairSign('disco')); taps++; // tap 2: the sign
+  await page.waitForSelector('.disco-hall', { timeout: 8000 });
+  assert(taps === 2, `the Disco Hall, in ${taps} taps from the map`);
+  const inDisco = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+  assert(inDisco === 'discohall', `and it really is the Disco Hall (${inDisco})`);
+  await page.screenshot({ path: `${SHOTS}/item4-disco-in-two-taps.png` });
+  // …and Back still returns to the fair, exactly as the door's own route does
+  await page.evaluate(() => document.querySelector('.disco-header button').click());
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
+  assert(await page.evaluate(() => window.__townLife.area()) === 'funfair', 'and Back lands her at the fair again');
+  await ctx.close();
+}
+
+// ============================================================================
+// Item 5 — The hider gets a fair chance
+// ============================================================================
+// A hider parked three screens right, on an oak she would have to drag to find.
+const HIDER = BOOS[0];
+const FAR_HIDE = { zone: 'meadow', x: 0.88, item: 'deco_oak' };
+const hidingSave = (over = {}) => SAVE(Object.assign({
+  town: { areas: withItems('meadow', [...boosIn('meadow'), { zone: 'meadow', x: 0.88, row: 1, item: 'deco_oak', scale: 1 }]) },
+  delights: { hideDay: today, hideFound: false, hideBoo: HIDER, hideSpot: FAR_HIDE }
+}, over));
+
+console.log('== item 5: a far hider gets a pan toward it and a line ==');
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow' });
+  const before = await page.evaluate(() => window.__townLife.hiderNudge());
+  assert(before.hasPeek, 'the peek is rendered in this area');
+  assert(before.onScreen === false, 'and it starts off-screen, three screens right');
+  await sleep(2200);                                   // the beat is at 900ms, then this
+  const after = await page.evaluate(() => window.__townLife.hiderNudge());
+  assert(after.nudged && after.panned, `the town panned toward the hider (nudged=${after.nudged}, panned=${after.panned})`);
+  assert(after.screensAway <= 1, `the peek is within one screen of view (${after.screensAway.toFixed(3)} screens away)`);
+  assert(after.hint === "Someone's hiding nearby… 👀", `and the line is exactly: "${after.hint}"`);
+  // Toward it, NOT onto it: it stops half a screen short of centring, so the peek is left
+  // at the far edge of the view rather than delivered — the finding is still hers.
+  const off = await page.evaluate(() => {
+    const n = window.__townLife.hidePeekEl(); const v = document.querySelector('.t-viewport').getBoundingClientRect();
+    const r = n.getBoundingClientRect();
+    return Math.abs((r.left + r.width / 2) - (v.left + v.width / 2)) / v.width;
+  });
+  assert(off >= 0.4, `and it is not handed to her — the peek is ${off.toFixed(2)} of a screen off centre, not centred`);
+  await page.screenshot({ path: `${SHOTS}/item5-hider-fair-chance.png` });
+  await ctx.close();
+}
+
+console.log('== item 5: the pop-out interaction is unchanged ==');
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow' });
+  await sleep(2200);
+  // scroll the last half-screen the way she would, then tap the peek
+  await page.evaluate(() => window.__townLife.scrollToFrac(0.88));
+  await sleep(200);
+  const starsBefore = await page.evaluate(() => JSON.parse(localStorage.getItem('bootown.save.v1')).stars.total);
+  const box = await page.evaluate(() => { const b = window.__townLife.hidePeekBBox(); return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2 } : null; });
+  assert(!!box, 'the peek is tappable once she gets there');
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down(); await page.mouse.up();
+  await sleep(600);
+  await page.evaluate(async () => { const s = await import('./js/state.js'); s.commit(); });   // past the 2s autosave debounce
+  const found = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('bootown.save.v1'));
+    return { found: !!(s.delights || {}).hideFound, peekGone: !window.__townLife.hidePeekEl(),
+             treat: !!document.querySelector('.request-treat') };
+  });
+  assert(found.found, 'tapping it still finds the hider');
+  assert(found.peekGone, 'the peek disappears');
+  assert(found.treat, 'and the "Found you!" treat still floats up');
+  await ctx.close();
+}
+
+console.log('== item 5: once per visit; REDUCED skips the pan and keeps the line ==');
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow' });
+  await sleep(2200);
+  const first = await page.evaluate(() => window.__townLife.scrollX());
+  // drive the camera back to the gate; the nudge must not fire a second time this visit
+  await page.evaluate(() => window.__townLife.scrollTo(0));
+  await sleep(1200);
+  const now = await page.evaluate(() => ({ x: window.__townLife.scrollX(), n: window.__townLife.hiderNudge() }));
+  assert(first > 0, `the nudge really moved the camera (${Math.round(first)}px)`);
+  assert(now.x === 0, 'and it does not re-fire when she scrolls back (once per visit)');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(hidingSave(), { area: 'meadow', reduced: 'reduce' });
+  await sleep(2200);
+  const r = await page.evaluate(() => ({ n: window.__townLife.hiderNudge(), x: window.__townLife.scrollX() }));
+  assert(r.n.nudged && !r.n.panned, `REDUCED: no pan (panned=${r.n.panned})`);
+  assert(r.x === 0, `REDUCED: the camera did not move (${r.x})`);
+  assert(r.n.hint === "Someone's hiding nearby… 👀", `REDUCED: the line still shows: "${r.n.hint}"`);
+  await ctx.close();
+}
+
+console.log('== item 5: nothing happens in an area nobody is hiding in ==');
+{
+  const { ctx, page } = await open(SAVE({
+    town: { areas: withItems('riverside', boosIn('riverside')) },
+    delights: { hideDay: today, hideFound: false, hideBoo: HIDER, hideSpot: FAR_HIDE }
+  }), { area: 'riverside' });
+  await sleep(2200);
+  const r = await page.evaluate(() => window.__townLife.hiderNudge());
+  assert(!r.nudged && !r.hasPeek, 'the Riverside says nothing about a Meadow hider');
+  assert(r.hint !== "Someone's hiding nearby… 👀", `and its hint bar is its own ("${r.hint}")`);
+  await ctx.close();
+}
+
+// ============================================================================
+// The pack's final gate — fresh and rich saves, and the two rules that bind everywhere
+// ============================================================================
+console.log('== gate: a FRESH save ==');
+{
+  // Nothing placed, nothing owned, no stars: the state a child is in for the few seconds
+  // between finishing onboarding and putting her first Boo down.
+  const fresh = {
+    version: 23, name: 'Ada', age: 8, ageAsked: true,
+    guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
+    inventory: {}, stars: { total: 0, byType: {}, spent: {} },
+    town: { areas: AREAS() }, wishes: { unlocked: {} },
+    seen: { ageAsked: true }, settings: { sound: false, music: false, voice: false, content: 'full' }
+  };
+  for (const area of ['meadow', 'funfair', 'playground']) {
+    const { ctx, page } = await open(fresh, { area });
+    await sleep(2600);
+    const p = await pulse(page);
+    assert(p.beats.length <= 1, `${area} (fresh): never more than one beat (${JSON.stringify(p.beats)})`);
+    assert(await page.evaluate(() => window.__townLife.dots().length) === 4, `${area} (fresh): the four dots are there`);
+    if (area === 'meadow') {                            // one full nine-second wait is the proof
+      await sleep(7400);
+      const q = await pulse(page);
+      assert(q.hint === q.invitation, `${area} (fresh): the invitation still lands ("${q.hint}")`);
+    }
+    await ctx.close();
+  }
+}
+
+console.log('== gate: a RICH save ==');
+{
+  // Every area furnished, a live request, the day's hider unfound, the whole fair standing.
+  const areas = AREAS();
+  for (const a of ['meadow', 'riverside', 'hilltop', 'beach', 'funfair', 'playground']) {
+    areas[a].items = [
+      ...boosIn(a, 4, 0.10),
+      { zone: a, x: 0.34, row: 2, item: 'deco_bench', scale: 1 },
+      { zone: a, x: 0.55, row: 1, item: 'deco_oak', scale: 1 },
+      { zone: a, x: 0.80, row: 1, item: 'deco_flowers', scale: 1 }
+    ];
+    areas[a].paths = [{ cx: 3, cy: 4, style: 'stone' }, { cx: 4, cy: 4, style: 'stone' }];
+  }
+  areas.boohouse.items = boosIn('boohouse', 2, 0.30).concat([{ zone: 'boohouse', x: 0.6, row: 1, item: 'deco_bed', scale: 1 }]);
+  const rich = SAVE({
+    town: { areas },
+    settings: REQUESTS_ON,
+    request: { actives: [{ id: 'threeStar', booId: BOOS[1], text: 'I bet you can get 3 stars!', createdAt: Date.now() }], lastResolvedAt: Date.now() },
+    delights: { hideDay: today, hideFound: false, hideBoo: BOOS[0], hideSpot: { zone: 'beach', x: 0.55, item: 'deco_oak' } }
+  });
+  for (const area of ['meadow', 'riverside', 'beach', 'funfair', 'boohouse']) {
+    const { ctx, page } = await open(rich, { area, room: area === 'boohouse' ? 'lounge' : null });
+    await sleep(2600);
+    const p = await pulse(page);
+    assert(p.beats.length === 1, `${area} (rich): exactly one beat (${JSON.stringify(p.beats)})`);
+    if (area === 'meadow' || area === 'beach') {        // beach is where the day's hider is
+      await sleep(7400);
+      const q = await pulse(page);
+      assert(q.beats.length === 1, `${area} (rich): STILL exactly one beat after the invitation`);
+      assert(q.hint === q.invitation || q.hint === "Someone's hiding nearby… 👀", `${area} (rich): the hint bar is one of RUN21D's own lines ("${q.hint}")`);
+    }
+    await page.screenshot({ path: `${SHOTS}/gate-rich-${area}.png` });
+    await ctx.close();
+  }
+}
+
+console.log('== gate: the Pulse never speaks over a reveal, on a rich save ==');
+{
+  // A growth milestone AND a fair catch-up both owed, in the fair, on a furnished save.
+  const areas = AREAS();
+  areas.funfair.items = boosIn('funfair', 4, 0.10);
+  const save = SAVE({
+    town: { areas },
+    funfair: { built: ['carousel'], build: null, pending: [], seats: {}, catchup: [] }
+  });
+  const { ctx, page } = await open(save, { area: 'funfair' });
+  await sleep(2600);
+  const p = await pulse(page);
+  assert(p.beats.length === 0 && p.beat === 'skipped:reveal', `the pulse stood down for the ceremony (${p.beat}, ${JSON.stringify(p.beats)})`);
+  // …and once she dismisses it, the pulse does NOT then fire late over the top of her play
+  const btn = await page.$('.overlay .btn');
+  if (btn) { await btn.click(); await sleep(1200); }
+  const q = await pulse(page);
+  assert(q.beats.length === 0, 'and it does not sneak in afterwards either — the mount is spent');
+  await ctx.close();
+}
+
+console.log(pageErrors.length ? `PAGE ERRORS: ${JSON.stringify(pageErrors.slice(0, 6))}` : 'no page errors');
+if (pageErrors.length) failed = true;
+await browser.close();
+console.log(failed ? '\nRUN21D: FAIL' : '\nRUN21D: PASS');
+process.exit(failed ? 1 : 0);
