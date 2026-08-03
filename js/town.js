@@ -272,6 +272,28 @@ const PULSE_INVITATIONS = {
   boohouse_bedroom:  'Try tapping a sleepy Boo…'
 };
 const SHOW_ME_RING_MS = 2000;    // RUN21D-2: how long "Show me" rings the thing it landed on
+
+// ---- RUN21D-3: landmark dots -----------------------------------------------------------
+// An outdoor area is FOUR viewports wide and nothing ever said so. A child who never
+// happened to drag left or right met a quarter of her own town. Four dots, one per screen,
+// named — so the width is legible at a glance and reachable in one tap.
+const DOT_SCREEN_X = [0.125, 0.375, 0.625, 0.875];   // the four screen centres, as fractions
+const DOT_PAN_MS = 600;
+const LANDMARK_DOTS = {
+  meadow:     ['The Oak', 'The Stage', 'The Shop', 'The Well'],
+  riverside:  ['The Bank', 'The Bridge', 'The Reeds', 'The Shallows'],
+  hilltop:    ['The Foot', 'The Climb', 'The Windmill', 'The Crest'],
+  beach:      ['The Palms', 'The Hut', 'The Shore', 'The Rockline'],
+  playground: ['The Gate', 'The Green', 'The Corner', 'The Far Fence'],
+  funfair:    ['The Gate', 'The Rides', 'The Booth', 'The Bandstand']
+};
+// A dot pans to its screen's centre — EXCEPT where the thing it is named after is a fixed
+// installation that does not sit on that centre. The funfair's bandstand is the one such
+// case in the world today: BANDSTAND_X is 0.68, which is inside screen 3 (0.50-0.75), so a
+// dot that says "The Bandstand" and panned to 0.875 would show her the helter-skelter and
+// no music. It pans to the bandstand itself instead, which is what its label promises.
+const DOT_TARGET_OVERRIDE = { funfair: { 3: BANDSTAND_X } };
+const EDGE_SHIM_MS = 5400;       // two soft sweeps (2 × 2.6s) at an edge with town beyond it
 // "Prefer things not shown today" — a SESSION set, never the save. There is no ledger of
 // what the town has already shown her; it resets on load like every other pacing memory
 // here (js/ack.js, js/encouragement.js, wishlife's visit tokens).
@@ -469,6 +491,50 @@ export function mount(container, params, ctx) {
     }, [el('span', { class: 'rt-thumb', 'aria-hidden': 'true', html: roomThumbSVG(r) }), el('span', { class: 'rt-lbl', text: r.name })]))) : null;
   const hint = el('div', { class: 'town-hint-bar' });
 
+  // RUN21D-3 — the landmark dots. Outdoors only: a Boo House room is 1.5 viewports and its
+  // room tabs already say what else there is. Each dot is a 44px button (house tap-target
+  // floor) around a 12px pip, named after what is on that screen, and it PANS rather than
+  // jumping so the four screens read as one continuous place.
+  const DOT_NAMES = isInterior ? null : (LANDMARK_DOTS[AREA.key] || null);
+  const dotTargetX = (i) => ((DOT_TARGET_OVERRIDE[AREA.key] || {})[i] != null
+    ? DOT_TARGET_OVERRIDE[AREA.key][i]
+    : DOT_SCREEN_X[i]);
+  const dotBtns = DOT_NAMES ? DOT_NAMES.map((name, i) => el('button', {
+    class: 't-dot', type: 'button', 'aria-label': name, dataset: { dot: String(i) },
+    onclick: () => { sfx.tap(); cameraClaimed = true; panToFrac(dotTargetX(i), DOT_PAN_MS); updateDots(); }
+  }, [el('i', { class: 't-dot-pip', 'aria-hidden': 'true' })])) : null;
+  const dots = dotBtns ? el('nav', { class: 't-dots' }, dotBtns) : null;
+  // Which dot is she looking at? Whichever one's landing this camera is nearest to — for
+  // the twenty-three evenly-spaced dots that is exactly "the current screen, from scrollX",
+  // and it stays right for the funfair's bandstand dot too.
+  function updateDots() {
+    if (!dotBtns || !zoneW) return;
+    const centre = (scrollX + viewW / 2) / zoneW;
+    let best = 0;
+    for (let i = 1; i < dotBtns.length; i++) {
+      if (Math.abs(dotTargetX(i) - centre) < Math.abs(dotTargetX(best) - centre)) best = i;
+    }
+    dotBtns.forEach((b, i) => {
+      b.classList.toggle('sel', i === best);
+      if (i === best) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+  }
+  // The edge shimmer: once per visit, whichever edge has town beyond it gets a soft sweep —
+  // the same gradient language the rarity shimmer uses. It says "there is more that way"
+  // without a word, and it never repeats within the visit.
+  function edgeShimmerOnce() {
+    if (isInterior || REDUCED || areaSeen.edge) return;
+    if (worldW <= viewW + 8) return;
+    areaSeen.edge = true;
+    for (const side of ['left', 'right']) {
+      const more = side === 'right' ? scrollX < worldW - viewW - 8 : scrollX > 8;
+      if (!more) continue;
+      const n = el('i', { class: 't-edge-shim ' + side, 'aria-hidden': 'true' });
+      viewport.appendChild(n);
+      setTimeout(() => { try { n.remove(); } catch {} }, EDGE_SHIM_MS);
+    }
+  }
+
   const sky = el('div', { class: 't-layer t-sky' });
   const hills = el('div', { class: 't-layer t-hills' });
   const ground = el('div', { class: 't-layer t-ground' });
@@ -543,7 +609,7 @@ export function mount(container, params, ctx) {
   drawer.classList.add('town-drawer');   // scope the .taken shake CSS to this drawer instance
   updateBuildUI();   // hides the Landscape tab + build tool rows until the hammer is tapped
   renderDecorateTab();   // RUN21A-2: populated at mount too, not only via the hammer
-  root.append(header, hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
+  root.append(header, ...(dots ? [dots] : []), hint, ...(roomTabs ? [roomTabs] : []), viewport, drawer);
   container.appendChild(root);
 
   // Day / night tint.
@@ -660,6 +726,7 @@ export function mount(container, params, ctx) {
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
     }
+    edgeShimmerOnce();   // RUN21D-3: "there is more that way", once per visit
     // RUN21D-1: the town's one guaranteed opening breath. Last, so everything it can choose
     // from (placed items, actors, the fair, request bubbles) is already on screen.
     startPulse();
@@ -1025,7 +1092,7 @@ export function mount(container, params, ctx) {
   //
   // Session flags live in memory, per mount, and are never persisted: whether she has already
   // seen today's train is not something the save should carry forever.
-  const areaSeen = { train: false, seed: false, ball: false };
+  const areaSeen = { train: false, seed: false, ball: false, edge: false };
 
   // The ambient: mounted once, then left alone.
   function renderAreaAmbient() {
@@ -3167,6 +3234,7 @@ export function mount(container, params, ctx) {
     sky.style.transform = `translateX(${-scrollX * 0.22}px)`;
     air.style.transform = `translateX(${-scrollX}px)`;
     updateZoneMusic();
+    updateDots();          // RUN21D-3: the dots track every pan, hers or the town's
   }
   // Zone audio (RUN6 C1b/C1c): the calm town loop everywhere, the fair jingle while
   // the (unlocked) funfair is on screen, and — when the bandstand itself is in view —
@@ -5425,6 +5493,22 @@ export function mount(container, params, ctx) {
         return (nr.left + nr.width / 2 - vr.left) / (vr.width || 1);
       },
       ringed: () => [...ground.querySelectorAll('.rq-ring')].map(n => n.dataset.item || n.className),
+      // RUN21D-3: the landmark dots — their labels, which is filled, and their tap targets.
+      dots: () => (dotBtns || []).map((b, i) => {
+        const r = b.getBoundingClientRect();
+        return { label: b.getAttribute('aria-label'), sel: b.classList.contains('sel'),
+                 current: b.getAttribute('aria-current'), target: dotTargetX(i),
+                 w: Math.round(r.width), h: Math.round(r.height) };
+      }),
+      tapDot: (i) => { const b = (dotBtns || [])[i]; if (!b) return false; b.click(); return true; },
+      dotPip: () => {
+        const off = dots && dots.querySelector('.t-dot:not(.sel) .t-dot-pip');
+        const on = dots && dots.querySelector('.t-dot.sel .t-dot-pip');
+        if (!off || !on) return null;
+        const cs = getComputedStyle(off);
+        return { w: cs.width, h: cs.height, bg: cs.backgroundColor, selBg: getComputedStyle(on).backgroundColor };
+      },
+      edgeShims: () => [...viewport.querySelectorAll('.t-edge-shim')].map(n => n.className),
       // What every actor is actually DOING — the state proof behind a movement beat.
       goals: () => actors.map(a => ({ item: a.place && a.place.item, goal: a.goal && a.goal.kind, role: a.role && a.role.kind, state: a.state })),
       behaviourSample: (i, n) => {

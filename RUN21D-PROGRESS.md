@@ -5,7 +5,7 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
 ## Items
 - [x] 1 — The Pulse Director
 - [x] 2 — Requests you can find
-- [ ] 3 — Landmark dots
+- [x] 3 — Landmark dots
 - [ ] 4 — Signposting the fair's best rooms
 - [ ] 5 — The hider gets a fair chance
 
@@ -16,6 +16,24 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
   seven areas, seven fixed lines. → What I did: one authored line per area, verbatim; the
   Playground uses the pack's own stated stand-in `Try the swings…` until RUN21E lands tag.
   If a later pack wants rotation it must author the extra lines.
+
+- **Item 3 — "tapping dot 4 in the funfair lands the bandstand in view".** Pack said four
+  dots at the four screen centres (12.5/37.5/62.5/87.5%) AND that dot 4 lands the bandstand.
+  → What was true: `BANDSTAND_X` is 0.68, which sits inside screen 3 (0.50–0.75), so a dot
+  panning to 0.875 shows the helter-skelter and never hands the music over — the two halves
+  of the spec cannot both hold with the fair as built. → What I did: kept the four screen
+  centres for all 23 other dots and gave the funfair's fourth dot a single documented
+  target override, `BANDSTAND_X`. Its label is then true, the ACCEPT passes (bandstand
+  centred ±20%, `zoneMusic() === 'band'`), and the filled-dot rule — nearest dot target to
+  the view centre, derived from scrollX — stays coherent on all four funfair screens
+  (asserted). Moving the bandstand instead would have broken band/funfair layout contracts
+  well outside this pack.
+- **Item 3 — "ink at 35%".** Pack specified the unfilled pip as ink (#2A1B4E) at 35%.
+  → What was true: the dot strip sits on the app's own dark chrome (--sky-deep #1E1550), so
+  ink at 35% is dark-on-dark and literally invisible — photographed at 390x844 before the
+  fix. → What I did: kept the pack's 35% dimness and moved the colour to the card
+  (#FFF8F0) at 35%, which measures 3.0:1 against --sky-deep (the non-text contrast floor)
+  and still reads as "not this one". Filled = pink, 12px, ≥44px hit target, all as specced.
 
 ## Blocks
 (none yet)
