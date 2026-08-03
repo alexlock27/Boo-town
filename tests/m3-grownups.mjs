@@ -45,7 +45,10 @@ assert(music === false, 'music toggled off in save');
 
 console.log('== restore from a backup code ==');
 await page.click('.gu-tab[data-tab="data"]');  // backup/restore live on the Backup & data tab (RUN6 C0.2)
-await page.fill('.gu-code:not([readonly])', backupCode); // original code had music ON
+// RUN21F F6 re-point: the Grown-ups corner has TWO paste boxes now — this one, and the
+// Visit a Town postcard box on its own tab. `.gu-code:not([readonly])` no longer names one
+// box; the restore box's own aria-label does, and always did.
+await page.fill('textarea[aria-label="Paste backup code to restore"]', backupCode); // original code had music ON
 // RUN8 v2 C3: restore now previews first (undo-safe), then applies.
 await page.click('button:has-text("Preview this code")');
 await page.waitForSelector('.gu-preview-card', { timeout: 5000 });
