@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run20d-20260731` (sw.js; 158 precached assets)
+- BUILD_STAMP: `run21a-20260803` (sw.js; 158 precached assets)
 - SAVE VERSION: 23 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
@@ -37,9 +37,9 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - wishes: 60 (data/wishes.js WISH_WORDS)
 - dressings: 24 (data/dressings.js DRESSINGS, free defaults included)
 
-## Tests — 204 suites under tests/
+## Tests — 205 suites under tests/
 
-- board suites: 181 (+ 23 excluded by prefix: shoot*, sim-blocks*, device-qa*)
+- board suites: 182 (+ 23 excluded by prefix: shoot*, sim-blocks*, device-qa*)
 - `npm test` runs `node tests/run.mjs` — `tests/run.mjs` MISSING (does NOT resolve)
 
 ### Suite list
@@ -171,6 +171,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - r19z6-objectmodel.mjs
 - r19z7-asks.mjs
 - r20-wishlife.mjs
+- r21a-reach-truth.mjs
 - r3p1-spellboo.mjs
 - r3p2-smartmix.mjs
 - r3p3-golden.mjs
@@ -261,5 +262,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Known BLOCKED / gated items (from RUN21*-PROGRESS files)
 
+- RUN21A-PROGRESS.md: ## BLOCKED
+- RUN21A-PROGRESS.md: - NEEDS_ALEX gates for F8/F9 are ABSENT in NEEDS_ALEX.md → both will log SKIPPED-GATED.
 - RUN21F-PROGRESS.md: - [ ] F8 — SKIPPED-GATED: NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE`
 - RUN21F-PROGRESS.md: - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
