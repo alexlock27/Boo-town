@@ -361,18 +361,75 @@ function weightedPick(cands) {   // cands: [ [value, weight], ... ]
 }
 const lerp = (a, b, k) => a + (b - a) * k;
 // Activity kit renders bigger than a Boo so climbing/sitting reads properly.
+//
+// ---- RUN21B item 3: PROPORTION RE-BASELINE ------------------------------------------------
+// The unit for every furniture number below is B — the standing Boo's DRAWN height at scale 1,
+// row 1 — MEASURED, not assumed: 74.36px at 1024x768 (six of the ten starter Boos; the eared
+// species reach 87.4 and 93.5, the SVG box is 99.66). Every item shares one 120x130 viewBox
+// and is scaled uniformly by the number in this table, so at row 1, scale 1:
+//     one viewBox unit = ACT_SIZE / 120 px
+// and an item's DRAWN height/width is (its own drawn extent in viewBox units) x that.
+//
+// Two things this table cannot do, and one it now does:
+//  - It cannot hit a width target AND a seat-height target at once: the ratio between them is
+//    fixed by the ART. Where the pack gives both, the SEAT/TOP HEIGHT wins (RUN21B-PROGRESS
+//    deviation 9b) — that is the number "a Boo fits every seat without floating" tests.
+//  - Heights are measured from each item's OWN DRAWN BASE, not from the nominal y=120 ground
+//    line of the viewBox (deviation 10): a table's legs stop at y=102, a bench's at y=114, and
+//    it is where the legs stop that the eye reads as the floor. Measuring from y=120 instead
+//    makes six of the pack's own targets SHRINK the very items its WHY calls too small.
+//  - It now covers deco_bench, deco_bookshelf3 and deco_pond, which were silently on the 92
+//    fallback and so were invisible to every previous pass (deviation 9d).
+// Comments give: measured-before -> after, in B, and which target set the number.
 const ACT_SIZE = {
   deco_slide: 150, deco_swings: 150, deco_seesaw: 160, deco_trampoline: 140,
   deco_paddlepool: 150, deco_picnic: 150, deco_bumper: 140, deco_campfire: 120,
+  // The pack's outdoor list is a SANITY PASS only — change nothing unless a Boo visibly
+  // cannot fit. Photographed one Boo on each (swings/slide/seesaw/trampoline/picnic/
+  // paddlepool): every one fits, so every one is untouched above.
+  // deco_pond was on the 92 fallback and is now explicit at the same value: it is in neither
+  // the pack's indoor list nor its outdoor sanity list, and a Boo does fit it, so the
+  // re-baseline has no mandate to resize it. It DOES read small (88 drawn units = 0.90xB
+  // wide, so a fishing Boo covers it) — flagged for RUN21C/E rather than invented here.
+  deco_pond: 92,
+  // The one bench in the game — the pack's indoor "bench" and its outdoor "cosy bench" are
+  // the same item (deviation 9d). Seat top y=84, drawn base y=114, so 30 units of seat.
+  // seat 0.310xB -> 0.520xB (the pack's bench ratio). Width follows the art at 1.11xB.
+  deco_bench: 154,
   // furniture (RUN10 P4)
-  deco_bed: 150, deco_sofa: 165, deco_rug: 210, deco_table: 120, deco_tablelamp: 105,
+  // bed: mattress top y=78 over base y=108 was ALREADY 0.504xB against the pack's 0.45, so the
+  // height target would have SHRUNK the one item the WHY names first. Length was the number
+  // actually missing (1.345xB against the pack's 1.9), and length is what the bed-nap ACCEPT
+  // needs — the duvet cannot cover a Boo lying on a bed shorter than it is. 1.345 -> 1.90xB.
+  deco_bed: 212,
+  // sofa cushion top y=80 over base y=106: seat 0.481 -> 0.500xB. Width 1.85xB (pack: 2.4).
+  deco_sofa: 172,
+  deco_rug: 213,                  // width 2.166 -> 2.200xB (the one pure-width item; +1.6%)
+  deco_table: 129,                // top y=52 over base y=102: 0.672 -> 0.720xB. Width 0.98xB (pack: 1.3)
+  deco_tablelamp: 131,            // drawn height 0.682 -> 0.850xB
   deco_wardrobe: 145, deco_bookshelf: 145, deco_bathtub: 145, deco_bffportrait: 120,
   // furniture and decor expansion (RUN13 T4)
-  deco_armchair: 130, deco_bunkbed: 155, deco_wardrobe2: 145, deco_kitchentable: 135,
-  deco_counter: 150, deco_fridge: 130, deco_oven: 130, deco_stool: 95,
-  deco_bookshelf2: 145, deco_rug2: 200, deco_rug3: 200, deco_lamp2: 105, deco_floorlamp: 130,
-  deco_plant1: 110, deco_plant2: 120, deco_plant3: 105, deco_wallclock: 105, deco_mirror: 115,
-  deco_toybox: 125, deco_wallart1: 110, deco_wallart2: 110, deco_wallart3: 110,
+  // armchair and sofa draw the SAME seat geometry (cushion top y=80, base y=106) yet sat at
+  // 130 and 165, which is why one read 0.379xB and the other 0.481xB. Equal art, equal size.
+  deco_armchair: 172,             // seat 0.379 -> 0.500xB. Width 1.54xB (pack: 1.3 — art overshoots)
+  deco_bunkbed: 155, deco_wardrobe2: 145,
+  deco_kitchentable: 139,         // top y=56 over base y=106: 0.757 -> 0.780xB. Width 1.37xB (pack: 1.9)
+  deco_counter: 150, deco_fridge: 130, deco_oven: 130,
+  deco_stool: 149,                // seat y=78 over base y=108: 0.319 -> 0.500xB
+  deco_bookshelf2: 182,           // the pack's "low bookshelf": 0.877 -> 1.100xB tall
+  deco_bookshelf3: 139,           // ADDED (was on the 92 fallback at 0.99xB — shorter than the
+                                  // LOW shelf would now be). 1.50xB, so the three shelves read
+                                  // low 1.10 / standard 1.40 / ladder 1.50 as one family.
+  deco_rug2: 205, deco_rug3: 205, // same 2.2xB width rule as deco_rug (their art is 96 units, not 92)
+  deco_lamp2: 105, deco_floorlamp: 130,
+  deco_plant1: 146,               // the pack's "pot plant" (the only plant in SMALL_ITEMS): 0.678 -> 0.900xB
+  deco_plant2: 120, deco_plant3: 105,
+  // wallclock and photoframe are the two targets that genuinely REDUCE (0.55xB -> 72, 0.5xB ->
+  // 53) — deviation 9c: treated as authored against a different B and left alone, since the
+  // pack's own WHY is that this furniture reads too SMALL. Side-by-sides show neither oversized.
+  deco_wallclock: 105, deco_mirror: 115,
+  deco_toybox: 116,               // 0.756 -> 0.700xB tall (the pack's only toybox number)
+  deco_wallart1: 110, deco_wallart2: 110, deco_wallart3: 110,
   deco_photoframe: 105
 };
 // RUN21B item 1: every wish used to render at the generic 92, because they were all the
