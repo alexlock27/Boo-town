@@ -204,7 +204,10 @@ console.log('== item 3: a granted word ends the right way round ==');
 // ==================== Item 6 — a Boo holds still under its care arc ====================
 console.log('== item 6: the Boo stays put while its care arc is open ==');
 {
-  const save = SAVE({ town: { areas: Object.assign(AREAS(), { meadow: { items: [{ zone: 'meadow', x: 0.3, row: 1, item: BOOS[0] }], paths: [] } }) } });
+  // x 0.12, not 0.3: an outdoor area is four viewports wide, so at the default scrollX a
+  // Boo at 0.3 sits off the right edge — where stepActors skips it as offscreen and a real
+  // click cannot reach it. 0.12 * 4 viewports lands it on the screen she arrives at.
+  const save = SAVE({ town: { areas: Object.assign(AREAS(), { meadow: { items: [{ zone: 'meadow', x: 0.12, row: 1, item: BOOS[0] }], paths: [] } }) } });
   const { ctx, page } = await open(save, { area: 'meadow' });
   await dismissReveal(page);
   await page.evaluate(() => window.__townLife.forceWalk && window.__townLife.forceWalk(0));
