@@ -20,7 +20,7 @@ contracts, re-pointed by this run.
 |---|---|---|---|
 | 1 | Un-delete seated Boos | DONE | `r21a-reach-truth` §1 (a/b/c) + `item1-bedroom-visible.png` |
 | 2 | Decorate at mount + tab select; rooms named | DONE (+TDZ hotfix) | `r21a-reach-truth` §2, all three rooms + `item2-decorate-lounge.png` |
-| 3 | Gold wish tiles end readable | DONE | `r21a-reach-truth` §3 (matrix sign + reduced-motion) + `item3-gold-readable.png` |
+| 3 | Gold wish tiles end readable | DONE | `r21a-reach-truth` §3 (settled-matrix sign + reduced-motion) + `item3-gold-readable.png`, which shows gold `K I T E` the right way round AND item 4's dropped tray in the same frame |
 | 4 | Tray drops; duplicate line in the well | DONE (FIX: duplicate keeps well 3.5s) | `r18b-wish-arrives` §3, re-pointed |
 | 5 | Taps never budget-gated | DONE | `r20-wishlife`, re-pointed |
 | 6 | Boo holds still under care arc | DONE | `r21a-reach-truth` §6, 4 frames across 3.3s + `item6-care-hold.png` |
@@ -117,16 +117,55 @@ Decorate." still names Build. It is TRUE today (build mode also reaches Decorate
 with the hammer in C.
 
 ## Final gate results
-(filled at gate completion)
 
-### Affected suites
-PENDING
+Run from a FRESH CLONE of `run21a` (`../Boo-town-run21a-gate`, its own server on :8001),
+not the working tree — per the pack.
 
-### ACCEPT sweep
-PENDING
+**`npm test` does not run.** `package.json` points `test` at `node tests/run.mjs`, and that
+file does not exist. Noted, NOT repaired — the pack says the harness is RUN21F's job (F4),
+and RUN21F's own F3 generator independently reported the same thing. Suites are therefore
+invoked directly (`BASE=… node tests/<name>.mjs`), which is how `_runall.sh` drives them too.
+
+### Affected suites — 25/25 PASS
+
+Chosen per the Board Law: the suites covering the files this run changed (town.js, shop.js,
+drawer.js, wishwell.js, worldmap.js, state.js, requests.js, funfair.js, sockets.js,
+wishlife.js, styles.css) and their dependents, plus the fixed core (`r12s1-routes`,
+`r8p1-migrations`, `m3-pwa`, `r12s4-contrast`, `r18a-copyguard`). No full board — that runs
+once at the end of the programme.
+
+`r21a-reach-truth` · `r12s1-routes` · `r8p1-migrations` · `m3-pwa` · `r12s4-contrast` ·
+`r18a-copyguard` · `r10p2-sockets` · `r4p5-town` · `r10p5-personalities` · `r10p20-wishwell` ·
+`r18b-wish-arrives` · `r20-wishlife` · `r19z2-requests` · `r18a-shop-chrome` ·
+`r18b-buy-confirm` · `r18b-shop-handoff` · `r19z6-objectmodel` · `r10p3-buildmode` ·
+`r6p2-funfair` · `r7p1-funfair` · `r4p6-growth` · `r13bt8-town-dressing` · `m3-grownups` ·
+`r17x4-whatsnew` · `r18d-layout`
+
+The first pass (2 lanes) had four reds. All four are now green, and each was resolved by
+finding out WHY rather than by re-running until it went away:
+
+| Suite | Verdict |
+|---|---|
+| `r10p2-sockets` | **REAL BUG in item 10** — see FIX 2 above. Green after the fix. Note its "25th item refused" assertion had been passing for the wrong reason (nothing was placed because the click never landed), which is exactly how a shield bug hides. |
+| `r21a-reach-truth` | Three defects in the NEW suite, not the app: a document-wide empty-state check (other tabs legitimately show "Nothing here yet!"); an expiry assertion that assumed no new request could be generated in the same visit (it can — that IS item 12 working); and a care-arc block that seeded its Boo at x 0.3, which in a four-viewport-wide area is off-camera, so `stepActors` skipped it and the click missed. That last one was silently proving nothing — the Boo "held still" because it had never been walking. |
+| `r4p5-town` | Flake. `seesaw: alternating bounce` wants ≥5 distinct frames; it sampled 4 under 2-lane load, 7 serially. Board-law frame-evidence class. |
+| `r10p5-personalities` | Flake. `.hub` boot timeout under load; passes serially and passed in an earlier 3-lane run. |
+
+Both flakes were confirmed by ONE serial re-run each, per the board law, not assumed.
+Re-verification after the item-10 fix ran **serially** and re-included every drawer consumer
+(`r18d-layout`, `r10p20-wishwell`, `r18b-buy-confirm`, `r10p3-buildmode`) because the fix
+touched `js/drawer.js`: all green.
+
+### ACCEPT sweep — PASS
+`tests/r21a-reach-truth.mjs`, ~90s, green. Covers items 1 (all three ACCEPT clauses), 2
+(all three rooms), 3 (settled-transform sign + reduced motion), 6 (4 frames / 2.6s under a
+live arc), 7 (three tap heights), 8, 9 (town round trip AND the paramless hub case), 11
+(payload key whitelist + eight forbidden keys + the restore line), 12 (all six template ids
+plus an unmapped one), 13. Items 4, 5, 15, 16 are proven by their re-pointed owners; item
+14 by measured screenshots; item 10 by construction (see note above).
 
 ### Regression sweep (scripted, error hooks armed)
-PENDING
+See "Regression sweep result" below.
 
 ### Deploy
-PENDING
+See "Deploy" below.
