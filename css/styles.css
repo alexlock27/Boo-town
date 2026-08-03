@@ -3352,6 +3352,28 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .ff-disco-stars { color: var(--star); font-size: 20px; }
 .ff-disco-enter { padding: 5px 13px; border-radius: 10px; background: var(--zing); color: var(--ink); font-size: 11px; }
 @keyframes discoSign { 50% { filter: brightness(1.5); transform: scale(1.04); } }
+/* RUN21D-4: two small hanging signs at the fair's entrance, in the house sticker language
+   (cream board, ink outline, soft shadow) — the same construction as the disco door above,
+   scaled down to a plaque on a rope. They swing very gently, which is what a hanging sign
+   does; reduced motion holds them still. */
+.ff-sign {
+  position: absolute; transform: translateX(-50%); padding: 0; border: 0; background: none;
+  display: flex; flex-direction: column; align-items: center; cursor: pointer;
+  min-width: 56px; min-height: 56px;
+  transform-origin: 50% 0; animation: ffSignSwing 4.4s ease-in-out infinite;
+}
+.ff-sign-disco { animation-delay: -2.2s; }
+.ffs-rope { width: 3px; height: 16px; background: #8A5A44; border-radius: 2px; }
+.ffs-plaque {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink);
+  background: var(--card); border: 3px solid var(--ink); border-radius: 12px;
+  padding: 5px 11px; box-shadow: var(--card-shadow); white-space: nowrap; line-height: 1.2;
+}
+.ff-sign:active .ffs-plaque { transform: scale(0.94); }
+.ff-sign:focus-visible .ffs-plaque { outline: 3px solid var(--star); outline-offset: 3px; }
+@keyframes ffSignSwing { 0%,100% { rotate: -2.2deg; } 50% { rotate: 2.2deg; } }
+@media (prefers-reduced-motion: reduce) { .ff-sign { animation: none; rotate: 0deg; } }
+.reduced .ff-sign { animation: none; rotate: 0deg; }
 .disco-hall { display: flex; flex-direction: column; min-height: 100%; overflow: hidden; background: #12082E; }
 .disco-header { height: 58px; flex: none; display: grid; grid-template-columns: 52px 1fr 72px; align-items: center; gap: 8px; padding: 0 12px; background: #26104D; border-bottom: 2px solid rgba(255,255,255,.12); }
 .disco-header h2 { margin: 0; color: #fff; text-align: center; }

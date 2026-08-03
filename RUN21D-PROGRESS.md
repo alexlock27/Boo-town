@@ -6,7 +6,7 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
 - [x] 1 — The Pulse Director
 - [x] 2 — Requests you can find
 - [x] 3 — Landmark dots
-- [ ] 4 — Signposting the fair's best rooms
+- [x] 4 — Signposting the fair's best rooms
 - [ ] 5 — The hider gets a fair chance
 
 ## Deviations
@@ -34,6 +34,15 @@ Branch: `run21d` (from main @ fec9641). Worktree: `Boo-town-run21d-wt`. Port 801
   fix. → What I did: kept the pack's 35% dimness and moved the colour to the card
   (#FFF8F0) at 35%, which measures 3.0:1 against --sky-deep (the non-text contrast floor)
   and still reads as "not this one". Filled = pink, 12px, ≥44px hit target, all as specced.
+
+- **Item 4 — "on the entrance arch".** Pack said to hang the two signs on the funfair's
+  entrance arch. → What was true: the fair has no arch. Its entrance screen is dressed with
+  bunting swags, string lights, a ticket booth and a popcorn cart (js/funfair.js
+  `fairSceneryFor`); there is no arch to hang anything from and building one is scenery
+  invention this pack does not authorise. → What I did: hung both signs from the bunting
+  that already crosses the entrance, at x 0.055 and 0.150 of the zone (both inside screen 1
+  at every viewport width, asserted at 1024x768 and 390x844), as rope-and-plaque signs in
+  the house sticker language. Copy, aria and behaviour are exactly as authored.
 
 ## Blocks
 (none yet)
