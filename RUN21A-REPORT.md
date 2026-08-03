@@ -164,8 +164,31 @@ live arc), 7 (three tap heights), 8, 9 (town round trip AND the paramless hub ca
 plus an unmapped one), 13. Items 4, 5, 15, 16 are proven by their re-pointed owners; item
 14 by measured screenshots; item 10 by construction (see note above).
 
-### Regression sweep (scripted, error hooks armed)
-See "Regression sweep result" below.
+### Regression sweep (scripted, error hooks armed) — PASS, zero console errors
+
+`_probe_regress.mjs` (a probe by design — RUN21F F10 owns the permanent `tests/walk.mjs`),
+with `window.onerror` + `unhandledrejection` + `console.error` all captured:
+
+- place / move / put-away in the **Meadow** and the **Kitchen** — each adds exactly one
+  placement, survives a real move-drag as one placement, and returns to the drawer;
+- one **new-word wish arrival** — one placement, one unlock;
+- one **nap + wake** — a Boo takes to the bed (eyes genuinely shut) and wakes;
+- **ride seat / unseat** — aboard, then off;
+- **ten minutes of walking**, 15 full laps of all six outdoor areas and all three Boo House
+  rooms, panning within each;
+- and the pack's "rich QA save": the real **v17 QA backup reads, migrates to v23**, and
+  every area and room renders.
+
+**`errors captured: 0`.**
+
+First run reported 4 errors, all `setPointerCapture: No active pointer` — manufactured by
+the harness itself (synthetic `PointerEvent`s have no active pointer), 2 drags × 2 handlers.
+Rather than explain them away, the drags were rewritten to drive the real mouse and the full
+sweep re-run from scratch: the app behaviour is identical and the errors are gone. Worth
+remembering — a synthetic pointer drag will always frame the app for an error it did not
+commit.
 
 ### Deploy
-See "Deploy" below.
+`run21a` → `main`, fast-forward, pushed. BUILD_STAMP `run21a-20260803`, What's New block
+appended with four child-facing entries (all four routes resolve — `r17x4-whatsnew` green).
+Live URL confirmed serving the new stamp.
