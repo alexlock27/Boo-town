@@ -14,6 +14,9 @@ const distinct = arr => new Set(arr).size;
 const BOOS = ['inky', 'plum', 'pippin', 'lolly', 'chomp', 'mallow', 'curly', 'wisp', 'beam', 'dot'].map(n => 'boo_' + n);
 const AREAS_EMPTY = () => ({ meadow: { items: [], paths: [] }, riverside: { items: [], paths: [] }, hilltop: { items: [], paths: [] }, beach: { items: [], paths: [] }, funfair: { items: [], paths: [] }, playground: { items: [], paths: [] }, boohouse: { items: [], paths: [] }, gallery: { items: [], paths: [] } });
 const TODAY = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date());
+// RUN21A item 15: the ghost `place` tool is gone and the Landscape/Wishes tabs no longer
+// hide behind the hammer, so this suite now needs saves with a wish unlocked and a way to
+// drive a real chip-lift drag in PLAY mode. Both seams live here.
 const SAVE = (areaKey, items, over = {}) => Object.assign({
   version: 6, name: 'Ada', guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'T' },
   // landscape items are NOT inventory-backed (RUN10 P3: always-available Build toybox,
@@ -29,13 +32,13 @@ const SAVE = (areaKey, items, over = {}) => Object.assign({
 }, over);
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
-async function openArea(areaKey, items, { hour = 13, reduced = 'no-preference', w = 1024, h = 700 } = {}) {
+async function openArea(areaKey, items, { hour = 13, reduced = 'no-preference', w = 1024, h = 700, over = {} } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: reduced });
   const page = await ctx.newPage();
   page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
   await page.addInitScript((hr) => { window.__bootownHour = hr; }, hour);
   await page.goto(BASE + '/index.html', { waitUntil: 'load' });
-  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE(areaKey, items));
+  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE(areaKey, items, over));
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('.hub');
   await page.evaluate((a) => window.BooTown.go('town', { area: a }), areaKey);
@@ -44,6 +47,49 @@ async function openArea(areaKey, items, { hour = 13, reduced = 'no-preference', 
   await sleep(300);
   return { ctx, page };
 }
+
+// A real chip-lift drag, driven with the pointer (RUN21A item 15 ACCEPT: "both place by
+// drag" with the hammer OFF). Mechanics, all from js/town.js:
+//   · the drawer strip decides scroll-vs-lift by gesture DIRECTION (RUN10 P2), so the first
+//     move past the 10px threshold has to be clearly vertical or it reads as a strip scroll;
+//   · the lifted ghost floats LIFT=70px ABOVE the fingertip and endChipLift drops at
+//     (pointerY - 70) — so aim the finger 70px BELOW where the item should land.
+const LIFT = 70;
+async function openDrawerTab(page, label) {
+  const clicked = await page.evaluate((lbl) => {
+    const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes(lbl));
+    if (!tab || getComputedStyle(tab).display === 'none') return false;
+    tab.click();   // createDrawer's own handler opens the drawer too when it is collapsed
+    return true;
+  }, label);
+  await sleep(250);
+  return clicked;
+}
+async function dragChipToGround(page, itemId, xFrac = 0.5, yFrac = 0.62) {
+  const sel = `.bd-panel:not([hidden]) .drawer-item[data-item="${itemId}"]`;
+  await page.waitForSelector(sel, { timeout: 4000 });
+  await page.$eval(sel, n => n.scrollIntoView({ block: 'nearest', inline: 'center' }));
+  await sleep(120);
+  const cbox = await (await page.$(sel)).boundingBox();
+  const vp = await page.$eval('.t-viewport', n => { const r = n.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  const winH = await page.evaluate(() => window.innerHeight);
+  const sx = cbox.x + cbox.width / 2, sy = cbox.y + cbox.height / 2;
+  const px = vp.x + vp.w * xFrac;
+  const py = Math.min(vp.y + vp.h * yFrac + LIFT, winH - 6);   // finger; ghost lands 70px higher
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx, sy - 40, { steps: 3 });    // vertical → the strip reads this as a LIFT
+  await page.mouse.move(px, py, { steps: 6 });
+  await sleep(80);
+  const lifted = await page.evaluate(() => !!document.querySelector('.drag-ghost'));
+  await page.mouse.up();
+  await sleep(250);
+  return lifted;
+}
+const tabDisplay = (page, label) => page.evaluate((lbl) => {
+  const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes(lbl));
+  return tab ? getComputedStyle(tab).display : 'missing';
+}, label);
 
 // ==================== toggle freeze/resume ====================
 console.log('== build mode: living behaviours freeze, then resume ==');
@@ -178,11 +224,12 @@ console.log('== landscape items: outdoor areas only ==');
   // exercise the underlying guard directly via the forceHold QA hook instead (P4 does the
   // same; see tests/r10p4-interiors.mjs), and additionally prove the tab really is hidden.
   const { ctx, page } = await openArea('boohouse', []);
+  // RUN21A item 15 dropped the `buildMode &&` conjunct from the landscape gate, so the tab
+  // is now purely a KIND question — which means indoors it must be hidden in BOTH modes.
+  assert(await tabDisplay(page, 'Landscape') === 'none', 'the Landscape tab is hidden indoors with the hammer off');
   await page.evaluate(() => window.__townLife.toggleBuild());
-  const tabHiddenIndoors = await page.evaluate(() => {
-    const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes('Landscape'));
-    return !!tab && getComputedStyle(tab).display === 'none';
-  });
+  await sleep(100);
+  const tabHiddenIndoors = await tabDisplay(page, 'Landscape') === 'none';
   assert(tabHiddenIndoors, 'the Landscape tab is hidden indoors, even in build mode');
   await page.evaluate(() => { window.__townLife.forceHold('deco_palm'); window.__townLife.placeAt(0.5, 0.75); });
   await sleep(150);
@@ -206,15 +253,83 @@ console.log('== landscape items: outdoor areas only ==');
   await sleep(150);
   const placedOutdoors = await page.evaluate(() => document.querySelectorAll('.t-item[data-item^="deco_palm"], .t-item[data-item^="deco_oak"], .t-item[data-item^="deco_pine"], .t-item[data-item^="deco_bush"], .t-item[data-item^="deco_rock"], .t-item[data-item^="deco_flowerbed"]').length);
   assert(placedOutdoors === 1, `a landscape item places fine outdoors (${placedOutdoors})`);
-  // the Landscape tab is Build-only: hidden the moment build mode is off
+  // RUN21A item 15 moved this pin. The Landscape tab used to be Build-only ("hides the
+  // moment build mode is off"); the build-mode conjunct is gone, so outdoors the tab is
+  // visible with the hammer OFF too — the toybox is no longer locked behind the hammer.
   await page.evaluate(() => window.__townLife.toggleBuild());
-  await sleep(100);
-  const tabHidden = await page.evaluate(() => {
-    const tab = [...document.querySelectorAll('.bd-tabs .bd-tab')].find(el => el.textContent.includes('Landscape'));
-    return !!tab && getComputedStyle(tab).display === 'none';
-  });
-  assert(tabHidden, 'the Landscape tab hides outside build mode');
+  await sleep(150);
+  const notBuilding = await page.evaluate(() => !document.querySelector('.town2').classList.contains('building'));
+  assert(notBuilding, 'the hammer is off again');
+  assert(await tabDisplay(page, 'Landscape') !== 'none', 'the Landscape tab STAYS visible outdoors with the hammer off (RUN21A item 15)');
   await page.screenshot({ path: 'screenshots/r10p3/landscape-1024x700.png' });
+  await ctx.close();
+}
+
+// ==================== RUN21A item 15: the build tool row is exactly Paths + Erase ====================
+// The `place` tool was a ghost — no line of code ever read `buildTool === 'place'` — so item
+// 15 deleted it and made 'paths' the default and the on-entry reset. Pinning the row's exact
+// membership is the guard that stops it creeping back.
+console.log('== build tools: exactly Paths + Erase, no Place tool (RUN21A item 15) ==');
+{
+  const { ctx, page } = await openArea('meadow', []);
+  const readTools = () => page.evaluate(() => [...document.querySelectorAll('.t-tool-row .t-tool-btn')]
+    .map(b => ({ label: b.querySelector('.tool-lbl').textContent, aria: b.getAttribute('aria-label'), sel: b.classList.contains('sel') })));
+  assert((await page.evaluate(() => window.__townLife.buildTool())) === 'paths', 'buildTool defaults to "paths"');
+  await page.evaluate(() => window.__townLife.toggleBuild());
+  await sleep(150);
+  const tools = await readTools();
+  assert(tools.length === 2, `the tool row holds exactly two tools (${tools.length}: ${tools.map(t => t.label).join(', ')})`);
+  assert(tools.map(t => t.label).join('|') === 'Paths|Erase', `the two tools are Paths then Erase ("${tools.map(t => t.label).join('|')}")`);
+  assert(!tools.some(t => /place/i.test(t.label) || /place/i.test(t.aria || '')), 'no Place tool exists in the row');
+  assert((await page.evaluate(() => window.__townLife.buildTool())) === 'paths', 'entering build mode resets the tool to "paths", not "place"');
+  assert(tools[0].sel && !tools[1].sel, 'Paths is the selected tool on entry');
+  // ACCEPT (item 15): the path-style strip belongs to the Paths tool only.
+  const styleShownForPaths = await page.evaluate(() => getComputedStyle(document.querySelector('.t-path-style-row')).display !== 'none');
+  assert(styleShownForPaths, 'the path-style row shows while Paths is picked');
+  await page.evaluate(() => window.__townLife.setBuildTool('erase'));
+  await sleep(100);
+  const styleHiddenForErase = await page.evaluate(() => getComputedStyle(document.querySelector('.t-path-style-row')).display === 'none');
+  assert(styleHiddenForErase, 'the path-style row hides while Erase is picked');
+  await ctx.close();
+}
+
+// ==================== RUN21A item 15: Landscape + Wishes place by DRAG with the hammer off ====================
+console.log('== play mode (hammer off): Landscape and Wishes tabs are reachable and place by drag ==');
+{
+  // one unlocked wish → the Wishes tab must show; wish_tree is a plain ground wish (not one
+  // of the sky items, not a LIVING_WISHES flyer), so it lands as a normal .t-item.
+  const { ctx, page } = await openArea('meadow', [], { over: { wishes: { unlocked: { tree: true } } } });
+  assert(await page.evaluate(() => !document.querySelector('.town2').classList.contains('building')), 'the hammer starts off');
+  assert(await tabDisplay(page, 'Landscape') !== 'none', 'the Landscape tab is visible outdoors with the hammer off');
+  assert(await tabDisplay(page, 'Wishes') !== 'none', 'the Wishes tab is visible with the hammer off when a wish is unlocked');
+  // Landscape chip → dragged onto the ground, hammer still off
+  assert(await openDrawerTab(page, 'Landscape'), 'the Landscape tab opens in play mode');
+  const liftedPalm = await dragChipToGround(page, 'deco_palm', 0.42);
+  assert(liftedPalm, 'dragging the Palm chip upward lifts a ghost (not a strip scroll)');
+  const palms = await page.evaluate(() => document.querySelectorAll('.t-item[data-item="deco_palm"]').length);
+  assert(palms === 1, `the Palm places by drag with the hammer off (${palms} placed)`);
+  // Wish chip → same gesture, same result
+  assert(await openDrawerTab(page, 'Wishes'), 'the Wishes tab opens in play mode');
+  const liftedWish = await dragChipToGround(page, 'wish_tree', 0.72);
+  assert(liftedWish, 'dragging the Tree wish chip upward lifts a ghost');
+  const wishes = await page.evaluate(() => document.querySelectorAll('.t-item[data-item="wish_tree"]').length);
+  assert(wishes === 1, `the Tree wish places by drag with the hammer off (${wishes} placed)`);
+  const stillPlay = await page.evaluate(() => !document.querySelector('.town2').classList.contains('building'));
+  assert(stillPlay, 'both placements happened without the hammer ever being tapped');
+  const saved = await page.evaluate(() => window.BooTown.State.getState().town.areas.meadow.items.map(i => i.item));
+  assert(saved.filter(i => i === 'deco_palm').length === 1 && saved.filter(i => i === 'wish_tree').length === 1,
+    `both drops are committed to the save (${JSON.stringify(saved)})`);
+  await page.screenshot({ path: 'screenshots/r10p3/playmode-drag-1024x700.png' });
+  await ctx.close();
+}
+{
+  // the other half of the wishes gate: no unlocked wish, no tab — the gate lost its
+  // build-mode conjunct (item 15) but kept its "any unlocked wish" test.
+  const { ctx, page } = await openArea('meadow', []);
+  assert(await tabDisplay(page, 'Wishes') === 'none', 'the Wishes tab is hidden when no wish is unlocked (hammer off)');
+  await page.evaluate(() => window.__townLife.toggleBuild());
+  await sleep(150);
+  assert(await tabDisplay(page, 'Wishes') === 'none', 'the Wishes tab stays hidden with no wish unlocked, even in build mode');
   await ctx.close();
 }
 
