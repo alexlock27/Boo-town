@@ -4568,16 +4568,52 @@ export function mount(container, params, ctx) {
     // anything in the front rows sits behind it, so the authored bottom-right position was a
     // handle a child could see and never touch. Same precedent as openMenu, which already
     // flips itself below the item when it would clip the top edge.
-    requestAnimationFrame(() => {
-      const r = ring.getBoundingClientRect();
+    const placeRing = () => {
+      if (!ring.isConnected) return;
       // The drawer's ROOT sits low; what actually covers things is its open TRAY, which starts
       // much higher up. Take whichever is higher, or the check passes while the tray is over
       // the handle (measured: root top 708, tray top 531, handle bottom 582).
-      const parts = [drawer, drawer.querySelector('.bd-tray'), drawer.querySelector('.bd-tabs')].filter(Boolean);
-      const boxes = parts.map(n => n.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0);
-      const covered = boxes.some(d => r.bottom > d.top + 4 && r.right > d.left && r.left < d.right);
-      ring.classList.toggle('up', covered);
-    });
+      //
+      // RUN21B item 3: and the build-mode TOOL ROWS, which run down the viewport's right edge
+      // at mid-height. They never mattered while furniture was small, because the flipped-up
+      // handle stayed below them. Re-baselined furniture is up to 40% taller, so a selected bed
+      // put its handle squarely under the path-style buttons — measured, elementFromPoint at
+      // the ring's own centre returned `.t-style-btn`, so every drag went to the toolbar and
+      // the child could see a handle she could not move. Both candidate positions are now
+      // tested and the free one wins, instead of flipping up unconditionally.
+      // The test is not "does the handle's box overlap a list of panels" but the thing that
+      // actually matters: WOULD A PRESS ON IT LAND ON IT. elementFromPoint answers exactly
+      // that, and answers it for the drawer, its tabs, its transition shield, the tool rows
+      // and any other item's wrap at once — a list of named panels was always going to keep
+      // acquiring one more panel. Off-screen returns null, which counts as blocked.
+      const reachable = () => {
+        const r = ring.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!hit && (hit === ring || ring.contains(hit));
+      };
+      // Four corners, best first: the authored bottom-right, then up, then the two on the LEFT
+      // side, which are what clear the right-edge build tool rows. A re-baselined bed at
+      // 1024x700 blocks BOTH right-hand corners at once — drawer tabs under the bottom-right,
+      // path-style buttons over the top-right — and before item 3 grew the furniture, flipping
+      // up unconditionally was enough. Falling back to the default would hand the child a
+      // handle she can see and cannot press, which is the exact defect Z6's flip was added for.
+      const corners = [[], ['up'], ['up', 'left'], ['left']];
+      let chosen = corners[0];
+      for (const c of corners) {
+        ring.classList.remove('up', 'left');
+        if (c.length) ring.classList.add(...c);
+        if (reachable()) { chosen = c; break; }
+      }
+      ring.classList.remove('up', 'left');
+      if (chosen.length) ring.classList.add(...chosen);
+    };
+    // Twice: once now, and once after the drawer has finished sliding. Build mode OPENS the
+    // drawer, so at the first frame after selection its tray is still travelling and its
+    // transition shield is still up — the first pass sees a clear bottom-right corner that is
+    // covered by tabs 200ms later. 480ms clears the tray's 220ms slide and the shield's 400ms
+    // safety timeout both.
+    requestAnimationFrame(placeRing);
+    setTimeout(placeRing, 480);
   }
   // Resize this one wrap in place, without re-rendering the area, so the drag stays smooth.
   function applyLiveSize(wrap, place, scale) {
@@ -4614,6 +4650,14 @@ export function mount(container, params, ctx) {
     const menu = el('div', { class: 'plot-menu' }, btns);
     wrap.appendChild(menu);
     openPopover = menu;
+    // RUN21B item 3: the SELECTED item draws above its neighbours while its menu is open.
+    // Every `.t-item` is a full 120x130 box however little of it the art fills, and a
+    // re-baselined rug's box is 256x277 of mostly-empty rectangle — which sat over the bed's
+    // resize handle and swallowed the press. Neighbours share a z-index (their shared ground
+    // row), so DOM order was deciding which of two overlapping boxes won, and the thing she
+    // had just tapped could lose.
+    selectedWrap = wrap; selectedZ = wrap.style.zIndex;
+    wrap.style.zIndex = '9998';
     ground.classList.add('menu-open');   // request bubbles fade so they never cover the menu
     // keep the popover fully on-screen (edge items / narrow screens): nudge it
     // horizontally and flip it below the item if it would clip the top edge
@@ -4627,7 +4671,16 @@ export function mount(container, params, ctx) {
     });
     setTimeout(() => document.addEventListener('pointerdown', closeMenu, { once: true }), 0);
   }
-  function closeMenu() { if (openPopover) { openPopover.remove(); openPopover = null; } ground.classList.remove('menu-open'); }
+  let selectedWrap = null, selectedZ = '';
+  function closeMenu() {
+    if (openPopover) { openPopover.remove(); openPopover = null; }
+    if (selectedWrap) {
+      selectedWrap.querySelectorAll('.t-resize').forEach(n => n.remove());
+      if (selectedWrap.isConnected) selectedWrap.style.zIndex = selectedZ;   // put it back in its row
+      selectedWrap = null; selectedZ = '';
+    }
+    ground.classList.remove('menu-open');
+  }
 
   function removePlacement(place) {
     mutate(st => { const items = areaItems(st); const i = items.findIndex(t => t.item === place.item && t.zone === place.zone && Math.abs(t.x - place.x) < 0.001); if (i >= 0) items.splice(i, 1); });
