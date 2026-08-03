@@ -114,10 +114,14 @@ console.log('== an orphan is GROUNDED, never deleted ==');
   assert(Number.isInteger(pot.id), 'with an identity of its own');
 }
 
+// The rich QA save is a gitignored BOO1. code at the repo root. When it is absent the two
+// blocks that use it say so and skip; every other claim in this suite stands on its own.
+let QA_CODE = null;
+try { QA_CODE = readFileSync(new URL('../bootown-qa-seed-code-for-alex.txt', import.meta.url), 'utf8').trim(); } catch {}
+
 console.log('== the RICH QA save (a real v17 BOO1. code) ==');
 {
-  let code = null;
-  try { code = readFileSync(new URL('../bootown-qa-seed-code-for-alex.txt', import.meta.url), 'utf8').trim(); } catch {}
+  const code = QA_CODE;
   if (!code) {
     console.log('  · SKIPPED: bootown-qa-seed-code-for-alex.txt is not present (it is gitignored)');
   } else {
@@ -241,6 +245,72 @@ async function dragItem(page, itemId, dx, dy = 0) {
   return true;
 }
 const placementsOf = (page) => page.evaluate(() => window.__townLife.placements());
+
+console.log('== the RICH QA save through the REAL restore path: readSaveText + adoptSave ==');
+if (!QA_CODE) {
+  console.log('  · SKIPPED: the QA code is not present');
+} else {
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => errors.push('PE ' + String(e).split('\n')[0]));
+  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/i.test(m.text())) errors.push(m.text()); });
+  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 20000 });
+  const adopted = await page.evaluate(async (code) => {
+    const S = window.BooTown.State;
+    const read = S.readSaveText(code);
+    if (!read.ok) return { error: read.error };
+    const res = S.adoptSave(read.save);
+    const s = S.getState();
+    const items = Object.values((s.town && s.town.areas) || {}).flatMap(a => (a && a.items) || []);
+    // and it is what is on disk afterwards, not only what is in memory
+    const disk = JSON.parse(localStorage.getItem('bootown.save.v1'));
+    const diskItems = Object.values((disk.town && disk.town.areas) || {}).flatMap(a => (a && a.items) || []);
+    return {
+      ok: res.ok, version: s.version, nextId: s.town.nextId,
+      placements: items.length, seats: items.filter(t => t.parent != null).length,
+      sparkles: Object.keys(s.sparkles || {}).length,
+      ids: items.map(t => t.id), stars: s.stars.total, inventory: Object.keys(s.inventory || {}).length,
+      diskVersion: disk.version, diskPlacements: diskItems.length, diskIds: diskItems.map(t => t.id)
+    };
+  }, QA_CODE);
+  const rawQA = JSON.parse(decodeURIComponent(escape(atob(QA_CODE.slice('BOO1.'.length)))));
+  const expect = census(rawQA);
+  assert(adopted.ok, `readSaveText + adoptSave accept the QA code (${adopted.error || 'ok'})`);
+  assert(adopted.version === 24, `and it lands at v24 (${adopted.version})`);
+  assert(adopted.placements === expect.placements, `every placement is there (${expect.placements} -> ${adopted.placements})`);
+  assert(adopted.seats === expect.seats, `every seat is there (${expect.seats} -> ${adopted.seats})`);
+  assert(adopted.sparkles === expect.sparkles, `every sparkle is there (${expect.sparkles} -> ${adopted.sparkles})`);
+  assert(adopted.stars === rawQA.stars.total, `her stars came through (${adopted.stars})`);
+  assert(new Set(adopted.ids).size === adopted.ids.length && adopted.ids.every(Number.isInteger),
+    `each placement has its own id (${JSON.stringify(adopted.ids)})`);
+  assert(adopted.diskVersion === 24 && adopted.diskPlacements === expect.placements
+    && JSON.stringify(adopted.diskIds) === JSON.stringify(adopted.ids),
+    'and the v24 save with its ids is what was actually WRITTEN to localStorage');
+  // it renders: walk into each area she has something in and count the wraps
+  const rendered = await page.evaluate(async () => {
+    const s = window.BooTown.State.getState();
+    const out = {};
+    for (const key of Object.keys(s.town.areas)) {
+      const n = (s.town.areas[key].items || []).length;
+      if (!n) continue;
+      const room = key === 'boohouse_kitchen' ? 'kitchen' : key === 'boohouse_bedroom' ? 'bedroom' : 'lounge';
+      const area = key.startsWith('boohouse') ? 'boohouse' : key;
+      window.BooTown.go('town', area === 'boohouse' ? { area, room } : { area });
+      await new Promise(r => setTimeout(r, 1200));
+      document.querySelectorAll('.overlay.growth-reveal, .funfair-reveal').forEach(x => x.remove());
+      out[key] = { expected: n, wraps: document.querySelectorAll('.t-item').length,
+                   withId: [...document.querySelectorAll('.t-item')].filter(w => w.dataset.pid).length };
+    }
+    return out;
+  });
+  for (const [key, r] of Object.entries(rendered)) {
+    assert(r.wraps >= r.expected, `${key}: all ${r.expected} of her things render (${r.wraps} wraps)`);
+    assert(r.withId === r.wraps, `${key}: and every rendered thing carries its placement id (${r.withId}/${r.wraps})`);
+  }
+  await page.screenshot({ path: `${SHOTS}/00-rich-qa-save-adopted-1024x768.png` });
+  await ctx.close();
+}
 
 console.log('== the seat survives the boot migration, in the live app ==');
 let boot = null;
