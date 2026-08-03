@@ -34,7 +34,10 @@ export const WISH_LIFE = {
   rainbow:  { cls: 'SKY', fx: 'shimmer', period: 6000, doubleWidth: true },
   // ---- tap verbs -----------------------------------------------------------------------
   snowman:  { cls: 'TAP', verb: 'wobble', ms: 700, seasonBonus: 'winter', neverMelts: true },
-  rocket:   { cls: 'TAP', verb: 'launch', ms: 1200, backMs: 2000, rise: 0.40, sfx: 'whoosh', oncePerVisit: true },
+  // RUN21A-5 removed `oncePerVisit: true` here: nothing reads it any more, and a flag that
+  // says the rocket flies once a visit now states the opposite of what it does. A tap
+  // always launches (the only guard is in-flight) — a child's tap is never budget-gated.
+  rocket:   { cls: 'TAP', verb: 'launch', ms: 1200, backMs: 2000, rise: 0.40, sfx: 'whoosh' },
   crown:    { cls: 'TAP', verb: 'crown', line: 'wishRoyal', persists: 'day' },
   egg:      { cls: 'TAP', verb: 'wobble2', ms: 900, line: 'wishEggWobble', lineCap: 'session', neverHatches: true },
   drum:     { cls: 'TAP', verb: 'band', band: 'snare' },

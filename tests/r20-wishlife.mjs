@@ -2,13 +2,16 @@
 //
 // W1 every one of the sixty wishes maps to a class and has a verb; sky items never occupy a
 //    grass row; flyers/roamers respect the actor cap; capped lines fire at most their cap; the
-//    rocket launches once per visit; reduced motion renders static but KEEPS the tap verbs.
+//    rocket launches on EVERY tap once the last flight has landed (RUN21A item 5 — a child's tap
+//    is never budget-gated; the only guard is in-flight); reduced motion renders static but
+//    KEEPS the tap verbs.
 // W2 each area mounts its ambient; signatures fire from their taps and respect their caps;
 //    interiors never mount weather.
 // W3 each set maps to its idle/walk; removing the set removes it; caps hold; no set changes any
 //    game or reward value.
 // W4 map label contrast; three-band sky screenshots differ pairwise; flourishes transform-only.
-// Expected runtime ~45s. Not @serial (the sky proof samples stills, not motion).
+// Expected runtime ~50s (the six repeat rocket taps wait out six real 3.2s flights — RUN21A
+// item 5). Not @serial (the sky proof samples stills, not motion).
 import { chromium } from 'playwright';
 import { WISH_LIFE, WISH_CLASSES, OUTDOOR_ONLY, CATCHABLE, SKY_BAND } from '../data/wishlife.js';
 import { WISH_WORDS as _unusedWishWords } from '../data/wishlife.js';
@@ -133,16 +136,67 @@ console.log('== W1: a tap is a VERB, never the Move / Put away menu ==');
   assert(/wish-airborne/.test(taps.rocket.cls || ''), 'the rocket launches');
   const crowned = await page.evaluate(() => (window.BooTown.State.getState().delights || {}).crowns);
   assert(crowned && Object.keys(crowned).length === 1, `and the crown persists as one {booId: dayStamp} (${JSON.stringify(crowned)})`);
-  // once per VISIT: a second tap does not relaunch
-  const second = await page.evaluate(async () => {
+  // RUN21A item 5 — "a child's tap is never budget-gated" — INVERTS this pin. wishTap's launch
+  // verb no longer consults maydaySay(key + ':launch', 'visit'), so the old "at most ONCE per
+  // visit" contract is dead: a direct tap now ALWAYS flies the full authored launch, every time,
+  // once the previous flight has landed. Same rigour, new contract — the pack ACCEPT is "tap
+  // rocket 6 times → full launch every time (after each returns)", so that is what we assert,
+  // waiting out each flight rather than faking a landing by stripping the class.
+  // The flight is data/wishlife.js rocket.ms (1200) + rocket.backMs (2000) = the 3200ms
+  // .wish-launch animation.
+  const FLIGHT = WISH_LIFE.rocket.ms + WISH_LIFE.rocket.backMs;
+  const flights = await page.evaluate(async (flight) => {
     const n = [...document.querySelectorAll('.t-item')].find(x => x.dataset.item === 'wish_rocket');
-    n.classList.remove('wish-airborne');
-    const r = n.getBoundingClientRect();
-    for (const type of ['pointerdown', 'pointerup']) n.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1 }));
-    await new Promise(x => setTimeout(x, 300));
-    return n.classList.contains('wish-airborne');
-  });
-  assert(!second, 'the rocket launches at most ONCE per visit');
+    const svg = n.querySelector('svg');
+    const nap = ms => new Promise(x => setTimeout(x, ms));
+    const tap = () => { const r = n.getBoundingClientRect(); for (const type of ['pointerdown', 'pointerup']) n.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1 })); };
+    const launchAnims = () => svg.getAnimations().filter(a => a.animationName === 'wish-launch');
+    // let the flight started by the verb tap above land on its own before we start counting
+    while (n.classList.contains('wish-airborne')) await nap(120);
+    const out = [];
+    for (let i = 0; i < 6; i++) {
+      tap();
+      await nap(150);
+      const anims = launchAnims();
+      out.push({
+        airborne: n.classList.contains('wish-airborne'),
+        launching: svg.classList.contains('wish-launch'),
+        anims: anims.length,
+        dur: anims.length ? Math.round(anims[0].effect.getComputedTiming().duration) : 0
+      });
+      await nap(flight + 250);                      // wait for it to come back down
+      out[i].landed = !n.classList.contains('wish-airborne') && !svg.classList.contains('wish-launch');
+    }
+    return out;
+  }, FLIGHT);
+  assert(flights.length === 6 && flights.every(f => f.airborne && f.launching),
+    `six taps over six flights, and EVERY ONE launches — a tap is never budget-gated (${JSON.stringify(flights.map(f => f.airborne && f.launching))})`);
+  assert(flights.every(f => f.anims === 1 && f.dur === FLIGHT),
+    `each is the full authored ${FLIGHT}ms flight, not a stub (${JSON.stringify(flights.map(f => f.dur))})`);
+  assert(flights.every(f => f.landed), `and each lands before the next tap (${JSON.stringify(flights.map(f => f.landed))})`);
+  // RUN21A item 5: the ONLY remaining guard is in-flight. A tap while the rocket is up must be
+  // ignored — it neither restarts the flight nor double-fires it. (CSS gives .wish-airborne
+  // pointer-events:none too; a dispatched event bypasses hit-testing, so this proves the JS guard.)
+  const midflight = await page.evaluate(async (flight) => {
+    const n = [...document.querySelectorAll('.t-item')].find(x => x.dataset.item === 'wish_rocket');
+    const svg = n.querySelector('svg');
+    const nap = ms => new Promise(x => setTimeout(x, ms));
+    const tap = () => { const r = n.getBoundingClientRect(); for (const type of ['pointerdown', 'pointerup']) n.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1 })); };
+    const launchAnims = () => svg.getAnimations().filter(a => a.animationName === 'wish-launch');
+    tap();
+    await nap(900);
+    const before = { n: launchAnims().length, t: Math.round(launchAnims()[0] ? launchAnims()[0].currentTime : -1) };
+    tap();                                          // the interrupting tap, mid-flight
+    await nap(200);
+    const after = { n: launchAnims().length, t: Math.round(launchAnims()[0] ? launchAnims()[0].currentTime : -1) };
+    await nap(flight);                              // the original schedule, not an extended one
+    return { before, after, stillUp: n.classList.contains('wish-airborne') };
+  }, FLIGHT);
+  assert(midflight.before.n === 1 && midflight.after.n === 1,
+    `a tap DURING flight does not double-fire it (${midflight.before.n} then ${midflight.after.n} launch animations)`);
+  assert(midflight.after.t > midflight.before.t,
+    `nor restart it — the flight clock kept running (${midflight.before.t}ms then ${midflight.after.t}ms, a restart would read ~200)`);
+  assert(!midflight.stillUp, 'and the ignored tap never extends the flight — it lands on its own schedule');
   await ctx.close();
 }
 

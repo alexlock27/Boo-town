@@ -105,23 +105,69 @@ console.log('== 2. the toast that filed it away is deleted ==');
 }
 
 // ---- 3. a repeat wish never duplicates --------------------------------------------------
+// RUN21A item 4 moved this pin. A duplicate grant used to be told to her by the town's own
+// corner line ("Another crown! It's in your Build drawer.") — the sayInWorld call in
+// grantWishIntoWorld's !wasNew branch. That call is gone. The WELL now owns the moment: it
+// writes AND speaks the line in its own line slot (the p.wish-line inside .wish-head),
+// replays the wishListen wobble on .wish-panel, and stays open 3.5s instead of 1.5s so the
+// line can actually be read. So the same three questions — did it duplicate, was she told,
+// was she told in ONE place — are asked of the new contract, at the same strictness.
 console.log('== 3. wishing twice does not make two ==');
 {
   const { ctx, page } = await openMeadow();
   await wishFor(page, 'crown');
   const once = (await meadow(page)).filter(i => i === 'wish_crown').length;
+  // The FIRST crown is a new word, so the town DOES raise its own .wish-said. Tag it here.
+  // The old `said.count === 1` passed only incidentally — that leftover line was still on
+  // screen and nobody had checked whose it was. Tagging makes the intent explicit: after
+  // the duplicate, any UNTAGGED .wish-said is a newly raised toast, which is exactly what
+  // item 4 abolished.
+  const first = await page.evaluate(() => {
+    const n = document.querySelector('.wish-said');
+    if (n) n.dataset.fromFirstWish = '1';
+    return n ? n.textContent : null;
+  });
+  assert(first === 'Your wish came true!', `the FIRST (new) crown still raises the world line: "${first}"`);
   await page.evaluate(() => window.__wishwell && window.__wishwell.close());
   await page.waitForTimeout(300);
-  await wishFor(page, 'crown');
+  await wishFor(page, 'crown');   // ~900ms after the duplicate submit
   const twice = (await meadow(page)).filter(i => i === 'wish_crown').length;
-  const said = await page.evaluate(() => {
+  const dup = await page.evaluate(() => {
+    const panel = document.querySelector('.wish-panel');
+    const lines = panel ? [...panel.querySelectorAll('.wish-head .wish-line')] : [];
     const all = [...document.querySelectorAll('.wish-said')];
-    return { text: all.length ? all[all.length - 1].textContent : null, count: all.length };
+    return {
+      lineText: lines.length ? lines[lines.length - 1].textContent : null,
+      lineCount: lines.length,
+      listening: !!(panel && panel.classList.contains('listening')),
+      wellUp: !!document.querySelector('.overlay.wish-overlay'),
+      saidTotal: all.length,
+      raised: all.filter(n => !n.dataset.fromFirstWish).map(n => n.textContent)
+    };
   });
   assert(once === 1, `the first crown places once (${once})`);
   assert(twice === 1, `and the second wish adds NO second placement (${twice})`);
-  assert(said.count === 1, `only ONE line is on screen at a time (${said.count})`);
-  assert(said.text === "Another crown! It's in your Build drawer.", `and she is told where it went, verbatim: "${said.text}"`);
+  assert(dup.raised.length === 0, `the duplicate raises NO new .wish-said toast (${JSON.stringify(dup.raised)})`);
+  assert(dup.saidTotal <= 1, `only ONE line is ever on screen at a time (${dup.saidTotal})`);
+  assert(dup.lineCount === 1, `the well has exactly one line slot to say it in (${dup.lineCount})`);
+  assert(dup.lineText === "Ooh — another crown! It's tucked in your drawer for later.",
+    `and SHE IS TOLD, in the well's own line, verbatim: "${dup.lineText}"`);
+  assert(dup.listening, 'and the well sprite replays the wishListen wobble (.wish-panel.listening)');
+  assert(dup.wellUp, 'the well is still up, so the line is somewhere she is already looking');
+  // The linger is the point of the change: at 1500ms the OLD timer would already have shut
+  // the well and taken the line with it. Wait past it and the line must still be readable.
+  await page.waitForTimeout(900);   // now ~1.8s past the submit, i.e. past the old 1500ms close
+  const lingered = await page.evaluate(() => {
+    const panel = document.querySelector('.wish-panel');
+    const line = panel && panel.querySelector('.wish-head .wish-line');
+    return { wellUp: !!document.querySelector('.overlay.wish-overlay'), text: line ? line.textContent : null };
+  });
+  assert(lingered.wellUp && lingered.text === "Ooh — another crown! It's tucked in your drawer for later.",
+    `the well LINGERS past the old 1.5s so the line can be read (up=${lingered.wellUp}, "${lingered.text}")`);
+  // ...and the linger is bounded: 3.5s, then the town comes back. Not a stuck modal.
+  await page.waitForFunction(() => !document.querySelector('.overlay.wish-overlay'), null, { timeout: 5000 }).catch(() => {});
+  const closed = await page.evaluate(() => !document.querySelector('.overlay.wish-overlay'));
+  assert(closed, 'and then hands the town back on its own — a longer beat, not a stuck well');
   await ctx.close();
 }
 

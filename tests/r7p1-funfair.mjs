@@ -2,9 +2,13 @@
 // Acceptance (RUN7 part D #1): a brand-new save reaches the OPEN fair and plays every
 // day-one element (Carousel, booth, lights at simulated night, band watch + all three
 // instruments, record-a-jam) with the grand-opening ceremony firing EXACTLY once; an
-// existing save past a ride milestone starts its queued construction on first load;
+// existing save past ONE ride milestone starts its queued 24h construction on first load;
 // milestone rides arrive under simulated totals of 80/140/200/260; NO band feature is
 // reachable-gated by stars anywhere.
+// RUN21A item 16 added the second half of the milestone contract, which this suite now
+// guards on both sides: a save crossing SEVERAL thresholds in one tick catches up instead
+// (all rides built at once, one combined celebration in funfair.catchup), while a save
+// crossing exactly one keeps the 24h Builders flow unchanged.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
@@ -144,20 +148,86 @@ console.log('== the band has NO star gate: all three instruments + record work a
   await ctx.close();
 }
 
-// ==================== existing save past a milestone queues construction on first load ====================
-console.log('== an existing save past a milestone starts queued construction on load ==');
+// ==================== existing save past a milestone: catch-up vs. the 24h queue ====================
+// RE-POINTED for RUN21A item 16. This block used to seed 260 stars with an empty funfair and
+// assert the Boo Builders queued the four rides one 24h build at a time (site 'ferris',
+// pending ['teacups','bouncy','helter']). Item 16 makes that exact fixture the CATCH-UP path:
+// when a SINGLE tick finds MORE THAN ONE newly-eligible ride, they all complete immediately
+// and one combined celebration is recorded in the additive save key `funfair.catchup` — no
+// 24h build, no queue. The old queue contract is NOT gone: it now belongs to a SINGLE newly-
+// crossed threshold, which item 16 leaves untouched, so the second block below pins it with
+// the same rigour (build starts on load, construction site renders, nothing ready before 24h).
+console.log('== RUN21A-16: several milestones crossed at once → every ride lands at once, one celebration ==');
 {
-  // 260 stars, fresh funfair state: every ride milestone (80/140/200/260) is exceeded
+  // 260 stars, fresh funfair state: all four ride milestones (80/140/200/260) are crossed
+  // by the same tick — the catch-up case.
   const { ctx, page } = await openTown(SAVE({ stars: { total: 260, byGame: {} }, funfair: { built: [], build: null, pending: [], seats: {} }, seen: { funfairOpened: 'x', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true } }));
   const view = await page.evaluate(() => window.__townLife.ffView());
   assert(view.built.includes('carousel'), 'the Carousel is granted on load');
+  assert(view.built.join(',') === 'carousel,ferris,teacups,bouncy,helter', `every newly-eligible ride is BUILT on load, not queued (built ${view.built.join(',')})`);
+  assert(view.site === null, `no 24h construction begins on load (building ${view.site})`);
+  // nothing waits in the queue any more — the old "queue one at a time" pin, moved to its
+  // new value: a multi-crossing leaves the queue and the build slot empty.
+  const ff = await page.evaluate(() => window.BooTown.State.getState().funfair);
+  assert(Array.isArray(ff.pending) && ff.pending.length === 0, `no ride is left queued for a 24h build (pending ${JSON.stringify(ff.pending)})`);
+  assert(!ff.build, `no build slot is occupied (build ${JSON.stringify(ff.build)})`);
+  // the combined celebration is remembered in the new save key, naming every caught-up ride
+  assert(JSON.stringify(ff.catchup) === JSON.stringify(['ferris', 'teacups', 'bouncy', 'helter']), `funfair.catchup names the caught-up rides in order (${JSON.stringify(ff.catchup)})`);
+  // ...and it is shown ONCE, on the funfair mount, with the pack's exact copy
+  await page.waitForSelector('.overlay.growth-reveal', { timeout: 4000 });
+  assert(await page.$eval('.overlay.growth-reveal .gr-title', n => n.textContent) === 'Look how the fair has grown!', 'the combined catch-up reveal carries the exact headline');
+  assert(await page.$eval('.overlay.growth-reveal .gr-line', n => n.textContent) === 'The Boo Builders finished 4 rides while you were busy: Ferris Wheel, Teacups, Bouncy Castle and Helter-Skelter!', 'the combined catch-up reveal names all four rides in the exact body copy');
+  assert((await page.$$('.overlay.growth-reveal')).length === 1, 'exactly ONE celebration overlay, not four');
+  await page.click('.overlay.growth-reveal .btn.big');
+  await sleep(400);
+  assert(await page.evaluate(() => window.BooTown.State.getState().funfair.catchup.length) === 0, 'dismissing the reveal clears funfair.catchup (completeCatchupReveal)');
+  await page.evaluate(() => window.__townLife.scrollToFunfair());
+  await sleep(400);
+  assert(!(await page.$('.ff-consite')), 'NO construction site renders — nothing is still being built');
+  const rides = await page.evaluate(() => window.__townLife.ffRides());
+  assert(['carousel', 'ferris', 'teacups', 'bouncy', 'helter'].every(r => rides.includes(r)), `all five rides are on the ground after the catch-up (${rides.join(',')})`);
+  await ctx.close();
+}
+
+// ==================== a SINGLE crossing keeps the 24h Builders flow exactly as before ====================
+// RUN21A item 16 changes NOTHING here (pack ACCEPT: "a 79→81★ crossing behaves exactly as
+// today"), so this block carries the assertions the 260-star fixture used to make.
+console.log('== a save past exactly ONE milestone starts its queued 24h construction on load ==');
+{
+  // 81 stars with only the Carousel built: exactly one newly-crossed threshold (Ferris 80).
+  const { ctx, page } = await openTown(SAVE({ stars: { total: 81, byGame: {} }, funfair: { built: ['carousel'], build: null, pending: [], seats: {} }, seen: { funfairOpened: 'x', introSeen: { bubblepop: 1, feedboos: 1, spellboo: 1, blocks: 1, bounce: 1, beat: 1, dash: 1, clockshop: 1, boopop: 1, teachme: 1, golden: 1 }, trophyRetro: true, townFirst: true } }));
+  const view = await page.evaluate(() => window.__townLife.ffView());
+  assert(view.built.join(',') === 'carousel', `the Ferris Wheel is NOT granted early — it has to be built (built ${view.built.join(',')})`);
   assert(view.site === 'ferris', `construction of the first queued ride begins on load (building ${view.site})`);
-  // the remaining rides are queued one at a time
-  const pending = await page.evaluate(() => window.__townLife.ffView().seats && window.BooTown.State.getState().funfair.pending);
-  assert(Array.isArray(pending) && pending.length === 3, `the other three rides queue one at a time (pending ${JSON.stringify(pending)})`);
+  const ff = await page.evaluate(() => window.BooTown.State.getState().funfair);
+  assert(Array.isArray(ff.pending) && ff.pending.length === 0, `the single queued ride moved straight into the build slot (pending ${JSON.stringify(ff.pending)})`);
+  assert(Array.isArray(ff.catchup) && ff.catchup.length === 0, `a single crossing records NO catch-up celebration (catchup ${JSON.stringify(ff.catchup)})`);
+  await sleep(900);   // past town.js's 700ms reveal timer
+  assert(!(await page.$('.overlay.growth-reveal')), 'no celebration overlay — the ride is still being built');
   await page.evaluate(() => window.__townLife.scrollToFunfair());
   await sleep(400);
   assert(await page.$('.ff-consite'), 'a construction site renders for the building ride');
+  // the 24h wait, and the queue still taking one ride at a time behind the building one
+  const t = await page.evaluate(async () => {
+    const F = await import('./js/funfair.js');
+    const S = window.BooTown.State;
+    const startedAt = S.getState().funfair.build.startedAt;
+    window.__bootownNow = startedAt + F.FUNFAIR_BUILD_MS - 60000;
+    const early = F.tickFunfair();
+    S.mutate(st => { st.stars.total = 140; });          // one more single crossing (Teacups 140)
+    const queued = F.tickFunfair();
+    const st1 = S.getState().funfair;
+    window.__bootownNow = startedAt + F.FUNFAIR_BUILD_MS + 5000;
+    const late = F.tickFunfair();
+    return { early: early.readyToReveal, earlyCatch: early.catchUp, spawned: queued.spawned, queuedCatch: queued.catchUp, pending: st1.pending.slice(), building: (st1.build || {}).ride || null, ready: late.readyToReveal };
+  });
+  assert(t.early === null, `readyToReveal stays null one minute short of 24h (${t.early})`);
+  assert(t.earlyCatch === null, `no catch-up is raised for a single-crossing build (${JSON.stringify(t.earlyCatch)})`);
+  assert(JSON.stringify(t.spawned) === '["teacups"]', `a second single crossing spawns exactly one ride (${JSON.stringify(t.spawned)})`);
+  assert(t.queuedCatch === null, `a second single crossing still takes the queue, not the catch-up path (${JSON.stringify(t.queuedCatch)})`);
+  assert(JSON.stringify(t.pending) === '["teacups"]', `rides queue one at a time behind the one being built (pending ${JSON.stringify(t.pending)})`);
+  assert(t.building === 'ferris', `the Ferris Wheel is still the ride under construction (${t.building})`);
+  assert(t.ready === 'ferris', `after the full 24h the Ferris Wheel is ready to reveal (${t.ready})`);
   await ctx.close();
 }
 

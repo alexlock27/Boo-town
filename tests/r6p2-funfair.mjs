@@ -38,6 +38,21 @@ async function openTown(save, { hour = 13 } = {}) {
   await page.waitForSelector('.town2');
   await page.waitForFunction(() => window.__townLife, { timeout: 4000 });
   await sleep(400);
+  // RUN21A item 16 ("fair catch-up: one celebration, not four queued days"): a save that
+  // crosses SEVERAL ride thresholds in one tick now completes them all immediately and
+  // announces them in ONE combined reveal on the first funfair mount. Fixtures like the
+  // picker block (300★ with only the Carousel built) legitimately open with that modal
+  // overlay up, and it swallows pointer events aimed at the fair beneath it. So the
+  // harness dismisses whatever reveal is showing — tap its "Hooray!" and wait for it to
+  // leave the DOM — before handing the page back, leaving each block's own subject
+  // reachable. Fixtures that seed every ride built raise no reveal: this is a no-op.
+  const reveal = await page.waitForSelector('.overlay.growth-reveal .btn', { timeout: 1500 }).catch(() => null);
+  if (reveal) {
+    await reveal.click();
+    await page.waitForSelector('.overlay.growth-reveal', { state: 'detached', timeout: 4000 });
+    await sleep(900);   // "Hooray!" also starts a 650ms smooth pan to the fair — let it land, or it
+                        // would override a block's own scrollToFrac and park the subject offscreen
+  }
   return { ctx, page };
 }
 const distinct = arr => new Set(arr).size;
