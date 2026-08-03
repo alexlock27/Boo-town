@@ -556,6 +556,74 @@ console.log('== item 3: no dots indoors; one edge shimmer per visit ==');
   await ctx.close();
 }
 
+// ============================================================================
+// Item 4 — Signposting the fair's best rooms
+// ============================================================================
+console.log('== item 4: two signs at the fair gate, both working from screen 1 ==');
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) }, settings: { sound: false, music: true, voice: false, content: 'full', requests: false } }), { area: 'funfair' });
+  await sleep(1400);
+  const signs = await page.evaluate(() => window.__townLife.fairSigns());
+  assert(signs.length === 2, `two signs (${signs.length})`);
+  assert(signs.every(s => s.onScreen), 'both are fully on screen 1, with no scrolling at all');
+  const band = signs.find(s => s.id === 'ff-sign-band'), disco = signs.find(s => s.id === 'ff-sign-disco');
+  assert(band && band.text === '🎵 Band', `the first reads "${band && band.text}"`);
+  assert(disco && disco.text === '🕺 Disco', `the second reads "${disco && disco.text}"`);
+  assert(band && band.aria === 'Go to the bandstand', `aria: "${band && band.aria}"`);
+  assert(disco && disco.aria === 'Enter the Disco Hall', `aria: "${disco && disco.aria}"`);
+  assert(signs.every(s => s.w >= 44 && s.h >= 44), `both are comfortable targets (${signs.map(s => s.w + 'x' + s.h).join(', ')})`);
+  await page.screenshot({ path: `${SHOTS}/item4-fair-signs.png` });
+  // Band → the bandstand, and the band takes over
+  await page.evaluate(() => window.__townLife.tapFairSign('band'));
+  await sleep(1000);
+  const seen = await page.evaluate(() => {
+    const n = document.querySelector('.ff-bandstand'); if (!n) return null;
+    const v = document.querySelector('.t-viewport').getBoundingClientRect(); const r = n.getBoundingClientRect();
+    return { inView: r.right > v.left && r.left < v.right, music: window.__townLife.zoneMusic() };
+  });
+  assert(seen && seen.inView, 'tapping 🎵 Band pans to the bandstand');
+  assert(seen && seen.music === 'band', `and its music takes over (${seen && seen.music})`);
+  await page.screenshot({ path: `${SHOTS}/item4-band-sign-landed.png` });
+  await ctx.close();
+}
+{
+  // …and on a phone, where "screen 1" is 390px wide and there is the least room to hide in.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) } }), { area: 'funfair', w: 390, h: 844 });
+  await sleep(1200);
+  const signs = await page.evaluate(() => window.__townLife.fairSigns());
+  assert(signs.length === 2 && signs.every(s => s.onScreen), `390x844: both signs still fully on screen 1 (${JSON.stringify(signs.map(s => s.onScreen))})`);
+  await page.screenshot({ path: `${SHOTS}/item4-fair-signs-390.png` });
+  await ctx.close();
+}
+
+console.log('== item 4: a first-time visitor reaches the Disco in ≤2 taps ==');
+{
+  // A save that has never opened the Disco Hall, starting where a child starts: the map.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems('funfair', boosIn('funfair')) } }), { area: null });
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.worldmap', { timeout: 8000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
+  let taps = 0;
+  await page.evaluate(() => window.__worldmap.tap('funfair')); taps++;      // tap 1: the fair
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
+  await sleep(900);
+  assert(await page.evaluate(() => window.__townLife.fairSigns().filter(s => s.onScreen).length) === 2,
+    'she arrives with both signs already on screen');
+  await page.evaluate(() => window.__townLife.tapFairSign('disco')); taps++; // tap 2: the sign
+  await page.waitForSelector('.disco-hall', { timeout: 8000 });
+  assert(taps === 2, `the Disco Hall, in ${taps} taps from the map`);
+  const inDisco = await page.evaluate(() => document.getElementById('screen').dataset.screen);
+  assert(inDisco === 'discohall', `and it really is the Disco Hall (${inDisco})`);
+  await page.screenshot({ path: `${SHOTS}/item4-disco-in-two-taps.png` });
+  // …and Back still returns to the fair, exactly as the door's own route does
+  await page.evaluate(() => document.querySelector('.disco-header button').click());
+  await page.waitForSelector('.town2', { timeout: 8000 });
+  await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
+  assert(await page.evaluate(() => window.__townLife.area()) === 'funfair', 'and Back lands her at the fair again');
+  await ctx.close();
+}
+
 console.log(pageErrors.length ? `PAGE ERRORS: ${JSON.stringify(pageErrors.slice(0, 6))}` : 'no page errors');
 if (pageErrors.length) failed = true;
 await browser.close();

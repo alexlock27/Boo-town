@@ -294,6 +294,15 @@ const LANDMARK_DOTS = {
 // no music. It pans to the bandstand itself instead, which is what its label promises.
 const DOT_TARGET_OVERRIDE = { funfair: { 3: BANDSTAND_X } };
 const EDGE_SHIM_MS = 5400;       // two soft sweeps (2 × 2.6s) at an edge with town beyond it
+
+// ---- RUN21D-4: the fair's two signs ----------------------------------------------------
+// Both hang on the ENTRANCE SCREEN (x < 0.25 of the zone), under the bunting, so they are
+// on screen the moment she walks in — the pack's "from screen 1" is the whole point.
+const FAIR_SIGN_Y = 0.20;        // fraction of viewport height: hanging under the bunting
+const FAIR_SIGNS = [
+  { id: 'band',  x: 0.055, text: '🎵 Band',  aria: 'Go to the bandstand' },
+  { id: 'disco', x: 0.150, text: '🕺 Disco', aria: 'Enter the Disco Hall' }
+];
 // "Prefer things not shown today" — a SESSION set, never the save. There is no ledger of
 // what the town has already shown her; it resets on load like every other pacing memory
 // here (js/ack.js, js/encouragement.js, wishlife's visit tokens).
@@ -2109,7 +2118,7 @@ export function mount(container, params, ctx) {
   }
 
   function renderFunfair() {
-    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door').forEach(n => n.remove());
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door, .ff-sign').forEach(n => n.remove());
     if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
@@ -2133,6 +2142,34 @@ export function mount(container, params, ctx) {
     if (view.site) ground.appendChild(ffSiteNode(view.site, zi * zoneW + RIDE_X[view.site] * zoneW));
     renderBandstand(zi);
     renderDiscoDoor(zi);
+    renderFairSigns(zi);
+  }
+  // RUN21D-4 — the fair's two best rooms are its two least findable ones: the bandstand sits
+  // at 0.68 of a four-viewport area and the Disco Hall's door at 0.51, so a child who
+  // arrives at the gate and never drags right meets neither. Two hanging signs at the
+  // entrance say where they are and take her there.
+  function renderFairSigns(zi) {
+    for (const sg of FAIR_SIGNS) {
+      const sign = el('button', {
+        class: 'ff-sign ff-sign-' + sg.id, type: 'button', 'aria-label': sg.aria,
+        onclick: (e) => {
+          e.stopPropagation();
+          sfx.tap();
+          if (sg.id === 'band') { cameraClaimed = true; panToFrac(BANDSTAND_X, DOT_PAN_MS); }
+          // The Disco keeps the door's own route exactly; `from` rides along the way the
+          // shop's handoff carries it (RUN21A-9), so a later back-path change has it.
+          else ctx.go('discohall', { from: 'town', fromArea: AREA.key });
+        }
+      }, [
+        el('span', { class: 'ffs-rope', 'aria-hidden': 'true' }),
+        el('span', { class: 'ffs-plaque', text: sg.text })
+      ]);
+      sign.style.left = (zi * zoneW + sg.x * zoneW) + 'px';
+      sign.style.top = (viewH * FAIR_SIGN_Y) + 'px';
+      sign.style.zIndex = String(Math.round(groundY) + 3);
+      sign.addEventListener('pointerdown', e => e.stopPropagation());
+      ground.appendChild(sign);
+    }
   }
   function renderDiscoDoor(zi) {
     const door = el('button', {
@@ -3319,7 +3356,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
     // RUN20 W2: a tap on the right PART of the scene is this area's own secret. It runs before
     // the scroll drag starts, and only when it actually matched something — a miss falls
     // straight through to the normal pan, so the scene never feels sticky.
@@ -5509,6 +5546,15 @@ export function mount(container, params, ctx) {
         return { w: cs.width, h: cs.height, bg: cs.backgroundColor, selBg: getComputedStyle(on).backgroundColor };
       },
       edgeShims: () => [...viewport.querySelectorAll('.t-edge-shim')].map(n => n.className),
+      // RUN21D-4: the fair's two hanging signs.
+      fairSigns: () => [...ground.querySelectorAll('.ff-sign')].map(n => {
+        const v = viewport.getBoundingClientRect(), r = n.getBoundingClientRect();
+        return { id: [...n.classList].find(c => c.startsWith('ff-sign-')), aria: n.getAttribute('aria-label'),
+                 text: (n.querySelector('.ffs-plaque') || {}).textContent,
+                 onScreen: r.left >= v.left && r.right <= v.right && r.top >= v.top && r.bottom <= v.bottom,
+                 w: Math.round(r.width), h: Math.round(r.height) };
+      }),
+      tapFairSign: (id) => { const n = ground.querySelector('.ff-sign-' + id); if (!n) return false; n.click(); return true; },
       // What every actor is actually DOING — the state proof behind a movement beat.
       goals: () => actors.map(a => ({ item: a.place && a.place.item, goal: a.goal && a.goal.kind, role: a.role && a.role.kind, state: a.state })),
       behaviourSample: (i, n) => {
