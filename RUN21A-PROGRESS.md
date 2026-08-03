@@ -53,6 +53,11 @@ All items implemented; FINAL GATE in progress (fresh-clone ACCEPT sweep + affect
 8. Item 16: hub.js also ticks the funfair and cannot show reveals → the catch-up persists in
    `funfair.catchup` (additive key, safe [] default, v23 kept) until a town mount shows it —
    same never-lost semantics as the existing build reveal.
+   FIX (gate, found by r18b-wish-arrives): the combined reveal was firing on ANY town mount,
+   so it opened over the Meadow and covered the wish-arrival line. The pack's ACCEPT says
+   "first FAIR mount", and a headline naming the fair gives her nowhere to look anywhere
+   else (CLAUDE.md announced moments). Rides still COMPLETE on whichever tick finds them
+   (that is the actual fix); only the celebration is gated to `AREA.key === 'funfair'`.
 9. Item 18: no hint anywhere mentions the Place tool or the hammer; no dedicated Erase hint
    exists (L_PATH_FULL's "Erase some to lay more" refers to path, truthfully) → zero copy
    changes; full audit table in the report. Forward note for RUN21C: the shop's dressing
