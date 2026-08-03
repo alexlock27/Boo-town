@@ -9,7 +9,7 @@
 // inside to earn travel, a progress ring around the Boo, and a payoff that cannot be missed.
 
 import { el, clear, confetti, REDUCED } from './ui.js';
-import { getState, mutate } from './state.js';
+import { getState, mutate, nextPlacementId } from './state.js';
 import { renderItem, renderDeco } from './art.js';
 import { equippedArt, getDisplayName } from './accessories.js';
 import { resolveItem } from './customs.js';
@@ -97,6 +97,7 @@ function placeBestFriendPortrait(st, booId) {
   if (room.items.some(t => t.item === 'deco_bffportrait' && t.portraitBoo === booId)) return;
   const existing = room.items.filter(t => t.item === 'deco_bffportrait').length;
   room.items.push({
+    id: nextPlacementId(st),   // v24 (RUN21F F5): every placement carries an identity, wherever it is born
     zone: 'boohouse',
     x: Math.min(.88, .18 + existing * .16),
     row: 3,
