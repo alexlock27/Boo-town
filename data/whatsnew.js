@@ -21,6 +21,16 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it
+  // buys is not: things she puts ON things now travel with them. F6 gets NO entry — it
+  // completes the promise RUN21A already made ("a friend can come and look around your
+  // town!"), and visiting needs a grown-up to paste a code, which this file never advertises.
+  {
+    version: 'run21f-20260804',
+    entries: [
+      { icon: '🪑', title: 'Move a table, move everything on it', blurb: 'Put a lamp on a table, then drag the table somewhere new — the lamp goes with it. Everything stays where you put it.', route: 'town', params: { area: 'boohouse', room: 'lounge' } }
+    ]
+  },
   // RUN21C "Build Dissolved". The hammer is the thing that went, so every entry is about
   // what she can DO now and never about a mode that no longer exists — she should not have
   // to learn that build mode used to be there in order to understand that it is not.
