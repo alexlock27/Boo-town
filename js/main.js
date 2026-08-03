@@ -8,6 +8,9 @@ import { starField, clearConfetti, setBackAction, getBackAction, backActionGuard
 import { installOopsNet, installSaveGuard, maybeRollingBackup, setWaitingWorker, showToast, listSnapshots, restoreSnapshot } from './resilience.js';
 import { setHapticsEnabled } from './haptics.js';
 import { qaSuspendRound, qaResumeRound } from './intro.js';
+// RUN21F F10B: the play journal listens here for screens and dwell. It is inert — no
+// listener, no entry, no DOM — unless a grown-up has switched it on behind the QA flag.
+import { noteScreen } from './playjournal.js';
 
 const screenEl = document.getElementById('screen');
 let current = null;
@@ -139,6 +142,7 @@ export async function go(name, params = {}) {
   }
   current = { name, api };
   screenEl.dataset.screen = name;
+  noteScreen(name, params);
   recordNav(name, params);
 }
 ctx.go = go;

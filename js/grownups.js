@@ -17,6 +17,10 @@ import { alphaKeysOn, alphaKeysDefault, setAlphaKeys, readAloudOn, setReadAloud 
 // imported, never retyped here. feelingsTierOk keeps the Medium/Full gate in one place.
 import { TOGGLE_COPY as FEELINGS_TOGGLE_COPY, TOGGLE_LABEL as FEELINGS_TOGGLE_LABEL } from '../data/feelingsLines.js';
 import { feelingsTierOk } from './feelings.js';
+// RUN21F F10B: the play journal. Everything about it is gated on qaAvailable() — the same
+// window.__bootownQA seam the rest of the app's test hooks use — so with the flag unset
+// nothing below is built and the panel is byte-for-byte what it was before.
+import { qaAvailable, journalOn, setJournalOn, downloadNotes, journalSnapshot, JOURNAL_LABEL, DOWNLOAD_LABEL } from './playjournal.js';
 
 // Rough platform sniff, only to word the "where did it save?" helper text. Never gates
 // behaviour — the buttons feature-detect (canShareFiles) regardless.
@@ -389,7 +393,7 @@ export function mount(container, params, ctx) {
     { id: 'golden',   label: 'Golden Round',  cards: [goldenEditor(s)] },
     { id: 'ledger',   label: 'Star Ledger',   cards: [starLedger(s)] },
     { id: 'bloom',    label: 'Bloom',         cards: [bloomReport(s)] },
-    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), reset] }
+    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), ...journalCards(), reset] }
   ];
   const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });
   const panels = el('div', { class: 'gu-panels' });
@@ -572,6 +576,33 @@ export function mount(container, params, ctx) {
         msg
       ])
     ]);
+  }
+
+  // ---- play journal (RUN21F F10B), QA flag only ----------------------------------------
+  // Returns NOTHING at all unless window.__bootownQA is set, so with the flag off there is
+  // no card, no switch and no button anywhere in this panel — the zero-trace requirement is
+  // met by never building the nodes, not by hiding them.
+  function journalCards() {
+    if (!qaAvailable()) return [];
+    const summary = el('p', { class: 'gu-note gu-journal-summary', text: '' });
+    const dlBtn = el('button', { class: 'btn small', text: DOWNLOAD_LABEL, onclick: () => { downloadNotes(); refresh(); } });
+    function refresh() {
+      const s = journalSnapshot();
+      summary.textContent = journalOn()
+        ? `Recording — ${s.screensVisited} screen${s.screensVisited === 1 ? '' : 's'}, ${s.taps} tap${s.taps === 1 ? '' : 's'}, ${Math.round(s.durationMs / 1000)}s so far.`
+        : 'Not recording. Nothing is kept when this is off.';
+      dlBtn.disabled = s.entries.length === 0;
+    }
+    const card = el('div', { class: 'gu-card gu-journal' }, [
+      el('h3', { text: 'Session notes (QA)' }),
+      el('p', { class: 'gu-note', text: 'Records which screens are opened, how long each one is used, and what is tapped. It is held in memory only — nothing is saved to the device and nothing is ever sent anywhere. It switches itself off when the tab closes.' }),
+      toggle(JOURNAL_LABEL, journalOn(), v => { setJournalOn(v); refresh(); }),
+      el('div', { class: 'gu-row' }, [dlBtn]),
+      summary
+    ]);
+    refresh();
+    const tick = setInterval(() => { if (document.body.contains(summary)) refresh(); else clearInterval(tick); }, 2000);
+    return [card];
   }
 
   function toggle(label, initial, onChange) {

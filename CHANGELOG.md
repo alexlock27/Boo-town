@@ -2,6 +2,72 @@
 
 All notable changes to Boo Town. Newest first.
 
+## Run 21F: pipeline & housekeeping (in progress)
+- **Per-area ambient sound** — five synthesised beds: a filtered wash and the odd gull at the
+  beach, a low burble at the riverside, swelling wind on the hilltop, sparse birdsong in the
+  meadow and distant chatter at the playground. No audio files at all; they duck under speech,
+  obey every existing mute, and the funfair and the house rooms stay as they were. Alongside
+  them: local-only art tools, a generated `PROJECT_STATE.md` inventory, a ten-minute pre-merge
+  walk of every area and room at three screen sizes, and a grown-ups-only play journal that
+  lives behind the QA flag and never persists.
+
+## Run 21D: alive on arrival
+- **Walking into a place now feels like arriving.** Every area takes one guaranteed opening
+  breath within a second and invites her to touch something at nine seconds; the world map says
+  where somebody is wondering something, and the request card takes her to the thing it is
+  talking about; every outdoor area says it is four screens wide, names those screens and slides
+  to any of them in one tap; the funfair's band and disco are signposted at the gate; and a
+  hider parked at the far end of an area gets a nudge in its direction.
+
+## Run 21A: reach & truth
+- **Seventeen fixes to things she could see but not properly reach**: seated Boos can be
+  un-deleted, rooms are named and decoratable the moment they open, gold wish tiles end up
+  readable, taps are never budget-gated, a Boo holds still under a care arc, footprints land
+  under the finger, one reveal shows at a time, Back remembers where the camera was, the swing's
+  seat is actually the seat, and a **Town Postcard 💌** can be shared with another town.
+
+## Run 20
+- No run report was published for this run, so it is not itemised here.
+
+## Run 19
+- No run report was published for this run, so it is not itemised here.
+
+## Run 18
+- No run report was published for this run, so it is not itemised here.
+
+## Run 17: heart & humour
+- **Joke Boos**, kind words, the **Feelings Corner**, and a **What's New** card that tells her
+  what has just arrived.
+
+## Run 16: literacy & lessons 2.0
+- **Four new literacy games** — Sound Sorter, Blend It, Rhyme Time and Story Order — and Teach
+  Me rebuilt as hook → show → try ×3 → win across all nine lessons, three of them new. Smart
+  Mix, the Tricky Pile and Brain Bloom all reach the new games.
+
+## Run 15: the economy
+- **Five star types**, honest difficulty rewards, lessons as first-class earners, and the
+  **Boo Shop**.
+
+## Run 14: motion & music
+- **Boo Roll and Boo Beat rebuilt**, and the test harness rebuilt with them: the full board went
+  from 53m 40s to 20m 26s, sharded across four worker lanes, with the frame-sampling and
+  audio-timing suites run alone at the end.
+
+## Run 13: care, house & cosmetics
+- **Every care action became real direct manipulation** — the toothbrush, the treat and the
+  sponge are dragged rather than stepped through arrow buttons — a **Bath** was added, and a
+  progress ring fills around the Boo on all five. Plus the Boo House rooms and cosmetics.
+
+## Run 12: fix & feel
+- **A repair run**: eighteen reported defects triaged against the live tree before anything was
+  fixed, then fixed one packet at a time, each with the regression test that would have caught it.
+
+## Run 11: the salvage and repair pack
+- **Word Detective**, the attribute engine, the **Boo Expedition**, **Snaffle's Caper**, Boo
+  Roll's courses and medals, and the delight pack all adopted and completed; the party feature
+  retired and names purged. The board went from 69 of 88 suites passing to **106 of 106**, with
+  zero blocks.
+
 ## Run 10: the depth run
 - **The tidy sweep**: Paint and Collage now use one shared bottom drawer with tabbed trays — Paint's
   Tools / Colours / Stamps, Collage's Boos / Party / Seaside / Nature / Sparkle / Letters / Backgrounds
