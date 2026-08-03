@@ -1,68 +1,81 @@
-# Pick up here — RUN21A implemented, FINAL GATE half-run (2 Aug 2026, session ended at usage cap)
+# Pick up here — RUN21A shipped; RUN21B is next (3 Aug 2026)
 
-Live build: still **run20d-20260731**. Branch **`run21a`** has all 17 items implemented,
-committed per item, and pushed. **NOT MERGED — the gate is not passed yet** (pack lifeboat
-rule). Branch **`run21f`** has F1–F3 done (tools/asset-preview.html, tools/anchor-tuner.html,
-tools/gen-state.mjs + PROJECT_STATE.md), pushed, also unmerged. F4 deferred until after A–E.
+Live build: **`run21a-20260803`** at https://alexlock27.github.io/Boo-town/
+`main` carries RUN21A ("Reach & Truth", 17 items) and RUN21F F1–F3 (the two art tools + the
+PROJECT_STATE generator). Both branches merged; nothing uncommitted.
 
-Read `RUN21A-PROGRESS.md` (per-item status + 9 logged deviations) and `RUN21A-REPORT.md`
-(draft: hints table done, gate sections PENDING) before anything else. The RUN21 packs live
-in `RUN21-programme/` (now gitignored, private).
+Full detail: `RUN21A-REPORT.md` (per-item ACCEPT evidence, the hints table, three FIXes and
+nine deviations) and `RUN21A-PROGRESS.md` (the ledger). The programme packs live in
+`RUN21-programme/` (gitignored, private).
 
-## Where the gate stands
+---
 
-A fresh clone for the gate exists at `..\Boo-town-run21a-gate` (node_modules is a junction
-to the main repo's; serve it with `python _serve.py 8001`). 23 affected suites ran there at
-3 lanes with `BASE=http://127.0.0.1:8001`; logs in `_gate_logs/` in the clone.
+## THE ONE THING TO DO FIRST
 
-**Passed (13):** r8p1-migrations, m3-pwa, r18a-copyguard, r10p20-wishwell, r12s4-contrast,
-r10p5-personalities, r19z2-requests, r18b-buy-confirm, r18b-shop-handoff, r19z6-objectmodel,
-r18a-shop-chrome + (check `_summary.txt` for the last five: r6p2-funfair, r4p6-growth,
-r13bt8-town-dressing, m3-grownups, r17x4-whatsnew — they were still finishing at handover).
+**Start RUN21B — "Look & Feel"** (`RUN21-programme/RUN21B-pack.md`). Its prerequisites are
+now met: RUN21A is merged, and `tools/asset-preview.html` + `tools/anchor-tuner.html` exist.
 
-**Failures, triaged:**
-1. `r12s1-routes` — the suite DESIGNEDLY fails on new go('shop') param shapes (`from`,
-   `fromRoom` from item 9). **Already fixed**: two fixtures added in tests/r12s1-routes.mjs
-   (last commit). Pull into the clone and re-run — should pass.
-2. `r7p1-funfair` — pins the OLD sequential-24h-builds behaviour on a multi-threshold save.
-   RUN21A item 16 explicitly changed that (multi-cross → complete all + one combined
-   reveal). **Update the pin to the new contract** (a SINGLE crossing still queues/builds —
-   keep that half). Check the pack before "fixing" (PICK-UP lesson #5).
-3. `r10p3-buildmode` — "Landscape tab hides outside build mode" pins what item 15 removed.
-   **Update the pin** (Landscape now visible outdoors regardless of hammer).
-4. `r20-wishlife` — "rocket launches at most ONCE per visit" pins the budget gate item 5
-   removed. **Update the pin** (always launches once landed; in-flight guard only).
-5. `r18b-wish-arrives` — **REAL INVESTIGATION NEEDED**: "Your wish came true!" verbatim line
-   + its visibility assertions fail at both viewports. Suspect item 4's `drawer.close()` in
-   wishwell submit() changed layout/timing around the arrival moment. Do NOT assume flake.
-6. `r10p2-sockets` (guide-line + momentum/fling/ghost) and `r4p5-town` (seesaw frames) —
-   likely 3-lane load flakes (frame-evidence class). **Serial re-run once each**; A/B a
-   survivor against main in a worktree before believing it (recipe in the old PICK-UP notes:
-   tests hardcode the port; keep one server per tree).
+Branch `run21b` from main, ledger `RUN21B-PROGRESS.md`, commit `RUN21B-<n>: <title>`, push
+after every commit. Seven items; item 1 is the big one — **60 standalone wish artworks** to
+replace the single gold star medallion every wish currently shows (see
+`_evidence/run21a/item3-gold-readable.png` for what that medallion looks like today).
 
-## Remaining gate work (in order)
-1. Pull latest run21a into the gate clone; serial re-run the six above; fix/update per triage.
-2. ACCEPT sweep per item (pack lists them; deviations/evidence notes in RUN21A-PROGRESS.md).
-   `_probe_swing.mjs` at the clone root shows the harness pattern (seed save → go('town') →
-   __townLife hooks). Item 14's evidence is DONE: `_evidence/run21a/swing-before/after-*.png`.
-3. Pack's scripted regression sweep: place/move/put-away (Meadow + Kitchen), one new-word
-   wish arrival, nap + wake, ride seat/unseat, 10 minutes walking all areas, window.onerror +
-   unhandledrejection armed, zero console errors.
-4. Fill RUN21A-REPORT.md gate sections.
-5. Deploy gate: BUILD_STAMP + What's New are ALREADY COMMITTED (`run21a-20260802` — re-stamp
-   to the actual merge date if it slips). Merge run21a → main (ff), push, fetch the live URL,
-   confirm the stamp serves.
-6. Then merge `run21f` (F1–F3) → regenerate PROJECT_STATE.md (`node tools/gen-state.mjs`) →
-   update this file → proceed to **RUN21B** (needs F1/F2, now present). Dispatch order after
-   B: C → D → E → F5+. F8/F9 remain SKIPPED-GATED (NEEDS_ALEX lines absent).
+Item 1 is the one place in this programme where wide fan-out genuinely pays: the 60 SVGs are
+independent, each has a one-line binding brief in the pack, and the style guide is explicit
+(ink `#2A1B4E`, stroke 6 at a 120 viewBox, round caps, white sticker halo, flat fills,
+readable at 60px). Confirm the palette hexes against `css/styles.css` custom properties
+first — the pack says vars win. Everything else in the pack is sequential.
 
-## Notes for the resuming session
-- Boo-town is the repo; the RUN21 dispatch's Fix/Deviate/Block rules apply. Ultracode is
-  fine WITHIN packs (scout fan-outs, verify sweeps) — packs stay serial (they all rewrite
-  js/town.js; B needs A merged, etc.).
-- `npm test` points at missing tests/run.mjs (F4 fixes it; noted, do not repair mid-run).
-- The r10p2 "guide line names the area as full" failure ALSO deserves a real look if it
-  survives serial: item 2's mount-time renderDecorateTab or item 15's drawer changes could
-  plausibly interact with renderDrawer's empty-state timing.
-- Old run20 notes (speech cluster, Toddler Stories decision — still AWAITING ALEX) were
-  overwritten here; they live in git history of this file and in BLOCKED.md.
+---
+
+## Testing notes this session paid for
+
+1. **Two lanes, not three.** At 3 lanes the affected-suite board produced 4 false failures;
+   at 2 lanes, 2; serially, 0. Every "flake" was confirmed by ONE serial re-run, per board law.
+2. **Frame-evidence suites are the flaky ones** — `r4p5-town` (seesaw wants ≥5 distinct
+   frames, got 4 under load, 7 serially) and `.hub` boot timeouts (`r10p5-personalities`).
+3. **A green assertion can be green for the wrong reason.** `r10p2-sockets` asserted "the
+   25th item is refused" and passed — while the click that should have been refused was
+   being swallowed by a bug. The assertion that actually caught it was the *guide line*.
+4. **Seed Boos on-camera.** An outdoor area is FOUR viewports wide, so at the default
+   scrollX anything above x ≈ 0.25 is off the right edge, where `stepActors` skips it as
+   offscreen and a real mouse click cannot reach it. A test that "passes" with an offscreen
+   actor is usually proving nothing.
+5. **`npm test` still does not run** — `package.json` points at a missing `tests/run.mjs`.
+   RUN21F F4 owns that; do not fix it mid-run. Invoke suites directly:
+   `BASE=http://127.0.0.1:8001 node tests/<name>.mjs`.
+
+## The gate recipe that worked
+
+```
+git clone --branch <branch> --single-branch . ../Boo-town-<b>-gate
+cd ../Boo-town-<b>-gate && cmd //c "mklink /J node_modules ..\Boo-town\node_modules"
+python _serve.py 8001
+for s in <suites>; do BASE=http://127.0.0.1:8001 node tests/$s.mjs; done
+```
+
+## RUN21 programme state
+
+| Pack | State |
+|---|---|
+| **A** Reach & Truth | **SHIPPED** `run21a-20260803` |
+| **F1–F3** tools + PROJECT_STATE | **SHIPPED** (merged with A) |
+| **B** Look & Feel | **NEXT** — prereqs met |
+| **C** Build Dissolved | after B (needs A; B/C/D order is the maintainer's call from play notes) |
+| **D** Alive on Arrival | after B (needs A) |
+| **E** Every Area a Job | after B/D (needs A) |
+| **F4** doc truth pass | deferred until A–E merged, so CHANGELOG/README have real reports |
+| **F5** save v24 | strictly LAST, after A–E |
+| **F6, F7, F10** | any time after their prereqs (F6 completes A item 11's Visit-a-Town) |
+| **F8** leitmotifs · **F9** Twiggy voice | **SKIPPED-GATED** — NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE` and `VOICE: APPROVED · BUDGET: <MB>` |
+
+## Still open, unchanged by this run
+
+- **Toddler Stories is too hard for 3–4s** — awaiting the maintainer's decision (three
+  options in git history of this file; recommended: remove the Stories door from the Toddler
+  hub, one line in `js/hub.js`). Not actioned: it removes a game.
+- The pre-existing speech-cluster failures and the other known-broken suites listed in
+  `BLOCKED.md` are untouched by RUN21A.
+- One judgement call worth a glance: `RUN21A-PROGRESS.md` and `RUN21A-REPORT.md` are
+  COMMITTED (public repo), matching the seven existing tracked `RUN*_REPORT.md` files.
+  They carry no names, no secrets. Gitignore them if you would rather they stayed private.

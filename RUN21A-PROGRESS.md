@@ -2,7 +2,8 @@
 
 Branch: `run21a` (from main @ 96a5aeb, build run20d-20260731). SAVE VERSION stays 23.
 Pack: `RUN21-programme/RUN21A-pack.md`. Resume at the first unchecked item.
-Item 17 is intentionally absent from the pack (returns as a micro-pack after Alex's tablet pass).
+Item 17 is intentionally absent from the pack (returns as a micro-pack after the maintainer's
+tablet pass).
 
 - [x] Item 1 — Un-delete seated Boos (the invisible-Boo bug)
 - [x] Item 2 — Decorate renders at mount and on tab select; everything names its room (+ TDZ hotfix: roomIdOfArea hoisted)
