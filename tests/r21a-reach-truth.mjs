@@ -290,7 +290,10 @@ console.log('== item 8: reveals queue, never stack ==');
   await page.click('.overlay.growth-reveal .btn');
   await sleep(900);
   const second = await page.evaluate(() => document.querySelectorAll('.overlay.growth-reveal').length);
-  assert(second <= 1, `dismissing shows the next, still one at a time (${second})`);
+  // EXACTLY one, not "at most one": this fixture has BOTH a finished growth milestone and a
+  // finished ride, so the queue must actually pump the second reveal up. `<= 1` would pass
+  // just as happily if the second were silently dropped, which is the failure this guards.
+  assert(second === 1, `dismissing shows the NEXT one, still one at a time (${second})`);
   await ctx.close();
 }
 
