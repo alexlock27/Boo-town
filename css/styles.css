@@ -2414,7 +2414,8 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 
 /* ---- town 2.0: scrolling parallax world ---- */
-/* RUN10 P1: area header strip, exactly 56px — back-to-map (left) / area name (centre) / hammer (right) */
+/* RUN10 P1: area header strip, exactly 56px — back-to-map (left) / area name (centre).
+   RUN21C-1: the hammer that used to sit on the right is gone; the drawer carries the intent. */
 .town-header { display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 56px; box-sizing: border-box; flex: 0 0 auto; }
 .town-header h2 { color: var(--card); margin: 0; font-size: 22px; flex: 1; text-align: center; }
 .town-hint { flex: 1; color: var(--star); font-family: var(--font-display); font-size: 16px; text-align: right; }
@@ -2464,8 +2465,6 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   100% { opacity: 0; transform: translateX(-26px); }
 }
 @media (prefers-reduced-motion: reduce) { .t-edge-shim { display: none; } }
-.town-hammer-btn { font-size: 20px; }   /* RUN10 P3: build mode toggle */
-.town-hammer-btn.active { background: #5F4FC4; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset; }
 /* entry/exit crossfade (P1): the map badge scales up into this scene, 300ms */
 .town2 { opacity: 1; transition: opacity 0.3s ease; }
 .town2.entering { opacity: 0; }
@@ -4393,8 +4392,10 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 }
 .drop-ghost.show { opacity: 1; }
 
-/* ---- RUN10 P3: build mode — toybox lid opening, calm/powerful/reversible ---- */
-/* Freeze: living behaviours pause (JS skips stepActors) and this transition eases the
+/* ---- RUN10 P3 / RUN21C-1: the SOFTENED world (there is no build mode any more) ---- */
+/* `.building` is kept as the class name because it IS this freeze contract; what changed is
+   who sets it — the drawer being open, or something held on her finger, rather than a hammer.
+   Freeze: living behaviours pause (JS skips stepActors) and this transition eases the
    last pose in rather than a hard cut; CSS-driven animations (dance, sleep breathe,
    twinkle) pause outright so NOTHING moves while she's placing things. */
 .town2.building .t-item svg { transition: transform 250ms ease; }
@@ -4402,25 +4403,20 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 @media (prefers-reduced-motion: reduce) { .town2.building .t-item svg { transition: none; } }
 
 /* 5%-cell grid overlay, 12% white, fades in — lives in the (pointer-events:none) air
-   layer so it never blocks placement taps; background-size set per-layout in JS. */
+   layer so it never blocks placement taps; background-size set per-layout in JS.
+   RUN21C-2: shown only while the Path Pot is in her hand (`.painting`). A paint grid over
+   the whole world every time the tray opened would be noise: the grid is for painting. */
 .t-build-grid {
   position: absolute; left: 0; top: 0; opacity: 0; pointer-events: none; transition: opacity 200ms ease;
   background-image:
     linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
 }
-.town2.building .t-build-grid { opacity: 1; }
+.town2.painting .t-build-grid { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .t-build-grid { transition: none; } }
 
-/* Build-mode tool row (right edge, vertical, 56px buttons) + path-style strip. Hidden
-   outside build mode; the style strip additionally hides unless Paths is the active tool
-   (toggled in JS via updateBuildUI). */
-.t-tool-row, .t-path-style-row {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  display: flex; flex-direction: column; gap: 8px; z-index: 20;
-}
-.t-path-style-row { right: 76px; }
-.town2:not(.building) .t-tool-row, .town2:not(.building) .t-path-style-row { display: none; }
+/* RUN21C-1: the Paths | Erase tool row is deleted. The path-style strip survives — see the
+   docked-strip rules further down — and its buttons keep the .t-tool-btn look. */
 .t-tool-btn {
   width: 56px; height: 56px; border-radius: 16px; border: 3px solid var(--ink); background: var(--card);
   font-size: 24px; box-shadow: 0 3px 10px rgba(0,0,0,0.25); cursor: pointer;
@@ -5348,18 +5344,8 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .game-card .stars-row { display: inline-flex; gap: 3px; align-items: center; max-width: 100%; flex-wrap: nowrap; }
 .game-card .stars-row svg { flex-shrink: 0; }
 
-/* ---- Town Build-Mode Toolbar Labels ---- */
-.town-hammer-btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
-  background: var(--card); border: 2.5px solid var(--ink); border-radius: 20px;
-  box-shadow: var(--card-shadow); cursor: pointer; color: var(--ink);
-  font-family: var(--font-display); font-size: 16px; font-weight: 700;
-}
-.town-hammer-btn.hammer-active { background: var(--star); border-color: var(--ink); }
-.t-tool-row {
-  position: absolute; right: 14px; top: 76px; z-index: 65;
-  display: flex; flex-direction: column; gap: 10px;
-}
+/* ---- RUN21C-1: the hammer and its tool row are DELETED. What survives is the path-style
+   strip, which now docks above the drawer while the Path Pot is held (see below). ---- */
 .t-tool-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   width: 66px; height: 66px; padding: 4px; border-radius: 16px;
@@ -5371,10 +5357,15 @@ body.care-teaching .intro-overlay { z-index: 12500; }
 .t-tool-btn .tool-ic { font-size: 24px; line-height: 1; }
 .t-tool-btn .tool-lbl { font-family: var(--font-display); font-size: 12px; font-weight: 700; line-height: 1.1; text-align: center; }
 
+/* RUN21C-2: docked above the drawer, centred, only while the Path Pot is in her hand. It
+   sits at the bottom of the VIEWPORT — the drawer is the next sibling down in the town's
+   column layout — so "above the drawer" needs no magic numbers and no fixed positioning. */
 .t-path-style-row {
-  position: absolute; right: 88px; top: 130px; z-index: 65;
-  display: flex; gap: 8px; background: rgba(20,12,48,0.85); padding: 8px; border-radius: 18px; border: 2px solid rgba(255,255,255,0.3);
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; z-index: 65;
+  display: flex; gap: 8px; background: rgba(20,12,48,0.85); padding: 8px; border-radius: 18px;
+  border: 2px solid rgba(255,255,255,0.3); max-width: calc(100% - 24px); overflow-x: auto;
 }
+.t-path-style-row .t-style-btn { width: 60px; height: 60px; flex: 0 0 auto; }
 
 /* ---- Flash Boos ---- */
 .flash-question h2 { color: #FFFFFF !important; text-shadow: 0 2px 8px rgba(0,0,0,0.8) !important; font-weight: 800; font-size: 26px; }
