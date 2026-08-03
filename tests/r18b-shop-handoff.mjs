@@ -77,6 +77,10 @@ console.log('== 1. every id on every shelf gets the right verb ==');
     }
     if (m.kind === 'furniture') return m.to !== 'house-lounge' || !/Pop it in a room\?$/.test(m.line);
     if (m.kind === 'accessory') return m.to !== 'dress' || m.label !== 'Dress a Boo';
+    // RUN21C-4: a path STYLE is not held on the finger — it is a way of laying paths. It
+    // keeps the place verb's OWN words (no new copy was invented for it) and only changes
+    // the door: the town, with the Path Pot already in her hand and that style picked.
+    if (m.kind === 'path') return m.to !== 'town-path' || !/Where shall it go\?$/.test(m.line) || m.label !== 'Take me there';
     return m.to !== 'town-here' || !/Where shall it go\?$/.test(m.line);
   });
   // ...and no item is EVER sent somewhere it cannot legally be placed. This is the
