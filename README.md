@@ -28,8 +28,9 @@ them a whole island of places to live under an indigo night sky.
 **A world of eight places**, reached from an island world map.
 
 - Six outdoors — the Meadow, Riverside, Hilltop, Sunny Beach, the Boo Funfair and the
-  Playground — each **four screens wide**, with wandering Boos, real-clock day and night,
-  weather and per-area ambient sound.
+  Playground — each **four screens wide**, with wandering Boos, real-clock day and night, and
+  weather. Five of them have their own synthesised ambient sound (the funfair has its own
+  music instead).
 - Two indoors — the Boo House (Lounge, Kitchen and Bedroom, each with its own wallpaper and
   floor) and the Gallery.
 - The Meadow, Funfair, Playground, Boo House and Gallery are open from the start; Riverside,

@@ -273,3 +273,4 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - RUN21F-PROGRESS.md: - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
 - RUN21F2-PROGRESS.md: SKIPPED-GATED (NEEDS_ALEX.md lacks their approval lines). Nothing else in the pack is
 - RUN21F2-PROGRESS.md: `playjournal.js` and shares nothing with it. Nothing to log to BLOCKED.md.
+- RUN21F4-PROGRESS.md: ## BLOCKED
