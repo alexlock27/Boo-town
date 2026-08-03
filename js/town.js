@@ -7,7 +7,7 @@ import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './
 import { getState, mutate, commit } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
-import { renderItem, renderDeco, clockHands } from './art.js';
+import { renderItem, renderDeco, clockHands, renderPathPot } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
@@ -215,6 +215,12 @@ const PATH_CELL = 0.05;           // grid cell size: 5% of the area's width, squ
 // RUN21C-2: the one line the Path Pot says while it is in her hand. Authored copy — exact.
 export const PATH_POT_HINT = 'Drag along the ground to lay a path — paint over it to sweep it away.';
 export const PATH_POT_ID = 'path_pot';   // the permanent first chip in the Landscape tab
+// The Pot's style row. stone/sand/flower are free and always hers (RUN10 P3).
+export const PATH_STYLES = [
+  { id: 'stone', label: '🪨', title: 'Stone' },
+  { id: 'sand', label: '🏖️', title: 'Sand' },
+  { id: 'flower', label: '🌸', title: 'Flower' }
+];
 // Landscape items are a Build-mode toybox, not a collectible — always available in the
 // drawer regardless of `inventory` (never granted/decremented there), so a fresh save's
 // inventory stays exactly what she's actually won.
@@ -580,19 +586,8 @@ export function mount(container, params, ctx) {
   //
   // The path-style row survives as the strip that docks above the drawer while the Pot is
   // held (item 2 wires it; item 4 fills it from the shop).
-  const PATH_STYLES = [
-    { id: 'stone', label: '🪨', title: 'Stone' },
-    { id: 'sand', label: '🏖️', title: 'Sand' },
-    { id: 'flower', label: '🌸', title: 'Flower' }
-  ];
-  const styleBtns = PATH_STYLES.map(sd => el('button', {
-    class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : ''), type: 'button', 'aria-label': sd.title,
-    onclick: () => selectPathStyle(sd.id)
-  }, [
-    el('span', { class: 'tool-ic', text: sd.label }),
-    el('span', { class: 'tool-lbl', text: sd.title })
-  ]));
-  const pathStyleRow = el('div', { class: 't-path-style-row' }, styleBtns);
+  let styleBtns = [];
+  const pathStyleRow = el('div', { class: 't-path-style-row', role: 'group', 'aria-label': 'Path styles' });
   pathStyleRow.addEventListener('pointerdown', e => e.stopPropagation());
   pathStyleRow.style.display = 'none';
   viewport.append(pathStyleRow);
@@ -865,9 +860,22 @@ export function mount(container, params, ctx) {
     const { bandTopPx, bandBotPx, cellW, cellH } = cellGeom();
     return { cx: Math.floor(worldX / cellW), cy: Math.floor((localY - bandTopPx) / cellH), inBand: localY >= bandTopPx && localY <= bandBotPx };
   }
+  // RUN21C-2: ONE action per cell per stroke. paintCell is a toggle (same style over the
+  // same cell scrubs it), and a finger crossing a cell fires pointermove many times inside
+  // it — so without this a slow drag laid a cell and immediately swept it away again, over
+  // and over. The old Erase tool hid the problem by being a separate one-way tool; now that
+  // scrubbing IS the eraser, the stroke has to remember where it has already been.
+  let strokeSeen = null;
+  function beginStroke() { strokeSeen = new Set(); }
+  function endStroke() { strokeSeen = null; }
   function paintAtClient(cx, cy) {
     const cell = cellAtClient(cx, cy);
     if (!cell.inBand) return;
+    if (strokeSeen) {
+      const key = cell.cx + ':' + cell.cy;
+      if (strokeSeen.has(key)) return;
+      strokeSeen.add(key);
+    }
     paintCell(cell.cx, cell.cy);
   }
 
@@ -888,7 +896,69 @@ export function mount(container, params, ctx) {
   function selectPathStyle(id) {
     sfx.tap();
     pathStyle = id;
-    styleBtns.forEach((b, i) => b.classList.toggle('sel', PATH_STYLES[i].id === id));
+    styleBtns.forEach(b => b.classList.toggle('sel', b.dataset.style === id));
+  }
+  // The docked style row, rebuilt each time the Pot is lifted so a style bought since the
+  // last lift is simply there.
+  function renderPathStyleRow() {
+    clear(pathStyleRow);
+    styleBtns = PATH_STYLES.map(sd => el('button', {
+      class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : ''), type: 'button',
+      'aria-label': sd.title, dataset: { style: sd.id },
+      onclick: () => selectPathStyle(sd.id)
+    }, [
+      el('span', { class: 'tool-ic', text: sd.label }),
+      el('span', { class: 'tool-lbl', text: sd.title })
+    ]));
+    styleBtns.forEach(b => pathStyleRow.appendChild(b));
+  }
+
+  // ---- RUN21C-2: the Path Pot -----------------------------------------------------------
+  // Painting is a thing she picks up now, not a mode she enters. The Pot is the permanent
+  // first chip in Landscape; lifting it opens the same painting session build mode used to
+  // (loadPendingPaths + the 10s auto-commit), docks the style row above the drawer, and turns
+  // a drag along the ground band into paintCell calls. Putting it down commits. NOTHING about
+  // the path DATA changes — `paths:[{cx,cy,style}]` and PATH_CAP are exactly as they were.
+  const potChip = () => el('button', {
+    class: 'drawer-item path-pot' + (potHeld ? ' holding' : ''), dataset: { item: PATH_POT_ID },
+    'aria-label': potHeld ? 'Put the Path Pot away' : 'Path Pot — lay a path',
+    onclick: () => togglePot()
+  }, [
+    el('div', { class: 'drawer-art', html: renderPathPot({ size: 60 }) })
+  ]);
+  function togglePot() { potHeld ? putPotAway() : liftPot(); }
+  function liftPot() {
+    if (potHeld) return;
+    sfx.tap();
+    holding = null; placeMode = false;   // one thing on her finger at a time
+    potHeld = true;
+    loadPendingPaths();
+    if (!pathCommitTimer) pathCommitTimer = setInterval(commitPaths, 10000);   // "every 10s" (RUN10 P3)
+    renderPathStyleRow();
+    pathStyleRow.style.display = '';
+    root.classList.add('painting');   // the 5% grid appears — it is a paint grid, so it comes with the brush
+    renderDrawer(); updateHint(); updateSoftened();
+    // Same handoff as selectHold: the tray closes so she can reach the ground, and it is NOT
+    // shielded, because her very next gesture is the stroke (RUN21A-10).
+    drawerApi.close({ shield: false });
+  }
+  function putPotAway() {
+    if (!potHeld) return;
+    sfx.tap();
+    potHeld = false; painting = false;
+    if (pathCommitTimer) { clearInterval(pathCommitTimer); pathCommitTimer = null; }
+    commitPaths();
+    pendingPaths = null;
+    pathStyleRow.style.display = 'none';
+    root.classList.remove('painting');
+    renderPaths();   // back onto the saved list — identical content, one source of truth
+    renderDrawer(); updateHint(); updateSoftened();
+  }
+  // Released over the drawer (open tray or collapsed handle) = put it away.
+  function overDrawer(cx, cy) {
+    const boxes = [drawer, drawer.querySelector('.bd-tray'), drawer.querySelector('.bd-collapsed')]
+      .filter(Boolean).map(n => n.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0);
+    return boxes.some(b => cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom);
   }
   function updateDrawerTabs() {
     // Landscape is an outdoor-only toybox (RUN10 P3/P4). RUN21A-15: no longer hidden
@@ -3388,6 +3458,7 @@ export function mount(container, params, ctx) {
     // RUN21C-2: a drag on the ground paints only while the Path Pot is actually in her hand.
     if (potHeld) {
       painting = true;
+      beginStroke();
       viewport.setPointerCapture(e.pointerId);
       paintAtClient(e.clientX, e.clientY);
       return;
@@ -3410,7 +3481,12 @@ export function mount(container, params, ctx) {
     lastX = e.clientX; lastT = now;
   });
   const endScroll = (e) => {
-    if (painting) { painting = false; return; }
+    if (painting) {
+      painting = false; endStroke();
+      // RUN21C-2: a stroke that ends on the drawer is her putting the Pot back.
+      if (potHeld && overDrawer(e.clientX, e.clientY)) putPotAway();
+      return;
+    }
     if (!dragScroll) return;
     dragScroll = false;
     // place-mode: a tap on empty ground places the held item here
@@ -3423,7 +3499,7 @@ export function mount(container, params, ctx) {
     })();
   };
   viewport.addEventListener('pointerup', endScroll);
-  viewport.addEventListener('pointercancel', () => { dragScroll = false; painting = false; });
+  viewport.addEventListener('pointercancel', () => { dragScroll = false; painting = false; endStroke(); });
   viewport.addEventListener('wheel', e => { scrollX += e.deltaY + e.deltaX; clampScroll(); applyScroll(); }, { passive: true });
 
   // ---- placement ----------------------------------------------------------
@@ -3679,6 +3755,9 @@ export function mount(container, params, ctx) {
     // chips, so renderDrawer has nothing to say about it — clearing it here wiped the tab
     // every time an item was placed.
     for (const [id, strip] of Object.entries(drawerStrips)) { if (id !== 'decorate') clear(strip); }
+    // RUN21C-2: the Path Pot is a PERMANENT first chip in Landscape — a tool, not stock, so
+    // it is not in `free` and never runs out. Outdoors only, like the tab that holds it.
+    if (AREA.kind === 'outdoor') drawerStrips.landscape.appendChild(potChip());
     // Landscape items don't count toward "she hasn't collected anything yet" — that empty
     // state is about Boos/decorations she's still working to win.
     const nonLandscapeIds = ids.filter(id => { const it = resolveItem(id); return !it || it.kind !== 'landscape'; });
@@ -3686,7 +3765,7 @@ export function mount(container, params, ctx) {
       DRAWER_TABS_SPEC.forEach((spec, i) => {
         // ...but not Decorate (RUN19 Z6): wallpaper is not something she has to win first, and
         // "win games to collect Boos" is simply untrue there.
-        if (spec.id !== 'decorate') drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
+        if (spec.id !== 'decorate' && !drawerStrips[spec.id].children.length) drawerStrips[spec.id].appendChild(el('div', { class: 'drawer-empty', text: 'Win games to collect Boos, then place them here! 🌱' }));
         if (tabButtons[i]) tabButtons[i].textContent = spec.label;
       });
       return;
@@ -3765,6 +3844,9 @@ export function mount(container, params, ctx) {
       if (phase === 'deciding') {
         if (Math.hypot(dx, dy) < 10) return;
         if (!downChip || Math.abs(dx) > Math.abs(dy)) phase = 'scroll';
+        // RUN21C-2: dragging the Path Pot off the strip lifts it AND starts the stroke, so
+        // one gesture goes from the tray to the ground without a stop in between.
+        else if (downChip.dataset.item === PATH_POT_ID) { phase = 'potpaint'; liftPot(); beginStroke(); }
         else { phase = 'lift'; beginChipLift(downChip, downChip.dataset.item); }
       }
       if (phase === 'scroll') {
@@ -3774,6 +3856,8 @@ export function mount(container, params, ctx) {
         lastX = e.clientX; lastT = now;
       } else if (phase === 'lift') {
         updateChipLift(e.clientX, e.clientY);
+      } else if (phase === 'potpaint') {
+        paintAtClient(e.clientX, e.clientY);   // out of the band = a no-op, so the tray is safe
       }
     });
     const end = (e) => {
@@ -3782,11 +3866,14 @@ export function mount(container, params, ctx) {
         if (Math.abs(v) >= 0.5 && !REDUCED) (function mom() { strip.scrollLeft -= v; v *= 0.94; if (Math.abs(v) > 0.4) raf = requestAnimationFrame(mom); })();
       } else if (phase === 'lift') {
         endChipLift(e.clientX, e.clientY);
+      } else if (phase === 'potpaint') {
+        endStroke();
+        if (overDrawer(e.clientX, e.clientY)) putPotAway();   // released over the drawer = away
       }
       phase = 'idle'; downChip = null;
     };
     strip.addEventListener('pointerup', end);
-    strip.addEventListener('pointercancel', () => { if (phase === 'lift') cancelChipLift(); phase = 'idle'; downChip = null; });
+    strip.addEventListener('pointercancel', () => { if (phase === 'lift') cancelChipLift(); endStroke(); phase = 'idle'; downChip = null; });
   }
 
   // ---- RUN19 Z5: Sprinkle, on the unified play-mode long-press card -------------------
