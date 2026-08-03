@@ -184,9 +184,12 @@ let bannerResize = null;
 // authored sentence must never be cut off) and because "Bigger text" zooms the whole page:
 // either can change the height, and a magic number in the CSS would then either overlap the
 // screen's header or leave a stripe of nothing.
+// offsetHeight, NOT getBoundingClientRect(): "Bigger text" applies `zoom: 1.125` to <body>,
+// which scales the rect but not the layout px that `top` is then resolved in — measuring the
+// rect would push the screen down by the zoom factor twice and leave a stripe of nothing.
 function syncBannerHeight() {
   if (!bannerEl) return;
-  document.documentElement.style.setProperty('--visit-banner-h', Math.ceil(bannerEl.getBoundingClientRect().height) + 'px');
+  document.documentElement.style.setProperty('--visit-banner-h', (bannerEl.offsetHeight || 54) + 'px');
 }
 function showBanner(ctx) {
   if (bannerEl) return bannerEl;
