@@ -271,6 +271,7 @@ const PULSE_INVITATIONS = {
   boohouse_kitchen:  'Try tapping a sleepy Boo…',
   boohouse_bedroom:  'Try tapping a sleepy Boo…'
 };
+const SHOW_ME_RING_MS = 2000;    // RUN21D-2: how long "Show me" rings the thing it landed on
 // "Prefer things not shown today" — a SESSION set, never the save. There is no ledger of
 // what the town has already shown her; it resets on load like every other pacing memory
 // here (js/ack.js, js/encouragement.js, wishlife's visit tokens).
@@ -1844,8 +1845,18 @@ export function mount(container, params, ctx) {
     if (!bubble) return false;
     pulseBubble(bubble);
     const t = placed.find(x => x.item === r.booId);
-    if (t && !fracOnScreen(t.x)) panToFrac(t.x, PULSE_PAN_MS);
+    if (t) pulsePanTo(t.x);
     return true;
+  }
+  // The pulse may take the camera somewhere — but never AWAY from somewhere the child has
+  // already sent it. She can drag the view, or open a request card and press "Show me",
+  // inside the pulse's own 900ms window, and the ambient breath must not undo that. Same
+  // principle as reveals winning: anything she started outranks the town clearing its
+  // throat. `cameraClaimed` is set by every deliberate camera move she makes.
+  function pulsePanTo(xFrac) {
+    if (cameraClaimed || panRaf) return;
+    if (fracOnScreen(xFrac)) return;
+    panToFrac(xFrac, PULSE_PAN_MS);
   }
   function pulseBubble(bubble) {
     if (REDUCED) return;
@@ -1866,7 +1877,7 @@ export function mount(container, params, ctx) {
       if (isWish(t.item)) {
         const item = resolveItem(t.item);
         if (!item || !wishTap(wrap, t, item)) continue;   // its authored wish verb, played once
-        if (!fracOnScreen(t.x)) panToFrac(t.x, PULSE_PAN_MS);
+        pulsePanTo(t.x);
         return true;
       }
       // A seat or an activity: the nearest Boo goes and uses it. Walking there IS the
@@ -1876,7 +1887,7 @@ export function mount(container, params, ctx) {
         if (!a) continue;
         clearRole(a); endWait(a);
         a.goal = { kind: 'approach', deco: t, targetDx: (t.x - a.place.x) * zoneW, start: performance.now() };
-        if (!fracOnScreen(t.x)) panToFrac(t.x, PULSE_PAN_MS);
+        pulsePanTo(t.x);
         return true;
       }
     }
@@ -2849,6 +2860,17 @@ export function mount(container, params, ctx) {
     if (r.kind === 'dance') return root.querySelector('.ff-disco-door') || null;
     return null;
   }
+  // RUN21D-2: where in THIS area that node stands, as an x-fraction — what the camera needs
+  // to take her to it. Null when the request names nothing here (a wardrobe accessory, a
+  // friend parked in another area): those keep their existing cross-screen buttons.
+  function requestTargetFrac(r) {
+    if (!r || !r.kind) return null;
+    if (r.kind === 'dance') return root.querySelector('.ff-disco-door') ? DISCO_DOOR_X : null;
+    const node = requestTargetNode(r);
+    if (!node) return null;
+    const x = +node.dataset.x;
+    return Number.isFinite(x) ? x : null;
+  }
 
   function renderRequestBubble() {
     ground.querySelectorAll('.request-bubble, .request-treat, .request-thought').forEach(n => n.remove());
@@ -2917,6 +2939,17 @@ export function mount(container, params, ctx) {
     } else if (r.kind === 'visit') {
       card.appendChild(el('p', { class: 'rq-card-hint', text: guideLine('request_visit_hint') }));
     }
+    // RUN21D-2: the thing she is being asked about is often two screens away in an area four
+    // viewports wide, and until now the card said its name and left her to go and hunt for
+    // it. When it is HERE, one button takes her to it. Cross-area targets are untouched —
+    // they keep the buttons above, and this adds no routing of its own.
+    const showFrac = requestTargetFrac(r);
+    if (showFrac != null) {
+      btns.appendChild(el('button', {
+        class: 'btn', text: 'Show me',
+        onclick: () => { sfx.tap(); dismiss(); showMeTarget(r, showFrac); }
+      }));
+    }
     btns.appendChild(el('button', { class: 'btn soft', text: 'Okay!', onclick: () => { sfx.tap(); dismiss(); } }));
     card.appendChild(btns);
     ov.appendChild(card);
@@ -2927,6 +2960,17 @@ export function mount(container, params, ctx) {
     // what she needs is on another screen, which is exactly what the pack asks for.
     const tn = requestTargetNode(r);
     if (tn && !REDUCED) { tn.classList.remove('rq-glow'); void tn.offsetWidth; tn.classList.add('rq-glow'); setTimeout(() => tn.classList.remove('rq-glow'), 2400); }
+  }
+  // "Show me": the same 600ms ease everything else in RUN21D pans with, and then a soft ring
+  // so the thing she was taken to says "this one" without a word of copy. The ring is drawn
+  // after the pan starts, not after it lands — it should already be glowing as it arrives.
+  function showMeTarget(r, xFrac) {
+    cameraClaimed = true;                 // her camera now — the Pulse stands off it
+    panToFrac(xFrac, PULSE_PAN_MS);
+    const node = requestTargetNode(r);
+    if (!node) return;
+    node.classList.remove('rq-ring'); void node.offsetWidth; node.classList.add('rq-ring');
+    setTimeout(() => node.classList.remove('rq-ring'), SHOW_ME_RING_MS);
   }
 
   // ---- fulfilment: the ceremony every verb shares ----------------------------------
@@ -3167,6 +3211,9 @@ export function mount(container, params, ctx) {
   // growing its own easing loop (and its own reduced-motion bug). `panRaf` is held so a
   // second pan cancels the first instead of the two fighting over scrollX.
   let panRaf = null;
+  // Set the moment the child takes the camera somewhere herself (a drag, "Show me", a
+  // landmark dot, a fair sign). Read by the Pulse, which then never pans on top of her.
+  let cameraClaimed = false;
   function panToPx(target, ms = PULSE_PAN_MS) {
     target = Math.max(0, Math.min(target, Math.max(0, worldW - viewW)));
     if (panRaf) { cancelAnimationFrame(panRaf); panRaf = null; }
@@ -3226,7 +3273,7 @@ export function mount(container, params, ctx) {
     if (placeMode && holding && isSmall(holding)) showSlotGlow(nearestFreeSlot(e.clientX, e.clientY));
     if (!dragScroll) return;
     const dx = e.clientX - sx;
-    if (Math.abs(dx) > 4) movedScroll = true;
+    if (Math.abs(dx) > 4) { movedScroll = true; cameraClaimed = true; }   // RUN21D-1: her camera now
     scrollX = sScroll - dx; clampScroll(); applyScroll();
     const now = performance.now(); const dt = now - lastT;
     if (dt > 0) vel = (e.clientX - lastX) / dt;
@@ -5365,6 +5412,19 @@ export function mount(container, params, ctx) {
       }),
       signaturePoint: () => signaturePoint(),
       panToFrac: (x, ms) => panToFrac(x, ms),
+      // RUN21D-2: the request card and where "Show me" actually lands the camera.
+      requestBubbles: () => [...ground.querySelectorAll('.request-thought')].map(n => n.dataset.boo),
+      openRequestFor: (booId) => { const r = activeRequests().find(x => x.booId === booId); if (!r) return false; openRequestCard(r); return true; },
+      requestTargetFrac: (booId) => { const r = activeRequests().find(x => x.booId === booId); return r ? requestTargetFrac(r) : null; },
+      // Where the request's target sits in the viewport right now, 0 = left edge, 1 = right.
+      targetViewFrac: (booId) => {
+        const r = activeRequests().find(x => x.booId === booId);
+        const n = r && requestTargetNode(r);
+        if (!n) return null;
+        const vr = viewport.getBoundingClientRect(), nr = n.getBoundingClientRect();
+        return (nr.left + nr.width / 2 - vr.left) / (vr.width || 1);
+      },
+      ringed: () => [...ground.querySelectorAll('.rq-ring')].map(n => n.dataset.item || n.className),
       // What every actor is actually DOING — the state proof behind a movement beat.
       goals: () => actors.map(a => ({ item: a.place && a.place.item, goal: a.goal && a.goal.kind, role: a.role && a.role.kind, state: a.state })),
       behaviourSample: (i, n) => {

@@ -1920,8 +1920,12 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   display: grid; place-items: center; cursor: pointer;
   background: var(--card); border: 2px solid var(--ink); border-radius: 50%;
   box-shadow: var(--card-shadow); z-index: 8;
-  animation: rq-bob 2s ease-in-out infinite;
+  /* RUN21D-2: the bob says "a thought"; the breathe says "still waiting" — a gentle
+     1 → 1.06 once every six seconds. It rides the individual `scale` property so the bob
+     keeps its own transform; two animations, two properties, no fight. */
+  animation: rq-bob 2s ease-in-out infinite, rq-breathe 6s ease-in-out infinite;
 }
+@keyframes rq-breathe { 0%, 86%, 100% { scale: 1; } 93% { scale: 1.06; } }
 /* The tail: two shrinking dots, so it reads as a THOUGHT and not a speech bubble. */
 .request-thought::after {
   content: ''; position: absolute; left: 50%; bottom: -12px; width: 8px; height: 8px;
@@ -1937,6 +1941,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
    underneath it instead of the two fighting over one transform. 3 × 0.8s = PULSE_BUBBLE_MS. */
 .request-thought.rq-pulse3 { animation: rq-bob 2s ease-in-out infinite, rq-pulse3-scale 0.8s ease-in-out 3; }
 @keyframes rq-pulse3-scale { 0%,100% { scale: 1; } 50% { scale: 1.14; } }
+/* RUN21D-2: "Show me" lands the camera on the thing and rings it for two seconds, so the
+   arrival names its own subject. A ring, not the card's drop-shadow glow — this one has to
+   read against ride art and painted paths as well as against grass. */
+.rq-ring { animation: rq-ring-pulse 1s ease-in-out 2; border-radius: 12px; }
+@keyframes rq-ring-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,122,198,0); }
+  40%     { box-shadow: 0 0 0 6px rgba(255,122,198,0.85), 0 0 16px 8px rgba(255,201,60,0.45); }
+}
 
 /* The request card */
 .request-card { max-width: 360px; padding: 20px; text-align: center; }
@@ -1969,8 +1981,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @media (prefers-reduced-motion: reduce) {
   .request-thought, .request-thought.rq-pulse3 { animation: none !important; scale: 1 !important; }
   .rq-glow, .rq-thanks, .rq-fly { animation: none !important; }
+  /* the ring still MARKS the target, it just stops flashing: a static outline instead */
+  .rq-ring { animation: none !important; box-shadow: 0 0 0 5px rgba(255,122,198,0.9) !important; }
 }
 .reduced .request-thought, .reduced .request-thought.rq-pulse3, .reduced .rq-glow, .reduced .rq-thanks { animation: none !important; scale: 1 !important; }
+.reduced .rq-ring { animation: none !important; box-shadow: 0 0 0 5px rgba(255,122,198,0.9) !important; }
 
 /* the 8 dance moves (applied one per beat to a Boo svg) */
 .move-bounce { animation: mv-bounce 0.6s ease-in-out; transform-origin: 50% 100%; }
@@ -2467,7 +2482,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); animation: mbPeek 2.4s ease-in-out infinite;
 }
 @keyframes mbPeek { 0%, 82%, 100% { transform: translateY(0); } 90% { transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) { .mb-hide-chip { animation: none; } }
+/* RUN21D-2: …and a thought chip on whichever area has somebody wondering something. Left
+   shoulder, so it never sits on top of the 👀 chip when one area has both. */
+.mb-wonder-chip {
+  position: absolute; top: -4px; left: -2px; font-size: 15px; line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); animation: mbWonder 3.6s ease-in-out infinite;
+}
+@keyframes mbWonder { 0%, 80%, 100% { transform: scale(1); } 90% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .mb-hide-chip, .mb-wonder-chip { animation: none; } }
 .map-toast {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%) translateY(10px);
   background: rgba(20,12,48,0.82); color: var(--card); font-family: var(--font-display); font-size: 15px;
