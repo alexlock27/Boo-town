@@ -16,7 +16,8 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
       evidence `_evidence/run21b/item4-glow-indoor-table.png`, `item4-glow-indoor-bookshelf.png`)
 - [ ] Item 5 — Seat offset polish
 - [ ] Item 6 — Feedback scale-up (train 2.2×, ripples, sand, river)
-- [ ] Item 7 — Disco floor spacing
+- [x] Item 7 — Disco floor spacing (worst overlap 51.7% → 10.2%; see deviation 7;
+      evidence `_evidence/run21b/item7-disco-1280.png`, `item7-disco-390.png`)
 
 ## BLOCKED
 (none yet)
@@ -86,6 +87,20 @@ Prereqs confirmed present: `tools/asset-preview.html`, `tools/anchor-tuner.html`
    - Judgement logged: `crown` is in the pack's GLEAM list but is `cls: TAP`; it gets the
      GLEAM *idle* while keeping its crown verb. `balloon` is `cls: FLYER` but is NOT in the
      pack's FLIER list, so it gets no new idle — left as the pack has it.
+
+7. **Item 7: right intent, wrong location — and it missed the real culprit.**
+   - Pack: "overflow rows stagger depth instead of overlapping", as though depth rows were
+     new. `FLOOR_ROWS` has had three rows with per-row scale and offset since RUN19.
+   - Pack: enforce the gap "when assigning floor spots", i.e. in `layoutFloor`. That
+     function is a PURE spread whose only input is a count — it cannot see a pixel, and it
+     is exported and unit-tested. The gap is therefore enforced in a second width-aware pass
+     (`spaceFloor`) called from `buildFloor`, where the container and dancer boxes are
+     measurable. Rows that cannot seat everyone hand overflow down a row (= the stagger).
+   - **The pack does not mention the spotlight at all, and it was the dominant cause.**
+     `vacateCentre` nudged crowded dancers to a fixed 0.35/0.65 while the spotlit dancer
+     itself takes 0.5 — leaving a neighbour 71px from it at 1280, where a Boo is 129px wide.
+     Row 0 now re-spreads around the spotlight at the measured gap. Without this the ACCEPT
+     fails on any spotlit frame, which is most of them.
 
 ## Session notes
 - Wish art lives in `renderWish()` (js/art.js ~1670), shared 120×130 deco viewBox, caption
