@@ -355,8 +355,11 @@ export function mount(container, params, ctx) {
   // tablet — not the friend's town, not a trace that it happened — and her own save is not
   // touched while it is open (js/state.js beginVisit).
   const visitMsg = el('span', { class: 'gu-msg gu-visit-msg' });
+  // Deliberately NOT `.gu-code`: that class means "a backup code box" to this screen's CSS
+  // and to three suites that pin to it, and a postcard is not a backup. Its own class,
+  // styled to match, keeps both contracts honest.
   const visitInput = el('textarea', {
-    class: 'gu-code gu-visit-code', rows: '3',
+    class: 'gu-visit-code', rows: '3',
     placeholder: 'Paste a Town Postcard code here…', 'aria-label': 'Paste a Town Postcard code to visit'
   });
   const visitBtn = el('button', { class: 'btn gu-visit-go', text: 'Visit this town', onclick: () => {

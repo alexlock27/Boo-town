@@ -7302,6 +7302,10 @@ body.visiting .screen-root { top: var(--visit-banner-h, 54px); }
   .visit-leave.btn.soft { padding: 6px 16px; font-size: 16px; }
 }
 
-/* the paste box in the Grown-ups corner */
-.gu-visit-code { font-size: 13px; }
+/* the paste box in the Grown-ups corner. Styled like `.gu-code` but deliberately not that
+   class: a postcard is not a backup code, and `.gu-code` is what the backup boxes are. */
+.gu-visit-code {
+  width: 100%; font-family: monospace; font-size: 13px; border: 2px solid #C9C0E0;
+  border-radius: 10px; padding: 8px; resize: vertical; color: var(--ink); background: #FBF7FF;
+}
 .gu-visit .gu-visit-go { font-size: 18px; padding: 12px 22px; }

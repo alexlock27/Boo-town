@@ -114,7 +114,9 @@ console.log('== the Backup tab preview card renders from a pasted code ==');
   const tabs = await page.locator('.gu-tabs button').allInnerTexts();
   const idx = tabs.findIndex(t => /backup/i.test(t));
   if (idx >= 0) await page.locator('.gu-tabs button').nth(idx).click();
-  await page.locator('textarea.gu-code[placeholder*="Paste"]').fill(code);
+  // RUN21F F6 re-point: there are two "Paste…" boxes in this corner now (the other is the
+  // Visit a Town postcard box). Named by what it IS, not by the word it shares.
+  await page.locator('textarea[aria-label="Paste backup code to restore"]').fill(code);
   await page.locator('button:has-text("Preview this code")').click();
   const card = await page.waitForSelector('.gu-preview-card', { timeout: 5000 }).then(() => true).catch(() => false);
   assert(card, 'a preview card appears before restoring');
