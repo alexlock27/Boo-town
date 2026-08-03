@@ -38,6 +38,7 @@ const ASSETS = [
   'js/gallerymuseum.js',
   'js/areas.js',
   'js/grownups.js',
+  'js/playjournal.js',
   'js/ceremony.js',
   'js/questions.js',
   'js/picker.js',
