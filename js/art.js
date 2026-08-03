@@ -1716,9 +1716,44 @@ export function renderPathPot({ size = 120, cls = '' } = {}) {
     `</g></svg>`;
 }
 
+// ---- RUN21C-4: a path STYLE, as a card swatch --------------------------------------
+// A short length of that path laid on grass, so the shelf shows what she would be buying
+// rather than a name. The six styles are drawn from the same specs the ground uses.
+const PATH_SWATCH = {
+  stone:    () => `<rect x="12" y="46" width="96" height="28" rx="13" fill="#C7C2B8" stroke="${INK}" stroke-width="3"/>` +
+    [26, 46, 66, 86].map((x, i) => `<circle cx="${x}" cy="${56 + (i % 2) * 10}" r="3" fill="rgba(42,27,78,.14)"/>`).join(''),
+  sand:     () => `<rect x="12" y="46" width="96" height="28" rx="13" fill="#EAD8A6" stroke="${INK}" stroke-width="3"/>` +
+    [22, 34, 46, 58, 70, 82, 94].map((x, i) => `<circle cx="${x}" cy="${54 + (i % 3) * 7}" r="1.8" fill="rgba(176,141,76,.5)"/>`).join(''),
+  flower:   () => `<rect x="12" y="46" width="96" height="28" rx="13" fill="#DCEFC6" stroke="${INK}" stroke-width="3"/>` +
+    `<circle cx="30" cy="56" r="4" fill="#FF9AD5"/><circle cx="54" cy="66" r="4" fill="#FFC93C"/><circle cx="78" cy="55" r="4" fill="#8FC7FF"/><circle cx="96" cy="65" r="3.4" fill="#FF9AD5"/>`,
+  // warm terracotta running-bond dashes
+  brick:    () => `<rect x="12" y="46" width="96" height="28" rx="13" fill="#C9714B" stroke="${INK}" stroke-width="3"/>` +
+    [[16, 49], [40, 49], [64, 49], [88, 49], [16, 62], [28, 62], [52, 62], [76, 62], [100, 62]]
+      .map(([x, y]) => `<rect x="${x}" y="${y}" width="20" height="9" rx="2.5" fill="#E08D63" stroke="rgba(42,27,78,.30)" stroke-width="1.4"/>`).join(''),
+  // spaced oval stones, the gaps showing grass
+  stepping: () => [22, 44, 66, 88].map((x, i) =>
+    `<ellipse cx="${x}" cy="${58 + (i % 2) * 5}" rx="10" ry="7.5" fill="#C7C2B8" stroke="${INK}" stroke-width="3"/>`).join(''),
+  // a soft three-band repeating wash
+  rainbow:  () => `<defs><linearGradient id="pw-rb" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0%" stop-color="#FFB3C7"/><stop offset="33%" stop-color="#FFB3C7"/>` +
+    `<stop offset="34%" stop-color="#FFE39A"/><stop offset="66%" stop-color="#FFE39A"/>` +
+    `<stop offset="67%" stop-color="#A9D8F5"/><stop offset="100%" stop-color="#A9D8F5"/>` +
+    `</linearGradient></defs>` +
+    `<rect x="12" y="46" width="96" height="28" rx="13" fill="url(#pw-rb)" stroke="${INK}" stroke-width="3"/>`
+};
+export function renderPathSwatch(item, { size = 120, cls = '' } = {}) {
+  const key = item.style || item.id || 'stone';
+  const draw = PATH_SWATCH[key] || PATH_SWATCH.stone;
+  return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" class="path-swatch path-swatch-${key} ${cls}" role="img" aria-label="${escapeHTML(item.name || key)}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect x="4" y="30" width="112" height="60" rx="14" fill="#6BA84F" stroke="${INK}" stroke-width="3"/>` +
+    `<path d="M14 40 l3 -7 3 7 M100 84 l3 -7 3 7" stroke="#4E8B39" stroke-width="2.4" stroke-linecap="round" fill="none"/>` +
+    draw() + `</svg>`;
+}
+
 // Generic render router used by collection/town.
 // opts.equipArt (Boos only) overlays an equipped accessory's art.
 export function renderItem(item, opts = {}) {
+  if (item.kind === 'path') return renderPathSwatch(item, opts);
   if (item.custom) return renderCustomBoo(item.custom, opts);
   if (item.kind === 'wish') return renderWish(item, opts);
   // landscape (RUN10 P3) and furniture (RUN10 P4) draw exactly like a deco — both are

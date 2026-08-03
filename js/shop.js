@@ -56,9 +56,14 @@ export function useVerbFor(itemId, shelfId) {
   // rather than inventing a third one. Recorded in NEEDS_ALEX.md as a pack correction.
   // (Found by the playtest critic, who called it an escalation rather than a deviation.)
   const line = shelfId === 'special' ? USE_VERBS.special.line : null;
+  // RUN21C-4: a path STYLE keeps the place verb's own words — "Where shall it go?" is
+  // exactly the question a new way of laying paths asks — but takes her somewhere the
+  // question can be answered: the town, with the Path Pot already in her hand and this
+  // style already picked. No new copy; a different door.
   const base = kind === 'furniture' ? USE_VERBS.furniture
     : kind === 'accessory' ? USE_VERBS.accessory
-      : USE_VERBS.place;   // deco · landscape · playground
+      : kind === 'path' ? { ...USE_VERBS.place, to: 'town-path' }
+        : USE_VERBS.place;   // deco · landscape · playground
   return line ? { ...base, line } : base;
 }
 
@@ -305,6 +310,45 @@ export function mount(container, params, ctx) {
   }
   const roomNameOf = (id) => (DRESSING_ROOMS.find(r => r.id === id) || {}).name || 'Boo House';
 
+  // One shelf card. Pulled out of renderShelves by RUN21C-4 so a GROUP (the Town shelf's
+  // "Paths") builds exactly the same card as the main grid rather than a near-copy of it.
+  function itemCard(s, shelf, id, cost, goal) {
+    const item = BY_ID[id];
+    if (!item) return null;
+    const owned = (s.inventory && s.inventory[id]) > 0;
+    const t = typeByKey(shelf.currency);
+    const afford = canAfford(s, shelf.currency, cost);
+    const card = el('div', { class: 'shop-card' + (owned ? ' owned' : '') + (!owned && !afford ? ' saving' : ''), dataset: { item: id } }, [
+      el('div', { class: 'sc-art', html: renderItem(item, { size: 76 }) }),
+      el('div', { class: 'sc-name', text: item.name }),
+      // RUN21C-4: a path style has to say what buying one MEANS — it is the one thing on any
+      // shelf that is not an object — so its authored blurb rides on the card.
+      item.kind === 'path' ? el('div', { class: 'sc-blurb', text: item.blurb }) : null,
+      owned
+        ? el('div', { class: 'sc-owned', text: '✓ Yours' })
+        : el('div', { class: 'sc-price' }, [
+            el('span', { class: 'sc-ic', text: t.icon }),
+            el('span', { class: 'sc-cost', text: String(cost) })
+          ])
+    ]);
+    if (!owned) {
+      const buy = el('button', {
+        class: 'btn sc-buy' + (afford ? '' : ' soft'),
+        text: afford ? 'Buy' : 'Save up',
+        'aria-label': afford ? `Buy ${item.name} for ${cost} ${t.name}` : `Save up for ${item.name}`,
+        onclick: () => afford ? doBuy(id) : toggleGoal(id)
+      });
+      card.appendChild(buy);
+      const heart = el('button', {
+        class: 'sc-heart' + (goal === id ? ' on' : ''), text: goal === id ? '💖' : '🤍',
+        'aria-label': goal === id ? `Stop saving up for ${item.name}` : `Save up for ${item.name}`,
+        onclick: () => toggleGoal(id)
+      });
+      card.appendChild(heart);
+    }
+    return card;
+  }
+
   function renderShelves() {
     const s = getState();
     const goal = currentGoal();
@@ -312,41 +356,26 @@ export function mount(container, params, ctx) {
       const node = shelfNodes[shelf.id];
       clear(node);
       node.appendChild(el('p', { class: 'shelf-blurb', text: shelf.blurb }));
+      // RUN21C-4: stock whose kind belongs to one of this shelf's GROUPS is lifted out of the
+      // main grid and shown under its own heading, the same shape RUN19 Z6's room dressings use.
+      const groups = shelf.groups || [];
+      const groupOf = (id) => groups.find(g => (BY_ID[id] || {}).kind === g.kind) || null;
       const grid = el('div', { class: 'shop-grid' });
       for (const [id, cost] of shelf.items) {
-        const item = BY_ID[id];
-        if (!item) continue;
-        const owned = (s.inventory && s.inventory[id]) > 0;
-        const t = typeByKey(shelf.currency);
-        const afford = canAfford(s, shelf.currency, cost);
-        const card = el('div', { class: 'shop-card' + (owned ? ' owned' : '') + (!owned && !afford ? ' saving' : ''), dataset: { item: id } }, [
-          el('div', { class: 'sc-art', html: renderItem(item, { size: 76 }) }),
-          el('div', { class: 'sc-name', text: item.name }),
-          owned
-            ? el('div', { class: 'sc-owned', text: '✓ Yours' })
-            : el('div', { class: 'sc-price' }, [
-                el('span', { class: 'sc-ic', text: t.icon }),
-                el('span', { class: 'sc-cost', text: String(cost) })
-              ])
-        ]);
-        if (!owned) {
-          const buy = el('button', {
-            class: 'btn sc-buy' + (afford ? '' : ' soft'),
-            text: afford ? 'Buy' : 'Save up',
-            'aria-label': afford ? `Buy ${item.name} for ${cost} ${t.name}` : `Save up for ${item.name}`,
-            onclick: () => afford ? doBuy(id) : toggleGoal(id)
-          });
-          card.appendChild(buy);
-          const heart = el('button', {
-            class: 'sc-heart' + (goal === id ? ' on' : ''), text: goal === id ? '💖' : '🤍',
-            'aria-label': goal === id ? `Stop saving up for ${item.name}` : `Save up for ${item.name}`,
-            onclick: () => toggleGoal(id)
-          });
-          card.appendChild(heart);
-        }
-        grid.appendChild(card);
+        if (groupOf(id)) continue;
+        const card = itemCard(s, shelf, id, cost, goal);
+        if (card) grid.appendChild(card);
       }
       node.appendChild(grid);
+      for (const g of groups) {
+        const mine = shelf.items.filter(([id]) => (BY_ID[id] || {}).kind === g.kind);
+        if (!mine.length) continue;
+        const gGrid = el('div', { class: 'shop-grid' });
+        for (const [id, cost] of mine) { const card = itemCard(s, shelf, id, cost, goal); if (card) gGrid.appendChild(card); }
+        node.appendChild(el('section', { class: 'shop-group', dataset: { group: g.id } }, [
+          el('div', { class: 'sd-room-chip', text: g.label }), gGrid
+        ]));
+      }
       // RUN19 Z6 — the room dressings, on the Creative (House) shelf, grouped under room-name
       // chips exactly as the pack's addendum describes.
       if (shelf.id === 'house') node.appendChild(dressingSection(s, shelf));
@@ -469,6 +498,8 @@ export function mount(container, params, ctx) {
     if (to === 'dress') return ctx.go('collection', { from: 'shop', dressWith: itemId });
     if (to === 'house-lounge') return ctx.go('town', { area: 'boohouse', room: 'lounge', build: true, place: itemId });
     const area = to === 'town-meadow' ? 'meadow' : ((params && params.fromArea) || 'meadow');
+    // RUN21C-4: a path style is not held on the finger — the POT is, with this style picked.
+    if (to === 'town-path') return ctx.go('town', { area, pot: (BY_ID[itemId] || {}).style || null });
     return ctx.go('town', { area, build: true, place: itemId });
   }
 

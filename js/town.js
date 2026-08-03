@@ -9,6 +9,7 @@ import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts 
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
 import { renderItem, renderDeco, clockHands, renderPathPot } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
+import { priceOf } from '../data/shop.js';   // RUN21C-4: the Pot's locked styles show their shelf price
 import { resolveItem } from './customs.js';
 import { listArtworks } from './studio.js';
 import { idbGet } from './idb.js';
@@ -215,11 +216,17 @@ const PATH_CELL = 0.05;           // grid cell size: 5% of the area's width, squ
 // RUN21C-2: the one line the Path Pot says while it is in her hand. Authored copy — exact.
 export const PATH_POT_HINT = 'Drag along the ground to lay a path — paint over it to sweep it away.';
 export const PATH_POT_ID = 'path_pot';   // the permanent first chip in the Landscape tab
-// The Pot's style row. stone/sand/flower are free and always hers (RUN10 P3).
+// The Pot's style row. stone/sand/flower are free and always hers (RUN10 P3); the other
+// three are RUN21C-4's shop stock, and carry the catalogue id that owning one writes into
+// `inventory`. An unowned style still SHOWS here, locked, with its price — she should be
+// able to see what she is saving for from the place she would use it.
 export const PATH_STYLES = [
   { id: 'stone', label: '🪨', title: 'Stone' },
   { id: 'sand', label: '🏖️', title: 'Sand' },
-  { id: 'flower', label: '🌸', title: 'Flower' }
+  { id: 'flower', label: '🌸', title: 'Flower' },
+  { id: 'brick', label: '🧱', title: 'Brick', sku: 'path_brick' },
+  { id: 'stepping', label: '👣', title: 'Stepping', sku: 'path_stepping' },
+  { id: 'rainbow', label: '🌈', title: 'Rainbow', sku: 'path_rainbow' }
 ];
 // Landscape items are a Build-mode toybox, not a collectible — always available in the
 // drawer regardless of `inventory` (never granted/decremented there), so a fresh save's
@@ -720,6 +727,14 @@ export function mount(container, params, ctx) {
         renderDrawer(); updateHint();
       }
     }
+    // RUN21C-4: she has just bought a path style and said "take me there". Arrive with the
+    // Path Pot in her hand and the new style already picked — the announced moment for a
+    // thing that is not an object is being able to draw with it at once.
+    if (params && params.pot && AREA.kind === 'outdoor') {
+      liftPot();
+      const sd = PATH_STYLES.find(x => x.id === params.pot);
+      if (sd && ownsStyle(sd)) { pathStyle = sd.id; styleBtns.forEach(b => b.classList.toggle('sel', b.dataset.style === sd.id)); }
+    }
     if (params && params.enterPan) setTimeout(() => panAcrossZone(0, 1600), REDUCED ? 0 : 200);
     if (params && params.openWishWell) setTimeout(() => openWellHere(), 350);
     // Growth milestones (RUN4 C6): spawn/queue sites, and if the Builders
@@ -954,23 +969,45 @@ export function mount(container, params, ctx) {
     root.classList.toggle('building', softened);
     renderRequestBubble();   // bubbles vanish while soft, and come back when she is done
   }
+  // RUN21C-4: a free style, or one she has bought. `inventory` is the whole record of
+  // ownership — no new save key, no VERSION bump.
+  const ownsStyle = (sd) => !sd.sku || ((getState().inventory || {})[sd.sku] || 0) > 0;
   function selectPathStyle(id) {
+    const sd = PATH_STYLES.find(x => x.id === id);
+    if (sd && !ownsStyle(sd)) return goShopForStyle(sd);
     sfx.tap();
     pathStyle = id;
     styleBtns.forEach(b => b.classList.toggle('sel', b.dataset.style === id));
+  }
+  // A locked chip is a door, not a wall (RUN21A item 9's pattern): it takes her to the shelf
+  // that sells it, with the card ringed, and Back brings her straight back to this area.
+  function goShopForStyle(sd) {
+    sfx.tap();
+    const price = priceOf(sd.sku);
+    ctx.go('shop', {
+      from: 'town', fromArea: AREA.key, ...(ROOM ? { fromRoom: roomId } : {}),
+      shelf: (price && price.shelf) || 'town', highlight: sd.sku
+    });
   }
   // The docked style row, rebuilt each time the Pot is lifted so a style bought since the
   // last lift is simply there.
   function renderPathStyleRow() {
     clear(pathStyleRow);
-    styleBtns = PATH_STYLES.map(sd => el('button', {
-      class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : ''), type: 'button',
-      'aria-label': sd.title, dataset: { style: sd.id },
-      onclick: () => selectPathStyle(sd.id)
-    }, [
-      el('span', { class: 'tool-ic', text: sd.label }),
-      el('span', { class: 'tool-lbl', text: sd.title })
-    ]));
+    styleBtns = PATH_STYLES.map(sd => {
+      const owned = ownsStyle(sd);
+      const price = sd.sku ? priceOf(sd.sku) : null;
+      const cost = price ? price.cost : null;
+      return el('button', {
+        class: 't-tool-btn t-style-btn' + (pathStyle === sd.id ? ' sel' : '') + (owned ? '' : ' locked'),
+        type: 'button', dataset: { style: sd.id },
+        'aria-label': owned ? sd.title : `${sd.title} — ${cost} maths stars in the shop`,
+        onclick: () => selectPathStyle(sd.id)
+      }, [
+        el('span', { class: 'tool-ic', text: sd.label }),
+        el('span', { class: 'tool-lbl', text: sd.title }),
+        owned ? null : el('span', { class: 'style-lock', text: `🔒 ${cost}★` })
+      ]);
+    });
     styleBtns.forEach(b => pathStyleRow.appendChild(b));
   }
 
@@ -3789,7 +3826,9 @@ export function mount(container, params, ctx) {
     for (const t of areaItems(st)) placed[t.item] = (placed[t.item] || 0) + 1;
     const free = {};
     for (const [id, n] of Object.entries(st.inventory)) {
-      const rit = resolveItem(id); if (!rit || rit.kind === "accessory") continue; // accessories are worn
+      // accessories are worn; a path STYLE (RUN21C-4) is a way of drawing, not a thing to
+      // put down — it belongs in the Pot's style row, never as a drawer chip.
+      const rit = resolveItem(id); if (!rit || rit.kind === 'accessory' || rit.kind === 'path') continue;
       if (rit.kind === 'furniture' && !isInterior) continue;
       const f = n - (placed[id] || 0);
       if (f > 0) free[id] = f;
