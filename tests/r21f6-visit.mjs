@@ -205,6 +205,24 @@ await sleep(400);
   assert(b.mapReadonly === true, 'the world map mounted read-only');
   assert(!b.hasExport, 'and it does NOT offer to share a postcard of somebody else’s town');
 }
+{
+  // WCAG AA on the one piece of new chrome. The banner is a SOLID fill, so the ratio can be
+  // computed from the resolved colours rather than sampled — no pixel capture needed, and it
+  // is checked on the real element rather than on the constants in the stylesheet.
+  const c = await page.evaluate(() => {
+    const line = document.querySelector('.visit-banner-line'), leave = document.querySelector('.visit-leave');
+    const cs = getComputedStyle(line), bs = getComputedStyle(document.querySelector('.visit-banner')), ls = getComputedStyle(leave);
+    return { fg: cs.color, bg: bs.backgroundColor, size: parseFloat(cs.fontSize), weight: cs.fontWeight,
+             lfg: ls.color, lbg: ls.backgroundColor };
+  });
+  const rgb = (s) => (String(s).match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+  const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const need = (c.size >= 24 || (c.size >= 18.66 && +c.weight >= 700)) ? 3 : 4.5;
+  const r1 = ratio(c.fg, c.bg), r2 = ratio(c.lfg, c.lbg);
+  assert(r1 >= need, `the banner's line clears WCAG AA (${r1.toFixed(1)}:1, needs ${need})`);
+  assert(r2 >= 4.5, `and so does the Leave button (${r2.toFixed(1)}:1)`);
+}
 await page.screenshot({ path: `${SHOTS}/3-visit-worldmap.png` });
 
 // A's placements render; B's do not
@@ -249,6 +267,22 @@ await gotoTown(page, { area: 'meadow' });
 }
 await page.screenshot({ path: `${SHOTS}/3-visit-meadow.png` });
 
+// …and the rest of what a postcard carries: the Boo House's placements and the room
+// DRESSING she chose. (Her friend's Starry Night wallpaper is on the wall; nothing about
+// owning it travels, because applying one has never cost anything.)
+await gotoTown(page, { area: 'boohouse', room: 'lounge' });
+{
+  const room = await page.evaluate(() => ({
+    items: [...document.querySelectorAll('.t-item')].map(n => n.dataset.item),
+    dressing: document.querySelectorAll('.t-interior-wall .t-dressing').length,
+    applied: (window.BooTown.State.getState().dressings || {}).lounge || null
+  }));
+  for (const id of ['deco_armchair', 'boo_lolly']) assert(room.items.includes(id), `A's ${id} renders in the visited Lounge`);
+  assert(room.applied && room.applied.walls === 'lounge_walls_starry', `A's chosen wallpaper came with the postcard (${JSON.stringify(room.applied)})`);
+  assert(room.dressing === 1, 'and it is actually painted on the wall');
+}
+await page.screenshot({ path: `${SHOTS}/3-visit-lounge.png` });
+
 // ==================== 4. the interaction sweep ====================
 console.log(`== 4. ${Math.round(SWEEP_MS / 1000)}s of trying to change somebody else's town ==`);
 const boxOf = (page, sel, i = 0) => page.evaluate(([s, k]) => {
@@ -259,10 +293,14 @@ const boxOf = (page, sel, i = 0) => page.evaluate(([s, k]) => {
 }, [sel, i]);
 
 const placementsNow = () => page.evaluate(() => [...document.querySelectorAll('.t-item')].map(n => `${n.dataset.item}@${n.dataset.x}:${n.dataset.row}`).sort().join('|'));
+// Back to the Meadow first: the sweep's before/after comparison has to be the SAME area,
+// and the block above left us standing in the Lounge.
+await gotoTown(page, { area: 'meadow' });
 const beforeSweep = await placementsNow();
 
 const sweepStart = Date.now();
 let laps = 0, drags = 0, taps = 0;
+const doorsSeen = new Set();
 const AREA_LOOP = [{ area: 'meadow' }, { area: 'boohouse', room: 'lounge' }, { area: 'playground' }, { area: 'boohouse', room: 'kitchen' }, { area: 'funfair' }];
 while (Date.now() - sweepStart < SWEEP_MS) {
   const where = AREA_LOOP[laps % AREA_LOOP.length];
@@ -302,7 +340,10 @@ while (Date.now() - sweepStart < SWEEP_MS) {
     if (!d) continue;
     await page.mouse.move(d.x, d.y); await page.mouse.down(); await page.mouse.up(); await sleep(180);
     const scr = await page.evaluate(() => document.getElementById('screen').dataset.screen);
-    assert(scr === 'town', `the ${sel} door stays shut in a visited town (screen: ${scr})`);
+    // Pressed on every lap; reported once per door, or a long sweep prints the same four
+    // lines twenty times over.
+    if (!doorsSeen.has(sel)) { doorsSeen.add(sel); assert(scr === 'town', `the ${sel} door stays shut in a visited town (screen: ${scr})`); }
+    else if (scr !== 'town') assert(false, `the ${sel} door opened on lap ${laps} (screen: ${scr})`);
   }
   // (g) the mutation paths a child cannot reach without the tray, driven straight through
   //     the QA seams: force-hold an item and place it, paint a path cell and commit it, ask
@@ -336,7 +377,9 @@ console.log(`  · ${laps} laps, ${taps} taps, ${drags} attempted moves in ${Math
 await gotoTown(page, { area: 'meadow' });
 {
   const afterSweep = await placementsNow();
-  assert(afterSweep === beforeSweep, 'not one placement moved under the sweep');
+  assert(afterSweep === beforeSweep, `not one placement moved under the sweep${afterSweep === beforeSweep ? '' : `
+      before: ${beforeSweep}
+      after:  ${afterSweep}`}`);
   const state = await page.evaluate(() => ({
     menus: document.querySelectorAll('.plot-menu').length,
     cards: document.querySelectorAll('.play-card-ov').length,
@@ -471,6 +514,17 @@ for (const vp of [{ name: '768x1024', w: 768, h: 1024 }, { name: '390x844', w: 3
   assert(!geo.overlap && geo.leaveW >= 44 && geo.leaveH >= 44, `${vp.name}: Leave is clear of the line and still a real target (${geo.leaveW}x${geo.leaveH})`);
   assert(geo.items.includes('boo_inky'), `${vp.name}: and A's town is what is on screen`);
   await vpage.screenshot({ path: `${SHOTS}/7-visit-${vp.name}.png` });
+  // …and with "Bigger text" on, which zooms the whole page: the banner grows, and the screen
+  // below it has to grow down with it rather than hiding behind it or leaving a stripe.
+  const big = await vpage.evaluate(() => {
+    document.documentElement.classList.add('bigger-text');
+    window.dispatchEvent(new Event('resize'));
+    const r = document.querySelector('.visit-banner').getBoundingClientRect();
+    const s = document.getElementById('screen').getBoundingClientRect();
+    return { gap: Math.round(s.top - r.bottom), h: Math.round(r.height) };
+  });
+  assert(big.gap >= -1 && big.gap <= 4, `${vp.name}: "Bigger text" keeps the screen tight under the banner (gap ${big.gap}px of ${big.h}px)`);
+  await vpage.evaluate(() => document.documentElement.classList.remove('bigger-text'));
   await vctx.close();
 }
 
