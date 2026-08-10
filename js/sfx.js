@@ -3,6 +3,7 @@
 // Everything is feature-detected and wrapped so a missing/blocked context never throws.
 
 import { haptic } from './haptics.js';   // a gentle tick on correct answers (RUN9 C7)
+import { LEITMOTIFS } from '../data/leitmotifs.js';   // region leitmotifs (RUN21F F8)
 
 let ctx = null;
 let master = null;     // master gain
@@ -78,7 +79,10 @@ export function setMusicEnabled(on) {
     try { bedGain.gain.setTargetAtTime(musicOn ? BED_GAIN : 0, ctx.currentTime, 0.05); } catch {}
   }
   logEvent({ kind: 'mute', target: 'music', on: musicOn });
-  if (musicOn && currentLoop) startScheduler(); else if (!musicOn) stopScheduler();   // muting stops scheduling (silent + no waste)
+  // muting stops scheduling (silent + no waste); a leitmotif loop and a classic loop
+  // run different schedulers, so route by the current loop's kind (RUN21F F8)
+  if (musicOn && currentLoop) { if (isLeitmotif(currentLoop)) startLmScheduler(); else startScheduler(); }
+  else if (!musicOn) { stopScheduler(); stopLmScheduler(); }
   if (musicOn && ambientLoop) startAmbient(); else if (!musicOn) stopAmbient();
   if (musicOn && bedArea) startBed(); else if (!musicOn) stopBed();
 }
@@ -247,9 +251,13 @@ export const music = {
     if (currentLoop === which) return;
     currentLoop = which;
     step = 0;
-    if (musicOn) startScheduler();
+    // A leitmotif key ('leitmotif:<area>', RUN21F F8) and a classic key ('calm'|'game'|
+    // 'fair') run different schedulers: switching kinds swaps them; switching within a
+    // kind retunes the scheduler already in flight (both read currentLoop per tick).
+    if (isLeitmotif(which)) { stopScheduler(); lmRewind(); if (musicOn) startLmScheduler(); }
+    else { stopLmScheduler(); if (musicOn) startScheduler(); }
   },
-  stop() { currentLoop = null; stopScheduler(); },
+  stop() { currentLoop = null; stopScheduler(); stopLmScheduler(); },
   // duck volume while the guide speaks, then restore
   duck(on) {
     logEvent({ kind: 'duck', on: !!on });
@@ -585,10 +593,132 @@ export const animal = {
   }
 };
 
+// ---- region leitmotifs (RUN21F F8) -----------------------------------------------------
+// One 8-bar tune per outdoor area, authored as note-event arrays in data/leitmotifs.js
+// (band-engine event shape: t ms · i voice · v semitones from C4 · d duration ms) and
+// played as that area's calm-music VARIANT: same music bus, same volume, same duck, same
+// mute, same visibility pause. The scheduler is the music loop's own lookahead pattern
+// (audio-clock, 60ms tick), which is what makes the 8-bar loop genuinely seamless —
+// startBandWatch's setTimeout player (sfx bus, +900ms loop gap) is the wrong tool for a
+// continuous piece and would breach the continuity law. All synthesis goes through
+// envTone onto musicGain: no new audio path, no new bus (F7's rule).
+//
+// This region is deliberately self-contained and placed away from the `band` object
+// (Lane 5 works beside guitar() tonight) so tomorrow's merge stays clean.
+let lmTimer = null;      // lookahead scheduler interval
+let lmLoopStart = 0;     // audio-clock time of the CURRENT loop pass's beat 0
+let lmIdx = 0;           // next event to schedule within the pass
+
+function isLeitmotif(which) { return typeof which === 'string' && which.startsWith('leitmotif:'); }
+// The town asks by area key; anywhere without a tune gets null and falls back to 'calm'.
+export function leitmotifKey(area) { return LEITMOTIFS[area] ? 'leitmotif:' + area : null; }
+function lmSpec() { return isLeitmotif(currentLoop) ? LEITMOTIFS[currentLoop.slice(10)] : null; }
+
+// (Re)aim the loop at "now" — on first start, and on an area switch mid-flight so the
+// new tune begins at its own bar 1 rather than partway through the old one's clock.
+function lmRewind() {
+  if (!ctx) return;
+  lmLoopStart = ctx.currentTime + 0.1;
+  lmIdx = 0;
+}
+
+function startLmScheduler() {
+  const spec = lmSpec();
+  if (!ctx || !musicOn || !spec || !spec.events.length) return;
+  if (lmTimer) return;   // already running: lmRewind() has re-aimed it (see music.play)
+  lmRewind();
+  lmTimer = setInterval(scheduleLm, 60);
+  logEvent({ kind: 'leitmotif', area: currentLoop.slice(10), bpm: spec.bpm, durMs: Math.round(spec.durMs) });
+}
+function stopLmScheduler() { if (lmTimer) { clearInterval(lmTimer); lmTimer = null; } }
+
+function scheduleLm() {
+  // Timed under the audio log (tests only) so the suite can put a real number on the
+  // scheduler's main-thread cost, exactly as F7's bedtick does.
+  const t0 = audioLog ? performance.now() : 0;
+  const spec = lmSpec();
+  if (ctx && spec && musicOn) {
+    const horizon = ctx.currentTime + 0.25;
+    let guard = 0;                       // safety: never spin, whatever the data says
+    while (guard++ < 400) {
+      if (lmIdx >= spec.events.length) { lmLoopStart += spec.durMs / 1000; lmIdx = 0; }
+      const ev = spec.events[lmIdx];
+      const at = lmLoopStart + ev.t / 1000;
+      if (at >= horizon) break;          // seamless: the NEXT pass is just more events
+      lmNote(ev, at);
+      lmIdx++;
+    }
+  }
+  if (audioLog) logEvent({ kind: 'lmtick', ms: +(performance.now() - t0).toFixed(4) });
+}
+
+// A SUSTAINING envelope — attack, hold, release — rather than envTone's pluck.
+// envTone ramps exponentially from peak to silence across the note's WHOLE duration,
+// which is right for a chirp and wrong for a held tone: measured, a 4-beat meadow pad is
+// 42dB down (inaudible) two seconds into its 2.9s life, and hilltop's 6.3s drone — whose
+// entire job is to keep the air alive between sparse calls — is 28dB down by 3s. Written
+// with envTone these tunes would have had holes in them wherever the music breathes,
+// which is precisely the continuity law's target. Same context, same musicGain bus, same
+// mutes, same duck, same log shape: one envelope generator, not a second audio path.
+function lmTone(f, t0, dur, type, peak, sustain, attack, tag) {
+  if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f, t0);
+  const atk = Math.min(attack, dur * 0.35);
+  const body = Math.max(0.0002, peak * sustain);
+  const rel = Math.min(0.55, dur * 0.4);          // ends exactly at t0+dur: never crosses the seam
+  const hold = Math.max(atk + 0.01, dur - rel);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + atk);                       // bloom
+  g.gain.exponentialRampToValueAtTime(body, t0 + Math.min(atk + 0.22, hold)); // settle...
+  g.gain.setValueAtTime(body, t0 + hold);                                     // ...and HOLD
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);                      // release
+  o.connect(g); g.connect(musicGain);
+  o.start(t0); o.stop(t0 + dur + 0.03);
+  if (audioLog && tag) logEvent({ kind: 'note', t: t0, freq: Math.round(f), dur, bus: 'music', tag });
+}
+
+// Three voices on the music bus. Peaks sit beside the classic calm loop's (sparkle 0.18 /
+// pads 0.12+0.09) so a leitmotif area is no louder than a calm one. Notes tag as
+// 'lm:<area>:<voice>' (the beds' 'bed:beach:gull' convention), so a capture proves WHICH
+// tune was playing, not merely that one was.
+function lmNote(ev, at) {
+  const area = currentLoop.slice(10);
+  const f = ROOT * Math.pow(2, ev.v / 12);
+  const d = Math.max(0.08, ev.d / 1000);
+  if (ev.i === 'lead') {
+    // a music-box tone: quick bloom, then a softer body that stays audible while held
+    lmTone(f, at, d, 'triangle', 0.16, 0.55, 0.014, 'lm:' + area + ':lead');
+    lmTone(f * 2, at, Math.min(d, 0.7), 'sine', 0.05, 0.4, 0.014, null);   // shimmer, unlogged
+  } else if (ev.i === 'pad') {
+    // the warmth: swells in, holds nearly flat — this is what a drone needs to be a drone
+    lmTone(f, at, d, 'sine', 0.10, 0.88, 0.18, 'lm:' + area + ':pad');
+  } else if (ev.i === 'bass') {
+    lmTone(f, at, d, 'triangle', 0.12, 0.62, 0.03, 'lm:' + area + ':bass');
+  }
+}
+
+// Test seam: the leitmotif player's live state without listening to the speakers.
+export function lmInfo() {
+  const spec = lmSpec();
+  return {
+    loop: currentLoop,
+    area: isLeitmotif(currentLoop) ? currentLoop.slice(10) : null,
+    scheduling: !!lmTimer,
+    gain: musicGain ? +musicGain.gain.value.toFixed(4) : null,
+    bpm: spec ? spec.bpm : null
+  };
+}
+
 // Pause loops when the tab is hidden (spec §11.3).
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { stopScheduler(); stopAmbient(); stopBed(); }
-    else { if (currentLoop && musicOn) startScheduler(); if (ambientLoop && musicOn) startAmbient(); if (bedArea && musicOn) startBed(); }
+    if (document.hidden) { stopScheduler(); stopLmScheduler(); stopAmbient(); stopBed(); }
+    else {
+      if (currentLoop && musicOn) { if (isLeitmotif(currentLoop)) startLmScheduler(); else startScheduler(); }
+      if (ambientLoop && musicOn) startAmbient();
+      if (bedArea && musicOn) startBed();
+    }
   });
 }

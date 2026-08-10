@@ -19,7 +19,7 @@ import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreograph
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
-import { sfx, music, ambient, bed } from './sfx.js';
+import { sfx, music, ambient, bed, leitmotifKey } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
@@ -532,7 +532,11 @@ export function mount(container, params, ctx) {
   // the map is the only way in), all that code keeps working unchanged.
   const ZONES = [{ key: STORE_KEY, name: ROOM ? ROOM.name : AREA.name, unlock: 0 }];
   const ZONE_INDEX = { [STORE_KEY]: 0 };
-  music.play('calm');
+  // RUN21F F8: an outdoor area with a leitmotif plays ITS tune as the calm variant —
+  // same bus, same volume, same duck. Interiors and anywhere unlisted keep plain 'calm';
+  // the funfair swaps to its jingle/band the moment updateZoneMusic looks (below).
+  const CALM_LOOP = leitmotifKey(AREA.key) || 'calm';
+  music.play(CALM_LOOP);
   // F6: a visitor's tap does not tick somebody else's daily quests, and does not start their
   // Boos wondering things (below). Both write through mutate, which is inert for the whole
   // visit — these guards say the same thing out loud rather than relying on it.
@@ -2095,7 +2099,7 @@ export function mount(container, params, ctx) {
     if (p >= 1) {   // the parade is over: everyone returns to their spots
       actors.forEach(x => { x.parading = null; const s2 = x.wrap.querySelector('svg'); if (s2) s2.style.transform = ''; });
       paradeUntil = 0;
-      music.play('calm');
+      music.play(CALM_LOOP);   // back to the area's own tune, not generic calm (F8)
       renderPlaced();   // fresh render: roles reassign, an unfound hider re-hides
       return;
     }
@@ -3700,7 +3704,7 @@ export function mount(container, params, ctx) {
     const zi = Math.floor((scrollX + viewW / 2) / zoneW);
     // First time the (always-open) funfair is centred, play its grand opening (RUN7 C1).
     if (ZONES[zi] && ZONES[zi].key === 'funfair') maybeGrandOpening();
-    let want = 'calm';
+    let want = CALM_LOOP;   // the area's leitmotif where one exists (RUN21F F8)
     if (ZONES[zi] && ZONES[zi].key === 'funfair' && funfairUnlocked()) {
       const bandPx = ZONE_INDEX['funfair'] * zoneW + BANDSTAND_X * zoneW - scrollX;
       want = (bandPx > -80 && bandPx < viewW + 80) ? 'band' : 'fair';

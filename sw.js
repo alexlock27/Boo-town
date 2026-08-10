@@ -146,6 +146,7 @@ const ASSETS = [
   'data/spelling.js',
   'data/detective.js',
   'data/songs.js',
+  'data/leitmotifs.js',
   'data/spellingBanks.js',
   'data/phonemes.js',
   'data/blending.js',
