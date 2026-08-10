@@ -21,6 +21,21 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21H. ONE entry, and it deliberately does NOT say what the pack's draft said.
+  // The draft promised "a real moo, a real woof, a real quack" — and those are exactly the
+  // three sounds that have no licence-clean recording anywhere, so the cow, the dog and the
+  // duck are still synthesised. Promising a child a moo she will not hear is worse than
+  // promising nothing, so the entry names only what she can actually go and hear tonight.
+  // The content work in this run gets no entry at all: "we made the questions make sense"
+  // is not a sentence for a child.
+  {
+    version: 'run21h-20260810',
+    entries: [
+      { icon: '🐑', title: 'Some animals sound REAL now',
+        blurb: 'Go and listen to the sheep, the cat, the frog, the bee and the lion — those are real recordings, not beeps. Which one makes you laugh?',
+        route: 'toddlergame', params: { game: 'animals' } }
+    ]
+  },
   // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it
   // buys is not: things she puts ON things now travel with them. F6 gets NO entry — it
   // completes the promise RUN21A already made ("a friend can come and look around your

@@ -164,7 +164,20 @@ const ASSETS = [
   'assets/icons/icon-512.png',
   'assets/icons/icon-192-maskable.png',
   'assets/icons/icon-512-maskable.png',
-  'assets/icons/favicon-48.png'
+  'assets/icons/favicon-48.png',
+  // RUN21H B3 — the real recorded sounds (GOVERNANCE §3a'). These are precached in the SAME
+  // commit that created them, per the OFFLINE LAW, so the first tap works with no network
+  // and every tap after it comes from cache. The manifest ships too: tests/r21h-ears.mjs
+  // reads it to prove manifest, disk and this list all agree, and tests/r11q9-zeronet.mjs
+  // treats a same-origin request for a path in this list as lawful — anything else still fails.
+  'assets/sfx/manifest.json',
+  'assets/sfx/cat.wav',
+  'assets/sfx/sheep.wav',
+  'assets/sfx/bee.wav',
+  'assets/sfx/frog.wav',
+  'assets/sfx/lion.wav',
+  'assets/sfx/seagull.wav',
+  'assets/sfx/blackbird.wav'
 ];
 
 self.addEventListener('install', (event) => {

@@ -59,15 +59,24 @@ for (const tier of ['light', 'medium', 'full']) {
 console.log('== Animal Sounds ==');
 {
   const { ctx, page } = await fresh(SAVE());
-  // every one of the ten animals synthesizes a DISTINCT tagged call
+  // Every one of the ten animals makes its OWN distinct sound. RUN21H B3 changed HOW five
+  // of them are produced — cat, sheep, bee, frog and lion are now real recordings, the
+  // other five are still synthesised, because no licence-clean recording of a cow, a dog,
+  // a duck or an owl exists. The law the child cares about is unchanged and is what is
+  // asserted here: ten animals, ten different sounds, none silent. Preloading first, so a
+  // sample is decoded and its play is logged synchronously like the synth calls.
   const tags = await page.evaluate(async () => {
     const sfx = await import('./js/sfx.js');
-    sfx.setAudioLog(true); sfx.initAudio(); sfx.setSoundEnabled(true);
+    sfx.initAudio(); sfx.setSoundEnabled(true);
+    for (const id of sfx.SAMPLE_IDS) await sfx.loadSample(id);
+    sfx.setAudioLog(true);
     for (const k of sfx.ANIMAL_KEYS) sfx.animal.call(k);
-    await new Promise(r => setTimeout(r, 120));
-    return sfx.getAudioLog().filter(e => e.tag && e.tag.startsWith('animal:')).map(e => e.tag);
+    await new Promise(r => setTimeout(r, 200));
+    return sfx.getAudioLog()
+      .filter(e => e.tag && (e.tag.startsWith('animal:') || e.tag.startsWith('sample:')))
+      .map(e => e.tag.replace(/^sample:/, 'animal:'));
   });
-  assert(distinct(tags) === 10 && tags.length === 10, `all ten animals log a distinct synthesized call (${distinct(tags)}/10)`);
+  assert(distinct(tags) === 10 && tags.length === 10, `all ten animals make a distinct sound, recorded or synthesised (${distinct(tags)}/10)`);
   // the round: 6 distinct animals, no repeat
   await page.evaluate(() => window.BooTown.go('toddlergame', { game: 'animals' }));
   await page.waitForSelector('.td-animal-cards'); await sleep(200);

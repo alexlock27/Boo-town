@@ -35,11 +35,53 @@ console.log('== no other network egress anywhere in js/ ==');
     const src = readFileSync(f, 'utf8');
     src.split('\n').forEach((ln, i) => {
       if (/\bnew WebSocket\b|\bXMLHttpRequest\b|\bnavigator\.sendBeacon\b|\bEventSource\b/.test(ln)) offenders.push(`${f}:${i + 1} ${ln.trim().slice(0, 70)}`);
-      if (/\bfetch\s*\(/.test(ln) && !/gallery\.js$/.test(f)) offenders.push(`${f}:${i + 1} ${ln.trim().slice(0, 70)}`);
+      // RUN21H B3 (RULE CHANGED — see below): sfx.js may fetch, but ONLY the sample files,
+      // and §4 proves every one of them is same-origin and precached.
+      if (/\bfetch\s*\(/.test(ln) && !/gallery\.js$/.test(f) && !/sfx\.js$/.test(f)) offenders.push(`${f}:${i + 1} ${ln.trim().slice(0, 70)}`);
     });
   }
   if (offenders.length) offenders.forEach(o => console.log('   ' + o));
-  assert(offenders.length === 0, `js/ contains no fetch/XHR/WebSocket/beacon outside the guarded share path (found ${offenders.length})`);
+  assert(offenders.length === 0, `js/ contains no fetch/XHR/WebSocket/beacon outside the guarded share path and the sample loader (found ${offenders.length})`);
+}
+
+// ---------------------------------------------------------------------------------------
+// RUN21H B3 — RULE CHANGED, and it STRENGTHENS this suite rather than relaxing it.
+//
+// Before tonight the rule was "js/ contains no fetch at all outside gallery.js". Real
+// recorded sounds (GOVERNANCE §3a') mean js/sfx.js now fetches its sample files. The rule
+// is therefore restated, and the new form is stricter about what it permits:
+//
+//   a same-origin request for a path that is present in sw.js ASSETS[] is lawful;
+//   ANYTHING else is still a failure.
+//
+// That is a stronger guarantee than "no fetch", because "no fetch" said nothing about
+// WHERE a future fetch might point. This says: every byte the app can ever ask for is a
+// byte it already shipped and precached, so the app still works with the network unplugged.
+// A sample id added without a matching ASSETS entry now fails HERE as well as in
+// tests/r21h-ears.mjs.
+console.log('== the sample loader can only ever reach precached, same-origin files ==');
+{
+  const sfxSrc = readFileSync('js/sfx.js', 'utf8');
+  const swSrc = readFileSync('sw.js', 'utf8');
+  const assets = new Set([...swSrc.matchAll(/^\s*'([^']+)',?\s*$/gm)].map(m => m[1]));
+
+  // every fetch in sfx.js goes through sampleURL(), which resolves only SAMPLES entries
+  const fetches = sfxSrc.split('\n').map((ln, i) => ({ ln: ln.trim(), n: i + 1 })).filter(x => /\bfetch\s*\(/.test(x.ln));
+  assert(fetches.length === 1, `js/sfx.js has exactly one fetch call (found ${fetches.length})`);
+  assert(fetches.length === 1 && /fetch\(sampleURL\(id\)\)/.test(fetches[0].ln),
+    'the one fetch takes sampleURL(id) — never a caller-supplied string');
+  assert(/new URL\('\.\.\/' \+ rel, import\.meta\.url\)/.test(sfxSrc),
+    'sampleURL resolves against import.meta.url, so a sample path is always same-origin');
+  assert(!/https?:/.test(sfxSrc.slice(sfxSrc.indexOf('export const SAMPLES'), sfxSrc.indexOf('export const SAMPLE_IDS'))),
+    'no absolute URL appears in the SAMPLES table');
+
+  // and every declared sample really is precached
+  const block = sfxSrc.slice(sfxSrc.indexOf('export const SAMPLES'), sfxSrc.indexOf('export const SAMPLE_IDS'));
+  const paths = [...block.matchAll(/'(assets\/sfx\/[^']+)'/g)].map(m => m[1]);
+  assert(paths.length > 0, `the SAMPLES table lists files (${paths.length})`);
+  const unprecached = paths.filter(p => !assets.has(p));
+  if (unprecached.length) unprecached.forEach(p => console.log('   not in ASSETS: ' + p));
+  assert(unprecached.length === 0, 'every sample path is present in sw.js ASSETS[] — offline holds');
 }
 
 console.log('RESULT: ' + (failed ? 'FAIL' : 'PASS'));

@@ -287,7 +287,11 @@ export function mount(container, params, ctx) {
       shell.setProgress(idx);
       const p = PHONEME_BY_KEY[t.sound];
       shell.react(`Find the ${p.card} sound — ${p.say}!`, { voice: false, hold: 2400 });
-      speakMaybe(`Find the words with ${p.say}. ${p.say}.`);
+      // RUN21H B4: through the sample-or-speak seam. Today no recorded phoneme set exists,
+      // so this speaks exactly as it always did; the day a licence-clean UK set lands in
+      // assets/sfx it is HEARD instead, with no change here. A recorded /sh/ is worth far
+      // more to a child than a speech engine's attempt at the letters "sh".
+      sfx.sampleOr(sfx.phonemeId(t.sound), () => speakMaybe(`Find the words with ${p.say}. ${p.say}.`));
       // the first target names every picture aloud, so a child who cannot read still knows
       // what she is looking at; after that the free button repeats it on demand.
       if (!spoken) { spoken = true; shell.timeout(() => sayCards(), 2200); }
