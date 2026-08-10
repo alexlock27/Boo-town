@@ -477,6 +477,56 @@ console.log('== ACCEPT 6: reduced motion — no animation, same outcome ==');
 }
 
 // =====================================================================
+// The two ways a parcel could pay out when it must not. Both are
+// recycle-property bugs, not cosmetics: a double grant takes two items
+// out of the pool for one day's doings, and a grant on a stale day
+// would let a parcel survive the midnight that is supposed to hand its
+// item back to the pool.
+// =====================================================================
+console.log('== a parcel pays out exactly once, and never on a day that has already rolled ==');
+{
+  const ALL_DONE = { daily: { day: DAY, doings: { play: true, visit: true, care: true }, visited: [], delivered: false } };
+
+  // 1) Three rapid taps — the child's real double-tap — grant ONE item.
+  {
+    const { ctx, page, errors } = await open(ALL_DONE);
+    await go(page, 'town', { area: 'meadow' }); await page.waitForTimeout(1300);
+    const before = await save(page);
+    await page.evaluate(() => { const n = document.querySelector('.daily-parcel'); n.click(); n.click(); n.click(); });
+    await page.waitForTimeout(900);
+    const after = await save(page);
+    const gained = Object.keys(after.inventory).filter(k => !(k in before.inventory));
+    assert(gained.length === 1, `three rapid taps grant exactly ONE item (${gained.length})`);
+    assert(Object.values(after.inventory).reduce((a, b) => a + b, 0) === Object.values(before.inventory).reduce((a, b) => a + b, 0) + 1,
+      'and exactly one copy in total — no double grant');
+    assert(after.daily.delivered === true, 'delivered once');
+    assert(errors.length === 0, `no errors (${errors.join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+
+  // 2) Midnight passes while the parcel is still drawn. Tapping it must do NOTHING —
+  //    the item belongs to the pool again, and taking it now would be taking it twice.
+  {
+    const { ctx, page, errors } = await open(ALL_DONE);
+    await go(page, 'town', { area: 'meadow' }); await page.waitForTimeout(1300);
+    assert(!!(await page.$('.daily-parcel')), 'the parcel is on screen before midnight');
+    const before = await save(page);
+    await page.evaluate((d) => { window.__bootownDay = d; }, NEXT_DAY);
+    await page.evaluate(() => { const n = document.querySelector('.daily-parcel'); if (n) n.click(); });
+    await page.waitForTimeout(900);
+    const after = await save(page);
+    assert(Object.keys(after.inventory).length === Object.keys(before.inventory).length, 'a stale parcel grants no item');
+    assert((after.boxes || 0) === (before.boxes || 0), 'and no box');
+    assert(after.daily.delivered === false, 'and never marks itself delivered');
+    assert(errors.length === 0, `and nothing errors (${errors.join(' | ') || 'none'})`);
+    // the item is, correctly, back in the pool on the new day
+    const back = await page.evaluate(async () => (await import('./js/daily.js')).eligiblePool().length);
+    assert(back > 0, `the pool is intact on the new day (${back} eligible)`);
+    await ctx.close();
+  }
+}
+
+// =====================================================================
 // Standing guard — the no-guilt law is the SUBJECT of this feature.
 // A grep of the feature's own source for anything streak-shaped.
 // =====================================================================
