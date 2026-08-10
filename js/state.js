@@ -106,7 +106,11 @@ function freshSave() {
     brave: { day: '', cats: {} },  // daily Brave-bonus claims per 'game:cat' (RUN4 C3)
     gameThrees: {},             // game -> lifetime 3-star rounds since this update (RUN4 C4 medals)
     trophies: {},               // trophy / certificate / medal key -> date earned (RUN4 C4)
-    townGrowth: { done: [], pending: [], site: null },  // growth milestones + Boo Builders (RUN4 C6)
+    // RUN21E-15 adds `catchup`: milestones of one area that crossed together and are waiting to
+    // be celebrated in ONE reveal on that area's next mount. Declared HERE so deepDefaults()
+    // genuinely backfills it on every existing save — it cannot add a key its base lacks, and
+    // relying on read-site guards alone would have made the report's claim untrue.
+    townGrowth: { done: [], pending: [], site: null, catchup: [] },  // growth milestones + Boo Builders (RUN4 C6)
     funfair: { built: [], build: null, pending: [], seats: {} },  // Boo Funfair rides + seat riders (RUN6 C1b)
     bandSong: null,             // id of the saved jam set as the bandstand's watch-mode song (RUN6 C1c)
     quest: { node: 0, lands: {} },  // Boo Quest progress: current node in the active land + completed lands (RUN6 C6)

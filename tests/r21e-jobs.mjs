@@ -47,12 +47,12 @@ const withItems = (map) => { const a = AREAS(); for (const k of Object.keys(map)
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const pageErrors = [];
-async function open(save, { area = 'meadow', room = null, w = 1024, h = 768, hour = 13, reduced = 'no-preference' } = {}) {
+async function open(save, { area = 'meadow', room = null, w = 1024, h = 768, hour = 13, reduced = 'no-preference', day = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: reduced });
   const page = await ctx.newPage();
   page.on('pageerror', e => pageErrors.push(String(e).split('\n')[0]));
   page.on('console', m => { if (m.type() === 'error') pageErrors.push('console: ' + m.text()); });
-  await page.addInitScript(hr => { window.__bootownHour = hr; }, hour);
+  await page.addInitScript(([hr, d]) => { window.__bootownHour = hr; if (d) window.__bootownDay = d; }, [hour, day]);
   await page.goto(BASE + '/index.html', { waitUntil: 'load' });
   await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save);
   await page.reload({ waitUntil: 'load' });
@@ -142,7 +142,9 @@ console.log('\n== E12: the dead-prop amnesty ==');
   }), 'oven: the window light is actually up (not just a class)');
   await page.screenshot({ path: `${SHOTS}/e12-oven-glow.png` });
   assert(await until(page, () => document.querySelectorAll('.t-item[data-item="deco_oven"] .wish-wisp').length > 0, 5000),
-    'oven: after the glow, a puff of steam (the Ding! rides the same beat)');
+    'oven: after the glow, a puff of steam');
+  assert(await until(page, () => [...document.querySelectorAll('.catchphrase-bubble')].some(b => b.textContent === 'Ding!'), 3000),
+    'oven: …and it says exactly "Ding!" — visible, so a muted house gets the moment too');
 
   await ctx.close();
 }
@@ -271,9 +273,23 @@ console.log('\n== E4: tag, ring-a-roses and the notice poster ==');
       over: { town: { areas: withItems({ playground: [P('playground', 'boo_inky', 0.10)], beach: [P('beach', 'deco_palm', 0.18), P('beach', 'boo_plum', 0.22)] }), nextId: 900 },
         delights: { hideDay: today, hideFound: false, hideSpot: { zone: 'beach', x: 0.18, item: 'deco_palm' }, hideBoo: 'boo_plum' } },
       want: /^Someone's playing hide-and-seek at Sunny Beach! 👀$/ },
+    // Pins the AREA NAME too, so DEV-7's article correction is verified for this line and not
+    // just for the hider's (the first version used `.+` and proved nothing about the name).
     { name: 'builders', over: { ...base, delights: { hideDay: today, hideFound: true },
-      townGrowth: { done: [], pending: [], site: { idx: 0, startedAt: Date.now() } } },
-      want: /^The Boo Builders are busy at .+…$/ },
+      townGrowth: { done: [], pending: [], site: { idx: 0, startedAt: Date.now() }, catchup: [] } },
+      want: /^The Boo Builders are busy at The Meadow…$/ },
+    // The pack asks for FOUR seeded states; the first version of this block had three, and the
+    // fair-day and request lines were never asserted anywhere. (Caught by the gate check.)
+    // The hider outranks fair day, correctly — so with the day forced to a Saturday the
+    // hide-and-seek stamp has to name THAT day too, or ensureHide picks a fresh hider for it
+    // and the higher-priority line wins. (That is the ladder working, not a bug.)
+    { name: 'fair day', day: '2026-08-08', over: { ...base, delights: { hideDay: '2026-08-08', hideFound: true },
+      townGrowth: { done: [0, 1, 2, 3, 4], pending: [], site: null, catchup: [] } },
+      want: /^It's fair day at the Boo Funfair! 🎪$/ },
+    { name: 'request', over: { ...base, delights: { hideDay: today, hideFound: true },
+      townGrowth: { done: [0, 1, 2, 3, 4], pending: [], site: null, catchup: [] },
+      request: { actives: [{ kind: 'visit', booId: 'boo_inky', at: Date.now(), area: 'playground' }], lastResolvedAt: 0, treatFor: null, thanking: [] } },
+      want: /^\S.* is wondering something — go and see!$/ },
     // "Quiet day" has to be genuinely quiet: this save owns six Boos, which really has crossed
     // the Meadow's first growth milestone, so the Builders line is CORRECT unless the fixture
     // says the work is already done. (The first run of this block caught exactly that.)
@@ -282,7 +298,7 @@ console.log('\n== E4: tag, ring-a-roses and the notice poster ==');
       want: /^A lovely day for the playground!$/ }
   ];
   for (const c of cases) {
-    const { ctx, page } = await open(SAVE(c.over), { area: 'playground' });
+    const { ctx, page } = await open(SAVE(c.over), { area: 'playground', day: c.day });
     const line = await page.evaluate(() => {
       const b = document.querySelector('.pg-notice-btn');
       if (!b) return '__NO_BUTTON__';
@@ -731,17 +747,17 @@ console.log('\n== E10: things that hang ==');
   // `parent` is a placement ID, so the oak's real id has to be captured rather than guessed.
   const oak = P('meadow', 'deco_oak', 0.12);
   const { ctx, page } = await open(SAVE({ town: { areas: withItems({
-    meadow: [oak, P('meadow', 'land_lantern', 0.12, 1, { plane: 'surface', parent: oak.id, slot: 0 })] }), nextId: 900 } }),
+    meadow: [oak, P('meadow', 'deco_lantern', 0.12, 1, { plane: 'surface', parent: oak.id, slot: 0 })] }), nextId: 900 } }),
     { area: 'meadow', hour: 22 });
-  assert(await hasCls(page, '.t-item[data-item="land_lantern"].on-surface'), 'a lantern hangs in the tree (a real surface child)');
-  assert(await hasCls(page, '.t-item[data-item="land_lantern"].lit'), '…and lights itself at night');
+  assert(await hasCls(page, '.t-item[data-item="deco_lantern"].on-surface'), 'a lantern hangs in the tree (a real surface child)');
+  assert(await hasCls(page, '.t-item[data-item="deco_lantern"].lit'), '…and lights itself at night');
   await page.screenshot({ path: `${SHOTS}/e10-lantern.png` });
   await ctx.close();
 }
 {
   // Two bunting-ends near each other string a swag between them.
   const { ctx, page } = await open(SAVE({ town: { areas: withItems({
-    meadow: [P('meadow', 'land_buntingend', 0.08), P('meadow', 'land_buntingend', 0.22)] }), nextId: 900 } }),
+    meadow: [P('meadow', 'deco_buntingend', 0.08), P('meadow', 'deco_buntingend', 0.22)] }), nextId: 900 } }),
     { area: 'meadow' });
   assert(await until(page, () => document.querySelectorAll('.t-swag').length === 1, 2500),
     'two bunting-ends within reach string ONE swag between them');
@@ -751,7 +767,7 @@ console.log('\n== E10: things that hang ==');
 {
   // Three ends make two swags, left to right — consecutive pairs, never a tangle.
   const { ctx, page } = await open(SAVE({ town: { areas: withItems({
-    meadow: [P('meadow', 'land_buntingend', 0.06), P('meadow', 'land_buntingend', 0.18), P('meadow', 'land_buntingend', 0.30)] }), nextId: 900 } }),
+    meadow: [P('meadow', 'deco_buntingend', 0.06), P('meadow', 'deco_buntingend', 0.18), P('meadow', 'deco_buntingend', 0.30)] }), nextId: 900 } }),
     { area: 'meadow' });
   assert(await until(page, () => document.querySelectorAll('.t-swag').length === 2, 2500),
     'three ends make exactly two swags');
@@ -763,7 +779,7 @@ console.log('\n== E10: things that hang ==');
 {
   // Too far apart is no swag — the pack's 25% reach really binds.
   const { ctx, page } = await open(SAVE({ town: { areas: withItems({
-    meadow: [P('meadow', 'land_buntingend', 0.05), P('meadow', 'land_buntingend', 0.70)] }), nextId: 900 } }),
+    meadow: [P('meadow', 'deco_buntingend', 0.05), P('meadow', 'deco_buntingend', 0.70)] }), nextId: 900 } }),
     { area: 'meadow' });
   await sleep(800);
   assert(await count(page, '.t-swag') === 0, 'ends a long way apart string nothing');
@@ -772,12 +788,12 @@ console.log('\n== E10: things that hang ==');
 {
   // …and the swag FOLLOWS an end being dragged, rather than snapping on drop.
   const { ctx, page } = await open(SAVE({ town: { areas: withItems({
-    meadow: [P('meadow', 'land_buntingend', 0.08), P('meadow', 'land_buntingend', 0.20)] }), nextId: 900 } }),
+    meadow: [P('meadow', 'deco_buntingend', 0.08), P('meadow', 'deco_buntingend', 0.20)] }), nextId: 900 } }),
     { area: 'meadow' });
   await until(page, () => document.querySelectorAll('.t-swag').length === 1, 2500);
   const before = await page.evaluate(() => { const s = document.querySelector('.t-swag'); return { left: parseFloat(s.style.left), w: parseFloat(s.style.width) }; });
   const box = await page.evaluate(() => {
-    const w = [...document.querySelectorAll('.t-item')].filter(n => n.dataset.item === 'land_buntingend')[1];
+    const w = [...document.querySelectorAll('.t-item')].filter(n => n.dataset.item === 'deco_buntingend')[1];
     const r = w.getBoundingClientRect();
     return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
   });
@@ -797,7 +813,7 @@ console.log('\n== E10: things that hang ==');
   const { ctx, page } = await open(SAVE(), { area: null });
   const cat = await page.evaluate(async () => {
     const c = await import('/data/catalogue.js');
-    const ids = ['land_lantern', 'land_buntingend'];
+    const ids = ['deco_lantern', 'deco_buntingend'];
     return ids.map(id => { const it = c.BY_ID[id]; return { id, kind: it && it.kind, free: !!(it && it.free), inPool: c.COLLECTIBLES.some(x => x.id === id) }; });
   });
   assert(cat.every(c => c.kind === 'landscape' && c.free), 'both new smalls are free Landscape items');

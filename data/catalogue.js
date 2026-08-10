@@ -156,12 +156,13 @@ export const CATALOGUE = [
   // RUN21E-2: the Hilltop's kite rack. Three pegs; a wished kite parked near it flies from
   // the rack for as long as it stands there.
   { id: 'deco_kiterack',   kind: 'landscape', name: 'Kite Rack',   rarity: 'common', deco: 'kiterack',  free: true, blurb: 'Three pegs on the hill, for three kites at once.' },
-  // RUN21E-10: the two things that HANG. The pack authors these two ids with a `land_` prefix
-  // rather than the `deco_` every other landscape item uses; the ids ship as authored (see the
-  // ledger) and carry kind:'landscape' + free:true, which is what actually drives the toybox,
-  // the outdoor-only rule, the unlimited stock and their exclusion from box drops.
-  { id: 'land_lantern',    kind: 'landscape', name: 'Little Lantern', rarity: 'common', deco: 'lantern',    free: true, blurb: 'Hang it in a tree and it lights up all by itself at night.' },
-  { id: 'land_buntingend', kind: 'landscape', name: 'Bunting End',    rarity: 'common', deco: 'buntingend', free: true, blurb: 'Hang two of them near each other and the flags string themselves.' },
+  // RUN21E-10: the two things that HANG. The pack authors these with a `land_` prefix, but no
+  // `land_*` id exists anywhere in the game — every landscape item is `deco_*` — and the toybox,
+  // outdoor-only, unlimited-stock and no-box-drop behaviours all key off kind:'landscape' +
+  // free:true, never off the prefix. Shipped `deco_*` for one convention across the tree, the
+  // same call made for the Kite Rack in the same run. Ids are internal; no child ever sees one.
+  { id: 'deco_lantern',    kind: 'landscape', name: 'Little Lantern', rarity: 'common', deco: 'lantern',    free: true, blurb: 'Hang it in a tree and it lights up all by itself at night.' },
+  { id: 'deco_buntingend', kind: 'landscape', name: 'Bunting End',    rarity: 'common', deco: 'buntingend', free: true, blurb: 'Hang two of them near each other and the flags string themselves.' },
 
   // --- Furniture (8, RUN10 P4): kind:'furniture', indoor-only, joins box pools at
   // decoration odds (bucketed under 'deco' in BY_TYPE_RARITY below, not a separate type

@@ -79,6 +79,18 @@ nothing and writes nothing — it is the same class of tap as the pond ripple, w
 allows. Gating it would make a visited town's noticeboard a dead prop. REVERSIBLE: one `READONLY`
 check.
 
+**DEC-7 · Added `js/playjournal.js` to `sw.js` ASSETS[], though it is not this run's file.**
+WHY: `js/main.js` imports it statically, so without it the app shell's own dependency graph is not
+fully precached and offline can break — and "works fully offline once installed" is protected
+core, not a preference. It arrived on main with RUN21F-10B and main's `sw.js` lacks it too, so
+this fixes it for whoever merges first. REVERSIBLE: delete one line. Worth telling the maintainer
+so the same omission can be checked for on the other in-flight branches.
+
+**DEC-8 · The three new landscape items ship as `deco_*`, not the pack's `land_*`.** WHY: the run
+initially did both, which was incoherent (GC-3). One convention across the tree wins: every one of
+the game's landscape items is `deco_*`, and the behaviours all key off `kind` and `free`, never the
+prefix. Ids are internal identifiers — no child ever sees one. REVERSIBLE: a rename.
+
 **DEC-6 · `isFairDay()` (E6's Saturday check) is built now, inside E4.** WHY: E4's own ACCEPT
 requires the fair-day line in one of its four seeded states, and a stub returning false would fail
 it. It lives in ONE helper so E6 reads it rather than growing a second source of truth.
@@ -119,6 +131,53 @@ path cells at `cy: 1` believing that meant depth row 1. It does not: `cy` indexe
 grid (5% of the placement band), so `cy: 1` lands at 0.6425 of viewport height — depth row 0 — and
 the Boo could never have been standing on the path the measurement was scoring her against. Row 1
 is `cy: 11`. A test that measured the wrong ground would have "proved" the feature either way.
+
+## Independent gate check — six findings, all acted on
+
+An independent read-only verifier cold-read the pack against the tree after the run was otherwise
+closed. It earned its keep: **five of its six findings were mine, and four were real defects, not
+bookkeeping.** All are fixed; nothing was argued away.
+
+**GC-1 · E4-C shipped with 3 of the pack's 4 seeded poster states tested.** REAL GAP. The pack
+asks for four; my block had three, and the fair-day and request lines were asserted NOWHERE. The
+builders case also used `.+` for the area name, so DEV-7's article correction was unverified for
+it. FIXED: all FIVE states are now pinned with exact strings (hider / builders / fair day /
+request / quiet day), the builders case pins `The Meadow` by name, and `open()` gained a `day`
+override so a Saturday can be seeded. Finding the fair-day case also confirmed the priority ladder
+works — the hider correctly outranked fair day until the fixture stamped the same day.
+
+**GC-2 · `Ding!` never shipped and was not logged.** REAL. The pack backticks `Ding!` exactly as
+it backticks `Mmm!`, and `Mmm!` shipped as a visible pip — so a chime alone was inconsistent, and
+silent in a muted house, which is how most of this app is actually played. FIXED: the oven now
+says `Ding!` as a visible pip, asserted exactly.
+
+**GC-3 · The run shipped two contradictory id conventions.** REAL and fair. DEV-18 renamed
+`land_kiterack` → `deco_kiterack` because "no `land_*` id exists anywhere", and DEV-50 then shipped
+`land_lantern`/`land_buntingend` verbatim on the opposite reasoning — and the report repeated the
+first claim as a headline while the branch falsified it. RESOLVED IN FAVOUR OF ONE CONVENTION:
+all three are now `deco_*`, matching every landscape item in the game. Ids are internal; no child
+ever sees one, and `kind:'landscape'` + `free:true` is what actually drives the toybox, outdoor
+placement, unlimited stock and box exclusion. DEV-50 is superseded — see the rewritten entry.
+
+**GC-4 · The report claimed suites green that the ledger never recorded, and three stale counts.**
+REAL bookkeeping error. `r10p2-sockets` and `r10p21-delights` were genuinely run and genuinely
+passed (after E11) but never reached the wall-times table; `r17x4-whatsnew` was 116 then 122 after
+later edits; `r21e-jobs` is now 179, not 173. FIXED in both documents.
+
+**GC-5 · The report's save-mechanism claim was wrong for 4 of its 5 rows.** REAL. `deepDefaults()`
+cannot add a key its base lacks — `freshSave()`'s `townGrowth` had no `catchup`, and `seen`/
+`delights` are empty objects, so only `beach` was genuinely backfilled. The others were SAFE
+(every read site guards) but that is not what the report said. FIXED BOTH WAYS: `catchup: []` is
+now declared in `freshSave()` so it really is backfilled, and the report now describes the two
+mechanisms accurately instead of claiming one for all five.
+
+**GC-6 · `js/playjournal.js` is missing from `sw.js` ASSETS[] — inherited from main.** NOT this
+run's file and not its pack: RUN21E adds zero new `js/`/`data/` files, so the offline law is
+satisfied for this run on its own terms. But `js/main.js:13` imports it STATICALLY, so the app
+shell has a hard dependency on a module the worker never precaches, and the offline guarantee
+quietly rests on it happening to sit in the HTTP cache. DECIDED TO FIX (one line): this is the
+branch about to merge, offline-first is a protected-core law, and a broken offline boot is not
+something to leave for the morning. Logged as DEC-7.
 
 ## Deviations
 
@@ -475,6 +534,10 @@ green, against `run21e` HEAD.
 | `r21f5-placementids` | PASS (83) | ~90s |
 | `r10p3-buildmode` (landscape/toybox/path machinery) | PASS (74) | ~90s |
 | `r15v-economy` | PASS (64) | ~70s |
+| `r21e-jobs` (final, after the gate-check fixes) | PASS **179/179** | 90s |
+| `r10p2-sockets` | PASS (25) | ~45s |
+| `r10p21-delights` | PASS (9) | ~30s |
+| `r21e-jobs` (one run during a five-suite batch) | FLAKE — `.town2` mount timeout under load, the boot-timeout class the handover names. Clean on the single serial re-run (179). | — |
 | `r19z5-nouns` | FLAKE then PASS (53). One run failed the Sprinkle hint assertion because the hint bar had been overwritten — pre-existing contention (`updateHint`, the hider chance at ~0.9s and the pulse invitation at ~9s all write that one bar); E13 writes no hints at all. Proved by running it with my `js/town.js` stashed (PASS) and again with it restored (PASS). | ~2m each |
 
 ## Stale pins re-pointed (never weakened)

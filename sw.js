@@ -47,6 +47,12 @@ const ASSETS = [
   'js/speller.js',
   'js/golden.js',
   'js/quests.js',
+  // RUN21E: js/playjournal.js arrived on main with RUN21F-10B and was never added here, while
+  // js/main.js:13 imports it STATICALLY — so the app shell has a hard dependency on a module
+  // the worker does not precache, and the offline guarantee silently depends on it happening to
+  // be in the HTTP cache. Not this run's file and not this run's pack, but this is the branch
+  // about to merge and the offline law is a hard law. One line.
+  'js/playjournal.js',
   'js/comfort.js',
   'js/resilience.js',
   'js/intro.js',

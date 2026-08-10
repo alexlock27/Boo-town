@@ -90,8 +90,8 @@ export const SMALL_ITEM_BASE_Y = {
   deco_plant1: 114,        // pot path M44 96 L76 96 L72 114 L48 114 Z
   deco_photoframe: 110,    // rrect(24,26,72,84) frame
   // RUN21E-10: both HANG, so their art's own bottom is where the hook holds them.
-  land_lantern: 108,       // the lantern body's base, y=108
-  land_buntingend: 92      // the knot the swag is tied at, y=92
+  deco_lantern: 108,       // the lantern body's base, y=108
+  deco_buntingend: 92      // the knot the swag is tied at, y=92
 };
 export const baseYFor = (itemId) => SMALL_ITEM_BASE_Y[itemId] != null ? SMALL_ITEM_BASE_Y[itemId] : 120;
 
@@ -100,7 +100,7 @@ export const baseYFor = (itemId) => SMALL_ITEM_BASE_Y[itemId] != null ? SMALL_IT
 // wallclock stays wall-only, deliberately: a clock on a table is a different object.
 // RUN21E-10 adds the two free Landscape smalls that hang outdoors.
 export const SMALL_ITEMS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_plant1', 'deco_photoframe',
-  'land_lantern', 'land_buntingend']);
+  'deco_lantern', 'deco_buntingend']);
 
 export const SURFACE_ITEM_IDS = new Set(Object.keys(SURFACE_SLOTS));
 export function slotsFor(itemId) { return SURFACE_SLOTS[itemId] || null; }

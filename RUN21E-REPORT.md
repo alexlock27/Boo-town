@@ -60,8 +60,10 @@ visibly broken feature if followed literally:
    there is no socket. It triggers on the night circle role, which is the thing the pack describes.
 4. **E15's headline** substituted literally reads "finished the A Little Cairn!" — broken English
    for 9 of the 15 authored names. Both templates strip the article.
-5. **E2's kite rack** is authored as `land_kiterack`; no `land_*` id exists anywhere, and every
-   toybox/outdoor/stock behaviour keys off `kind` and `free`, not the prefix.
+5. **E2's kite rack** is authored as `land_kiterack`; no `land_*` id exists anywhere in the game,
+   and every toybox/outdoor/stock behaviour keys off `kind` and `free`, not the prefix. All three
+   new landscape items ship `deco_*` (DEC-8 — the run initially did both, which the gate check
+   correctly called out as incoherent).
 
 **Three defects were found by the tests rather than by reading**, and all three were real:
 - **E3's tide line was invisible to a child.** Written to the hint bar, it was reliably replaced
@@ -107,12 +109,14 @@ actually ships. Evidence: `_evidence/run21e/b1-observation.json` and three frame
 
 Affected suites plus the fixed core, per the Board Law. No full board.
 
-**Green:** `r21e-jobs` (new, 173 assertions), `r12s1-routes`, `r8p1-migrations` (334),
-`m3-pwa`, `r12s4-contrast`, `r18a-copyguard`, `r17x4-whatsnew` (122), `r18a-buildstamp`,
+**Green:** `r21e-jobs` (new, **179** assertions), `r12s1-routes`, `r8p1-migrations` (334),
+`m3-pwa`, `r12s4-contrast`, `r18a-copyguard`, `r17x4-whatsnew` (122 after the final What's New pass; 116 before it), `r18a-buildstamp`,
 `p3-town`, `r4p6-growth`, `r7p1-funfair`, `r6p2-funfair`, `r18d-funfair-scenery`, `r7p2-zones`,
 `r10p1-worldmap`, `r13bt8-town-dressing`, `r10p4-interiors`, `r13t4-furniture`,
 `r13bt7-room-identity`, `r13t3-house-rooms`, `r19z4-acknowledge`, `r19z6-objectmodel`,
 `r21f5-placementids`, `r10p3-buildmode`, `r15v-economy`, `r10p2-sockets`, `r10p21-delights`.
+
+Every figure above is recorded with its wall time in `RUN21E-PROGRESS.md`.
 
 **Flakes, confirmed by one serial re-run each (board law):** `r20-wishlife` (a `.hub` boot
 timeout — the handover names this mode) and `r19z5-nouns` (the shared hint bar had been
@@ -145,8 +149,10 @@ distinct places, 51 real-mouse handles, zero console/page errors). Re-run to com
 
 ## Save
 
-`VERSION` stays **24**. Four additive keys, every one with a safe default that `deepDefaults()`
-backfills on load:
+`VERSION` stays **24**. Five additive keys with safe defaults, by two mechanisms — stated
+precisely, because the first draft of this section claimed one mechanism for all of them and the
+gate check was right to call it (GC-5). `deepDefaults()` can only backfill a key that exists in
+`freshSave()`'s base:
 
 | key | shape | why |
 |---|---|---|
@@ -156,8 +162,11 @@ backfills on load:
 | `delights.newItemAckDay` | day key | E13-3's "once per day" across reloads |
 | `townGrowth.catchup` | `[idx]` | E15's multi-cross rule, mirroring `funfair.catchup` |
 
-`r8p1-migrations` passes 334 assertions with these present, and `r21f5-placementids` confirms the
-v24 parent resolution stays byte-idempotent.
+`beach` and `townGrowth.catchup` are declared in `freshSave()` and are therefore genuinely
+backfilled on every existing save. The three `seen.*` / `delights.*` keys are NOT — their parents
+are empty objects — and they are safe because every read site guards (`(st.seen||{})`,
+`(st.delights||{})`). `r8p1-migrations` passes 334 assertions with these present, and
+`r21f5-placementids` confirms the v24 parent resolution stays byte-idempotent.
 
 ---
 
@@ -195,6 +204,25 @@ telling him first: F7's per-area ambient beds already give each area its own sou
 marginal gain is smaller than when the pack was written.
 
 ---
+
+## The independent gate check
+
+A read-only verifier cold-read the pack against the tree after the run was otherwise closed, and
+returned **six findings — five of them mine, four of them real defects**. All six are fixed and
+catalogued in `RUN21E-PROGRESS.md` under "Independent gate check":
+
+- **E4-C shipped with 3 of the pack's 4 seeded poster states tested** — the fair-day and request
+  lines were asserted nowhere. Now all five states are pinned with exact strings.
+- **`Ding!` never shipped** and was not logged. It is now a visible pip, like `Mmm!`.
+- **Two contradictory id conventions** in one run (`deco_kiterack` vs `land_lantern`), each with a
+  deviation arguing the opposite of the other. Resolved to one convention.
+- **The report claimed two suites green that the ledger never recorded**, plus three stale counts.
+- **The save-mechanism claim was wrong for 4 of its 5 rows** — `deepDefaults()` cannot add a key
+  its base lacks. Fixed both in the code (`catchup` now declared) and in the prose.
+- **`js/playjournal.js` is missing from `sw.js` ASSETS[]** — inherited from main, not this run,
+  but `js/main.js` imports it statically, so the app shell has a hard dependency on an unprecached
+  module. Fixed here (DEC-7) because offline-first is protected core and this is the branch about
+  to merge. **Worth checking the other in-flight branches for the same omission.**
 
 ## Rules changed tonight
 

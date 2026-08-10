@@ -1965,7 +1965,7 @@ export function mount(container, params, ctx) {
   function renderSwags() {
     ground.querySelectorAll('.t-swag').forEach(n => n.remove());
     if (!zoneW) return;
-    const ends = areaItems(getState()).filter(t => t.item === 'land_buntingend').slice().sort((p, q) => p.x - q.x);
+    const ends = areaItems(getState()).filter(t => t.item === 'deco_buntingend').slice().sort((p, q) => p.x - q.x);
     if (ends.length < 2) return;
     for (let i = 0; i < ends.length - 1; i++) {
       const A = ends[i], B = ends[i + 1];
@@ -1979,7 +1979,7 @@ export function mount(container, params, ctx) {
   // live x for the one under her finger.
   function redrawSwagsLive(draggedWrap, liveX) {
     ground.querySelectorAll('.t-swag').forEach(n => n.remove());
-    const items = areaItems(getState()).filter(t => t.item === 'land_buntingend');
+    const items = areaItems(getState()).filter(t => t.item === 'deco_buntingend');
     const draggedId = draggedWrap.dataset.pid;
     const ends = items.map(t => ({ t, x: String(t.id) === draggedId ? liveX : t.x })).sort((p, q) => p.x - q.x);
     for (let i = 0; i < ends.length - 1; i++) {
@@ -2472,7 +2472,7 @@ export function mount(container, params, ctx) {
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
       // RUN21E-7: …and during a pretend night in THIS room, which is the whole point of it.
-      if ((LAMP_IDS.has(t.item) || t.item === 'land_lantern') && nightHere()) wrap.classList.add('lit');
+      if ((LAMP_IDS.has(t.item) || t.item === 'deco_lantern') && nightHere()) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
       if (isWish(t.item)) dressWish(wrap, t);   // RUN20 W1
       
@@ -5440,7 +5440,7 @@ export function mount(container, params, ctx) {
         // RUN21E-10: a swag FOLLOWS the end being dragged. Nothing commits until pointerup, so
         // redrawing from the save would only snap on drop; this recomputes from the live wrap
         // positions instead, and the ordinary render on drop then makes it truthful.
-        if (wrap.dataset.item === 'land_buntingend') redrawSwagsLive(wrap, x);
+        if (wrap.dataset.item === 'deco_buntingend') redrawSwagsLive(wrap, x);
       }
     });
     wrap.addEventListener('pointerup', e => {
@@ -5591,6 +5591,10 @@ export function mount(container, params, ctx) {
         setTimeout(() => {
           if (!wrap.isConnected) return;
           sfx.chime(4);
+          // The pack backticks `Ding!` exactly as it backticks `Mmm!`, and `Mmm!` ships as a
+          // visible pip — so this does too. A chime alone is nothing at all in a muted house,
+          // which is how most of this app is actually played.
+          sayOver(wrap, 'Ding!', 1500, { speak: false });
           for (let i = 0; i < 3; i++) {
             const pip = el('i', { class: 'wish-wisp' });
             pip.style.left = (36 + i * 14) + '%';
