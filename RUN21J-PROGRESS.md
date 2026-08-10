@@ -40,6 +40,14 @@ r8p1-migrations pin. Nothing else references the number.
 | `178b413` | r12s1-routes fixtures for the ceremony's new params |
 | `835067c` | staged What's New |
 | `f63006b` | parcel reachability at three viewports; corrected seed flags |
+| `6c641e6` | pin the re-render path (exactly one parcel survives a layout) |
+| `cc6c6b4` | pin single-payout + stale-day safety (both recycle-property bugs) |
+| `fbe3cc2` | ledger: DEVIATE-with-proof, standing guards |
+| `ad235aa` | gate table: the one boot-timeout flake, recorded and cleared |
+| `af02d51` | **precache js/playjournal.js** — pre-existing OFFLINE LAW gap (own commit) |
+
+Final confirmation run after the sw.js change: `r21j-daily` 44s PASS · `r8p1-migrations` 1s
+PASS · `m3-pwa` 3s PASS · `r18a-copyguard` 14s PASS.
 
 ## What was built, at the seams the pack named
 
