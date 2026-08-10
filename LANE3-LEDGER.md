@@ -73,4 +73,50 @@ READ-ONLY lane: markdown reports only; screenshots local under `_evidence/review
   82a6806 subject + blobs); tree clean. Morning-report item, not fixable read-only.
 - S2: HANDOVER-2026-07-31.md is tracked/published despite the gitignore class declaring
   it private.
-- Remaining findings + verify verdicts to fold in from the workflow output file.
+- Remaining findings + verify verdicts folded into LANE3-FINDINGS.md. All three S1/S2 code
+  findings independently CONFIRMED by adversarial re-verification.
+
+### Sitting 3 — funfair overlay stack, walk, offline
+- walk.mjs run 1 FAILED (tablet-portrait, funfair ack click on a covered button); run 2
+  PASSED (10.1 min, 0 errors). Root cause isolated independently of the walk: two overlays
+  at z 8000, grand opening's button not hittable (elementFromPoint returns the other's).
+  DECISION: report as a REAL defect despite the passing re-run · WHY: the flake rule exists
+  to stop re-running until green, not to discard a defect with hard DOM evidence; a once-ever
+  ceremony being consumed unseen is a child-facing loss whether or not a harness trips on it
+  · REVERSIBLE: it is a written finding; Alex can downgrade it on sight of the evidence.
+- Offline: first attempt on 127.0.0.1 found no service worker at all — the app deliberately
+  skips SW registration on localhost (js/main.js:373). Re-ran via app.localhost:8043 →
+  F-02 PROVEN: one 504 on /js/playjournal.js, window.BooTown undefined, blank screen.
+
+### Sitting 4 — parent pass
+- Grown-ups gate (press-hold + confirm), panel survey, bigger text (works; no clipping on
+  hub/town/shop), mutes present, backup code copy, restore-with-preview round trip at v24.
+- New: F-07 "Build: unknown" without an SW controller; F-08 switches 60x34 (<44px).
+- METHOD NOTE: my first bigger-text attempt clicked at viewport y=1313 (off-screen) and
+  looked like "the toggle does nothing". Scrolled the control into view and it worked. Any
+  claim that a control is dead must survive that check first.
+
+### Sitting 5 — visit-a-town round trip
+- Host 💌 → BTPC1 code; payload decoded independently: keys format/version/createdAt/areas/
+  dressings/roster — no name, no age. Wrong-prefix line verbatim. Banner verbatim. Friend's
+  meadow alive (4 items, __townLife). Save byte-identical across the whole visit.
+- New: F-09 — the care arc opens on a friend's Boo with five enabled buttons that do nothing.
+
+### Sitting 6 — run21g band before/after (throwaway clone, port 8047, deleted after)
+- BEFORE (main): purple STRUM rectangle, 6 identical frames across a gesture, 16 oscillators
+  as 4 block chords. AFTER (run21g): soundboard + 4 strings, `plucked` class travelling
+  1→2→3→4 (5 distinct DOM states at 40ms sampling), 8 oscillators = 4 strings × 2 timbres,
+  48–85ms apart in a fast strum. Genuine improvement; caveats recorded (string vibration
+  proven by DOM class not by eye; emoji instruments unchanged; band landing unchanged).
+- Clone deleted; port 8047 server stopped.
+
+### Sitting 7 — Toddler tier as a 3-year-old
+- F-10 (13 doors vs the 8-button law), F-11 (emoji-only door identity), F-12 (Stories: 4
+  panels, numbered 1–4 in their wrong order — confirms the open decision by play).
+
+### Not run, and why
+- RUN-SWEEP contact sheets: the pack does not exist in RUN21-programme/ or tonight's drop;
+  the brief conditioned it on the pack being present.
+- The four speech-cluster suites were graded from code only — the sub-agent assigned to play
+  them died on a session limit, along with three other playtest agents. Labelled as such
+  everywhere rather than presented as play evidence.

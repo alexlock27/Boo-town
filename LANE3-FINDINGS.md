@@ -483,6 +483,53 @@ the child. Proposed rewrite (also in `CLAUDE-v2-PROPOSAL.md`):
 
 ---
 
+## 4A. The Toddler tier, played as a three-year-old (late-night deepening)
+
+Fresh save, age answered "3 or younger" → content tier `toddler`. First moment is genuinely
+lovely: **"Pick your first Boo! Three little Boos want to be your very first friend."** Three
+big cards, one tap, no reading required. That is exactly right for the age.
+
+Then the hub, and three findings:
+
+### F-10 · S2 · The Toddler hub shows **13 primary option buttons** — the screen where the 8-button law matters most
+
+Count · Colours · Shapes · Letters · Animals · Pairs · Sizes · Echo · Flash · Sounds ·
+Stories · Blend · Rhymes — thirteen doors in one vertical list at phone width, plus Town,
+Collection and Studio in the bar. The house rule is "no screen shows more than 8 primary
+option buttons at phone width", and the tier least equipped to choose gets the longest menu
+in the app. A three-year-old cannot read any of the labels, so the whole decision rests on
+thirteen emoji.
+
+*What she feels:* she scrolls, taps whatever is nearest, and the menu becomes a lucky dip.
+*Smallest honest fix:* show **six** doors on the Toddler hub — a "today's four" rotation plus
+Stories and the Town — with the rest behind one "More" door. The rotation logic already
+exists in the daily-quest machinery. *Engine reuse:* hub cards + the daily rotation.
+*Evidence:* `toddler-390x844-tod-02-play-02-toddler-hub.png`.
+
+### F-11 · S3 · The Toddler doors are identified by **emoji alone**
+
+🔢 🎈 ⭐ 🅱️ 🐮 🐾 🐘 🎵 👀 🔤 📖 🤝 🎩 — for a pre-reader the icon *is* the door, so these are
+not chrome, they are the interface. Two are actively misleading at this age: 🅱️ (a
+blue-square B-button glyph) for "Letters", and 🎩 (a top hat) for "Rhymes". The art law bans
+emoji-as-art in game scenes; a non-reader's only signifier deserves the same standard.
+*Smallest fix:* reuse the existing `art.js` sticker style for thirteen door icons.
+
+### F-12 · CONFIRMS the open decision · Toddler Stories asks a 3-year-old to sequence **four** wordless panels
+
+Played it: "The Rainy Day", *"Swap the pictures until the story makes sense"* / *"Which one
+happened first?"*, four picture cards, captions off. This is the item HANDOVER §6 put to you,
+and playing it confirms the concern rather than softening it. One extra observation the code
+reading could not give: **the cards carry numbered badges 1–4 in their current (wrong)
+order**, which for a three-year-old reads as "these are already numbered, so they must be
+right". *Evidence:* `toddler-390x844-tod-03-stories-01-toddler-stories.png`.
+
+Also worth your eye, same tier: **Blend on the Toddler hub serves CVC blending** ("l · e · g",
+"Tap Blend and watch the sounds slide together!"). Blending CVC is a Reception/Year-1 skill
+(4–5+), not a three-year-old one. That is a tier-fit question, not a defect, and it sits
+naturally alongside the Stories decision rather than being a separate one.
+
+---
+
 ## 5. Seeds for the next programme (ranked, pack-ready)
 
 Each seed states: the observation · the evidence · the smallest honest fix · the engine it

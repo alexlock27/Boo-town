@@ -66,6 +66,25 @@ save v24). Nothing in the app was edited. Detail: `LANE3-FINDINGS.md` · rules p
   branches. The art law says no emoji-as-art in game scenes; the band is the one room that
   most needs real instruments.
 
+### The Toddler tier (late-night pass, played as a three-year-old)
+
+The first moment is exactly right — **"Pick your first Boo!"**, three big cards, no reading.
+Then:
+
+- **F-10 · S2 — the Toddler hub shows 13 primary option buttons** (Count · Colours · Shapes ·
+  Letters · Animals · Pairs · Sizes · Echo · Flash · Sounds · Stories · Blend · Rhymes). The
+  house rule is 8, and the tier least able to choose gets the app's longest menu — with
+  labels a pre-reader cannot read. *Fix: six doors, four of them a daily rotation, the rest
+  behind one "More".*
+- **F-11 · S3 — those doors are identified by emoji alone**, which for a non-reader *is* the
+  interface. 🅱️ for "Letters" and 🎩 for "Rhymes" are actively misleading.
+- **F-12 — Toddler Stories confirmed by play**: four wordless panels to sequence, and the
+  cards carry numbered badges 1–4 *in their current wrong order*, which reads to a
+  three-year-old as "already correct". This is the decision already sitting with you; playing
+  it strengthens rather than softens the case.
+- **Blend on the Toddler hub serves CVC blending** ("l · e · g") — a Reception/Year-1 skill.
+  A tier-fit question for the same conversation, not a separate defect.
+
 ### Not defects — worth knowing
 
 - An **empty outdoor area gets no opening beat** (RUN21D disclosed this honestly). It is
@@ -114,6 +133,10 @@ a test (harmless).
 **Walk (pre-merge smoke):** ran twice — **FAIL** (tablet-portrait, the F-01 overlay), then
 **PASS** (10.1 min, three viewports, zero errors). Both logs in `_evidence/review-aug10/`.
 
+**RUN-SWEEP baseline:** *not run — the pack does not exist.* The brief said "if its pack is
+present"; there is no `RUN-SWEEP.md` in `RUN21-programme/` (which holds only the A–F packs
+and the dispatch) nor anywhere in tonight's drop. Recorded rather than improvised.
+
 ---
 
 ## 4. Seeds for the next programme (ranked, pack-ready)
@@ -132,6 +155,8 @@ something broken; **idea** seeds are preferences and are labelled as such.
 | **S-07** | **Visit mode: taps that mean it** | defect | Care panel opens in a "look, don't touch" town and does nothing (F-09) | Squeak + pose only; suppress the care arc under `isVisiting()` | existing visit guard |
 | **S-08** | **A tap-target sweep of grown-up surfaces** | defect | Panel switches 60×34; keys 33px wide (F-08) | Grow switch height to 44px; revisit narrow key columns | — |
 | **S-09** | **Retire two stale suites, don't "fix" the games** | defect (test-side) | `r11audit` expects a removed element; `p8-frames` asserts hearts that were deliberately deleted | Re-point both to today's DOM | — |
+| **S-10** | **Shorten the Toddler hub** | defect | 13 doors, unreadable labels, for the youngest tier (F-10) | Six doors: a daily four + Stories + Town, rest behind "More" | hub cards · daily rotation |
+| **S-11** | **Draw the Toddler door icons** | defect | Thirteen emoji are the entire interface for a pre-reader (F-11) | Thirteen sticker-style icons | `art.js` |
 
 ---
 
