@@ -21,24 +21,16 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
-  // RUN21G. TWO entries — the cap for this run. Item 4's strum-along gets no entry of its
-  // own: the songs screen's new "Strum it 🎸" button is discovery enough, and the guitar
-  // entry below already tells her the strings are the thing to go and touch.
+  // RUN21 (2026-08-10 overnight programme). Six lanes — run21e, run21g, run21h, run21j,
+  // run21f8, testfix-aug10 — merged and shipped together under ONE stamp, so their staged
+  // blocks are unified into ONE block here rather than five (r17x4-whatsnew requires every
+  // block to carry a distinct version, and a child does not experience "six releases" — she
+  // experiences one evening where a lot of things arrived at once).
   {
-    version: 'run21g-20260810',
+    version: 'run21-20260810',
     entries: [
       { icon: '🎸', title: 'The guitar has real strings now', blurb: 'Run your finger across them! Strum down, strum up, fast or gentle — every string sings on its own. The chord buttons change their tune.', route: 'band-guitar' },
-      { icon: '✨', title: 'Follow the sparkle to play a whole song', blurb: 'Pick a song and the sparkle sits right on the next key. Press it and it hops along — play every note and see what happens!', route: 'band-songs' }
-    ]
-  },
-  // RUN21E "Every Area a Job". Every area got something to DO that it did not have before,
-  // so every entry here names a place and a thing to try there. The Notice Post and the
-  // Playground poster share one entry because they show the same card. Nothing here needs a
-  // grown-up to switch anything on, and nothing frames fair day as missable — a Saturday that
-  // has already gone is never mentioned.
-  {
-    version: 'run21e-20260810',
-    entries: [
+      { icon: '✨', title: 'Follow the sparkle to play a whole song', blurb: 'Pick a song and the sparkle sits right on the next key. Press it and it hops along — play every note and see what happens!', route: 'band-songs' },
       { icon: '🏃', title: 'The Playground plays', blurb: 'Put a few Boos in the Playground and watch. Two will start a game of tag, and three will hold hands and go round and round.', route: 'town', params: { area: 'playground' } },
       { icon: '📜', title: 'Today at Boo Town', blurb: 'There is a little Notice Post by the Wish Well, and a poster in the Playground. Tap either one and it tells you what is happening in the town right now.', route: 'town', params: { area: 'meadow' } },
       { icon: '🎪', title: 'Fair day', blurb: 'On Saturdays the Boo Funfair puts up extra bunting, turns its lights on in the daytime, and the ticket booth has a present for you.', route: 'town', params: { area: 'funfair' } },
@@ -51,45 +43,13 @@ export const WHATSNEW = [
       { icon: '🏗️', title: 'Every place can grow now', blurb: 'The Boo Builders only worked in the Meadow before. Fill up any other place and they will build there too — stepping stones, a lighthouse, a big fair arch.', route: 'town', params: { area: 'riverside' } },
       { icon: '🏮', title: 'Hang things in your trees', blurb: 'Landscape has a little lantern and a bunting end now. A lantern in a tree glows at night, and two bunting ends near each other string their own flags.', route: 'town', params: { area: 'meadow' } },
       { icon: '🦋', title: 'Things that like being together', blurb: 'Put a bench by the lamppost and look after dark. Put flowers by the pond and look in the daytime. Some things are nicer next to each other.', route: 'town', params: { area: 'meadow' } },
-      { icon: '🐾', title: 'The Boos walk on your paths', blurb: 'Lay a path near your Boos and watch: they will pad along it instead of wandering anywhere. It is theirs now, because you made it.', route: 'town', params: { area: 'meadow' } }
-    ]
-  },
-  // RUN21H. ONE entry, and it deliberately does NOT say what the pack's draft said.
-  // The draft promised "a real moo, a real woof, a real quack" — and those are exactly the
-  // three sounds that have no licence-clean recording anywhere, so the cow, the dog and the
-  // duck are still synthesised. Promising a child a moo she will not hear is worse than
-  // promising nothing, so the entry names only what she can actually go and hear tonight.
-  // The content work in this run gets no entry at all: "we made the questions make sense"
-  // is not a sentence for a child.
-  {
-    version: 'run21h-20260810',
-    entries: [
+      { icon: '🐾', title: 'The Boos walk on your paths', blurb: 'Lay a path near your Boos and watch: they will pad along it instead of wandering anywhere. It is theirs now, because you made it.', route: 'town', params: { area: 'meadow' } },
       { icon: '🐑', title: 'Some animals sound REAL now',
         blurb: 'Go and listen to the sheep, the cat, the frog, the bee and the lion — those are real recordings, not beeps. Which one makes you laugh?',
-        route: 'toddlergame', params: { game: 'animals' } }
-    ]
-  },
-  // RUN21J "Today in Boo Town". STAGED ON BRANCH `run21j` — its `version` is a placeholder
-  // until the merge stamps the build it actually ships under (deploy-gate live steps were
-  // suspended for this run; everything else applies). ONE entry: the three doings and the
-  // parcel are one idea, and a child needs to be told the idea, not the mechanism.
-  // Deliberately NOT mentioned: what is inside the parcel (finding out is the gift), and
-  // there is nothing here a grown-up has to switch on.
-  {
-    version: 'run21j-STAGED',
-    entries: [
-      { icon: '🎁', title: 'Today in Boo Town', blurb: 'Three little doings every day — play a game, say hello somewhere, look after a Boo — and a parcel arrives in the Meadow just for you.', route: 'hub' }
-    ]
-  },
-  // RUN21F F8. ONE entry. Five tunes, but a child does not want a list of five — she wants
-  // to be told there is something to notice and where to go and notice it. The Meadow is
-  // the route because it is the one place every save can already reach; the copy names the
-  // others so she knows to listen for them as she goes. Nothing here mentions music
-  // settings: if her music is off, this is simply a thing she has not heard yet.
-  {
-    version: 'run21f8-20260810',
-    entries: [
-      { icon: '🎵', title: 'Every place has its own little tune', blurb: 'Listen! The Meadow potters along, the river ripples, the Hilltop sings long and windy, the Beach sways and the Playground skips.', route: 'town', params: { area: 'meadow' } }
+        route: 'toddlergame', params: { game: 'animals' } },
+      { icon: '🎁', title: 'Today in Boo Town', blurb: 'Three little doings every day — play a game, say hello somewhere, look after a Boo — and a parcel arrives in the Meadow just for you.', route: 'hub' },
+      { icon: '🎵', title: 'Every place has its own little tune', blurb: 'Listen! The Meadow potters along, the river ripples, the Hilltop sings long and windy, the Beach sways and the Playground skips.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🔊', title: 'Press "again" and it starts right away', blurb: 'The little speaker button that says a word or a rhyme again now jumps in straight away, instead of waiting for the old one to finish.', route: 'rhymetime' }
     ]
   },
   // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it

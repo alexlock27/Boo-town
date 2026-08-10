@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21f8-20260810';  // RUN21F F8: every outdoor place has its own little tune now.
+const BUILD_STAMP = 'run21-20260810';  // RUN21 overnight programme: every area got a job, the band's guitar has real strings and the sparkle sits on the key, some animals sound real, Today in Boo Town's daily parcel, region leitmotifs, and "again" jumps in straight away.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

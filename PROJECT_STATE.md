@@ -6,8 +6,8 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21h-20260810` (sw.js; 167 precached assets)
-- SAVE VERSION: 24 (js/state.js)
+- BUILD_STAMP: `run21-20260810` (sw.js; 171 precached assets)
+- SAVE VERSION: 25 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
 
@@ -38,9 +38,9 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - wishes: 60 (data/wishes.js WISH_WORDS)
 - dressings: 24 (data/dressings.js DRESSINGS, free defaults included)
 
-## Tests — 214 files under tests/
+## Tests — 220 files under tests/
 
-- board suites: 189 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
+- board suites: 195 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
 - `npm test` runs `node tests/run.mjs` — `tests/run.mjs` EXISTS (resolves)
 
 ### Suite list
@@ -180,8 +180,12 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - r21f5-placementids.mjs
 - r21f6-visit.mjs
 - r21f7-beds.mjs
+- r21f8-leitmotifs.mjs
+- r21g-band.mjs
 - r21h-ears.mjs
 - r21h-norepeat.mjs
+- r21j-daily.mjs
+- r21t1-sayagain-interrupt.mjs
 - r3p1-spellboo.mjs
 - r3p2-smartmix.mjs
 - r3p3-golden.mjs
@@ -279,9 +283,13 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - RUN21B-PROGRESS.md: ## BLOCKED
 - RUN21E-PROGRESS.md: | F9 | Voice: VOICE still HELD → SKIPPED-GATED | GATED |
 - RUN21E-PROGRESS.md: | `r19z3-moments` | **PRE-EXISTING FAIL, proved not mine** — one pillow-clearance assertion (`eyes 456, pillow 460`). Identical on two runs, identical with my working files stashed, and **identical on a pristine `main` checkout served on its own port**. Logged to `BLOCKED.md` with the repro. 36 other assertions pass. | ~90s each |
-- RUN21E-PROGRESS.md: PICK-UP-HERE.md, BLOCKED.md. Key collisions: no buildMode (use `worldSoftened()`); pan only via
-- RUN21F-PROGRESS.md: - [ ] F8 — SKIPPED-GATED: NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE`
+- RUN21E-PROGRESS.md: and recorded (six DECISION blocks above). F9 stays SKIPPED-GATED because `NEEDS_ALEX.md` says
+- RUN21E-PROGRESS.md: **One pre-existing failure is logged to `BLOCKED.md`** (`r19z3-moments`, a 4px pillow clearance),
+- RUN21F-PROGRESS.md: so the SKIPPED-GATED status above is superseded for this branch.
 - RUN21F-PROGRESS.md: - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
 - RUN21F2-PROGRESS.md: SKIPPED-GATED (NEEDS_ALEX.md lacks their approval lines). Nothing else in the pack is
 - RUN21F2-PROGRESS.md: `playjournal.js` and shares nothing with it. Nothing to log to BLOCKED.md.
 - RUN21F4-PROGRESS.md: ## BLOCKED
+- RUN21G-PROGRESS.md: 390px screen, the same arithmetic as BLOCKED.md's RUN18D D6 entry about the ABC keyboard.
+- RUN21J-PROGRESS.md: - [x] Read: governance, lane brief, pack, CLAUDE.md, state.js header, PICK-UP-HERE, BLOCKED
+- RUN21J-PROGRESS.md: Pre-existing; NOT caused by this run. `BLOCKED.md` is gitignored and lives in the main tree
