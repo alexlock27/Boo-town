@@ -22,7 +22,19 @@ export const SQUEEZE = [   // D1 — sixteen builds, verbatim
   { id: 'youve', a: 'you', b: 'have', build: "you've", note: null },
   { id: 'wouldnt', a: 'would', b: 'not', build: "wouldn't", note: null },
   { id: 'thats', a: 'that', b: 'is', build: "that's", note: null },
-  { id: 'lets', a: 'let', b: 'us', build: "let's", note: null }
+  { id: 'lets', a: 'let', b: 'us', build: "let's", note: null },
+  // + RUN21H A3 (16 -> 26). A round deals 8, so the authored sixteen ran dry inside two
+  // goes. Same shape, same everyday contractions a Y3/4 child reads and writes.
+  { id: 'havent', a: 'have', b: 'not', build: "haven't", note: null },
+  { id: 'hasnt', a: 'has', b: 'not', build: "hasn't", note: null },
+  { id: 'werent', a: 'were', b: 'not', build: "weren't", note: null },
+  { id: 'shouldnt', a: 'should', b: 'not', build: "shouldn't", note: null },
+  { id: 'youre', a: 'you', b: 'are', build: "you're", note: null },
+  { id: 'hes', a: 'he', b: 'is', build: "he's", note: null },
+  { id: 'weve', a: 'we', b: 'have', build: "we've", note: null },
+  { id: 'theyll', a: 'they', b: 'will', build: "they'll", note: null },
+  { id: 'ive', a: 'I', b: 'have', build: "I've", note: null },
+  { id: 'wont', a: 'will', b: 'not', build: "won't", note: 'this one is a rebel — will not turns into won’t!' }
 ];
 
 export const POSSESSION = [   // D2 — eighteen items, verbatim
@@ -47,7 +59,21 @@ export const POSSESSION = [   // D2 — eighteen items, verbatim
   { id: 'mice', sentence: 'The ___ favourite game is chase.', word: 'mice', form: 'before', count: 'The mice', many: true, build: "mice's", note: 'mice is already lots — so it just takes ’s!' },
   { id: 'dad', sentence: '___ jokes are the silliest.', word: 'Dad', form: 'before', count: 'Dad', many: false, build: "Dad's" },
   { id: 'girls', sentence: 'The ___ sandcastle survived the wave!', word: 'girls', form: 'after', count: 'The girls', many: true, build: "girls'" },
-  { id: 'child', sentence: 'One ___ wish came true.', word: 'child', form: 'before', count: 'One child', many: false, build: "child's" }
+  { id: 'child', sentence: 'One ___ wish came true.', word: 'child', form: 'before', count: 'One child', many: false, build: "child's" },
+  // + RUN21H A3 (18 -> 28). Balanced across the three cases the game teaches: one owner
+  // (before the s), lots of owners already ending in s (after it), and irregular plurals
+  // that are already lots and so take ’s — the last of which carries its own note, because
+  // commaWhyLine's default sentence would otherwise call a plural "only one".
+  { id: 'cat1', sentence: 'The ___ whiskers are white.', word: 'cat', form: 'before', count: 'One cat', many: false, build: "cat's" },
+  { id: 'catsmany', sentence: 'The ___ bowls are all empty.', word: 'cats', form: 'after', count: 'Three cats', many: true, build: "cats'" },
+  { id: 'baby', sentence: 'The ___ rattle rolled away.', word: 'baby', form: 'before', count: 'One baby', many: false, build: "baby's" },
+  { id: 'babies', sentence: 'The ___ cots are all in a row.', word: 'babies', form: 'after', count: 'The babies', many: true, build: "babies'" },
+  { id: 'farmer', sentence: 'The ___ tractor is stuck.', word: 'farmer', form: 'before', count: 'One farmer', many: false, build: "farmer's" },
+  { id: 'farmers', sentence: 'The two ___ fields meet at the gate.', word: 'farmers', form: 'after', count: 'Two farmers', many: true, build: "farmers'" },
+  { id: 'people', sentence: 'The ___ coats were soaked.', word: 'people', form: 'before', count: 'The people', many: true, build: "people's", note: 'people is already lots — so it just takes ’s!' },
+  { id: 'geese', sentence: 'The ___ pond has frozen over.', word: 'geese', form: 'before', count: 'The geese', many: true, build: "geese's", note: 'geese is already lots — so it just takes ’s!' },
+  { id: 'snaffle', sentence: '___ tail knocked the jar over.', word: 'Snaffle', form: 'before', count: 'Snaffle', many: false, build: "Snaffle's" },
+  { id: 'players', sentence: 'The ___ boots were caked in mud.', word: 'players', form: 'after', count: 'The players', many: true, build: "players'" }
 ];
 
 // D2+ — the six no-comma decoys (level 3 only)

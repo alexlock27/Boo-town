@@ -43,7 +43,18 @@ export const B1 = [
   { id: 'illegal', parts: [{ k: 'il', l: 'il' }, { k: 'legal', l: 'legal' }], build: 'illegal', rule: 'il before l. Two l’s meet in the middle!', order: 'I need something that means NOT LEGAL!', ruleType: 'MEANING' },
   { id: 'submarine', parts: [{ k: 'sub', l: 'sub' }, { k: 'marine', l: 'marine' }], build: 'submarine', rule: 'sub means UNDER. Under the sea!', order: 'I need something that means UNDER THE SEA!', ruleType: 'MEANING' },
   { id: 'superstar', parts: [{ k: 'super', l: 'super' }, { k: 'star', l: 'star' }], build: 'superstar', rule: 'super means MORE than. A more-than-star!', order: 'I need something that means MORE THAN A STAR!', ruleType: 'MEANING' },
-  { id: 'autograph', parts: [{ k: 'auto', l: 'auto' }, { k: 'graph', l: 'graph' }], build: 'autograph', rule: 'auto means SELF. Written by yourself!', order: 'I need something that means WRITTEN BY YOURSELF!', ruleType: 'MEANING' }
+  { id: 'autograph', parts: [{ k: 'auto', l: 'auto' }, { k: 'graph', l: 'graph' }], build: 'autograph', rule: 'auto means SELF. Written by yourself!', order: 'I need something that means WRITTEN BY YOURSELF!', ruleType: 'MEANING' },
+  // RUN21H A3: 16 -> 24, so three whole rounds are fresh. Same shape, same voice, and the
+  // six additions bring in pre- (a statutory Y3/4 prefix the app taught nowhere) and give
+  // dis-/mis-/inter- a second example each.
+  { id: 'preheat', parts: [{ k: 'pre', l: 'pre' }, { k: 'heat', l: 'heat' }], build: 'preheat', rule: 'pre means BEFORE. Heat it before you start!', order: 'I need something that means HEATING IT BEFOREHAND!', ruleType: 'MEANING' },
+  { id: 'preview', parts: [{ k: 'pre', l: 'pre' }, { k: 'view', l: 'view' }], build: 'preview', rule: 'pre means BEFORE. A look before everyone else!', order: 'I need something that means A LOOK BEFORE THE REST!', ruleType: 'MEANING' },
+  { id: 'prehistoric', parts: [{ k: 'pre', l: 'pre' }, { k: 'historic', l: 'historic' }], build: 'prehistoric', rule: 'pre means BEFORE — before history was written down. Dinosaurs!', order: 'I need something that means FROM BEFORE HISTORY!', ruleType: 'MEANING' },
+  { id: 'dishonest', parts: [{ k: 'dis', l: 'dis' }, { k: 'honest', l: 'honest' }], build: 'dishonest', rule: 'dis means NOT. NOT telling the truth.', order: 'I need something that means NOT HONEST!', ruleType: 'MEANING' },
+  { id: 'misplace', parts: [{ k: 'mis', l: 'mis' }, { k: 'place', l: 'place' }], build: 'misplace', rule: 'mis means WRONGLY. Put down in the wrong place!', order: 'I need something that means PUTTING IT IN THE WRONG PLACE!', ruleType: 'MEANING' },
+  { id: 'disobey', parts: [{ k: 'dis', l: 'dis' }, { k: 'obey', l: 'obey' }], build: 'disobey', rule: 'dis means NOT. NOT doing as you are told!', order: 'I need something that means NOT OBEYING!', ruleType: 'MEANING' },
+  { id: 'unkind', parts: [{ k: 'un', l: 'un' }, { k: 'kind', l: 'kind' }], build: 'unkind', rule: 'un means NOT. Not kind at all.', order: 'I need something that means NOT KIND!', ruleType: 'MEANING' },
+  { id: 'replay', parts: [{ k: 're', l: 're' }, { k: 'play', l: 'play' }], build: 'replay', rule: 're means AGAIN. Play it again!', order: 'I need something that means PLAYING IT AGAIN!', ruleType: 'MEANING' }
 ];
 export const B1_PREFIXES = [...new Set(B1.map(i => i.parts[0].k))];
 
@@ -68,7 +79,16 @@ export const B2 = [
   { id: 'basically', parts: [{ k: 'basic', l: 'basic' }, { k: 'ally', l: 'ally' }], build: 'basically', rule: 'basic + ally → basically. ' + RULE_DESC.IC_ALLY, order: 'Turn ‘basic’ into a HOW word!', ruleType: 'IC TAKES ALLY' },
   { id: 'comically', parts: [{ k: 'comic', l: 'comic' }, { k: 'ally', l: 'ally' }], build: 'comically', rule: 'comic + ally → comically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘comic’ tell us HOW!', ruleType: 'IC TAKES ALLY' },
   { id: 'dramatically', parts: [{ k: 'dramatic', l: 'dramatic' }, { k: 'ally', l: 'ally' }], build: 'dramatically', rule: 'dramatic + ally → dramatically. ' + RULE_DESC.IC_ALLY, order: 'Turn ‘dramatic’ into a HOW word!', ruleType: 'IC TAKES ALLY' },
-  { id: 'frantically', parts: [{ k: 'frantic', l: 'frantic' }, { k: 'ally', l: 'ally' }], build: 'frantically', rule: 'frantic + ally → frantically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘frantic’ tell us HOW!', ruleType: 'IC TAKES ALLY' }
+  { id: 'frantically', parts: [{ k: 'frantic', l: 'frantic' }, { k: 'ally', l: 'ally' }], build: 'frantically', rule: 'frantic + ally → frantically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘frantic’ tell us HOW!', ruleType: 'IC TAKES ALLY' },
+  // RUN21H A3: 16 -> 24, two per join rule so the level still teaches all four joins evenly.
+  { id: 'bravely', parts: [{ k: 'brave', l: 'brave' }, { k: 'ly', l: 'ly' }], build: 'bravely', rule: RULE_DESC.JUST_ADD_LY + ' Keep the e!', order: 'Turn ‘brave’ into a HOW word!', ruleType: 'JUST ADD' },
+  { id: 'politely', parts: [{ k: 'polite', l: 'polite' }, { k: 'ly', l: 'ly' }], build: 'politely', rule: RULE_DESC.JUST_ADD_LY + ' Keep the e!', order: 'Make ‘polite’ tell us HOW!', ruleType: 'JUST ADD' },
+  { id: 'suddenly', parts: [{ k: 'sudden', l: 'sudden' }, { k: 'ly', l: 'ly' }], build: 'suddenly', rule: RULE_DESC.JUST_ADD_LY, order: 'Turn ‘sudden’ into a HOW word!', ruleType: 'JUST ADD' },
+  { id: 'hungrily', parts: [{ k: 'hungry', l: 'hungry' }, { k: 'ly', l: 'ily' }], build: 'hungrily', rule: 'hungry + ly → hungrily. ' + RULE_DESC.Y_TO_I_LY, order: 'Make ‘hungry’ tell us HOW!', ruleType: 'Y TURNS TO I' },
+  { id: 'sleepily', parts: [{ k: 'sleepy', l: 'sleepy' }, { k: 'ly', l: 'ily' }], build: 'sleepily', rule: 'sleepy + ly → sleepily. ' + RULE_DESC.Y_TO_I_LY, order: 'Turn ‘sleepy’ into a HOW word!', ruleType: 'Y TURNS TO I' },
+  { id: 'terribly', parts: [{ k: 'terrible', l: 'terrible' }, { k: 'ly', l: 'ly' }], build: 'terribly', rule: 'terrible + ly → terribly. ' + RULE_DESC.LE_TO_LY, order: 'Make ‘terrible’ tell us HOW!', ruleType: 'LE TURNS TO LY' },
+  { id: 'sensibly', parts: [{ k: 'sensible', l: 'sensible' }, { k: 'ly', l: 'ly' }], build: 'sensibly', rule: 'sensible + ly → sensibly. ' + RULE_DESC.LE_TO_LY, order: 'Turn ‘sensible’ into a HOW word!', ruleType: 'LE TURNS TO LY' },
+  { id: 'magically', parts: [{ k: 'magic', l: 'magic' }, { k: 'ally', l: 'ally' }], build: 'magically', rule: 'magic + ally → magically. ' + RULE_DESC.IC_ALLY, order: 'Make ‘magic’ tell us HOW!', ruleType: 'IC TAKES ALLY' }
 ];
 
 // ---- B3: -ing/-ed double or drop ----
@@ -84,7 +104,15 @@ export const B3 = [
   { id: 'jumping', parts: [{ k: 'jump', l: 'jump' }, { k: 'ing', l: 'ing' }], build: 'jumping', rule: RULE_DESC.JUST_ADD, order: 'Make ‘jump’ happening now!', ruleType: 'JUST ADD' },
   { id: 'played', parts: [{ k: 'play', l: 'play' }, { k: 'ed', l: 'ed' }], build: 'played', rule: RULE_DESC.JUST_ADD, order: 'Make ‘play’ already done!', ruleType: 'JUST ADD' },
   { id: 'painting', parts: [{ k: 'paint', l: 'paint' }, { k: 'ing', l: 'ing' }], build: 'painting', rule: RULE_DESC.JUST_ADD, order: 'Make ‘paint’ happening now!', ruleType: 'JUST ADD' },
-  { id: 'helped', parts: [{ k: 'help', l: 'help' }, { k: 'ed', l: 'ed' }], build: 'helped', rule: RULE_DESC.JUST_ADD, order: 'Make ‘help’ already done!', ruleType: 'JUST ADD' }
+  { id: 'helped', parts: [{ k: 'help', l: 'help' }, { k: 'ed', l: 'ed' }], build: 'helped', rule: RULE_DESC.JUST_ADD, order: 'Make ‘help’ already done!', ruleType: 'JUST ADD' },
+  // RUN21H A3: level 3 is B3 + B3PLUS, which came to 18 for a round of 8. Six more here
+  // take it to 24, two per join rule so the level still teaches double / drop / just-add evenly.
+  { id: 'shopping', parts: [{ k: 'shop', l: 'shop' }, { k: 'ing', l: 'ing' }], build: 'shopping', rule: RULE_DESC.DOUBLE, order: 'Make ‘shop’ happening now!', ruleType: 'DOUBLE THE LAST LETTER' },
+  { id: 'stopped', parts: [{ k: 'stop', l: 'stop' }, { k: 'ed', l: 'ed' }], build: 'stopped', rule: RULE_DESC.DOUBLE, order: 'Make ‘stop’ already done!', ruleType: 'DOUBLE THE LAST LETTER' },
+  { id: 'baking', parts: [{ k: 'bake', l: 'bake' }, { k: 'ing', l: 'ing' }], build: 'baking', rule: RULE_DESC.DROP_E, order: 'Make ‘bake’ happening now!', ruleType: 'DROP THE E' },
+  { id: 'closed', parts: [{ k: 'close', l: 'close' }, { k: 'ed', l: 'ed' }], build: 'closed', rule: RULE_DESC.DROP_E, order: 'Make ‘close’ already done!', ruleType: 'DROP THE E' },
+  { id: 'walking', parts: [{ k: 'walk', l: 'walk' }, { k: 'ing', l: 'ing' }], build: 'walking', rule: RULE_DESC.JUST_ADD, order: 'Make ‘walk’ happening now!', ruleType: 'JUST ADD' },
+  { id: 'shouted', parts: [{ k: 'shout', l: 'shout' }, { k: 'ed', l: 'ed' }], build: 'shouted', rule: RULE_DESC.JUST_ADD, order: 'Make ‘shout’ already done!', ruleType: 'JUST ADD' }
 ];
 
 // ---- B3+: multisyllabic stress doubling (folds into level 3 with B3) ----
@@ -111,7 +139,23 @@ export const B4 = [
   { id: 'famous', parts: [{ k: 'fame', l: 'fame' }, { k: 'ous', l: 'ous' }], build: 'famous', rule: RULE_DESC.DROP_E_ENDING, order: 'Turn ‘fame’ into a describing word!', ruleType: 'DROP THE E' },
   { id: 'various', parts: [{ k: 'vary', l: 'vary' }, { k: 'ous', l: 'ious' }], build: 'various', rule: 'vary + ous → various. ' + RULE_DESC.Y_TO_I_LY.replace('-ly', '-ous'), order: 'Make ‘vary’ into a describing word!', ruleType: 'Y TURNS TO I' },
   { id: 'courageous', parts: [{ k: 'courage', l: 'courage' }, { k: 'ous', l: 'eous' }], build: 'courageous', rule: 'KEEP the e — it keeps the g soft!', order: 'Turn ‘courage’ into a describing word!', ruleType: 'KEEP THE E' },
-  { id: 'outrageous', parts: [{ k: 'outrage', l: 'outrage' }, { k: 'ous', l: 'eous' }], build: 'outrageous', rule: 'Keep the e again. Outrageous!', order: 'Make ‘outrage’ into a describing word!', ruleType: 'KEEP THE E' }
+  { id: 'outrageous', parts: [{ k: 'outrage', l: 'outrage' }, { k: 'ous', l: 'eous' }], build: 'outrageous', rule: 'Keep the e again. Outrageous!', order: 'Make ‘outrage’ into a describing word!', ruleType: 'KEEP THE E' },
+  // RUN21H A3: 10 -> 24, the thinnest level in the factory. The additions keep the level's
+  // four joins (just add, drop the e, y turns to i, keep the e) in proportion.
+  { id: 'invitation', parts: [{ k: 'invite', l: 'invite' }, { k: 'ation', l: 'ation' }], build: 'invitation', rule: RULE_DESC.DROP_E_ENDING, order: 'Turn ‘invite’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'exploration', parts: [{ k: 'explore', l: 'explore' }, { k: 'ation', l: 'ation' }], build: 'exploration', rule: RULE_DESC.DROP_E_ENDING, order: 'Make ‘explore’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'imagination', parts: [{ k: 'imagine', l: 'imagine' }, { k: 'ation', l: 'ation' }], build: 'imagination', rule: RULE_DESC.DROP_E_ENDING, order: 'Turn ‘imagine’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'adoration', parts: [{ k: 'adore', l: 'adore' }, { k: 'ation', l: 'ation' }], build: 'adoration', rule: RULE_DESC.DROP_E_ENDING, order: 'Make ‘adore’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'relaxation', parts: [{ k: 'relax', l: 'relax' }, { k: 'ation', l: 'ation' }], build: 'relaxation', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘relax’ into a naming word!', ruleType: 'JUST ADD' },
+  { id: 'starvation', parts: [{ k: 'starve', l: 'starve' }, { k: 'ation', l: 'ation' }], build: 'starvation', rule: RULE_DESC.DROP_E_ENDING, order: 'Make ‘starve’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'presentation', parts: [{ k: 'present', l: 'present' }, { k: 'ation', l: 'ation' }], build: 'presentation', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘present’ into a naming word!', ruleType: 'JUST ADD' },
+  { id: 'nervous', parts: [{ k: 'nerve', l: 'nerve' }, { k: 'ous', l: 'ous' }], build: 'nervous', rule: RULE_DESC.DROP_E_ENDING, order: 'Make ‘nerve’ into a describing word!', ruleType: 'DROP THE E' },
+  { id: 'mountainous', parts: [{ k: 'mountain', l: 'mountain' }, { k: 'ous', l: 'ous' }], build: 'mountainous', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘mountain’ into a describing word!', ruleType: 'JUST ADD' },
+  { id: 'humorous', parts: [{ k: 'humour', l: 'humour' }, { k: 'ous', l: 'orous' }], build: 'humorous', rule: 'humour + ous → humorous. The u packs its bags and leaves!', order: 'Make ‘humour’ into a describing word!', ruleType: 'A LETTER LEAVES' },
+  { id: 'glamorous', parts: [{ k: 'glamour', l: 'glamour' }, { k: 'ous', l: 'orous' }], build: 'glamorous', rule: 'glamour + ous → glamorous. That u leaves too!', order: 'Turn ‘glamour’ into a describing word!', ruleType: 'A LETTER LEAVES' },
+  { id: 'furious', parts: [{ k: 'fury', l: 'fury' }, { k: 'ous', l: 'ious' }], build: 'furious', rule: 'fury + ous → furious. ' + RULE_DESC.Y_TO_I_LY.replace('-ly', '-ous'), order: 'Make ‘fury’ into a describing word!', ruleType: 'Y TURNS TO I' },
+  { id: 'victorious', parts: [{ k: 'victory', l: 'victory' }, { k: 'ous', l: 'ious' }], build: 'victorious', rule: 'victory + ous → victorious. ' + RULE_DESC.Y_TO_I_LY.replace('-ly', '-ous'), order: 'Turn ‘victory’ into a describing word!', ruleType: 'Y TURNS TO I' },
+  { id: 'thunderous', parts: [{ k: 'thunder', l: 'thunder' }, { k: 'ous', l: 'ous' }], build: 'thunderous', rule: RULE_DESC.JUST_ADD, order: 'Make ‘thunder’ into a describing word!', ruleType: 'JUST ADD' }
 ];
 
 export const FACTORY_LEVELS = {

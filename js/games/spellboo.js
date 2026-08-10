@@ -50,6 +50,9 @@ const FRIENDLY = {
   silentIshSc:        { name: 'Silent c Words',    sub: 'science · scissors',    group: 'sneaky' },
   eiEighEy:           { name: 'The eigh Gang',     sub: 'eight · they',          group: 'sneaky' },
   ouSoundsLikeU:      { name: 'Short ou Words',    sub: 'young · touch',         group: 'sneaky' },
+  // RUN21H A3: the new y-that-sounds-like-i bank needs a card here or the child can never
+  // reach it — a bank with no picker entry is content that does not exist.
+  yThatSoundsLikeI:   { name: 'Sneaky y says i',   sub: 'myth · pyramid',        group: 'sneaky' },
   homophones:         { name: 'Homophones',        sub: 'piece / peace',         group: 'sneaky' }
 };
 function friendlyChoice(c) {

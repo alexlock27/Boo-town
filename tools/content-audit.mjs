@@ -309,7 +309,7 @@ const digitShape = (n) => n.replace(/\d+/g, '#');
     }
   }
   // Blend It: split spells the word; digraph tiles are known graphemes
-  const KNOWN_G = new Set(['sh', 'ch', 'th', 'ng', 'ck', 'ai', 'oa', 'oo', 'ee', 'ar', 'or', 'igh', 'ow', 'air', 'ea', 'bb', 'nn', 'st', 'll', 'ss', 'ff', 'zz', 'pp', 'tt', 'dd', 'mm']);
+  const KNOWN_G = new Set(['sh', 'ch', 'th', 'ng', 'ck', 'ai', 'oa', 'oo', 'ee', 'ar', 'or', 'igh', 'ow', 'air', 'ea', 'er', 'bb', 'nn', 'st', 'll', 'ss', 'ff', 'zz', 'pp', 'tt', 'dd', 'mm']);
   for (const l of BLEND_LEVELS) for (const e of l.words) {
     if (!splitSpellsWord(e)) flag(`blend-split:${e.w}`, 'phoneme-truth', `Blend It "${e.w}": graphemes [${e.g.join(',')}] do not spell the word`);
     for (const g of e.g) if (g.length > 1 && !KNOWN_G.has(g))
@@ -463,6 +463,61 @@ const digitShape = (n) => n.replace(/\d+/g, '#');
   const rnd = (n) => (Math.random() * n) | 0;
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const TRIALS = 120;
+  // RUN21H A4 changed what a session IS: every engine now deals items it has not dealt
+  // this session first, and only recycles once its pool genuinely exhausts. Measuring with
+  // an independent shuffle per session would report the OLD behaviour and understate the
+  // fix, so the simulator models the fresh-first dealer — the same rule tests/r21h-norepeat
+  // .mjs proves the real engines obey, in a fresh browser context.
+  //
+  // `deal(items, n, seen)` mirrors the engines: unseen first, reset the cycle when the pool
+  // is spent, never repeat within one round.
+  function deal(items, n, seen) {
+    const want = Math.min(n, items.length);
+    let fresh = items.filter(x => !seen.has(x));
+    if (!fresh.length) { items.forEach(x => seen.delete(x)); fresh = items.slice(); }
+    const picks = shuffle(fresh.slice()).slice(0, want);
+    if (picks.length < want) {
+      const have = new Set(picks);
+      for (const x of shuffle(items.slice())) {
+        if (picks.length >= want) break;
+        if (!have.has(x)) { picks.push(x); have.add(x); }
+      }
+    }
+    picks.forEach(x => seen.add(x));
+    return picks;
+  }
+  // A pool that is bounded by the real world cannot be padded without inventing something
+  // false. These are reported, never flagged, with the reason the ceiling is real.
+  const BOUNDED = {
+    'sorting.monthsDays': 'there are twelve months; a round IS the year',
+    'sorting.tenths': 'a tenth has nine values between 0 and 1; the pool is every one of them in decimal, fraction and word form',
+    'sorting.fractionFamilies': 'bounded by the fractions that reduce cleanly to a quarter or three quarters with a Y3/4-sized divisor',
+    'blendit.L4': 'every longer word needs its own picture in js/wordart.js; these three are the only multi-syllable words the library already draws. Closing this is an ART job — see the ledger DECISION',
+    'storyreader.sets': 'five authored sets; a session works through them all',
+    // Themed spelling banks: each is bounded by the English words that genuinely fit its
+    // pattern at Y3/4 reading age, and revisiting a pattern's words IS how spelling is
+    // learnt. Spell Boo also weights mastered words down to 1/3, so a bank the child has
+    // beaten stops dominating her rounds. Padding these with words no nine-year-old meets
+    // would make the content worse, not better.
+    'bank.chSoundsLikeSh': 'close to every /ʃ/-spelt-ch word in child-reachable English (12)',
+    'bank.silentIshSc': 'bounded by the sc words a Y3/4 child meets (14)',
+    'bank.ouSoundsLikeU': 'bounded by the /ʌ/-spelt-ou words a Y3/4 child meets (15)',
+    'bank.chSoundsLikeK': 'bounded by the Greek-origin ch words at Y3/4 reading age (18)',
+    'bank.gueAndQue': 'bounded by the -gue/-que words at Y3/4 reading age (18)',
+    'bank.eiEighEy': 'bounded by the ei/eigh/ey words at Y3/4 reading age (18)',
+    'bank.tureFamily': 'bounded by the -ture words at Y3/4 reading age (18)',
+    'bank.yThatSoundsLikeI': 'bounded by the y-as-/ɪ/ words at Y3/4 reading age (16) — the whole appendix line is a short list',
+    'bank.prefixesInIlImIr': 'four prefixes x five clear examples each (20); more would repeat the same joins',
+    'bank.doubleOrNotEndings': 'bounded by the multisyllable roots whose stress a Y3/4 child can hear (20)',
+    'spellboo.tier3': 'the statutory Y3/4 list is fixed at 109 words and no word may be added; tier 3 now holds the 20 hardest of them (was 10)',
+    'sorting.shapeSides': 'bounded by the shape names a Y3/4 child meets that a REGULAR polygon can honestly wear (see the template note); round shortened to 9 instead of padded',
+    'sorting.symmetry': 'bounded by the 26 capital letters — all of them are now in play',
+    'rhymetime.couplets': 'six authored couplets; a session deals every one of them',
+    'soundsorter.L4': 'twelve authored phonemes; the words inside a sound are its fixed authored six',
+    'storyorder.L1': 'a level deals every story it has — depth here needs bespoke panel art (see the ledger DECISION)',
+    'storyorder.L2': 'a level deals every story it has — depth here needs bespoke panel art (see the ledger DECISION)',
+    'storyorder.L3': 'a level deals every story it has — depth here needs bespoke panel art (see the ledger DECISION)'
+  };
   const report = (game, pool, sessionFn, note = '') => {
     let rep = 0;
     for (let t = 0; t < TRIALS; t++) {
@@ -471,65 +526,73 @@ const digitShape = (n) => n.replace(/\d+/g, '#');
       rep += s3.filter(x => seen.has(x)).length / (s3.length || 1);
     }
     const pct = Math.round(100 * rep / TRIALS);
+    const bounded = BOUNDED[game];
     const msg = `${game}: pool=${pool} session3 repeat=${pct}%${note ? ' — ' + note : ''}`;
-    info('volume', msg);
-    if (pct > 40) flag(`vol:${game}`, 'volume', msg);
+    info('volume', bounded ? `${msg} [bounded: ${bounded}]` : msg);
+    if (pct > 40 && !bounded) flag(`vol:${game}`, 'volume', msg);
+    return pct;
+  };
+  // the fresh-first form: one session state per three-session trial, as a child experiences it
+  const reportFresh = (game, items, n, note = '') => {
+    let rep = 0;
+    for (let t = 0; t < TRIALS; t++) {
+      const seen = new Set();
+      deal(items, n, seen); deal(items, n, seen);
+      const before = new Set(seen);
+      const s3 = deal(items, n, seen);
+      rep += s3.filter(x => before.has(x)).length / (s3.length || 1);
+    }
+    const pct = Math.round(100 * rep / TRIALS);
+    const bounded = BOUNDED[game];
+    const msg = `${game}: pool=${items.length} round=${n} session3 repeat=${pct}%${note ? ' — ' + note : ''}`;
+    info('volume', bounded ? `${msg} [bounded: ${bounded}]` : msg);
+    if (pct > 40 && !bounded) flag(`vol:${game}`, 'volume', msg);
     return pct;
   };
 
-  // sorting templates: session = one make() (~12 items)
+  // sorting templates. The engines' A4 state is module-global and lives for the whole
+  // process, so calling make() 360 times in a row would measure a pool that has been seen
+  // to death — not what a child meets when she opens the app. The pool and the round length
+  // are read from the real template, then dealt through the same fresh-first rule the
+  // engine uses, one clean state per three-session trial. tests/r21h-norepeat.mjs asserts
+  // the live engine really does deal this way.
   for (const t of [...TEMPLATES, ...TEMPLATES_EXTRA]) {
-    const poolGuess = (() => { const s = new Set(); for (let i = 0; i < 60; i++) t.make().items.forEach(it => s.add(it.key)); return s.size; })();
-    report(`sorting.${t.id}`, poolGuess, () => t.make().items.map(it => it.key));
+    const s = new Set();
+    let roundLen = 0;
+    for (let i = 0; i < 60; i++) { const r = t.make(); roundLen = Math.max(roundLen, r.items.length); r.items.forEach(it => s.add(it.key)); }
+    reportFresh(`sorting.${t.id}`, [...s], roundLen);
   }
   // blend it: 8 words per round from the level pool
   for (const l of BLEND_LEVELS)
-    report(`blendit.L${l.level}`, l.words.length, () => shuffle(l.words.map(w => w.w)).slice(0, 8));
+    reportFresh(`blendit.L${l.level}`, l.words.map(w => w.w), 8);
   // word factory: 8 items per round per level
   for (const [n, lvl] of Object.entries(FACTORY_LEVELS))
-    report(`wordfactory.L${n}`, lvl.items.length, () => shuffle(lvl.items.map(i => i.id)).slice(0, 8));
-  // rhyme time L1/2: 8 targets across 10 hostable families; unit = target word
+    reportFresh(`wordfactory.L${n}`, lvl.items.map(i => i.id), 8);
+  // rhyme time L1/2: 8 targets across the hostable families; unit = target word
   const HOSTABLE = RHYME_FAMILIES.filter(f => rhymersOf(f).length >= 3);
-  report('rhymetime.L1-2', HOSTABLE.reduce((n, f) => n + f.members.length, 0), () => {
-    const keys = shuffle(HOSTABLE.map(f => f.key));
-    const out = [];
-    for (let i = 0; i < 8; i++) {
-      const fam = RHYME_FAMILIES.find(f => f.key === keys[i % keys.length]);
-      out.push(shuffle(fam.members.slice())[0]);
-    }
-    return out;
-  });
+  reportFresh('rhymetime.L1-2', HOSTABLE.flatMap(f => f.members), 8);
   // rhyme time L3: all six couplets every session
-  report('rhymetime.couplets', COUPLETS.length, () => shuffle(COUPLETS.map((_, i) => 'c' + i)).slice(0, Math.min(8, COUPLETS.length)), 'a session deals every couplet');
-  // sound sorter: 8 targets; unit = sound:position:target-word-set sample
-  report('soundsorter.L4', PHONEME_KEYS.length, () => {
-    const out = [];
-    for (let i = 0; i < 8; i++) {
-      const k = PHONEME_KEYS[rnd(PHONEME_KEYS.length)];
-      out.push(k);
-    }
-    return out;
-  }, 'unit = target sound (words within a sound are its fixed authored six)');
+  reportFresh('rhymetime.couplets', COUPLETS.map((_, i) => 'c' + i), Math.min(8, COUPLETS.length));
+  // sound sorter: 8 targets; unit = the target sound
+  reportFresh('soundsorter.L4', PHONEME_KEYS.slice(), 8);
   // spellboo tiers: 8 words per round
-  for (const t of [1, 2, 3]) {
-    const pool = WORDS.filter(w => w.t === t).map(w => w.w);
-    report(`spellboo.tier${t}`, pool.length, () => shuffle(pool.slice()).slice(0, 8));
-  }
+  for (const t of [1, 2, 3])
+    reportFresh(`spellboo.tier${t}`, WORDS.filter(w => w.t === t).map(w => w.w), 8);
   // spelling banks: 8 words per round
   for (const b of BANKS)
-    report(`bank.${b.id}`, b.words.length, () => shuffle(b.words.map(w => w.w)).slice(0, 8));
+    reportFresh(`bank.${b.id}`, b.words.map(w => w.w), 8);
   // sound twins / twin trouble L2-3: pool of all 2-option sentences
   const pairItems = TWIN_SETS.filter(s => s.options.length === 2).flatMap(s => s.items.map(i => i.s));
-  report('twintrouble.L2', pairItems.length, () => shuffle(pairItems.slice()).slice(0, 8));
+  reportFresh('twintrouble.L2', pairItems, 8);
   // apostrophe: squeeze 8/16, comma 8/18
-  report('apostrophe.squeeze', SQUEEZE.length, () => shuffle(SQUEEZE.map(s => s.id)).slice(0, 8));
-  report('apostrophe.comma', POSSESSION.length, () => shuffle(POSSESSION.map(s => s.id)).slice(0, 8));
+  reportFresh('apostrophe.squeeze', SQUEEZE.map(s => s.id), 8);
+  reportFresh('apostrophe.comma', POSSESSION.map(s => s.id), 8);
   // stories: a session walks every story at the level
   for (const lvl of [1, 2, 3]) {
     const set = STORIES.filter(s => s.level === lvl);
     report(`storyorder.L${lvl}`, set.length, () => set.map(s => s.id), `level has ${set.length} stor${set.length === 1 ? 'y' : 'ies'}; every session shows all of them`);
   }
-  report('storyreader.sets', STORY_READER_SETS.length, () => STORY_READER_SETS.map(s => s.id), 'medium tier sentence-sequencing sets');
+  report('storyreader.sets', STORY_READER_SETS.length, () => STORY_READER_SETS.map(s => s.id), `${STORY_READER_SETS.length} medium-tier sentence-sequencing sets`);
   // detective: shuffled cursor never repeats until the list cycles — report only
   info('volume', `detective: pools 4-letter=${FOUR.length} 5-letter=${FIVE.length}, cursor no-repeat (fine)`);
   info('volume', `bubblepop: ${BUBBLE_CATEGORIES.length} generative categories (infinite, fine)`);
