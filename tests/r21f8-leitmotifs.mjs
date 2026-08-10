@@ -5,7 +5,7 @@
 // 'lm:<area>:<voice>', lmInfo() reports the live loop/gain/scheduler, and 'lmtick' lines
 // time the scheduler so the CPU claim carries a real number. Section 0 validates the
 // AUTHORED DATA deterministically (pentatonic law, 8 bars, voice cap, registers, craft).
-// Expected runtime: ~90s (one 25-second seamless-loop capture is the long pole).
+// Expected runtime: ~65s (the 25-second seamless-loop capture is the long pole).
 import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 let failed = false;
@@ -79,6 +79,26 @@ const LM_AREAS = ['meadow', 'riverside', 'hilltop', 'beach', 'playground'];
   assert(new Set(bpms).size === 5, `five distinct tempi (${bpms.join(' ')})`);
   assert(new Set(Object.values(openings)).size === 5,
     `five distinct opening gestures (${Object.entries(openings).map(([a, o]) => a + ':[' + o + ']').join(' ')})`);
+}
+
+// ==================== 0b. the voices SUSTAIN (a held note must stay audible) =============
+// envTone ramps peak → silence across a note's whole duration: right for a chirp, fatal
+// for a drone. Measured on hilltop's 6.32s drone, that envelope is 27dB down at 3s and
+// 46dB down at 5s — the loop would have holes in it exactly where the music breathes,
+// which is what the continuity law exists to prevent. The leitmotif voices therefore use
+// a hold-then-release envelope. Guarded here at source, because the failure is inaudible
+// to every other assertion in this file: the notes are still scheduled, just silent.
+console.log('== the leitmotif voices sustain rather than pluck ==');
+{
+  const src = await (await fetch(BASE + '/js/sfx.js')).text();
+  const region = src.slice(src.indexOf('function lmTone'), src.indexOf('export function lmInfo'));
+  assert(region.length > 200, 'the leitmotif voice builder lmTone() is present');
+  assert(/setValueAtTime\(\s*body\s*,/.test(region), 'a held note holds its level (setValueAtTime(body, hold)) before releasing');
+  assert(/exponentialRampToValueAtTime\(\s*0\.0001\s*,\s*t0 \+ dur\s*\)/.test(region), 'and releases to silence exactly at the note\'s end, never across the seam');
+  const at = src.indexOf('function lmNote');
+  const lmNote = src.slice(at, src.indexOf('// Test seam', at));   // F7's bedInfo has a '// Test seam' too — search FROM lmNote
+  assert(!/\benvTone\(/.test(lmNote), 'lmNote() does NOT fall back to envTone\'s pluck envelope');
+  assert((lmNote.match(/lmTone\(/g) || []).length >= 4, 'every leitmotif voice goes through lmTone');
 }
 
 // ==================== browser fixtures ====================
@@ -229,6 +249,22 @@ console.log('== the mute contract, ducking under speech, and re-entry ==');
     return { info: s.lmInfo(), notes: s.getAudioLog().filter(e => e.kind === 'note' && e.tag && e.tag.startsWith('lm:meadow:')).length };
   });
   assert(back.info.scheduling && back.notes >= 1, `un-muting resumes the tune (${back.notes} notes in 1.2s)`);
+  // …and resumes it from a FRESH clock. The loop start is an audio-clock time; left stale
+  // across a long mute it sits far in the past, and the scheduler would catch up by
+  // dumping a bar's worth of notes into one instant. Proven by spread, not by reading code.
+  const spread = await page.evaluate(async () => {
+    const s = await import('./js/sfx.js');
+    s.setMusicEnabled(false);
+    await new Promise(r => setTimeout(r, 4000));    // a long silence: the clock goes stale
+    s.setAudioLog(true);
+    s.setMusicEnabled(true);
+    await new Promise(r => setTimeout(r, 1500));
+    const ts = s.getAudioLog().filter(e => e.kind === 'note' && e.tag && e.tag.startsWith('lm:')).map(e => e.t).sort((a, b) => a - b);
+    return { n: ts.length, span: ts.length > 1 ? (ts[ts.length - 1] - ts[0]) : 0, clumped: ts.filter((t, i) => i > 0 && t - ts[i - 1] < 0.001).length };
+  });
+  assert(spread.n > 0 && spread.span > 0.4,
+    `after a 4s mute the tune resumes spread over time, not in a clump (${spread.n} notes across ${spread.span.toFixed(2)}s)`);
+  assert(spread.clumped < spread.n / 2, `no catch-up burst of simultaneous notes (${spread.clumped} of ${spread.n})`);
 
   // sfx mute leaves the music alone — the existing contract, unchanged
   const sfxMuted = await page.evaluate(async () => {

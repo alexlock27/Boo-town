@@ -254,7 +254,9 @@ export const music = {
     // A leitmotif key ('leitmotif:<area>', RUN21F F8) and a classic key ('calm'|'game'|
     // 'fair') run different schedulers: switching kinds swaps them; switching within a
     // kind retunes the scheduler already in flight (both read currentLoop per tick).
-    if (isLeitmotif(which)) { stopScheduler(); lmRewind(); if (musicOn) startLmScheduler(); }
+    // Switching areas with the scheduler already in flight keeps the timer and re-aims it;
+    // otherwise startLmScheduler does the aiming. Either way exactly one announce.
+    if (isLeitmotif(which)) { stopScheduler(); if (lmTimer) lmRewind(); if (musicOn) startLmScheduler(); }
     else { stopLmScheduler(); if (musicOn) startScheduler(); }
   },
   stop() { currentLoop = null; stopScheduler(); stopLmScheduler(); },
@@ -614,21 +616,25 @@ function isLeitmotif(which) { return typeof which === 'string' && which.startsWi
 export function leitmotifKey(area) { return LEITMOTIFS[area] ? 'leitmotif:' + area : null; }
 function lmSpec() { return isLeitmotif(currentLoop) ? LEITMOTIFS[currentLoop.slice(10)] : null; }
 
-// (Re)aim the loop at "now" — on first start, and on an area switch mid-flight so the
-// new tune begins at its own bar 1 rather than partway through the old one's clock.
+// (Re)aim the loop at "now" and announce it. Called on first play, on an area switch
+// mid-flight (so the new tune begins at its own bar 1, not partway through the old one's
+// clock), and on every resume — after a mute or a hidden tab, lmLoopStart is minutes in
+// the past, and scheduling against a stale clock would dump the whole bar's catch-up into
+// one instant. Rewinding and announcing are the same event, so they live together.
 function lmRewind() {
   if (!ctx) return;
   lmLoopStart = ctx.currentTime + 0.1;
   lmIdx = 0;
+  const spec = lmSpec();
+  if (spec) logEvent({ kind: 'leitmotif', area: currentLoop.slice(10), bpm: spec.bpm, durMs: Math.round(spec.durMs) });
 }
 
 function startLmScheduler() {
   const spec = lmSpec();
   if (!ctx || !musicOn || !spec || !spec.events.length) return;
-  if (lmTimer) return;   // already running: lmRewind() has re-aimed it (see music.play)
+  if (lmTimer) return;   // already running: music.play has re-aimed it for the new area
   lmRewind();
   lmTimer = setInterval(scheduleLm, 60);
-  logEvent({ kind: 'leitmotif', area: currentLoop.slice(10), bpm: spec.bpm, durMs: Math.round(spec.durMs) });
 }
 function stopLmScheduler() { if (lmTimer) { clearInterval(lmTimer); lmTimer = null; } }
 
