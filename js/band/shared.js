@@ -432,6 +432,9 @@ export function mountInstrument(container, params, ctx, instrument) {
     song: () => song && song.id,
     songPosition: () => songPos,
     songDone: () => done,
+    // QA only: jump the song to a position (suites afford one honest full run, then
+    // fast-forward for the moment-under-test instead of 42 clicks per assertion)
+    qaSetSongPos: (n) => { if (!song) return; done = false; songPos = Math.max(0, Math.min(wantedKeys.length - 1, n)); renderLane(); updateWanted(); },
     wantedKey: () => wantedKeys[songPos] ?? -1,
     savedId: () => lastSavedId,
     laneBox: () => lane.getBoundingClientRect(),
