@@ -175,10 +175,13 @@ console.log('== sparse events: they happen, and never faster than the pack allow
     assert(mine.length <= allowed, `${area}: ${mine.length} in ${WINDOW / 1000}s honours the <=${perMin}/min cap`);
     assert(other.length === 0, `${area}: no other area's voice leaks into it (${other.length})`);
   }
-  // three-note motif: the meadow's birdsong logs its head note and schedules exactly 3
+  // three-note motif, OR (RUN21H B3) a real blackbird sample: sample() logs its head note as
+  // the sentinel freq:0 (a recording has no synthesised frequency) in place of the triangle
+  // motif's 2000+ Hz register — same tag, same bus, same fallback contract if the file is ever
+  // unavailable. Either shape proves the meadow's own voice is heard.
   const meadow = runs.find(r => r.area === 'meadow').log.filter(e => e.kind === 'note' && e.bus === 'bed');
-  assert(meadow.length >= 1 && meadow.every(e => e.freq >= 2000),
-    `meadow birdsong sits in the bird register (${meadow.map(e => e.freq).join(',')} Hz)`);
+  assert(meadow.length >= 1 && meadow.every(e => e.freq === 0 || e.freq >= 2000),
+    `meadow birdsong sits in the bird register or is a real sample (${meadow.map(e => e.freq).join(',')} Hz)`);
 }
 
 // ==================== 4. CPU: the bed costs nothing per frame ====================
