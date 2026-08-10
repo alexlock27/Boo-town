@@ -1328,9 +1328,15 @@ export function mount(container, params, ctx) {
     if (READONLY) return;
     renderDailyParcel(true);
     const line = ev && ev.detail && ev.detail.line;
-    if (!line || AREA.key !== 'meadow') return;
+    if (!line) return;
+    // The line lands in WHICHEVER area she is standing in — the parcel only exists in the
+    // Meadow, but the announcement must not. An earlier cut returned early outside the
+    // Meadow, which meant completing the third doing by walking into Riverside (five of the
+    // six unlocked areas) produced nothing on screen at all, and with voice off — the
+    // default — the moment was completely silent. The authored line names the Meadow, so
+    // it works as a signpost from anywhere.
     viewport.querySelectorAll('.daily-town-bubble').forEach(n => n.remove());
-    const bub = el('div', { class: 'speech-bubble daily-town-bubble', text: line });
+    const bub = el('div', { class: 'speech-bubble daily-town-bubble' + (AREA.key === 'meadow' ? ' at-parcel' : ' elsewhere'), text: line });
     viewport.appendChild(bub);
     clearTimeout(dailyBubbleTimer);
     dailyBubbleTimer = setTimeout(() => bub.remove(), 8000);

@@ -79,5 +79,5 @@ export const DAILY_COPY = {
   // the whole pool is owned, so the parcel holds a surprise box instead.
   allDoneBox: "All done for today! You've collected every parcel treasure — so today's parcel has a surprise box inside. It's waiting in the Meadow 🎁",
   // After the parcel is claimed. Never references yesterday or tomorrow.
-  allDoneClaimed: 'All done for today! Wasn’t that a lovely parcel? ✨'
+  allDoneClaimed: "All done for today! Wasn't that a lovely parcel? ✨"
 };

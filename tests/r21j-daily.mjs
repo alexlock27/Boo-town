@@ -287,8 +287,15 @@ console.log('== ACCEPT 3: a new day resets, mentions nothing, and loses nothing 
   // NOTHING anywhere references D — the old day, a streak, a miss, or a count of days.
   const hubText = await page.evaluate(() => document.body.innerText);
   assert(!hubText.includes(DAY), `the hub never shows the old date (${DAY})`);
-  assert(!/yesterday|missed|streak|in a row|days? running|don't break/i.test(hubText),
-    'no yesterday-reference, missed-day copy, or streak anywhere on the hub');
+  // Guilt language specifically. Deliberately NOT a bare /missed/ — the guide's own
+  // welcome pool contains "You're back! The Boos missed you.", which is affection and
+  // has been in the game since RUN1; a grep that flags warmth teaches nothing.
+  const GUILT = /you missed|missed (a |the )?(day|it)|didn't (come|play|visit)|streak|in a row|days? running|don't break|keep it up|come back tomorrow|last time you/i;
+  const guilt = hubText.match(GUILT);
+  assert(!guilt, `no missed-day copy, streak or day-count anywhere on the hub${guilt ? ` (found "${guilt[0]}")` : ''}`);
+  const cardText = await page.evaluate(() => (document.querySelector('.daily-card') || {}).innerText || '');
+  assert(!/yesterday|tomorrow|missed|streak|again|still/i.test(cardText),
+    `and the card itself never looks backwards or forwards ("${cardText.replace(/\n/g, ' / ')}")`);
 
   // The unclaimed item is back in the eligible pool. Forcing D+1's pick to the same
   // index proves the item itself was never removed — there is no bookkeeping to undo.
@@ -308,9 +315,30 @@ console.log('== ACCEPT 3: a new day resets, mentions nothing, and loses nothing 
   assert(proof.forced === dPick.id, 'forcing the same hash on the new day yields the very same item — nothing was consumed');
   assert(proof.hashDiffers, 'a different day hashes differently, so the day moves the pick on its own');
   const st = await save(page);
-  assert(st.daily.day === DAY || st.daily.day === NEXT_DAY, 'the save carries at most ONE day, never a history');
+  assert(typeof st.daily.day === 'string' && !Array.isArray(st.daily.day) && Object.keys(st.daily).length <= 4,
+    `the save carries ONE day and nothing else (${Object.keys(st.daily).join(', ')})`);
   assert(!('streak' in st.daily) && !('lastDay' in st.daily) && !('missed' in st.daily),
     'the save has no streak, no last-day and no missed count — there is nothing to feel bad about');
+
+  // NEGATIVE CONTROL. "Still eligible" only means something if the filter can actually
+  // remove things — otherwise the assertion above passes on a pool that never filters.
+  // Owning the item must drop it, and must move the day's pick to something else.
+  const control = await page.evaluate(async ({ id }) => {
+    const d = await import('./js/daily.js');
+    const s = await import('./js/state.js');
+    const wasEligible = d.eligiblePool().some(e => e.id === id);
+    const pickBefore = d.todaysParcel().id;
+    s.mutate(st => { st.inventory[id] = (st.inventory[id] || 0) + 1; });   // she now owns it
+    const nowEligible = d.eligiblePool().some(e => e.id === id);
+    const pickAfter = d.todaysParcel().id;
+    s.mutate(st => { delete st.inventory[id]; });                          // put the world back
+    return { wasEligible, nowEligible, pickBefore, pickAfter, backAgain: d.eligiblePool().some(e => e.id === id) };
+  }, { id: dPick.id });
+  assert(control.wasEligible && !control.nowEligible,
+    'OWNING a pool item removes it from the eligible pool — the filter is real, not a no-op');
+  assert(control.pickAfter !== control.pickBefore || control.pickBefore !== dPick.id,
+    `and the day's pick moves on to something she does not own (${control.pickBefore} → ${control.pickAfter})`);
+  assert(control.backAgain, 'and it returns the moment she does not own it — ownership is the ONLY thing the pool tracks');
 
   // and the new day ticks normally
   await playRound(page);
@@ -523,6 +551,300 @@ console.log('== a parcel pays out exactly once, and never on a day that has alre
     const back = await page.evaluate(async () => (await import('./js/daily.js')).eligiblePool().length);
     assert(back > 0, `the pool is intact on the new day (${back} eligible)`);
     await ctx.close();
+  }
+}
+
+// =====================================================================
+// THE WITNESSED MOMENT. ACCEPT 1 proves the parcel EXISTS; this proves
+// it ARRIVES. The pack's words are "when the third doing ticks, it is a
+// witnessed moment ... a wrapped parcel APPEARS in the Meadow", and
+// working-but-dead is a FAIL — so the live pop, the arrival bubble, and
+// the results-screen note each get driven here. Without this section
+// all three are shipped code no test ever executes.
+// =====================================================================
+console.log('== the witnessed moment: the parcel ARRIVES, it does not merely exist ==');
+{
+  // (a) She is standing in the Meadow when the third doing ticks. Entering the Meadow IS
+  //     the third doing here, so the tick lands while the area is mounted and the parcel
+  //     must pop in live — with the guide's line beside it, on the spot.
+  {
+    const { ctx, page, errors } = await open({
+      daily: { day: DAY, doings: { play: true, visit: false, care: true }, visited: [], delivered: false }
+    });
+    await go(page, 'town', { area: 'meadow' });
+    await page.waitForTimeout(1500);
+    const live = await page.evaluate(() => {
+      const n = document.querySelector('.daily-parcel');
+      const bub = document.querySelector('.daily-town-bubble');
+      return {
+        parcel: !!n,
+        popped: !!(n && n.classList.contains('parcel-pop')),
+        anim: n ? getComputedStyle(n).animationName : null,
+        bubble: bub ? bub.textContent : null,
+        bubbleVisible: !!(bub && bub.getBoundingClientRect().width > 20)
+      };
+    });
+    assert(live.parcel, 'the parcel appears the moment the third doing ticks, without leaving the area');
+    assert(live.popped, 'it arrives with the pop animation — it does not merely blink into existence');
+    assert(/parcelPop/i.test(live.anim || ''), `and the pop is really running (animation-name: ${live.anim})`);
+    const AUTHORED = ['All three doings done! A parcel just arrived in the Meadow…', "Something's waiting for you in the Meadow. It has a bow on it."];
+    assert(AUTHORED.includes(live.bubble), `the guide's line lands beside it, on the spot ("${live.bubble}")`);
+    assert(live.bubbleVisible, 'and the bubble is actually visible, not a zero-size node');
+    await page.screenshot({ path: 'screenshots/r21j-arrival.png' });
+    assert(errors.length === 0, `no page errors (${errors.join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+
+  // (b) The round she just finished is what completes the third doing — so the results
+  //     card must say where to look. This is the branch a child hits most often.
+  {
+    const { ctx, page, errors } = await open({
+      daily: { day: DAY, doings: { play: false, visit: true, care: true }, visited: ['meadow'], delivered: false }
+    });
+    await playRound(page, { stars: 3 });
+    const note = await page.evaluate(() => {
+      const n = document.querySelector('.result-daily-done');
+      if (!n) return null;
+      const r = n.getBoundingClientRect();
+      const meter = document.querySelector('.result-meter');
+      return { text: n.textContent, visible: r.width > 20 && r.height > 5,
+        beforeMeter: !!(meter && (n.compareDocumentPosition(meter) & Node.DOCUMENT_POSITION_FOLLOWING)) };
+    });
+    assert(!!note, 'the results card carries the completion note when the round is what finished the day');
+    assert(note && /Meadow/.test(note.text), `and it says WHERE to look ("${note && note.text}")`);
+    assert(note && note.visible, 'the note is really rendered, not a zero-size node');
+    assert(note && note.beforeMeter, 'it lands as its own beat above the star meter, not buried under the scoring');
+    await page.screenshot({ path: 'screenshots/r21j-results-note.png' });
+    assert(errors.length === 0, `no page errors (${errors.join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+
+  // (c) WHY hooking one seam is enough. "Play any game" ticks in results.js, which is
+  //     only correct if EVERY game really ends there. Rather than play one game to the
+  //     end (slow, and it would only prove that ONE game arrives), read every game
+  //     module and require each to route through ctx.go('results') — the RUN5 C0
+  //     crediting invariant, restated as the thing this feature depends on. A game that
+  //     ever grew its own ending would fail here instead of silently never ticking.
+  {
+    const { ctx, page, errors } = await open();
+    const routing = await page.evaluate(async () => {
+      const mods = ['bubblepop', 'feedboos', 'spellboo', 'blocks', 'bounce', 'beat',
+        'teachme', 'dash', 'clockshop', 'boopop', 'detective', 'booroll', 'echoboos',
+        'oddboo', 'flashboos'];
+      const out = {};
+      for (const m of mods) {
+        try {
+          const src = await (await fetch(`./js/games/${m}.js`)).text();
+          out[m] = /ctx\.go\(\s*['"]results['"]/.test(src);
+        } catch { out[m] = null; }   // module not at that path — reported, not guessed
+      }
+      return out;
+    });
+    const found = Object.entries(routing).filter(([, v]) => v !== null);
+    const routed = found.filter(([, v]) => v === true);
+    assert(found.length >= 12, `read ${found.length} game modules from js/games/`);
+    assert(routed.length === found.length,
+      `every game ends at the results seam this feature hooks (${routed.length}/${found.length}${
+        found.length !== routed.length ? ' — missing: ' + found.filter(([, v]) => !v).map(([k]) => k).join(', ') : ''})`);
+    // and the hook really is in that one file, called once
+    const resultsSrc = await page.evaluate(async () => await (await fetch('./js/results.js')).text());
+    assert((resultsSrc.match(/noteDailyPlay\(/g) || []).length === 1,
+      'and results.js calls noteDailyPlay exactly once, so a round can never tick it twice');
+    assert(errors.length === 0, `no page errors (${errors.join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// THE FOUR DEFECTS THE PLAYTEST CRITIC FOUND, each pinned so it cannot
+// come back. Two were this run's (a stale hub card, a silent moment
+// outside the Meadow), one was this run's copy duplicating the pack's
+// authored line, and one was a pre-existing contrast bug that this
+// feature's pool routes 20 of its 28 items through.
+// =====================================================================
+console.log('== the critic\'s four: stale card · silent elsewhere · duplicated line · unreadable banner ==');
+{
+  // (1) The hub card must NOT go stale when a doing ticks from an overlay opened over it.
+  //     Boo Care renders over a still-mounted hub, so this is the commonest tick of all.
+  {
+    const { ctx, page, errors } = await open({
+      daily: { day: DAY, doings: { play: true, visit: true, care: false }, visited: ['meadow'], delivered: false }
+    });
+    await go(page, 'hub'); await page.waitForTimeout(600);
+    const before = await cardView(page);
+    assert(before.rows[2].done === false, 'the card starts with "Look after a Boo" unticked');
+    assert(await careAction(page), 'a care action completes from the hub');
+    await page.evaluate(() => window.__care.close());
+    await page.waitForTimeout(500);
+    const after = await cardView(page);
+    assert(after.rows[2].done === true, 'the card behind the overlay TICKS ITSELF — it never lies about what she just did');
+    assert(after.sub === 'All done for today! Your parcel is waiting in the Meadow 🎁',
+      `and switches to the authored all-done copy ("${after.sub}")`);
+    assert(after.hasShowMe, 'and offers the way to the parcel it just told her about');
+    assert(errors.length === 0, `no page errors (${errors.join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+
+  // (2) The moment must land in EVERY area, not only the Meadow. Five of the six unlocked
+  //     areas hit this path, and with voice off — the default — a return meant silence.
+  for (const area of ['riverside', 'playground', 'meadow']) {
+    const { ctx, page, errors } = await open({
+      stars: { total: 400, byType: { maths: 100, word: 100, puzzle: 100, creative: 50, lesson: 50 }, byGame: {} },
+      daily: { day: DAY, doings: { play: true, visit: false, care: true }, visited: [], delivered: false }
+    });
+    await go(page, 'town', { area }); await page.waitForTimeout(1600);
+    const seen = await page.evaluate(() => {
+      const b = document.querySelector('.daily-town-bubble');
+      if (!b) return null;
+      const r = b.getBoundingClientRect();
+      return { text: b.textContent, visible: r.width > 20 && r.height > 10, cls: b.className };
+    });
+    assert(!!seen, `${area}: the moment is announced ON SCREEN, not only in speech`);
+    assert(seen && seen.visible, `${area}: and the bubble is really visible`);
+    assert(seen && /Meadow/.test(seen.text), `${area}: and it says where the parcel is`);
+    assert(seen && seen.cls.includes(area === 'meadow' ? 'at-parcel' : 'elsewhere'),
+      `${area}: positioned ${area === 'meadow' ? 'beside the parcel' : 'as a signpost'}`);
+    if (area === 'meadow') {
+      const near = await page.evaluate(() => {
+        const b = document.querySelector('.daily-town-bubble').getBoundingClientRect();
+        const p = document.querySelector('.daily-parcel').getBoundingClientRect();
+        return { gap: Math.round(p.top - b.bottom) };
+      });
+      assert(near.gap > -40 && near.gap < 260, `meadow: the line sits near the thing it points at (${near.gap}px above it)`);
+    }
+    assert(errors.length === 0, `${area}: no page errors (${errors.join(' | ') || 'none'})`);
+    await ctx.close();
+  }
+
+  // (3) The care note must not repeat the authored line. One L_DAILY_DONE variant opens
+  //     with the exact words a heading used to print above it.
+  {
+    let sawDuplicate = false;
+    for (let i = 0; i < 6; i++) {   // the line is a random pick of two — sample both
+      const { ctx, page } = await open({
+        daily: { day: DAY, doings: { play: true, visit: true, care: false }, visited: ['meadow'], delivered: false }
+      });
+      await go(page, 'hub'); await page.waitForTimeout(400);
+      await careAction(page);
+      const note = await page.evaluate(() => (document.querySelector('.daily-done-note') || {}).innerText || '');
+      // "All three doings done!" must appear at most ONCE in the note
+      const hits = (note.match(/All three doings done/g) || []).length;
+      if (hits > 1) sawDuplicate = true;
+      await ctx.close();
+      if (sawDuplicate) break;
+    }
+    assert(!sawDuplicate, 'the care note never prints the authored sentence twice, in six samples of a two-line pool');
+  }
+
+  // (4) The reveal banner must be readable for EVERY kind the Daily Pool can produce.
+  //     dropKind() returns boo | accessory | costume | furniture | town; the CSS used to
+  //     style a 'deco' kind that dropKind never emits, leaving three kinds white-on-cream.
+  {
+    const { ctx, page } = await open();
+    const kinds = await page.evaluate(async () => {
+      const { DAILY_POOL } = await import('./data/daily.js');
+      const { BY_ID, dropKind } = await import('./data/catalogue.js');
+      const out = {};
+      for (const e of DAILY_POOL) { const k = dropKind(BY_ID[e.id]); out[k] = (out[k] || 0) + 1; }
+      return out;
+    });
+    const contrast = await page.evaluate((kindList) => {
+      const lum = (c) => { const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+      const host = document.createElement('div');
+      host.style.cssText = 'position:fixed;left:-9999px;background:#FFF8F0';
+      document.body.appendChild(host);
+      const res = {};
+      for (const k of kindList) {
+        const n = document.createElement('div');
+        n.className = 'reveal-banner type-' + k; n.textContent = 'TEST';
+        host.appendChild(n);
+        const cs = getComputedStyle(n);
+        let bg = cs.backgroundColor;
+        if (!bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') bg = 'rgb(255, 248, 240)';   // the card behind
+        const L1 = lum(cs.color), L2 = lum(bg);
+        res[k] = +(((Math.max(L1, L2) + .05) / (Math.min(L1, L2) + .05))).toFixed(2);
+      }
+      host.remove();
+      return res;
+    }, Object.keys(kinds));
+    // The banner is 20px bold uppercase, so the applicable bar is AA LARGE TEXT = 3:1.
+    for (const [k, ratio] of Object.entries(contrast)) {
+      assert(ratio >= 3, `reveal banner '${k}' (${kinds[k]} pool items) reads at ${ratio}:1 (AA large-text bar: 3)`);
+    }
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// The Toddler tier (~3-4). The pack does not mention tiers; this pins
+// what the tiers actually do, so neither half can drift silently.
+// The Toddler hub is its own spare render and has no `hub-specials`, so
+// the CARD does not appear — which is right for a child who cannot read
+// a three-item checklist. The parcel is tier-agnostic and DOES appear,
+// so what a toddler gets is a wrapped present that opens in three taps
+// and needs no reading at all. Both halves are asserted: a future change
+// must not put a checklist in front of a three-year-old, and must not
+// take her present away either.
+// =====================================================================
+console.log('== the Toddler tier: no checklist to read, but the present still arrives ==');
+{
+  const tierSave = (tier, over = {}) => ({
+    version: 25, name: 'Ada', ageAsked: true, age: tier === 'toddler' ? 3 : 9,
+    guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'Twiggy' },
+    inventory: { boo_inky: 1 }, stars: { total: 60, byGame: {} }, care: { bonds: {}, treats: 3 },
+    seen: { welcomeTour: true, whatsnewVersion: 'run21j-STAGED' },
+    settings: { sound: false, music: false, voice: false, content: tier }, ...over
+  });
+  const mk = async (tier, over) => {
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p = await c.newPage();
+    const errors = [];
+    p.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
+    await p.addInitScript((s) => {
+      window.__bootownDay = '2026-08-10';
+      try { localStorage.clear(); localStorage.setItem('bootown.save.v1', JSON.stringify(s)); } catch {}
+    }, tierSave(tier, over));
+    await p.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await p.waitForTimeout(800);
+    return { c, p, errors };
+  };
+
+  // the card follows the tier's own hub
+  for (const [tier, expectCard] of [['toddler', false], ['light', true], ['full', true]]) {
+    const { c, p, errors } = await mk(tier);
+    await go(p, 'hub'); await p.waitForTimeout(700);
+    const has = await p.evaluate(() => !!document.querySelector('.daily-card'));
+    assert(has === expectCard, `content '${tier}': the card ${expectCard ? 'appears' : 'is absent (no checklist for a 3-year-old)'}`);
+    assert(errors.length === 0, `content '${tier}': no page errors`);
+    await c.close();
+  }
+
+  // but the present arrives, and opens, for a toddler too
+  {
+    const { c, p, errors } = await mk('toddler', {
+      daily: { day: DAY, doings: { play: true, visit: true, care: true }, visited: [], delivered: false }
+    });
+    await go(p, 'town', { area: 'meadow' }); await p.waitForTimeout(1400);
+    const parcel = await p.evaluate(() => {
+      const n = document.querySelector('.daily-parcel');
+      if (!n) return null;
+      const b = n.getBoundingClientRect();
+      return { w: Math.round(b.width), hit: n.contains(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)),
+        label: n.getAttribute('aria-label') || '' };
+    });
+    assert(!!parcel, 'a toddler still gets the parcel in her Meadow');
+    assert(parcel && parcel.w >= 56 && parcel.hit, `and it is a reachable tap target (${parcel && parcel.w}px)`);
+    assert(parcel && /tap to open/i.test(parcel.label), 'and it says what to do, out loud, for a child who cannot read it');
+    const before = await p.evaluate(() => Object.keys(window.BooTown.State.getState().inventory).length);
+    await openParcel(p);
+    const after = await p.evaluate(() => ({
+      inv: Object.keys(window.BooTown.State.getState().inventory).length,
+      name: document.querySelector('.reveal-name')?.textContent || ''
+    }));
+    assert(after.inv === before + 1, 'three taps open it and it grants, exactly as it does for a nine-year-old');
+    assert(after.name.length > 0, `and the reveal names her present ("${after.name}")`);
+    assert(errors.length === 0, `no page errors (${errors.join(' | ') || 'none'})`);
+    await c.close();
   }
 }
 

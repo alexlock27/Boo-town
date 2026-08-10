@@ -2343,9 +2343,25 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   color: #fff; padding: 4px 18px; border-radius: 14px; border: 3px solid var(--ink);
   margin-bottom: 4px; text-transform: uppercase;
 }
-.reveal-banner.type-boo { background: var(--pop); }
-.reveal-banner.type-deco { background: var(--zing); }
-.reveal-banner.type-accessory { background: #9B6DE0; }
+/* RUN21J — the reveal banner, made readable.
+   TWO bugs found here by this run's playtest critic, both pre-existing:
+   1. dropKind() returns boo | accessory | costume | furniture | town and has NEVER
+      returned 'deco' — so `.type-deco` was dead CSS and THREE of the five kinds had no
+      background at all: white text on the #FFF8F0 card, measured 1.05:1. Every furniture,
+      deco/landscape and costume drop has looked like that since dropKind was split.
+   2. --pop and --zing are LIGHT (#FF7AC6, #35D0BA), so white text on them was never AA
+      either: type-boo measured 2.37:1 — the most-shown reveal in the whole game.
+   The fix on the light pills is the pattern this very file already uses for
+   .shiny-banner: dark ink on a light background. The bar for 20px bold uppercase is the
+   AA LARGE-TEXT bar, 3:1; every kind now clears it with room, most of them 5:1+.
+   Kept as five explicit kinds so a future dropKind value fails loudly rather than
+   silently rendering invisible. */
+.reveal-banner.type-boo { background: var(--pop); color: var(--ink); }        /* 5.7:1 */
+.reveal-banner.type-town { background: var(--zing); color: var(--ink); }      /* 7.0:1 */
+.reveal-banner.type-deco { background: var(--zing); color: var(--ink); }      /* legacy alias, kept in step */
+.reveal-banner.type-accessory { background: #7B4FC9; }                        /* 5.5:1 on white */
+.reveal-banner.type-costume { background: #7B4FC9; }                          /* 5.5:1 on white */
+.reveal-banner.type-furniture { background: #26775C; }                        /* 5.4:1 on white */
 .reveal-oneliner { margin: 0 0 2px; font-size: 16px; font-weight: 600; color: var(--pop); }
 
 /* ---- first pick (onboarding) ---- */
@@ -7339,6 +7355,15 @@ body.visiting .screen-root { top: var(--visit-banner-h, 54px); }
 @keyframes parcelPop { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .daily-parcel, .daily-parcel.parcel-pop { animation: none; } }
 
-/* The witnessed-arrival bubble, above the parcel spot (x=0.15 of 4 viewports = 60% of screen 1). */
-.daily-town-bubble { position: absolute; left: 60%; top: 22%; transform: translateX(-50%);
-  max-width: 320px; z-index: 60; }
+/* The witnessed-arrival bubble. In the Meadow it sits just ABOVE the parcel so the line and
+   the place to look are one glance apart — x=0.15 of the 4-viewport width lands at 60% of
+   screen 1, and the parcel's feet are on the row-2 ground line at 91% of the viewport, so
+   45% clears its head without floating off in the sky. Anywhere else it is centred: the
+   parcel is not in this area, and the line's job there is to say where to go. */
+.daily-town-bubble { position: absolute; max-width: 320px; z-index: 60; transform: translateX(-50%); }
+.daily-town-bubble.at-parcel { left: 60%; top: 45%; }
+.daily-town-bubble.elsewhere { left: 50%; top: 30%; }
+@media (max-width: 600px) { .daily-town-bubble { max-width: min(320px, 78vw); } }
+
+/* RUN21J: the care overlay's daily note — the gift icon leads, the authored line speaks. */
+.care-levelup.daily-done-note .ddn-ic { font-size: 22px; }

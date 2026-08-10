@@ -69,17 +69,29 @@ export function dayView() {
 // ---- the three ticks -------------------------------------------------------
 
 function tick(fn) {
-  let completedNow = false;
+  let completedNow = false, changed = false;
   mutate(st => {
     ensureToday(st);
     const d = st.daily;
+    const before = JSON.stringify(d.doings);
     const doneBefore = d.doings.play && d.doings.visit && d.doings.care;
     fn(d);
+    changed = JSON.stringify(d.doings) !== before;
     const doneAfter = d.doings.play && d.doings.visit && d.doings.care;
     if (!doneBefore && doneAfter && !d.delivered) completedNow = true;
   });
   commit();
+  // Any tick at all tells the card to redraw. Boo Care opens as an OVERLAY over a
+  // still-mounted hub, so without this the card behind it keeps the state it was built
+  // with: she looks after a Boo, is told a parcel arrived, closes the sheet, and the card
+  // underneath still says she hasn't looked after a Boo — and offers no way to the parcel.
+  if (changed) emit('bootown:dailytick');
   return completedNow ? announceDone() : null;
+}
+
+function emit(name, detail) {
+  try { window.dispatchEvent(new CustomEvent(name, detail ? { detail } : undefined)); }
+  catch { /* no window (tests import this module headless) */ }
 }
 
 export function noteDailyPlay() {
@@ -105,7 +117,7 @@ export function noteDailyCare() {
 function announceDone() {
   const line = guideLine('L_DAILY_DONE');
   speakMaybe(line);
-  try { window.dispatchEvent(new CustomEvent('bootown:dailydone', { detail: { line } })); } catch { /* no window (tests import headless) */ }
+  emit('bootown:dailydone', { line });
   return line;
 }
 
@@ -166,34 +178,49 @@ export function parcelDue() {
 
 // Same factory contract as createWhatsNewCard: returns a node for hub-specials.
 // It is a CARD, not a door — it adds nothing to the 8-primary-buttons tally.
+//
+// It REDRAWS ITSELF on 'bootown:dailytick', because Boo Care (and anything else the hub
+// opens as an overlay) ticks a doing while this very card is still on screen behind it.
+// The listener is on the card's own lifetime: hub.js throws the node away on navigation,
+// so the check below drops the listener the first time it fires for a detached card.
 export function createTodayCard(ctx) {
-  const v = dayView();
-  const exhausted = eligiblePool().length === 0;
   const DOINGS = [
     { key: 'play', icon: '🎲' },
     { key: 'visit', icon: '👋' },
     { key: 'care', icon: '💛' }
   ];
-  const rows = DOINGS.map(d => el('div', { class: 'daily-row' + (v.doings[d.key] ? ' done' : '') }, [
-    el('span', { class: 'daily-ic', text: v.doings[d.key] ? '✅' : d.icon }),
-    el('span', { class: 'daily-label', text: DAILY_COPY.doings[d.key] })
-  ]));
-  const sub = !v.allDone ? DAILY_COPY.subFresh
-    : v.delivered ? DAILY_COPY.allDoneClaimed
-      : exhausted ? DAILY_COPY.allDoneBox : DAILY_COPY.allDone;
-  const card = el('div', { class: 'card daily-card' + (v.due ? ' due' : '') }, [
-    el('div', { class: 'daily-head' }, [
-      el('span', { class: 'daily-gift', text: '🎁' }),
-      el('h3', { class: 'daily-title', text: DAILY_COPY.title })
-    ]),
-    el('div', { class: 'daily-rows' }, rows),
-    el('p', { class: 'daily-sub', text: sub }),
+  const card = el('div', { class: 'card daily-card' });
+  const draw = () => {
+    const v = dayView();
+    const exhausted = eligiblePool().length === 0;
+    const sub = !v.allDone ? DAILY_COPY.subFresh
+      : v.delivered ? DAILY_COPY.allDoneClaimed
+        : exhausted ? DAILY_COPY.allDoneBox : DAILY_COPY.allDone;
+    card.className = 'card daily-card' + (v.due ? ' due' : '');
+    card.innerHTML = '';
+    card.append(
+      el('div', { class: 'daily-head' }, [
+        el('span', { class: 'daily-gift', text: '🎁' }),
+        el('h3', { class: 'daily-title', text: DAILY_COPY.title })
+      ]),
+      el('div', { class: 'daily-rows' }, DOINGS.map(d => el('div', { class: 'daily-row' + (v.doings[d.key] ? ' done' : '') }, [
+        el('span', { class: 'daily-ic', text: v.doings[d.key] ? '✅' : d.icon }),
+        el('span', { class: 'daily-label', text: DAILY_COPY.doings[d.key] })
+      ]))),
+      el('p', { class: 'daily-sub', text: sub })
+    );
     // "Show me!" goes straight to the thing (the What's New law): only when the
     // parcel is actually waiting, straight to the Meadow where it is.
-    v.due ? el('button', {
+    if (v.due) card.appendChild(el('button', {
       class: 'btn daily-go', text: 'Show me!',
       onclick: () => { sfx.tap(); ctx.go('town', { area: 'meadow' }); }
-    }) : null
-  ]);
+    }));
+  };
+  draw();
+  const onTick = () => {
+    if (!card.isConnected) { try { window.removeEventListener('bootown:dailytick', onTick); } catch {} return; }
+    draw();
+  };
+  try { window.addEventListener('bootown:dailytick', onTick); } catch {}
   return card;
 }

@@ -707,8 +707,12 @@ export function openCare(item, options = {}) {
     // (already spoken; tts queues) also lands visibly in the care overlay itself —
     // and if care is open over the Meadow, the parcel is popping in behind it.
     const dailyLine = noteDailyCare();
+    // The AUTHORED line is the announcement — it must not be introduced by a heading that
+    // says the same words. One of the two L_DAILY_DONE variants literally opens "All three
+    // doings done!", so an earlier cut printed that sentence twice, one above the other,
+    // half the time. A gift icon carries the moment without competing with the copy.
     if (dailyLine) stage.appendChild(el('div', { class: 'care-levelup daily-done-note' }, [
-      el('strong', { text: 'All three doings done! 🎁' }),
+      el('span', { class: 'ddn-ic', text: '🎁' }),
       el('span', { text: dailyLine })
     ]));
     sfx.star();
