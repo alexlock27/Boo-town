@@ -72,7 +72,12 @@ export function mount(container, params, ctx) {
   if (!feelingsAvailable()) { ctx.go('hub'); return { unmount() {} }; }
 
   const boo = companion();
-  const root = el('div', { class: 'screen feelings' });
+  // Merge-night fix: this was named 'feelings' (bare), which collided with the hub's own
+  // `.trail-chip.feelings` chip button — same specificity, this rule's later position in
+  // styles.css silently won, forcing the chip into a column layout with the wrong padding
+  // and squashing its icon+label into the fixed 74px chip height. Renamed to match every
+  // other element in this screen (fe-top, fe-seat, fe-window, ...).
+  const root = el('div', { class: 'screen fe-screen' });
   container.appendChild(root);
 
   // The leave control is on screen at ALL times, in every state of this corner. That is a

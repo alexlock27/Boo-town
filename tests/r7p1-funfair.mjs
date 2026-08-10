@@ -64,11 +64,14 @@ console.log('== grand-opening ceremony: gates swing open, fires exactly once =='
   assert(distinct(frames) >= 6, `the gates visibly swing open (${distinct(frames)}/14 distinct transforms over 3.4s)`);
   assert(await page.$('.funfair-grand .fg-open'), 'the "is OPEN!" banner is revealed behind the gates');
   await page.screenshot({ path: 'screenshots/r7p1/grand-opening-1000x640.png' });
-  // the ceremony sets the persisted flag
-  assert(await page.evaluate(() => window.__townLife.ffOpened()) === true, 'the grand opening sets the persisted opened flag');
+  // Merge-night fix (Lane3 F-01): the persisted flag must NOT be set until she has actually
+  // dismissed the ceremony — otherwise a once-ever moment drawn under another overlay (or
+  // simply closed by leaving the screen) is silently marked seen despite never being seen.
+  assert(await page.evaluate(() => window.__townLife.ffOpened()) === false, 'the flag is not set while the ceremony is still on screen, undismissed');
   // dismiss + revisit → never fires again this session
   await page.click('.funfair-grand .fg-go');
   await sleep(250);
+  assert(await page.evaluate(() => window.__townLife.ffOpened()) === true, 'dismissing the ceremony (and only that) sets the persisted opened flag');
   await page.evaluate(() => { window.__townLife.scrollToFunfair(); window.__townLife.ffGrandOpen(); });
   await sleep(200);
   assert(await page.evaluate(() => window.__townLife.ffGrandShown()) === false, 'revisiting does not replay the grand opening');
@@ -80,6 +83,43 @@ console.log('== grand-opening ceremony: gates swing open, fires exactly once =='
   await page.evaluate(() => { window.__townLife.scrollToFunfair(); window.__townLife.ffGrandOpen(); });
   await sleep(250);
   assert(await page.evaluate(() => window.__townLife.ffGrandShown()) === false, 'a previously-opened save never replays the grand opening');
+  await ctx.close();
+}
+
+// Lane3 F-01: the exact race — a FIRST-EVER visit that ALSO crosses several ride
+// milestones at once. Before the fix, the growth-catchup reveal and the grand opening
+// both mounted at the same z-index, the catchup painted on top, and the grand opening's
+// button was unhittable (elementFromPoint returned the OTHER overlay's button) — yet it was
+// already marked seen. Now they must show one at a time, grand opening FIRST (it is the
+// once-ever one), each with its own hittable button, and the flag only lands once dismissed.
+console.log('== Lane3 F-01: grand opening + a same-tick catch-up never stack, grand opening wins the first slot ==');
+{
+  const { ctx, page } = await openTown(SAVE({ stars: { total: 260, byGame: {} }, funfair: { built: [], build: null, pending: [], seats: {} } }));
+  await page.waitForSelector('.overlay', { timeout: 4000 });
+  await sleep(300);
+  // exactly one overlay on screen, and it is the grand opening — never both at once
+  assert((await page.$$('.overlay')).length === 1, 'exactly one overlay is on screen, not two stacked');
+  assert(await page.$('.overlay.funfair-grand'), 'the grand opening is the one showing, ahead of the catch-up');
+  assert(!(await page.$('.overlay.growth-reveal')), 'the catch-up reveal is not drawn underneath it');
+  // its own button is the real hit-test target, not covered by anything else
+  const hit = await page.evaluate(() => {
+    const btn = document.querySelector('.funfair-grand .fg-go');
+    const r = btn.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top === btn || btn.contains(top);
+  });
+  assert(hit, "the grand opening's own button is genuinely hittable (elementFromPoint resolves to it)");
+  assert(await page.evaluate(() => window.__townLife.ffOpened()) === false, 'the flag still is not set while the grand opening sits on screen, undismissed');
+  await page.click('.funfair-grand .fg-go');
+  await sleep(300);
+  assert(await page.evaluate(() => window.__townLife.ffOpened()) === true, 'dismissing it sets the flag');
+  // the catch-up reveal follows, on its own, once the grand opening is out of the way
+  await page.waitForSelector('.overlay.growth-reveal', { timeout: 4000 });
+  assert((await page.$$('.overlay')).length === 1, 'the catch-up reveal now shows alone, not stacked with anything');
+  assert(await page.$eval('.overlay.growth-reveal .gr-title', n => n.textContent) === 'Look how the fair has grown!', 'and it is the real catch-up celebration, not lost');
+  await page.click('.overlay.growth-reveal .btn.big');
+  await sleep(300);
+  assert(!(await page.$('.overlay')), 'both ceremonies resolved; nothing is left on screen');
   await ctx.close();
 }
 

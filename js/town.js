@@ -2987,6 +2987,10 @@ export function mount(container, params, ctx) {
   // shows the next. Per-mount state, so a mid-reveal navigation can never wedge it.
   const revealQueue = []; let revealShowing = false;
   function enqueueReveal(fn) { revealQueue.push(fn); pumpReveals(); }
+  // Lane3 F-01 fix: the funfair grand opening is the once-ever moment, so when it and a
+  // growth/catch-up reveal are both pending it wins the NEXT slot rather than queuing behind
+  // them — front of the queue, not the back.
+  function enqueueRevealFirst(fn) { revealQueue.unshift(fn); pumpReveals(); }
   function pumpReveals() {
     if (revealShowing) return;
     const fn = revealQueue.shift();
@@ -3611,17 +3615,24 @@ export function mount(container, params, ctx) {
   // The fair is open from the start on every save; her FIRST visit plays a one-time
   // ceremony: two gates swing open, confetti, the guide announces the fair is OPEN.
   // Fires once ever (seen.funfairOpened), and never stacks (grandOpeningShown guard).
+  //
+  // Merge-night fix (Lane3 F-01): this used to call playFunfairGrandOpening() directly and
+  // write seen.funfairOpened the instant it was TRIGGERED — so it could be drawn underneath
+  // a growth/catch-up reveal (both overlays at the same z-index) with its button unhittable,
+  // and still be marked seen even though she never saw it. It now joins the same reveal queue
+  // those other ceremonies use (at the FRONT — it is the once-ever one, so it wins the next
+  // slot), and the persisted flag is written only from the "Let's go!" button itself, i.e.
+  // only once she has genuinely dismissed it.
   let grandOpeningShown = false;
   function maybeGrandOpening() {
     if (grandOpeningShown) return;
     const st = getState();
     if (st.seen && st.seen.funfairOpened) { grandOpeningShown = true; return; }
-    grandOpeningShown = true;
-    mutate(s2 => { s2.seen = s2.seen || {}; s2.seen.funfairOpened = todayKeyLocal(); });
+    grandOpeningShown = true;   // guards re-entry into the queue for this mount only
     stampJournal('funfair_open');            // Journal: the fair opened (RUN3 C4 pattern)
-    playFunfairGrandOpening();
+    enqueueRevealFirst(done => playFunfairGrandOpening(done));
   }
-  function playFunfairGrandOpening() {
+  function playFunfairGrandOpening(done = () => {}) {
     sfx.fanfare();
     const ov = el('div', { class: 'overlay funfair-grand' });
     const panel = el('div', { class: 'fg-panel' }, [
@@ -3634,7 +3645,12 @@ export function mount(container, params, ctx) {
           el('div', { class: 'fg-open', text: 'is OPEN!' })
         ])
       ]),
-      el('button', { class: 'btn big fg-go', text: "Let's go! 🎡", onclick: () => { sfx.tap(); ov.remove(); scrollToZone(ZONE_INDEX['funfair']); } })
+      el('button', { class: 'btn big fg-go', text: "Let's go! 🎡", onclick: () => {
+        sfx.tap(); ov.remove();
+        mutate(s2 => { s2.seen = s2.seen || {}; s2.seen.funfairOpened = todayKeyLocal(); });
+        scrollToZone(ZONE_INDEX['funfair']);
+        done();
+      } })
     ]);
     ov.appendChild(panel); root.appendChild(ov);
     requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => ov.classList.add('open'), REDUCED ? 0 : 650); });
