@@ -103,6 +103,12 @@ param is consumed by real code; version order matches the real BUILD_STAMP histo
 the ambient-beds card says "listen closely" but the beds are gained to 0 when music is muted;
 `run20d-20260731` shipped as a stamp with no block (nothing child-facing shipped under it).
 
+**RUN21C's headline promise, measured:** *"The Boos hold still while you arrange, then carry
+on the moment you finish"* — **true**: 43 distinct actor positions in 16s with the tray shut,
+**1** while it is open, 46 after closing. No hammer anywhere. (A warning for future suites:
+my first pass sampled the placement *wrapper* and saw zero movement in 36s, which looked like
+a serious defect. The wrapper stays put; the drawn actor inside it moves. Sample the actor.)
+
 **Corpus claims re-graded by playing** (the ones that cost verification time before):
 
 | Claim | Grade |
@@ -188,5 +194,10 @@ it does not establish absence.** The flake rule, applied literally, would have d
   picnic); the caper hand-off is therefore unverified by play.
 - The **keys play-along after-state** on `run21g`, and its "a finished song is a moment"
   claim.
-- Boo Roll's 2× clock, the feelings-storage privacy claim (N37), Care/shop/ceremony depth,
-  and the Toddler tier as a 3–4 year old.
+- Boo Roll's 2× clock, the feelings-storage privacy claim (N37), and Care/shop/ceremony
+  depth (three sub-agents assigned to those died on the session limit).
+- **Path Pot, Undo and buying a path style were not played** — only their constants were
+  checked byte-exactly. They are the largest untested child-facing claims left.
+- The Toddler tier *was* covered (see above); the 8-year-old cold play covered onboarding,
+  the hub, the world map, the Meadow, the Wish Well, the Expedition, the funfair, the Boo
+  House, the band, Visit-a-Town and the Grown-ups corner.

@@ -483,6 +483,37 @@ the child. Proposed rewrite (also in `CLAUDE-v2-PROPOSAL.md`):
 
 ---
 
+## 3C. RUN21C's headline promise, tested as a child would
+
+> *"Open the tray at the bottom and drag anything straight onto the grass, any time. The Boos
+> hold still while you arrange, then carry on the moment you finish."*
+
+**TRUE, and measurably so.** Sampling the *drawn* actors' positions every 350ms in the Meadow:
+
+| state | duration | distinct position sets |
+|---|---|---|
+| tray closed | 16s | **43** (Boos wandering) |
+| tray open | 8s | **1** (completely still) |
+| tray closed again | 16s | **46** (carrying on) |
+
+No hammer exists anywhere in the town UI ✓. The tray opens from the ▲ handle and applies the
+`building` softening ✓. *Evidence:* `cpromise-390x844-c-01-tray-*.png`, `…-c-03-resume2-*`.
+
+**A measurement warning worth passing on**, because it nearly produced a false finding: my
+first pass sampled `.t-item` (the placement *wrapper*) and found **zero** movement in 36
+seconds — which looked exactly like "the Boos never resume". They do; the wrapper stays at
+the placement x while the drawn `svg.boo-svg` inside it moves. This is the same trap
+HANDOVER §7 records for seated Boos. **Any future suite asserting town movement must sample
+the drawn actor, not the wrapper.**
+
+*Not play-tested tonight (out of time), verified at code level only and labelled as such:*
+the Path Pot paint/scrub cycle, the Undo chip in use, and buying a path style. Their
+constants were checked byte-exactly — Undo is labelled exactly `Undo`, bottom-left, 6s,
+5 steps, mount-local (no persistence); the Path Pot hint is byte-exact; the three shop styles
+are brick/stepping/rainbow at 6/6/10 stars with the authored blurb.
+
+---
+
 ## 4A. The Toddler tier, played as a three-year-old (late-night deepening)
 
 Fresh save, age answered "3 or younger" → content tier `toddler`. First moment is genuinely
