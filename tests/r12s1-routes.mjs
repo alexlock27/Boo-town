@@ -70,7 +70,13 @@ const FIXTURES = {
     ["shop handoff, outdoors", "({ area: 'meadow', build: true, place: 'deco_bench' })"],
     ["shop handoff, indoors", "({ area: 'boohouse', room: 'lounge', build: true, place: 'deco_armchair' })"]
   ],
-  ceremony: [["Star Chest", "({ chest: true })"]],
+  ceremony: [
+    ["Star Chest", "({ chest: true })"],
+    // RUN21J: the Daily Delivery reveals an ALREADY-GRANTED specific item (the parcel
+    // grants before it navigates, so a closed tablet mid-reveal loses nothing).
+    ["the daily parcel's item", "({ grant: 'deco_stage' })"],
+    ["the daily parcel's shiny Boo", "({ grant: 'boo_comet', shiny: true })"]
+  ],
   collection: [
     ["open an item from the museum", "({ openItem: 'boo_inky', from: 'gallerymuseum' })"],
     // RUN18B Y2: "Who's wearing it?" — in from the shop with a wearable just bought
