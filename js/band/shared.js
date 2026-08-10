@@ -10,7 +10,8 @@ import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, XYLO_S
 import { idbGet, idbPut } from '../idb.js';
 import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../../data/songs.js';
 import { bandTrio, jamEvents, startBandWatch, listJams, MAX_JAMS } from '../band.js';
-import { beatTick } from '../celebrate.js';
+import { beatTick, celebrate } from '../celebrate.js';
+import { guideLine } from '../guide.js';
 
 export const INSTRUMENTS = {
   drums: { route: 'band-drums', label: 'Drums', icon: '🥁', event: 'drum', role: 'drummer' },
@@ -66,7 +67,7 @@ export function mountInstrument(container, params, ctx, instrument) {
 
   const root = el('div', { class: `screen band-scene band-instrument-scene inst-${instrument}` });
   const performer = performerFor(instrument);
-  const status = el('div', { class: 'band-scene-status', text: 'Tap Record, then play!' });
+  const status = el('div', { class: 'band-scene-status' });
   const recBtn = el('button', {
     class: 'band-record-circle',
     'aria-label': 'Start recording',
@@ -99,6 +100,7 @@ export function mountInstrument(container, params, ctx, instrument) {
   let song = params && params.song ? SONGS.find(s => s.id === params.song) : null;
   let wantedKeys = songKeys(song);
   let songPos = 0;
+  let done = false;        // RUN21G item 2: true once every note of the song has been played
   let countEl = null;      // the lane's progress readout (beat 3 pulses it on every advance)
   let keysRow = null;      // set by renderKeys; updateWanted() moves the ✨ between its children
   let recording = false;
@@ -109,10 +111,19 @@ export function mountInstrument(container, params, ctx, instrument) {
   let alive = true;
   let lastSavedId = null;
 
+  status.textContent = defaultStatus();
   loadExisting();
   renderPlayfield();
   renderLane();
   if (params && params.record) setTimeout(() => toggleRecord(), 250);
+
+  // RUN21G item 2: the keys scene tells her what this screen is for; the other
+  // instruments keep their original line.
+  function defaultStatus() {
+    if (instrument !== 'keys') return 'Tap Record, then play!';
+    if (song && wantedKeys.length) return `${song.name} — follow the ✨`;
+    return 'Play anything you like! Tap ● to keep a jam.';
+  }
 
   async function loadExisting() {
     if (!(params && params.jamId)) return;
@@ -210,10 +221,34 @@ export function mountInstrument(container, params, ctx, instrument) {
   function updateWanted() {
     if (!keysRow) return;
     [...keysRow.children].forEach(k => k.classList.remove('wanted'));
-    if (song && wantedKeys.length && songPos < wantedKeys.length) {
+    if (song && !done && wantedKeys.length && songPos < wantedKeys.length) {
       const k = keysRow.children[wantedKeys[songPos]];
       if (k) k.classList.add('wanted');
     }
+  }
+
+  // RUN21G item 2: the last note is a moment, not a wrap-around. Fires exactly once;
+  // the keys stay fully playable afterwards (free play).
+  function finishSong() {
+    done = true;
+    songPos = wantedKeys.length;
+    renderLane();
+    updateWanted();
+    celebrate(status, { counter: countEl, sound: 'fanfare', line: guideLine('L_BAND_SONGDONE') });
+    clear(status);
+    status.append(
+      el('span', { class: 'band-done-line', text: `You played the whole of ${song.name}! 🎵` }),
+      el('button', { class: 'btn soft', text: 'Play it again', onclick: () => restartSong() }),
+      el('button', { class: 'btn soft', text: 'More songs ✨', onclick: () => ctx.go('band-songs') })
+    );
+  }
+
+  function restartSong() {
+    done = false;
+    songPos = 0;
+    status.textContent = defaultStatus();
+    renderLane();
+    updateWanted();
   }
 
   function renderPlayfield() {
@@ -254,11 +289,15 @@ export function mountInstrument(container, params, ctx, instrument) {
         setTimeout(() => key.classList.remove('down'), 150);
         // Free play is never wrong: a non-wanted key plays exactly as above and the
         // sparkle simply waits (no-guilt law). Only the wanted key advances the song.
-        if (song && wantedKeys[songPos] === idx) {
-          songPos = (songPos + 1) % wantedKeys.length;
-          renderLane();
-          updateWanted();
-          beatTick(countEl);   // legible even when the same note repeats and the ✨ stays put
+        if (song && !done && wantedKeys[songPos] === idx) {
+          if (songPos + 1 === wantedKeys.length) {
+            finishSong();   // item 2: no modulo — the whole song is a witnessed ending
+          } else {
+            songPos += 1;
+            renderLane();
+            updateWanted();
+            beatTick(countEl);   // legible even when the same note repeats and the ✨ stays put
+          }
         }
       });
       row.appendChild(key);
@@ -321,6 +360,7 @@ export function mountInstrument(container, params, ctx, instrument) {
     toggleRecord,
     song: () => song && song.id,
     songPosition: () => songPos,
+    songDone: () => done,
     wantedKey: () => wantedKeys[songPos] ?? -1,
     savedId: () => lastSavedId,
     laneBox: () => lane.getBoundingClientRect(),

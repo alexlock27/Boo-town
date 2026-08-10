@@ -3139,6 +3139,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   color: #fff;
   font: 700 14px var(--font-display);
 }
+/* RUN21G item 2: the completion moment lives in the status row — the line plus two chips.
+   Chips are house .btn.soft (min tap size comes from .btn); only the padding compacts so
+   the playfield keeps its space. */
+.band-scene-status .btn { padding: 8px 16px; font-size: 16px; margin: 6px 5px 0; }
+.band-done-line { display: block; }
 .p6-drum-kit {
   width: min(100%, 680px);
   height: 100%;
