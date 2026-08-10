@@ -535,10 +535,39 @@ the authored 10-minute length were reaped by the shell's own 10-minute ceiling p
 phone viewport (both had already passed both tablet viewports clean); `WALK_MIN=8` fits inside it
 and still walks everything at every size.
 
-## Notes for resumption
-- Required reading done: lane brief, CLAUDE.md, RUN21E pack + handover, RUN21C report notes 0–7,
-  PICK-UP-HERE.md, BLOCKED.md. Key collisions: no buildMode (use `worldSoftened()`); pan only via
-  `panToPx`/`panToFrac`; reveals via `enqueueReveal`; `pumpWishIdles` shared scene cap; sockets
-  re-measured (trust code, not pack); every new js/data file → sw.js ASSETS[] same commit.
-- Testing: 2 lanes max, seed x ≤ 0.25 on-camera, real mouse, dismiss `.overlay.growth-reveal`,
-  fresh context for seeds, `BASE=http://127.0.0.1:8041 node tests/<name>.mjs`.
+## Notes for resumption — what a fresh session needs
+
+**State: 11 of 15 pack items DONE, all 4 handover debts DONE, branch pushed, nothing half-built.**
+Not merged and not deployed (the lane's standing override suspends both). Stamp on the branch is
+`run21e-20260810`; the maintainer merges.
+
+**The four not built are E1, E8, E9, E14** — the four largest. `RUN21E-REPORT.md` has a costing
+for each, written from the scout reports, including the two traps that will bite hardest:
+- **E9** cannot use `t.parent` for built-in parents. Two independent mechanisms destroy any child
+  whose parent is not a live placement id: `groundOrphans` (every render) and the un-gated v24
+  parent resolution (every load, byte-idempotency pinned by `r21f5`). It needs a NEW additive
+  child field.
+- **E14** cannot composite the live DOM. `composePostcard` renders a hard-coded expedition scene
+  from state, and SVG-with-foreignObject taints the canvas in Chromium, which kills `toDataURL`
+  offline. It needs a new `composeTownPostcard(snapshot, date)` fed by a snapshot `town.js`
+  assembles. Also: the Studio's cap is 20 across ALL artworks, so a 24-postcard cap cannot exist
+  inside it without a kind-scoped split.
+
+**Nothing is BLOCKED on a decision.** Governance §1 was in force: every open question was decided
+and recorded (six DECISION blocks above). F9 stays SKIPPED-GATED because `NEEDS_ALEX.md` says
+`VOICE: still HELD` — that is the maintainer's own gate, not a block. F8 is approved to compose
+but was not reached.
+
+**One pre-existing failure is logged to `BLOCKED.md`** (`r19z3-moments`, a 4px pillow clearance),
+proved not this run's doing on a pristine `main` checkout.
+
+**Where to pick up.** `tests/r21e-jobs.mjs` is the suite for everything built here (173
+assertions, ~85s, not @serial). `tests/r21e-b1-observe.mjs` is the B1 observation and is NOT a
+board suite — it is minutes long by design, like `walk.mjs`. Run both from the worktree with
+`BASE=http://127.0.0.1:8041`.
+
+**Scout reports.** Every item was scouted against the live tree before building, and all twelve
+came back DEVIATE. The full per-item mechanism maps (file:line for everything each item touches,
+plus the suites that pin it) were the basis for the fifty deviations catalogued above — including
+detailed maps for E1, E8, E9 and E14, which is what makes their costings in the report trustworthy
+rather than guesses.
