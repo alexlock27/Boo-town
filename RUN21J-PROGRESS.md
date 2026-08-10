@@ -60,7 +60,7 @@ Served from the worktree on **8048**. Board law: affected + core, no full board.
 
 | Suite | Why | Wall | Result |
 |---|---|---|---|
-| `r21j-daily` | this run's ACCEPTs | 37.5s | **PASS** |
+| `r21j-daily` | this run's ACCEPTs + guards | 44.2s | **PASS** |
 | `r8p1-migrations` | core · save v25 | 0.1s | **PASS** |
 | `r12s1-routes` | core · new ceremony params | 122s | **PASS** (294 ✓) |
 | `m3-pwa` | core · sw ASSETS | 3s | **PASS** |
@@ -158,9 +158,45 @@ Served from the worktree on **8048**. Board law: affected + core, no full board.
   button as "stable" — r12s5-ceremony/run12probe established the pattern; the real tap
   target is verified separately by elementFromPoint hit-test. · REVERSIBLE: test-side.
 
+## DEVIATE-with-proof — three pack premises that had drifted
+
+The lane brief's instruction is explicit: *"if a seam has drifted, DEVIATE-with-proof and
+hook the true one."* Three of the pack's named seams do not exist as described. In each
+case I hooked the true one and the deviation is small; none changes what gets built.
+
+1. **"reuse the gift/box visual language the onboarding present uses (scout js/art.js for
+   the box render)".** There is no box/gift render in `js/art.js` — no `renderBox`,
+   `renderGift`, `present` or `parcel` anywhere in that file. And **onboarding has no
+   present**: `js/onboarding.js` goes splash → name → age → creator → three bubbles →
+   `firstPickStep()`, which renders three *Boo* cards and grants on tap. The gift visual
+   language that genuinely exists is `giftSVG(size)` in `js/ui.js:198` (the hub's box
+   button and the results screen's box flourish) and `bigGift()` in `js/ceremony.js:197`
+   (the ceremony's tappable box — the same anatomy at 200×200).
+   **What I did:** the Meadow parcel uses `giftSVG` from `ui.js` — the same present art
+   the hub already shows her — and the ceremony it opens into uses `bigGift()` unchanged.
+   That is the reuse the pack was asking for, at the address where the art actually lives.
+   Nothing was redrawn.
+2. **"the parcel contains a star bundle instead (reuse the chest reward path from
+   booquest's `chest` node)".** `runChest()` at `js/booquest.js:201` grants **a box**, not
+   stars: `sfx.fanfare()` · `st.boxes += 1` · `ctx.go('ceremony')`. There is no legal
+   star-granting path outside `js/results.js` at all — the RUN5 C0 crediting invariant is
+   enforced by a dev-mode throwing assertion, and booquest's own star payouts route
+   through `ctx.go('results', …)` with a comment saying exactly that.
+   **What I did:** followed the *named seam* rather than the word "star", so the exhausted
+   pool grants a free box through those same three lines. Recorded as a DECISION above.
+3. **The ceremony has no "reveal this specific item" entry point.** `ctx.go('ceremony')`
+   opens whatever is in `state.boxes`; the only precedent for adapting it is
+   `chestResult()`. **What I did:** added a `grantResult()` adapter directly beside it,
+   in the same shape, gated on `params.grant`. `r12s1-routes` immediately demanded
+   fixtures for the two new params — which is the guard working, and both are now driven.
+
 ## RULE CHANGED blocks
 
-None — CLAUDE.md untouched on this branch.
+None. CLAUDE.md is untouched on this branch. Nothing in the pack or the build needed a
+standing rule relaxed: the two governance relaxations already granted (real audio samples,
+authored-content fidelity) are not this lane's territory, and every law this feature
+touches — no-guilt, offline ASSETS, lossless saves, reachable targets, the 8-button hub,
+reduced-motion paths — was satisfiable as written.
 
 ## The six ACCEPTs, evidenced
 
@@ -200,10 +236,23 @@ Every one is asserted in `tests/r21j-daily.mjs` and screenshotted to `_evidence/
    won; exactly one item granted and `delivered: true` — the outcome is identical, only
    the motion is dropped.
 
-Plus a standing **no-guilt guard**: the feature's own source (comments stripped, so the
-comments that *discuss* the ban do not satisfy the check) contains no `streak`, no
-`yesterday`, no `missed`; and a **reachability** check — the parcel is 98×101px, on camera,
-with all four probe points landing on it, at 1024×768, 768×1024 and 390×844.
+Plus three standing guards beyond the six ACCEPTs:
+
+- **No-guilt guard.** The feature's own source, with comments stripped (so the comments
+  that *discuss* the ban cannot satisfy the check), contains no `streak`, no `yesterday`,
+  no `missed`.
+- **Reachability.** The parcel is 98×101px — well over the 56px law — on camera at default
+  scroll, with all four probe points landing on the parcel itself, at 1024×768, 768×1024
+  and 390×844. Four points rather than one because the Wish Well stands near the authored
+  spot, so "is anything drawn over it" is a real question.
+- **Single payout, and never on a stale day.** Both are recycle-property bugs rather than
+  cosmetics, and both are now pinned:
+  · three rapid taps (a child's real double-tap) grant exactly ONE item and one copy;
+  · if midnight passes while an unclaimed parcel is still drawn, tapping it grants no
+    item, no box, and never marks itself delivered — because that item now belongs to the
+    pool again, and taking it would be taking it twice. The pool reads 28 eligible after.
+- **Re-render.** A layout pass leaves exactly one parcel, still tappable, with the area's
+  placed items rendered alongside it — a missing remove-first guard would show as two.
 
 ## Delight self-critique — the parcel moment
 
