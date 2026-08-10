@@ -48,8 +48,10 @@ export const LINES = {
     "One star closer to a Boo!"
   ],
   // RUN12 S11 — she stopped part way and kept what she had earned. Warm, never a telling-off.
+  // RUN21H A2: the emoji came OUT of these three. js/tts.js passes the line straight to
+  // SpeechSynthesisUtterance, so a voice either announces the emoji's name or stops dead.
   leftEarly: [
-    "Stopping there? You keep every star you earned. 🌟",
+    "Stopping there? You keep every star you earned.",
     "Off you go — those stars are yours to keep."
   ],
   twoStars: [
@@ -86,8 +88,8 @@ export const LINES = {
   townNudge: ["Your new friend needs a home. To the town!"],
   // RUN4 C1: the one-per-session near-unlock nudge ({zone}/{n} filled in by the hub).
   nearUnlock: [
-    "Ooh {name} — only {n} more ⭐ and the {zone} opens!",
-    "So close! Just {n} more ⭐ and the {zone} is yours!"
+    "Ooh {name} — only {n} more stars and the {zone} opens!",
+    "So close! Just {n} more stars and the {zone} is yours!"
   ],
   // RUN4 C3: reward tone, upward only. The brave line celebrates the bonus; the
   // cosy line is a warm nudge toward the next level ({level} filled by results).

@@ -25,8 +25,8 @@ export const BANKS = [
       { w: 'misplace', t: 1 }, { w: 'mistrust', t: 2 },
       { w: 'redo', t: 1 }, { w: 'refresh', t: 1 }, { w: 'return', t: 1 }, { w: 'reappear', t: 1 }, { w: 'rebuild', t: 1 },
       { w: 'replay', t: 1 }, { w: 'reheat', t: 1 },
-      { w: 'preheat', t: 2 }, { w: 'prepay', t: 2 }, { w: 'preview', t: 2 },
-      { w: 'preschool', t: 2 }, { w: 'precook', t: 2 }, { w: 'prehistoric', t: 3 }
+      { w: 'preheat', t: 2 }, { w: 'preview', t: 2 },
+      { w: 'prepare', t: 2 }, { w: 'prehistoric', t: 3 }
   ]},
   // RUN21H A3: 8 -> 20 words, four per prefix so each of in/il/im/ir is drilled properly.
   { id: 'prefixesInIlImIr', name: 'Prefixes in, il, im, ir', words: [
@@ -44,7 +44,7 @@ export const BANKS = [
       { w: 'antiseptic', t: 2 }, { w: 'anticlockwise', t: 2 },
       { w: 'antifreeze', t: 2 }, { w: 'antisocial', t: 3 },
       { w: 'autograph', t: 2 }, { w: 'automatic', t: 2 },
-      { w: 'autobiography', t: 3 }, { w: 'automobile', t: 3 }, { w: 'autopilot', t: 2 },
+      { w: 'autobiography', t: 3 }, { w: 'autocorrect', t: 3 }, { w: 'autopilot', t: 2 },
       { w: 'interact', t: 2 }, { w: 'international', t: 2 },
       { w: 'interfere', t: 3 }, { w: 'internet', t: 2 }, { w: 'interrupt', t: 2 },
       { w: 'submarine', t: 2 }, { w: 'subheading', t: 2 }, { w: 'subway', t: 2 },
@@ -148,7 +148,7 @@ export const BANKS = [
       { w: 'myth', t: 2 }, { w: 'gym', t: 1 }, { w: 'Egypt', t: 2 }, { w: 'pyramid', t: 2 },
       { w: 'mystery', t: 2 }, { w: 'crystal', t: 2 }, { w: 'symbol', t: 2 }, { w: 'system', t: 2 },
       { w: 'lyrics', t: 2 }, { w: 'typical', t: 3 }, { w: 'oxygen', t: 3 }, { w: 'hymn', t: 3 },
-      { w: 'syrup', t: 2 }, { w: 'mystic', t: 3 }, { w: 'cygnet', t: 3 }, { w: 'symptom', t: 3 }
+      { w: 'syrup', t: 2 }, { w: 'rhythm', t: 3 }, { w: 'cygnet', t: 3 }, { w: 'symptom', t: 3 }
   ]},
   { id: 'homophones', name: 'Homophones', words: [
       { w: 'piece', t: 2, clue: 'I ate the last ___ of cake' },

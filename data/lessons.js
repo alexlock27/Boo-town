@@ -32,7 +32,7 @@ export const MATHS_LESSONS = [
       { type: 'talk', text: "Big numbers are just small numbers standing in towers. Let me show you." },
       { type: 'visual', kind: 'placeValue', spec: { number: 347, cols: [{ label: 'hundreds', digit: 3, worth: 300 }, { label: 'tens', digit: 4, worth: 40 }, { label: 'ones', digit: 7, worth: 7 }] } },
       { type: 'workedStep', title: 'Build 347', steps: ["3 lives in the hundreds tower, so it's worth 300.", "4 lives in the tens tower, worth 40.", "7 ones are just 7.", "300 and 40 and 7. Three hundred and forty seven!"] },
-      { type: 'talk', text: "Or think money: 3 pound coins, 4 ten-pences, 7 pennies. That's 347 pennies!" }
+      { type: 'talk', text: "Or think money: 3 pound coins, 4 ten-pence coins, 7 pennies. That's 347p!" }
     ],
     try: [
       { kind: 'place', title: 'What is it worth?', instruction: 'Drag your answer into the gap.',
@@ -44,7 +44,7 @@ export const MATHS_LESSONS = [
       { kind: 'place', title: 'Find the tens', instruction: 'Drag your answer into the gap.',
         frames: [{ pre: 'Which number has 6 tens?', post: '', answer: '461' }],
         tiles: [{ key: '461', label: '461' }, { key: '306', label: '306' }, { key: '640', label: '640' }, { key: '616', label: '616' }],
-        why: { '*': 'The tens tower is the MIDDLE digit. In 461 the middle digit is 6.' },
+        why: { '*': 'The tens tower is the SECOND digit from the end. In 461 that is the 6.' },
         variant: { frames: [{ pre: 'Which has 3 tens?', post: '', answer: '234' }],
           tiles: [{ key: '234', label: '234' }, { key: '342', label: '342' }, { key: '403', label: '403' }, { key: '313', label: '313' }] } },
       { kind: 'place', title: 'Build it', instruction: 'Drag your answer into the gap.',
@@ -134,9 +134,9 @@ export const MATHS_LESSONS = [
         tiles: [{ key: '5', label: '5' }, { key: '2', label: '2' }, { key: '20', label: '20' }, { key: '8', label: '8' }],
         why: { '*': 'A half means shared between two. Ten shared between two Boos is five each.' } },
       { kind: 'place', title: 'Which is bigger?', instruction: 'Drag your answer into the gap.',
-        frames: [{ pre: 'Same cake: which piece is bigger?', post: '', answer: 'a half' }],
+        frames: [{ pre: 'Same cake: which is the bigger piece, a half or a quarter?', post: '', answer: 'a half' }],
         tiles: [{ key: 'a half', label: 'a half' }, { key: 'a quarter', label: 'a quarter' }, { key: "they're the same", label: "they're the same" }, { key: "can't tell", label: "can't tell" }],
-        why: { '*': 'Fewer pieces means BIGGER pieces. Two pieces beat four pieces.' } }
+        why: { '*': 'Cut the same cake into 2 and each piece is big. Cut it into 4 and each piece is smaller. A half is bigger.' } }
     ],
     win: { stamp: 'I know what a fraction is!' }
   },
@@ -151,10 +151,15 @@ export const MATHS_LESSONS = [
       { type: 'talk', text: "Skip-count with claps: 4... 8... 12! Your times tables are just a beat." }
     ],
     try: [
+      // RUN21H A2: the lesson contradicted itself. Its own worked example teaches "3 lots of
+      // 4: that's 4 + 4 + 4" — first number = how many lots — and then this step asked
+      // "5 × 3" and wanted 5 + 5 + 5, which is THREE lots of 5. A child applying the rule
+      // she had just been taught got five lots of 3 and reached for a different tile.
+      // The question now follows the lesson's own convention; tiles and answer are untouched.
       { kind: 'place', title: 'Say it the long way', instruction: 'Drag your answer into the gap.',
-        frames: [{ pre: '5 × 3 means the same as?', post: '', answer: '5 + 5 + 5' }],
+        frames: [{ pre: '3 × 5 means the same as?', post: '', answer: '5 + 5 + 5' }],
         tiles: [{ key: '5 + 5 + 5', label: '5 + 5 + 5' }, { key: '5 + 3', label: '5 + 3' }, { key: '3 + 3', label: '3 + 3' }, { key: '5 + 5', label: '5 + 5' }],
-        why: { '*': '5 × 3 is THREE LOTS of 5: 5 + 5 + 5.' },
+        why: { '*': '3 × 5 is THREE LOTS of 5: 5 + 5 + 5.' },
         variant: { frames: [{ pre: '2 × 6 means?', post: '', answer: '6 + 6' }],
           tiles: [{ key: '6 + 6', label: '6 + 6' }, { key: '2 + 6', label: '2 + 6' }, { key: '6 + 2 + 6', label: '6 + 2 + 6' }, { key: '2 + 2', label: '2 + 2' }] } },
       { kind: 'place', title: 'Count the dots', instruction: 'Drag your answer into the gap.',
@@ -175,14 +180,18 @@ export const MATHS_LESSONS = [
     cards: [
       { type: 'talk', text: "A clock has two hands. The short one is the boss: it says the hour. The long one just says how far through." },
       { type: 'visual', kind: 'clock', spec: { h: 3, m: 30, callouts: ['6 = half past', '3 = quarter past', '9 = quarter to'] } },
-      { type: 'workedStep', title: 'Read 3:30', steps: ["Short hand: just past 3, so the hour is 3.", "Long hand: straight down at the 6.", "Long hand at 6 means half past. Half past 3!"] },
+      // RUN21H A2: "just past 3" is false at half past — the hour hand is HALFWAY between 3
+      // and 4. A child who learns "just past" then reads a real clock at 3:30 says four.
+      { type: 'workedStep', title: 'Read 3:30', steps: ["Short hand: halfway between 3 and 4, so the hour is 3.", "Long hand: straight down at the 6.", "Long hand at 6 means half past. Half past 3!"] },
       { type: 'talk', text: "Pizza version: the clock face is a pizza in four slices. The long hand eating one slice is quarter past, two slices is half past, three is quarter to." }
     ],
     try: [
       { kind: 'place', title: 'Read the clock', instruction: 'Drag your answer into the gap.',
         frames: [{ pre: 'Long hand at 6, short hand between 4 and 5. What time?', post: '', answer: 'half past 4' }],
         tiles: [{ key: 'half past 4', label: 'half past 4' }, { key: 'half past 5', label: 'half past 5' }, { key: "6 o'clock", label: "6 o'clock" }, { key: 'quarter past 4', label: 'quarter past 4' }],
-        why: { '*': 'The long hand at 6 always means half past, and the short hand has only just passed 4.' },
+        // RUN21H A2: same falsehood as the worked step, and this is the line shown AFTER a
+        // wrong answer — the one moment the child is definitely reading it.
+        why: { '*': 'The long hand at 6 always means half past, and the short hand has passed 4 but not reached 5 — so the hour is 4.' },
         variant: { frames: [{ pre: 'Long hand at 6, short between 7 and 8?', post: '', answer: 'half past 7' }],
           tiles: [{ key: 'half past 7', label: 'half past 7' }, { key: 'half past 8', label: 'half past 8' }, { key: "6 o'clock", label: "6 o'clock" }, { key: 'quarter to 7', label: 'quarter to 7' }] } },
       { kind: 'place', title: 'Where does it point?', instruction: 'Drag your answer into the gap.',

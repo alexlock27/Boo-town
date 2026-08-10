@@ -45,8 +45,8 @@ export const B1 = [
   { id: 'superstar', parts: [{ k: 'super', l: 'super' }, { k: 'star', l: 'star' }], build: 'superstar', rule: 'super means MORE than. A more-than-star!', order: 'I need something that means MORE THAN A STAR!', ruleType: 'MEANING' },
   { id: 'autograph', parts: [{ k: 'auto', l: 'auto' }, { k: 'graph', l: 'graph' }], build: 'autograph', rule: 'auto means SELF. Written by yourself!', order: 'I need something that means WRITTEN BY YOURSELF!', ruleType: 'MEANING' },
   // RUN21H A3: 16 -> 24, so three whole rounds are fresh. Same shape, same voice, and the
-  // six additions bring in pre- (a statutory Y3/4 prefix the app taught nowhere) and give
-  // dis-/mis-/inter- a second example each.
+  // eight additions bring in pre- (which the app taught nowhere) and give un-, dis-, mis-
+  // and re- a further example each.
   { id: 'preheat', parts: [{ k: 'pre', l: 'pre' }, { k: 'heat', l: 'heat' }], build: 'preheat', rule: 'pre means BEFORE. Heat it before you start!', order: 'I need something that means HEATING IT BEFOREHAND!', ruleType: 'MEANING' },
   { id: 'preview', parts: [{ k: 'pre', l: 'pre' }, { k: 'view', l: 'view' }], build: 'preview', rule: 'pre means BEFORE. A look before everyone else!', order: 'I need something that means A LOOK BEFORE THE REST!', ruleType: 'MEANING' },
   { id: 'prehistoric', parts: [{ k: 'pre', l: 'pre' }, { k: 'historic', l: 'historic' }], build: 'prehistoric', rule: 'pre means BEFORE — before history was written down. Dinosaurs!', order: 'I need something that means FROM BEFORE HISTORY!', ruleType: 'MEANING' },

@@ -33,7 +33,12 @@ export const Y34_STATUTORY = [
 // against; -ture is listed for completeness but marked year2 (it is a Y2 appendix
 // line that Boo Town also teaches).
 export const Y34_THEMES = [
-  { key: 'prefixes-un-dis-mis-re-pre', line: 'Prefixes un-, dis-, mis-, re-, pre-' },
+  // The statutory appendix names un-, dis-, mis-, in-/il-/im-/ir-, re-, sub-, inter-,
+  // super-, anti-, auto-. It does NOT name pre-, which is nonetheless taught by most
+  // published UK Y3/4 schemes and is why Boo Town covers it (RUN21H cold read caught this
+  // line overstating the document). Kept in the map so coverage is still reported, with the
+  // status said plainly rather than implied.
+  { key: 'prefixes-un-dis-mis-re', line: 'Prefixes un-, dis-, mis-, re- (statutory); pre- widely taught alongside them, not itself named in the appendix' },
   { key: 'prefixes-in-il-im-ir', line: 'The prefix in- (and il-, im-, ir-)' },
   { key: 'prefixes-super-anti-auto-inter-sub', line: 'Prefixes super-, anti-, auto-, inter-, sub-' },
   { key: 'suffix-ation', line: 'The suffix -ation' },

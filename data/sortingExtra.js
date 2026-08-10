@@ -137,11 +137,11 @@ export const TEMPLATES_EXTRA = [
       ['👏', 'clapping three times'],
       ['🗣️', 'saying your name'],
       ['🫧', 'a hiccup'],
-      ['🤞', 'clicking your fingers'],
+      ['🤞', 'crossing your fingers'],
       ['🔔', 'a doorbell ringing'],
       ['🕯️', 'blowing out a candle'],
       ['🐇', 'one hop'],
-      ['🤐', 'closing your eyes and opening them'],
+      ['👋', 'waving goodbye'],
       ['🚪', 'a door slamming'],
       ['💡', 'switching on a light']
     ].map(([e, c]) => unitItem(e, c, 0));
@@ -172,8 +172,8 @@ export const TEMPLATES_EXTRA = [
       ['🏖️', 'a whole day at the seaside'],
       ['✈️', 'a flight to Spain'],
       ['🎨', 'painting a whole bedroom'],
-      ['🚂', 'a train ride to London'],
-      ['🏕️', 'a whole camping trip day'],
+      ['🚂', 'a long train journey'],
+      ['🏕️', 'a whole day camping'],
       ['🎡', 'a day out at the funfair']
     ].map(([e, c]) => unitItem(e, c, 2));
     return round(buckets, assemble(buckets, [secs, mins, hours]),
@@ -293,7 +293,7 @@ export const TEMPLATES_EXTRA = [
       'B', 'C', 'D', 'E', 'I', 'K'].map(ch => letterItem(ch, 0));
     const none = ['F', 'G', 'J', 'L', 'N', 'P', 'R', 'S', 'Z', 'Q'].map(ch => letterItem(ch, 1));
     return round(buckets, assemble(buckets, [sym, none]),
-      it => `Could you fold the letter ${it.ch} so both halves match exactly?`);
+      it => `Try folding the letter ${it.ch} two ways — side to side, and top to bottom. Do both halves match exactly?`);
   }},
 
   // 21. angles (L2). 90 appears three times (three rotations), each in the right-angle bucket.
@@ -327,7 +327,7 @@ export const TEMPLATES_EXTRA = [
     const less = [textItem('0.1', 0), textItem('0.3', 0), fracItem(2, 10, 0), fracItem(4, 10, 0), textItem('0.2', 0),
       textItem('0.4', 0), fracItem(1, 10, 0), fracItem(3, 10, 0)];
     const equal = [textItem('0.5', 1), fracItem(5, 10, 1), textItem('one half', 1),
-      textItem('five tenths', 1), textItem('a half', 1)];
+      textItem('five tenths', 1), fracItem(50, 100, 1)];
     const more = [textItem('0.7', 2), textItem('0.9', 2), fracItem(8, 10, 2), textItem('0.6', 2), fracItem(6, 10, 2),
       textItem('0.8', 2), fracItem(7, 10, 2), fracItem(9, 10, 2)];
     return round(buckets, assemble(buckets, [less, equal, more]),
@@ -361,7 +361,7 @@ export const TEMPLATES_EXTRA = [
     const nouns = ['giraffe', 'kitchen', 'teacher', 'bicycle', 'puddle', 'pocket', 'castle', 'biscuit',
       'lighthouse', 'dragon', 'penguin', 'library'].map(w => textItem(w, 0));
     const verbs = ['gallop', 'scamper', 'gobble', 'vanish', 'munch', 'stumble', 'explore', 'wriggle',
-      'scribble', 'clamber', 'tiptoe', 'devour'].map(w => textItem(w, 1));
+      'slither', 'clamber', 'tiptoe', 'devour'].map(w => textItem(w, 1));
     const adjs = ['enormous', 'grumpy', 'sparkly', 'gentle', 'curious', 'slippery', 'brave', 'shiny',
       'wobbly', 'ancient', 'cheerful', 'prickly'].map(w => textItem(w, 2));
     return round(buckets, assemble(buckets, [nouns, verbs, adjs]),
@@ -371,7 +371,7 @@ export const TEMPLATES_EXTRA = [
   // 25. pluralRules (L2). Singular words.
   { id: 'pluralRules', level: 2, make() {
     const buckets = ['add s', 'add es', 'y becomes ies'];
-    // RUN21H A3: 17 -> 30 items. Every -ies word ends in a CONSONANT + y (the rule's actual
+    // RUN21H A3: 17 -> 36 items. Every -ies word ends in a CONSONANT + y (the rule's actual
     // condition), so none of them is a 'donkey/donkeys' counter-example in disguise.
     const addS = ['apple', 'tiger', 'boot', 'spoon', 'cloud',
       'table', 'garden', 'rocket', 'pencil', 'window',
@@ -380,7 +380,7 @@ export const TEMPLATES_EXTRA = [
       'brush', 'dish', 'match', 'bench',
       'branch', 'flash'].map(w => textItem(w, 1));
     const ies = ['baby', 'party', 'cherry', 'puppy', 'story', 'city',
-      'lorry', 'penny', 'fairy', 'jelly',
+      'lorry', 'daisy', 'fairy', 'jelly',
       'berry', 'pony'].map(w => textItem(w, 2));
     return round(buckets, assemble(buckets, [addS, addEs, ies]),
       it => `How do you make "${it.text}" plural? Say more than one.`);

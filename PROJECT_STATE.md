@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21f-20260804` (sw.js; 159 precached assets)
+- BUILD_STAMP: `run21h-20260810` (sw.js; 167 precached assets)
 - SAVE VERSION: 24 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
@@ -38,9 +38,9 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - wishes: 60 (data/wishes.js WISH_WORDS)
 - dressings: 24 (data/dressings.js DRESSINGS, free defaults included)
 
-## Tests — 212 files under tests/
+## Tests — 214 files under tests/
 
-- board suites: 187 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
+- board suites: 189 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
 - `npm test` runs `node tests/run.mjs` — `tests/run.mjs` EXISTS (resolves)
 
 ### Suite list
@@ -178,6 +178,8 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - r21f5-placementids.mjs
 - r21f6-visit.mjs
 - r21f7-beds.mjs
+- r21h-ears.mjs
+- r21h-norepeat.mjs
 - r3p1-spellboo.mjs
 - r3p2-smartmix.mjs
 - r3p3-golden.mjs

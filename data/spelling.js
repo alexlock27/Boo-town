@@ -6,12 +6,14 @@ const T1 = ['answer','appear','arrive','build','busy','caught','centre','circle'
 // RUN21H A3: NO WORD ADDED OR REMOVED — the statutory list is unchanged and still 109 words
 // (tools/content-audit.mjs checks it against tests/lib/y34-words.mjs). What changed is the
 // TIER, which is a difficulty judgement rather than statutory: tier 3 held only ten words,
-// so a round of eight meant the same eight or nine words every single time. Fourteen of the
+// so a round of eight meant the same eight or nine words every single time. TEN of the
 // hardest tier-2 words moved up — the ones whose difficulty is a silent or doubled letter,
-// a schwa that gives no clue, or a spelling that fights its own sound.
-const T2 = ['accident','actual','actually','address','believe','bicycle','breath','breathe','calendar','century','certain','complete','consider','continue','decide','describe','different','difficult','disappear','eighth','exercise','experience','extreme','favourite','forwards','history','imagine','increase','important','interest','material','mention','natural','opposite','perhaps','position','possible','potatoes','probably','suppose','surprise','though','various'];
+// a schwa that gives no clue, or a spelling that fights its own sound. (RUN21H cold read:
+// 'therefore' failed that test — it is a transparent compound, there + fore — and swapped
+// places with 'calendar', which has a schwa in the middle AND a schwa -ar ending.)
+const T2 = ['accident','actual','actually','address','believe','bicycle','breath','breathe','century','certain','complete','consider','continue','decide','describe','different','difficult','disappear','eighth','exercise','experience','extreme','favourite','forwards','history','imagine','increase','important','interest','material','mention','natural','opposite','perhaps','position','possible','potatoes','probably','suppose','surprise','therefore','though','various'];
 
-const T3 = ['accidentally','although','experiment','occasion','occasionally','ordinary','particular','peculiar','possess','possession','business','February','grammar','knowledge','medicine','naughty','pressure','reign','separate','therefore'];
+const T3 = ['accidentally','although','experiment','occasion','occasionally','ordinary','particular','peculiar','possess','possession','business','February','grammar','knowledge','medicine','naughty','pressure','reign','separate','calendar'];
 
 export const WORDS = [
   ...T1.map(w => ({ w, t: 1 })),

@@ -224,7 +224,10 @@ export const LITERACY_LESSONS = [
     id: 'wordMachine', name: 'The Word Machine', icon: 'factory', starType: 'lesson',
     hook: {
       kind: 'sign', scene: 'muddle',
-      before: 'I AM UNHAPPYLY', after: 'I AM UNHAPPILY',
+      // RUN21H A2: was 'I AM UNHAPPYLY' -> 'I AM UNHAPPILY'. The corrected sign was still
+      // not a sentence, and it was shown to the child AS the correct version in a literacy
+      // lesson. The word alone makes the same point and is true.
+      before: 'UNHAPPYLY', after: 'UNHAPPILY',
       line: "Close, but the join has a rule! Let's see how the parts fit together."
     },
     show: [
@@ -291,10 +294,14 @@ export const LITERACY_LESSONS = [
         why: { "s'": 'That’s for MORE than one owner — there is only one Boo here!' }
       },
       {
+        // RUN21H A2 — the CORRECT answer built a non-word. js/lessonstages.js lays a frame
+        // out as pre + tile + post, so pre:'Boos' with the right tile "s'" rendered
+        // "Booss' picnic". pre is now 'Boo', which makes the right tile give "Boos' picnic"
+        // and the wrong tile give "Boo's picnic" — which IS the contrast being taught.
         kind: 'place', title: 'The Boos’ picnic',
-        instruction: 'Drag the right ending onto Boos.',
+        instruction: 'ALL the Boos share this picnic. Drag the right ending onto Boo.',
         tiles: [{ key: "'s", label: "'s" }, { key: "s'", label: "s'" }],
-        frames: [{ pre: 'Boos', post: ' picnic', answer: "s'", why: 'Lots of Boos, and the word already ends in s — the comma flies AFTER it.' }],
+        frames: [{ pre: 'Boo', post: ' picnic', answer: "s'", why: 'Lots of Boos, and the word already ends in s — the comma flies AFTER it.' }],
         why: { "'s": 'That would mean just ONE Boo owns it — but they ALL came to the picnic!' }
       }
     ],

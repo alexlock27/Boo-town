@@ -32,7 +32,8 @@ import { FOUR, FIVE } from '../data/detective.js';
 import { B1, B2, B3, B3PLUS, B4, FACTORY_LEVELS, ALL_FACTORY_ITEMS } from '../data/wordfactory.js';
 import { LINES } from '../data/guideLines.js';
 import { KNOCK, ANIMAL, SILLY, BOO } from '../data/jokes.js';
-import { MATHS_LESSONS, LITERACY_LESSONS } from '../data/lessons.js';
+import { MATHS_LESSONS } from '../data/lessons.js';
+import { LITERACY_LESSONS } from '../data/lessonsLiteracy.js';
 import { Y34_STATUTORY, Y34_THEMES } from '../tests/lib/y34-words.mjs';
 
 // ---- determinism: the whole audit runs on a seeded RNG so "re-run clean" is a fact ----
@@ -106,12 +107,14 @@ ALL_FACTORY_ITEMS.forEach(it => { collect('wordfactory', it.id, it.build); colle
 Object.entries(LINES).forEach(([k, arr]) => arr.forEach((l, i) => collect('guideLines', `${k}[${i}]`, l)));
 [...KNOCK].forEach((j, i) => { collect('jokes', `knock[${i}].name`, j.name); collect('jokes', `knock[${i}]`, j.response); });
 [...ANIMAL, ...SILLY, ...BOO].forEach((j, i) => { collect('jokes', `${j.type}.setup`, j.setup); collect('jokes', `${j.type}.punch`, j.punchline); });
-[...MATHS_LESSONS, ...LITERACY_LESSONS].forEach(l => collectDeep('lessons', l.id, l, k => !NON_PROSE_KEYS.has(k)));
+MATHS_LESSONS.forEach(l => collectDeep('lessons', l.id, l, k => !NON_PROSE_KEYS.has(k)));
+// the pack names lessonsLiteracy.js in A1; it gets its own label so the inventory count is honest
+LITERACY_LESSONS.forEach(l => collectDeep('lessonsLiteracy', l.id, l, k => !NON_PROSE_KEYS.has(k)));
 // sorting hints/labels are generated per-round; sample one make() per template for strings
 for (const t of [...TEMPLATES, ...TEMPLATES_EXTRA]) {
   const r = t.make();
   const seen = new Set();
-  const once = (path, s) => { const k = path + ' ' + s; if (seen.has(k)) return; seen.add(k); collect('sorting', path, s); };
+  const once = (path, s) => { const k = path + '\u0000' + s; if (seen.has(k)) return; seen.add(k); collect('sorting', path, s); };
   r.buckets.forEach(b => once(`${t.id}.bucket`, String(b)));
   r.items.slice(0, 3).forEach(it => once(`${t.id}.hint`, r.hintFor(it)));
   r.items.forEach(it => { if (it.kind === 'text') once(`${t.id}.item`, it.text); if (it.kind === 'unit') once(`${t.id}.item`, it.caption); });
@@ -142,7 +145,12 @@ const DESIGN_REUSE = [
   ['sorting', 'soundTwins'],       // §26/§27 sentences reused verbatim by spec
   ['soundTwins', 'spellingBanks'], // homophone clue sentences reused by spec
   ['sorting', 'spellingBanks'],
-  ['sorting', 'lessons'],          // lessons teach what sorting drills; shared vocabulary is coherence
+  ['sorting', 'lessons'], ['sorting', 'lessonsLiteracy'],  // lessons teach what the games drill; shared vocabulary is coherence
+  ['lessons', 'lessonsLiteracy'],
+  ['phonemes', 'lessonsLiteracy'], ['blending', 'lessonsLiteracy'], ['rhymes', 'lessonsLiteracy'],
+  ['detective', 'lessonsLiteracy'], ['spellingBanks', 'lessonsLiteracy'], ['wordfactory', 'lessonsLiteracy'],
+  ['apostrophe', 'lessonsLiteracy'], ['soundTwins', 'lessonsLiteracy'], ['stories', 'lessonsLiteracy'],
+  ['spelling', 'lessonsLiteracy'],
   ['phonemes', 'blending'], ['phonemes', 'rhymes'], ['phonemes', 'detective'],
   ['phonemes', 'spellingBanks'], ['phonemes', 'lessons'], ['phonemes', 'stories'],
   ['blending', 'rhymes'], ['blending', 'detective'], ['blending', 'lessons'], ['blending', 'spellingBanks'],
@@ -160,8 +168,11 @@ const topOf = (p) => p.split(/[.[]/)[0];
 // parallel authored structure: same file, same role — tips, hints, buckets, orders, rules,
 // instructions are WRITTEN as families on purpose; repetition there is consistency
 const parallel = (a, b) => a.file === b.file && roleOf(a.path) === roleOf(b.path);
-// a lesson's hook poses before/after and its try steps restate it — internal echoes are design
-const sameLesson = (a, b) => a.file === 'lessons' && b.file === 'lessons' && topOf(a.path) === topOf(b.path);
+// A lesson's hook poses a before/after and its try steps restate it; a show card names an
+// example word and a try step then asks her to sort that same word. Those internal echoes
+// are the lesson teaching, not repetition — both lesson files, same rule.
+const LESSON_FILES = new Set(['lessons', 'lessonsLiteracy']);
+const sameLesson = (a, b) => LESSON_FILES.has(a.file) && LESSON_FILES.has(b.file) && topOf(a.path) === topOf(b.path);
 const digitShape = (n) => n.replace(/\d+/g, '#');
 {
   const byNorm = new Map();
@@ -398,7 +409,7 @@ const digitShape = (n) => n.replace(/\d+/g, '#');
   // theme -> where it is served, with a thin threshold (fewer than 6 items = thin)
   const bankById = Object.fromEntries(BANKS.map(b => [b.id, b]));
   const themeSources = {
-    'prefixes-un-dis-mis-re-pre': [
+    'prefixes-un-dis-mis-re': [
       ['spellingBanks.prefixesUnDisMisRe', bankById.prefixesUnDisMisRe.words.length],
       ['wordfactory.B1 un/dis/mis/re', B1.filter(i => /^(un|dis|mis|re)/.test(i.build)).length],
       ['pre- anywhere', [...appWords].filter(w => w.startsWith('pre') && !['pressure', 'present'].includes(w)).length]

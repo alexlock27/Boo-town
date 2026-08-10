@@ -25,7 +25,7 @@ kids don't get bored."*
 
 ## A1 — the audit (`tools/content-audit.mjs`)
 
-Walks all 18 content files, 2460 child-facing strings, and reports six things: exact and
+Walks 16 content files, 2713 child-facing strings, and reports six things: exact and
 near duplicates, sorting ambiguity, grapheme/phoneme truth against `data/phonemes.js`'s own
 tables, Britishness, curriculum coverage against the statutory Y3/4 list, and volume per
 game. Deterministic (seeded RNG) so "re-run clean" is a fact rather than a mood.
@@ -118,8 +118,8 @@ A round deals 12 items and most templates held 12–18, so **a round WAS the who
 
 | Template | Before → after | Notes |
 |---|---|---|
-| units1 | 18 → 30 | small units (cm/kg/ml) |
-| units2 | 18 → 30 | **was byte-identical to units1** — see the deviation log |
+| units1 | 18 → 36 | small units (cm/kg/ml) |
+| units2 | 18 → 36 | **was byte-identical to units1** — see the deviation log |
 | timeUnits | 12 → 36 | everyday British activities, duration unarguable |
 | timeHour | 12 → 36 | |
 | moneyPound | 14 → 36 | real UK coins only |
@@ -137,9 +137,9 @@ A round deals 12 items and most templates held 12–18, so **a round WAS the who
 | fractionFamilies | 8 → 16 | bounded by fractions that reduce cleanly to quarters |
 | tenths | 13 → 21 | bounded: a tenth has nine values between 0 and 1 |
 | symmetry | 19 → 26 | now all 26 capitals — the 7 additions are the horizontal-symmetry letters (B C D E I K) and Q |
-| shapeSides | 11 → 14, round shortened 12 → 9 | bounded by names a **regular** polygon can honestly wear; shortening the round beat padding it with false ones |
+| shapeSides | 11 → 13, round shortened 12 → 9 | bounded by names a **regular** polygon can honestly wear; shortening the round beat padding it with false ones |
 
-### Spelling banks (`data/spellingBanks.js`) — +140 words across 16 banks
+### Spelling banks (`data/spellingBanks.js`) — +145 words across 14 banks (16 → 17 banks)
 prefixesUnDisMisRe 16→30 · prefixesInIlImIr 8→20 · prefixesSuperAntiAutoInterSub 12→24 ·
 lyFamily 14→24 · ousFamily 16→24 · chSoundsLikeK 8→18 · chSoundsLikeSh 5→12 · gueAndQue
 6→18 · silentIshSc 7→14 · eiEighEy 9→18 · ouSoundsLikeU 6→15 · tureFamily 8→18 ·
@@ -147,13 +147,15 @@ doubleOrNotEndings 9→20 · **yThatSoundsLikeI 0→16 (new)**.
 
 ### Spell Boo tiers (`data/spelling.js`) — **no word added or removed**
 Tier 3 held 10 of the 109 statutory words, so its rounds of 8 were the same words for ever.
-Fourteen of the hardest tier-2 words moved up — the ones whose difficulty is a silent or
+**Ten** of the hardest tier-2 words moved up — the ones whose difficulty is a silent or
 doubled letter, a schwa that gives no clue, or a spelling that fights its own sound:
-business, February, grammar, knowledge, medicine, naughty, pressure, reign, separate,
-therefore (+ the four already there). Totals: 46 / 43 / 20 = 109, verified.
+business, February, grammar, knowledge, medicine, naughty, pressure, reign, separate and
+(after the cold read) **calendar**, which swapped places with `therefore` — a transparent
+compound that failed the stated test. Totals: 46 / 43 / 20 = 109, verified against the
+statutory fixture: 0 missing, 0 extra.
 
 ### Word Factory (`data/wordfactory.js`) 58 → 90 items
-B1 16→24 (preheat, preview, prehistoric, dishonest, misplace, disobey, unkind, replay) ·
+B1 16→24, eight additions (preheat, preview, prehistoric, dishonest, misplace, disobey, unkind, replay) ·
 B2 16→24 (bravely, politely, suddenly, hungrily, sleepily, terribly, sensibly, magically) ·
 B3 12→18 (shopping, stopped, baking, closed, walking, shouted) · B4 10→24 (invitation,
 exploration, imagination, adoration, relaxation, starvation, presentation, nervous,
@@ -386,10 +388,101 @@ child.
 
 ---
 
+## Second pass — what three independent reviews changed after the first gate
+
+A cold-read critic, a gate-verifier and a lessons/instructions lens read the tree with no
+sight of my reasoning. Everything below is a defect **they** found and I fixed; the numbers
+above are the corrected ones.
+
+### Things the app was still teaching falsely
+| File | Before | After | Why |
+|---|---|---|---|
+| `lessonsLiteracy.js` `flyingComma` try 3 | `pre: 'Boos'` + tile `s'` | `pre: 'Boo'`, instruction *"ALL the Boos share this picnic…"* | `js/lessonstages.js` lays a frame out as pre + tile + post, so the **correct** answer rendered **"Booss' picnic"**. The right tile now gives `Boos'` and the wrong one `Boo's` — which IS the contrast being taught. |
+| `lessons.js` `timesTables` try 1 | `5 × 3 means the same as?` → `5 + 5 + 5` | `3 × 5 means the same as?` | The lesson's own worked example teaches "3 lots of 4 = 4+4+4" (first number = lots). A child applying the rule she had just been taught read 5 × 3 as five lots of 3 and reached for a different tile. The lesson contradicted itself. |
+| `lessons.js` `time` worked step | `Short hand: just past 3` | `Short hand: halfway between 3 and 4` | At half past, the hour hand is halfway. A child taught "just past" reads a real clock at 3:30 and says four. |
+| `lessons.js` `time` try 1 `why` | `…the short hand has only just passed 4.` | `…has passed 4 but not reached 5 — so the hour is 4.` | Same falsehood, in the line shown **after a wrong answer** — the one moment she is certainly reading it. |
+| `lessons.js` `placeValue` try 2 `why` | `The tens tower is the MIDDLE digit.` | `…the SECOND digit from the end.` | Only true of three-digit numbers; Y4 works to 10,000. |
+| `lessonsLiteracy.js` `wordMachine` hook | `I AM UNHAPPYLY` → `I AM UNHAPPILY` | `UNHAPPYLY` → `UNHAPPILY` | "I am unhappily" is not a sentence, and it was shown as the **corrected** sign in a literacy lesson. |
+| `storyReader.js` `lostGlove` | `One frosty morning…` then a snowball | `One snowy morning…` | Frost is not snow. The snowball is the hinge of the whole story. |
+| `spelling.js` T3 | `therefore` | `calendar` (they swap) | The stated promotion test is "a silent or doubled letter, a schwa that gives no clue, or a spelling that fights its own sound". `therefore` is a transparent compound and fails it; `calendar` has a schwa in the middle *and* a schwa `-ar` ending. |
+| `sorting.js` `shapeSides` | `isosceles triangle` added | removed | `assemble` takes `floor(9/3)=3` from each pool, so all three triangles dealt **every round** — three identical equilateral drawings with three different names. |
+
+### Ambiguity and Britishness the first pass missed
+`sortingExtra.js`: `a train ride to London` → `a long train journey` (the identical geography
+loophole I had just fixed for the seaside) · `🤞 clicking your fingers` → `crossing your
+fingers` (🤞 is crossed fingers) · `🤐 closing your eyes and opening them` → `👋 waving
+goodbye` (it was "one blink" said the long way, under a zipped-mouth emoji) · `a whole
+camping trip day` → `a whole day camping` · `scribble` → `slither` (children say "look at my
+scribble") · `penny` → `daisy` (a British child's plural of penny is *pence*) · `one half`
+and `a half` in the same 5-item pool → one becomes `50/100`.
+`sorting.js`: `a raindrop` → `water in a small bottle` (measurable across **or** by volume —
+exactly the `a book` problem I had just removed).
+`spellingBanks.js`: `automobile` → `autocorrect` (American, same rule that made candy →
+sweet) · `prepay`, `precook`, `preschool` dropped for `prepare` (`preschool` is the American
+spelling; British is *pre-school*) · `mystic` → `rhythm`.
+
+### Copy
+`symmetry` hint now says to try folding **two ways**, because six of its sixteen
+symmetric letters (B C D E I K) only fold horizontally and a child had no scaffold ·
+`fractions` try 3 names the two pieces it is comparing · its `why` no longer reads as
+"2 beats 4" · `placeValue` money card says `347p` not `347 pennies` · Boo Roll and Teach Me
+intros lead with the verb · `storyReader.birthdayCake`'s question is now answerable from the
+story (it restated the last sentence) and one circular `why` line rewritten.
+
+### Three emoji were being read aloud
+`js/tts.js` passes lines straight to `SpeechSynthesisUtterance` with no sanitising, so the
+🌟 in `leftEarly` and the ⭐ in both `nearUnlock` lines were either announced by name or
+stopped the voice. All three now say "stars".
+
+### Fixes to my own work
+- **`tools/content-audit.mjs` never walked `data/lessonsLiteracy.js`**, though the pack names
+  it in A1 — so five literacy lessons' strings were outside the duplicate and Britishness
+  inventory the whole night. Now imported under its own label: 16 files, 2713 strings.
+- A literal NUL byte I had used as a key separator in that tool is now the ` ` escape —
+  same behaviour, greppable file.
+- **`tests/lib/y34-words.mjs` overstated the statutory document.** It listed `pre-` as part of
+  the appendix prefix line. It is not: the appendix names un-, dis-, mis-, in-/il-/im-/ir-,
+  re-, sub-, inter-, super-, anti-, auto-. `pre-` is taught by most UK Y3/4 schemes but is not
+  statutory, and the fixture now says exactly that. Teaching it remains right; claiming the
+  document named it was not.
+- Ledger arithmetic corrected: units1/units2 are 36 not 30, shapeSides 13 not 14, the banks
+  are **+145 words across 14 banks (16 → 17)** not "+140 across 16", the tier promotion is
+  **ten** words not fourteen, and the audit walks **16** files / **2713** strings.
+- `data/sortingExtra.js` pluralRules comment said `17 -> 30`; the pool is 36.
+- `data/wordfactory.js` B1 comment claimed six additions and an `inter-` word; there are
+  eight and no `inter-` item exists in B1.
+- **BUILD_STAMP bumped to `run21h-20260810`** so it matches the What's New block's version,
+  as house law requires. PROJECT_STATE.md regenerated.
+
+### Judged and deliberately NOT changed
+- **`units2` is not the step up its comment claims.** The critic is right: both unit
+  templates only ever ask *length vs mass vs capacity*, never which unit. Fixing that means
+  restructuring the buckets (e.g. centimetres / metres / kilograms), which is a design change
+  rather than a content one. The comment has been left honest about what it *is* — a
+  different, bigger unit family, which is still a real improvement on byte-identical — and
+  the redesign is in the morning report.
+- `parallelogram` alongside square/rectangle/rhombus/kite: every one of those labels is
+  genuinely true of a square, so the drawing tells no lie.
+- `tiptoe` and `devour` in the parts-of-speech pool: flagged as borderline, kept deliberately
+  — `devour` is good Y3/4 stretch vocabulary and appears in their reading books.
+- The **`B` glyph** in Fredoka has a larger lower bowl than upper, so its horizontal symmetry
+  is a convention rather than a pixel fact. The classroom convention (B C D E H I K O X) is
+  standard and is what a teacher would mark; noted for the morning report rather than
+  second-guessed.
+
+---
+
 ## For the morning report
 
 1. **Ten minutes of your ears on `assets/sfx/*.wav`** before this merges. Licences are
    machine-proved; the sound quality is not, and cannot be from here.
 2. **Would you accept CC-BY with an attribution screen?** It is the single thing standing
    between the app and a real moo, woof, quack and hoot. One yes unblocks all four.
+   **Not acted on** — Part B ships exactly as built, seven CC0/PD sounds, and the What's New
+   names only the animals that actually exist.
 3. Blend It L4 and Story Order want an art pass — the data is ready and waiting.
+4. **`units2` wants a real difficulty step**, not just bigger units: give it a bucket pair
+   that tests the unit choice itself (centimetres / metres / kilograms) rather than only
+   length vs mass vs capacity. Small change, but it is a design call.
+5. The **`B` glyph** question in the symmetry template — one screenshot settles whether
+   Fredoka's B reads as horizontally symmetric to a child. The classroom convention says yes.

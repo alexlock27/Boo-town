@@ -173,7 +173,7 @@ export const TEMPLATES = [
     const kg = [['🐕','how heavy a dog is'],['🍉','how heavy a watermelon is'],['🥔','a bag of potatoes'],['🧳','a heavy suitcase'],['🎃','how heavy a pumpkin is'],['🎒','a full school bag'],
       ['🧱','how heavy a brick is'],['🐑','how heavy a sheep is'],['📚','how heavy a pile of books is'],['🛒','how heavy the shopping is'],['🧸','how heavy a big teddy is'],['🎳','how heavy a bowling ball is']].map(([e,c]) => unitItem(e, c, 1));
     const ml = [['🥤','water in a cup'],['🧃','juice in a carton'],['🥄','a spoon of medicine'],['🥛','milk on cereal'],['🥫','a can of pop'],['🎨','paint in a pot'],
-      ['🍵','tea in a mug'],['🧴','shampoo in a bottle'],['🍯','honey in a jar'],['💧','a raindrop'],['🧪','liquid in a test tube'],['🥣','soup in a bowl']].map(([e,c]) => unitItem(e, c, 2));
+      ['🍵','tea in a mug'],['🧴','shampoo in a bottle'],['🍯','honey in a jar'],['💧','water in a small bottle'],['🧪','liquid in a test tube'],['🥣','soup in a bowl']].map(([e,c]) => unitItem(e, c, 2));
     return round(buckets, assemble(buckets, [cm, kg, ml]),
       it => `Would you measure ${it.caption} in centimetres, kilograms or millilitres?`);
   }},
@@ -223,7 +223,7 @@ export const TEMPLATES = [
   // with names the drawing would make false.
   { id: 'shapeSides', level: 1, make() {
     const buckets = ['3 sides', '4 sides', '5 or more'];
-    const three = [[3,'triangle'],[3,'equilateral triangle'],[3,'isosceles triangle']].map(([s,n]) => shapeItem(s, n, 0));
+    const three = [[3,'triangle'],[3,'equilateral triangle']].map(([s,n]) => shapeItem(s, n, 0));
     const four = [[4,'square'],[4,'rectangle'],[4,'rhombus'],[4,'kite'],[4,'parallelogram']].map(([s,n]) => shapeItem(s, n, 1));
     const more = [[5,'pentagon'],[6,'hexagon'],[7,'heptagon'],[8,'octagon'],[9,'nonagon'],[10,'decagon']].map(([s,n]) => shapeItem(s, n, 2));
     return round(buckets, assemble(buckets, [three, four, more], 9),

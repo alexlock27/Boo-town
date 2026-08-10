@@ -55,7 +55,7 @@ export function mount(container, params, ctx) {
     const map = el('div', { class: 'roll-map card' }, [
       el('div', { class: 'sc-guide', html: renderGuide(save.guide, { view: 'head', size: 88 }) }),
       el('h2', { text: '🎢 Boo Roll' }),
-      el('p', { class: 'sc-intro', text: 'Six little courses. Each one fits on a single screen — read it, then roll it!' })
+      el('p', { class: 'sc-intro', text: 'Read the course, then roll your Boo to the end! Six little courses, one screen each.' })
     ]);
     const grid = el('div', { class: 'roll-course-grid' });
     COURSES.forEach((course, i) => {
