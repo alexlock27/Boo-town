@@ -51,7 +51,8 @@ export function setReadAloud(on) { mutate(s => { s.settings.readAloud = !!on; })
 export function readAloudButton(text, { label = 'Read the question aloud' } = {}) {
   const btn = el('button', {
     class: 'read-aloud-btn', 'aria-label': label,
-    onclick: () => { const t = typeof text === 'function' ? text() : text; if (t) speakMaybe(String(t), true); }
+    // SAY-AGAIN (approved 2026-08-10): a read-aloud press means NOW — cut whatever is mid-line.
+    onclick: () => { const t = typeof text === 'function' ? text() : text; if (t) speakMaybe(String(t), true, { interrupt: true }); }
   }, [el('span', { class: 'ra-ic', html: speakerSVG(), 'aria-hidden': 'true' })]);
   return btn;
 }

@@ -672,14 +672,18 @@ function mountToddlerHub(container, params, ctx) {
     sfx.tap(); speakMaybe('Flash Boos'); ctx.go('flashboos');
   } }, [el('span', { class: 'tc-icon', text: '👀' }), el('span', { class: 'tc-word', text: 'Flash' })]));
 
-  // RUN18E L1: the two RUN16 reading games that genuinely suit a pre-reader join the
-  // Toddler hub too, each opened restricted (soundsorter.js/storyorder.js read params.toddler).
+  // RUN18E L1: the RUN16 reading games that genuinely suit a pre-reader join the Toddler
+  // hub too, opened restricted (soundsorter.js reads params.toddler).
   cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Sounds', onclick: () => {
     sfx.tap(); speakMaybe('Sounds'); ctx.go('soundsorter', { toddler: true });
   } }, [el('span', { class: 'tc-icon', text: '🔤' }), el('span', { class: 'tc-word', text: 'Sounds' })]));
-  cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Stories', onclick: () => {
-    sfx.tap(); speakMaybe('Stories'); ctx.go('storyorder', { toddler: true });
-  } }, [el('span', { class: 'tc-icon', text: '📖' }), el('span', { class: 'tc-word', text: 'Stories' })]));
+  // Alex, 2026-08-10 (TODDLER-STORIES: APPROVED): the Stories door is REMOVED from this
+  // hub. params.toddler does restrict Story Order — captions off, no peek — but
+  // playToddler() serves the two shortest stories and the shortest in data/stories.js is
+  // FOUR panels, so a 3-4 year old was asked to sequence four wordless pictures and
+  // consistently could not. No setting shortens it; shorter content does not exist.
+  // Reversible in one line: restore this door the day two 3-panel stories are authored.
+  // Story Order itself is untouched and still opens for Medium (see the roster at line 54).
   // Alex, 2026-07-31: the ORIGINAL light Blend It — sounds sit apart, tap Blend, they slide
   // into a word, tap the picture it makes — belongs here too; it is the same pictures-and-sound
   // shape as Sounds and Rhymes. The Word Factory (Medium and Full) is NOT this game and stays

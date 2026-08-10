@@ -271,9 +271,20 @@ export function mount(container, params, ctx) {
           picks.appendChild(b);
         });
       }
+      // SAY-AGAIN (approved 2026-08-10): the tap itself pre-empts (interrupt on grapheme 0
+      // ONLY — the rest of the chain queues FIFO so a mid-chain guide line keeps its place).
+      // The generation token is the other half: tap 2's interrupt fires tap 1's onend, and
+      // without the token the OLD chain would advance too — two chains interleaving cut-off
+      // fragments. A stale generation abandons its chain instead.
+      // SCOPE, precisely: `replay` is per ITEM (it lives in renderItem), so the token guards
+      // repeated taps on the SAME word — which is the case a child creates. It does not
+      // reach across an item change; a chain still speaking as the next word mounts is
+      // pre-existing behaviour, unchanged by this flag.
       function replay() {
+        const gen = (replay._gen = (replay._gen || 0) + 1);
         const parts = item.g;
         const step = (i) => {
+          if (gen !== replay._gen) return;
           if (i >= parts.length) {
             tileNodes.forEach(m => m.classList.remove('saying'));
             return speakMaybe(item.w);
@@ -281,9 +292,9 @@ export function mount(container, params, ctx) {
           tileNodes.forEach(m => m.classList.remove('saying'));
           tileNodes[i].classList.add('saying');
           let minDone = false, spoken = false;
-          const next = () => { if (minDone && spoken) step(i + 1); };
+          const next = () => { if (gen === replay._gen && minDone && spoken) step(i + 1); };
           shell.timeout(() => { minDone = true; next(); }, PART_MS);
-          const id = speakMaybe(parts[i], true, { onend: () => { spoken = true; next(); } });
+          const id = speakMaybe(parts[i], true, { interrupt: i === 0, onend: () => { spoken = true; next(); } });
           if (!id) { spoken = true; next(); }
         };
         step(0);

@@ -331,7 +331,7 @@ export function mount(container, params, ctx) {
       for (let i = 0; i < n; i++) out += `<i class="td-dot${i <= lit ? ' lit' : ''}" style="width:${size}px;height:${size}px"></i>`;
       return out + '</span>';
     }
-    const sayTarget = () => { if (target) speakMaybe(`Pop ${target}!`); return !!target; };
+    const sayTarget = (opts) => { if (target) speakMaybe(`Pop ${target}!`, true, opts); return !!target; };
     function newTarget() {
       target = 1 + rand(Math.min(10, countMax));
       targetCard.innerHTML = `<span class="td-big-num">${target}</span>` + dotsHTML(target, 15);
@@ -408,7 +408,8 @@ export function mount(container, params, ctx) {
       pop: (correct) => { const b = correct ? bubbles.find(x => x.n === target) : bubbles.find(x => x.n !== target); if (b) onPop(b); },
       target: () => target,
       values: () => bubbles.map(b => b.n),
-      sayAgain: () => sayTarget(),
+      // SAY-AGAIN (approved 2026-08-10): a repeat she asked for interrupts; first-time speech never does.
+      sayAgain: () => sayTarget({ interrupt: true }),
       cleanup: () => { if (raf) cancelAnimationFrame(raf); }
     };
   }
@@ -475,7 +476,7 @@ export function mount(container, params, ctx) {
     function hit(f, x, y) { const r = f.getBoundingClientRect(); return x >= r.left - 24 && x <= r.right + 24 && y >= r.top - 24 && y <= r.bottom + 24; }
 
     return { start: (items) => { queue = items.slice(); next(); }, feederEls,
-      sayAgain: () => { if (!lastTask) return false; sayTask(lastTask); return true; },
+      sayAgain: () => { if (!lastTask) return false; sayTask(lastTask, { interrupt: true }); return true; },
       dropOn: (idx) => {   // test hook: resolve the current item onto bucket idx
         if (!current) return false;
         if (matches(current, buckets[idx])) { curNode.remove(); progress(); if (done < roundCount) next(); return true; }
@@ -494,7 +495,7 @@ export function mount(container, params, ctx) {
         `<div class="td-swatch-sign"><span class="td-swatch" style="background:${c.hex};${c.key === 'white' ? 'border-color:#8a7db8;' : ''}"></span></div>`,
       itemHTML: (it) => objectSVG(it.object, it.colour.hex),
       matches: (it, bucket) => it.colour.key === bucket.key,
-      sayTask: () => speakMaybe('Feed the matching colour!')
+      sayTask: (it, opts) => speakMaybe('Feed the matching colour!', true, opts)
     });
     speakMaybe('Feed each Boo its matching colour!');
     eng.start(round.items);
@@ -509,7 +510,7 @@ export function mount(container, params, ctx) {
       bucketHTML: (shape) => `<div class="td-hole">${shapeSVG(shape, { size: 108 })}</div>`,
       itemHTML: (it) => shapeSVG(it.shape, { fill: it.colour, size: Math.round(84 * it.size) }),
       matches: (it, bucket) => it.shape === bucket,
-      sayTask: () => speakMaybe('Where does this shape fit?')
+      sayTask: (it, opts) => speakMaybe('Where does this shape fit?', true, opts)
     });
     speakMaybe('Match each shape to its hole!');
     eng.start(round.items);
@@ -526,9 +527,9 @@ export function mount(container, params, ctx) {
 
     const lifetime = () => (getState().seen.toddlerLetters || {});
     const showLower = (ch) => (lifetime()[ch] || 0) >= LOWER_AFTER;
-    const speakAnchor = (ch) => {
+    const speakAnchor = (ch, opts) => {
       const [word] = LETTER_ANCHORS[ch];
-      speakMaybe(ch === 'X' ? `${ch}! x is in ${word}` : `${ch}! ${ch.toLowerCase()} for ${word}`);
+      speakMaybe(ch === 'X' ? `${ch}! x is in ${word}` : `${ch}! ${ch.toLowerCase()} for ${word}`, true, opts);
       return true;
     };
 
@@ -576,7 +577,7 @@ export function mount(container, params, ctx) {
     next();
     return {
       letters, currentLetter: () => cur,
-      sayAgain: () => (cur ? speakAnchor(cur) : false),
+      sayAgain: () => (cur ? speakAnchor(cur, { interrupt: true }) : false),
       tap: (correct) => { const tiles = [...tileRow.querySelectorAll('.td-letter-tile')]; const t = tiles.find(x => (x.textContent[0] === cur) === correct); if (t) t.click(); },
       lowerShown: () => !!targetCard.querySelector('.td-lower')
     };
@@ -597,10 +598,14 @@ export function mount(container, params, ctx) {
     const LEAD_IN_MS = 900;        // a beat of quiet before the call, so it is not a surprise
     const AUTO_REPEAT_MS = 6000;   // one gentle repeat if no tap arrives
     let repeatTimer = null, autoRepeated = false;
-    function sayCall({ spoken = true } = {}) {
+    function sayCall({ spoken = true, interrupt = false } = {}) {
       if (!cur) return false;
-      animal.call(cur);
-      if (spoken) shell.timeout(() => speakMaybe(ANIMAL_WORDS[cur] + '!'), 700);   // call first, word after
+      const who = cur;                 // the animal asked about NOW — the round may move on
+      animal.call(who);                // inside the 700ms, and a late line about the last
+      if (spoken) shell.timeout(() => { // animal must never cut the new question.
+        if (cur !== who) return;
+        speakMaybe(ANIMAL_WORDS[who] + '!', true, { interrupt });
+      }, 700);                          // call first, word after
       return true;
     }
     function armAutoRepeat() {
@@ -650,7 +655,7 @@ export function mount(container, params, ctx) {
       animals: roundAnimals, current: () => cur, portraitShown: () => showPortrait() && !!targetCard.querySelector('.td-animal-portrait'),
       tap: (correct) => { const cs = [...cardRow.querySelectorAll('.td-animal-card')]; const t = cs.find(c => (c.getAttribute('aria-label') === cur) === correct); if (t) t.click(); },
       // RUN12 S9: unlimited, free, no penalty — it only repeats something she already had
-      sayAgain: () => sayCall(),
+      sayAgain: () => sayCall({ interrupt: true }),
       autoRepeated: () => autoRepeated, leadInMs: () => LEAD_IN_MS, autoRepeatMs: () => AUTO_REPEAT_MS
     };
   }
@@ -691,7 +696,7 @@ export function mount(container, params, ctx) {
     speakMaybe('Find the matching animals!');
     return {
       pairCount: pairs, cardCount: N,
-      sayAgain: () => { speakMaybe('Find the matching animals!'); return true; },
+      sayAgain: () => { speakMaybe('Find the matching animals!', true, { interrupt: true }); return true; },
       flipAt: (i) => flip(cards[i]),
       faceUp: () => cards.filter(c => c.classList.contains('flipped') || c.classList.contains('done')).length,
       matchedPairs: () => matched,
@@ -721,7 +726,7 @@ export function mount(container, params, ctx) {
         `<div class="td-paw-sign ${b.key}">${pawSign(b.key === 'big')}<span class="td-paw-word">${b.key === 'big' ? 'big' : 'small'}</span></div>`,
       itemHTML: (it) => `<div class="td-size-item ${it.big ? 'big' : 'small'}">${bigSmallSVG(it.k)}</div>`,
       matches: (it, bucket) => (it.big ? 'big' : 'small') === bucket.key,
-      sayTask: (it) => speakMaybe(it.big ? 'Big!' : 'Small!')
+      sayTask: (it, opts) => speakMaybe(it.big ? 'Big!' : 'Small!', true, opts)
     });
     speakMaybe('Big things to the big paw, small ones to the small paw!');
     eng.start(items);

@@ -4,6 +4,8 @@
 // into its mapped area at the expected proportional x; entry crossfade; every scenery
 // minimum present per area with frame evidence (windmill ≥6 frames, foam sine); header
 // strip on every area; funfair unchanged inside the new routing.
+// Expected runtime: ~30s (measured 2026-08-10, serial; 28-45s across four consecutive runs,
+// the upper end being a boot retry). Not @serial.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import { migrateForTest } from './lib/migrateForTest.mjs';
@@ -33,33 +35,61 @@ const SAVE = (over = {}) => Object.assign({
 }, over);
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
-async function openMap(save, { hour = 13, reduced = 'no-preference' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1024, height: 700 }, reducedMotion: reduced });
-  const page = await ctx.newPage();
-  page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
-  await page.addInitScript((h) => { window.__bootownHour = h; }, hour);
-  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
-  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save);
-  await page.reload({ waitUntil: 'load' });
-  await page.waitForSelector('.hub');
+// ---- booting a seeded page, deterministically (2026-08-10) --------------------------------
+// TWO fixes live here, and they are different problems:
+//
+// 1. SEED BEFORE THE FIRST BOOT. `goto → setItem → reload` boots the app TWICE: the first
+//    boot has no save at all, so it starts a brand-new player whose own autosave can land
+//    AFTER the seed is written — the reload then restores that fresh-player save, the
+//    creator holds the screen, and `.hub` never appears. addInitScript runs before any app
+//    code, so there is ONE boot and it already has the save.
+//
+// 2. A BOOT THAT NEVER LANDS IS RETRIED ONCE, THEN REPORTED. This suite opens ~25 fresh
+//    contexts in one process; under that pressure a context occasionally never paints. The
+//    app is not at fault — 40 sequential boots of this exact fixture in isolation all
+//    landed inside 6s (.tmp/wm-probe.mjs) — so one retry in a clean context is recovery
+//    from a starved harness, not a mask over a product bug. If the retry also fails the
+//    suite says WHAT was on screen and FAILS; it never dies on a bare 30s locator timeout
+//    with nothing to diagnose, which is why it used to be counted as "never completes".
+async function bootSeeded(save, { hour = 13, reduced = 'no-preference', viewport = { width: 1024, height: 700 } } = {}) {
+  let lastState = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const ctx = await browser.newContext({ viewport, reducedMotion: reduced });
+    const page = await ctx.newPage();
+    page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
+    await page.addInitScript((h) => { window.__bootownHour = h; }, hour);
+    await page.addInitScript(s => localStorage.setItem('bootown.save.v1', s), JSON.stringify(save));
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    try {
+      await page.waitForSelector('.hub', { timeout: 15000 });
+      if (attempt > 1) console.log('  … (the hub needed a second context; harness pressure, not the app)');
+      return { ctx, page };
+    } catch {
+      lastState = await page.evaluate(() => {
+        const sc = document.getElementById('screen');
+        return { screen: sc ? sc.dataset.screen : '(no #screen)', bootown: typeof window.BooTown,
+                 body: (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 120) };
+      }).catch(e => ({ evalError: String(e) }));
+      await ctx.close();
+    }
+  }
+  failed = true;
+  console.log(`  ✗ FAIL: the hub never appeared in two fresh contexts — ${JSON.stringify(lastState)}`);
+  throw new Error('hub never booted: ' + JSON.stringify(lastState));
+}
+async function openMap(save, opts = {}) {
+  const { ctx, page } = await bootSeeded(save, opts);
   await page.evaluate(() => window.BooTown.go('worldmap'));
   await page.waitForSelector('.worldmap');
-  await page.waitForFunction(() => window.__worldmap, { timeout: 4000 });
+  await page.waitForFunction(() => window.__worldmap, { timeout: 8000 });
   await sleep(300);
   return { ctx, page };
 }
 async function openTown(save, area, extra = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1024, height: 700 }, reducedMotion: 'no-preference' });
-  const page = await ctx.newPage();
-  page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
-  await page.addInitScript((h) => { window.__bootownHour = h; }, 13);
-  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
-  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), save);
-  await page.reload({ waitUntil: 'load' });
-  await page.waitForSelector('.hub');
+  const { ctx, page } = await bootSeeded(save);
   await page.evaluate((p) => window.BooTown.go('town', p), Object.assign({ area }, extra));
   await page.waitForSelector('.town2');
-  await page.waitForFunction(() => window.__townLife, { timeout: 4000 });
+  await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
   await sleep(300);
   return { ctx, page };
 }
@@ -220,13 +250,7 @@ console.log('== reduced motion stills hilltop/beach scenery ==');
 {
   const { ctx, page } = await openTown(SAVE(), 'hilltop', {});
   await ctx.close();
-  const ctx2 = await browser.newContext({ viewport: { width: 1024, height: 700 }, reducedMotion: 'reduce' });
-  const page2 = await ctx2.newPage();
-  await page2.addInitScript((h) => { window.__bootownHour = h; }, 13);
-  await page2.goto(BASE + '/index.html', { waitUntil: 'load' });
-  await page2.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE());
-  await page2.reload({ waitUntil: 'load' });
-  await page2.waitForSelector('.hub');
+  const { ctx: ctx2, page: page2 } = await bootSeeded(SAVE(), { reduced: 'reduce' });
   await page2.evaluate(() => window.BooTown.go('town', { area: 'hilltop' }));
   await page2.waitForSelector('.town2');
   await sleep(300);
@@ -239,13 +263,7 @@ console.log('== screenshots: map + an area at 1024x768 / 768x1024 / 390x844 ==')
 {
   const sizes = [['1024x768', 1024, 768], ['768x1024', 768, 1024], ['390x844', 390, 844]];
   for (const [tag, w, h] of sizes) {
-    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-    const page = await ctx.newPage();
-    await page.addInitScript((hr) => { window.__bootownHour = hr; }, 13);
-    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
-    await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE());
-    await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('.hub');
+    const { ctx, page } = await bootSeeded(SAVE(), { viewport: { width: w, height: h } });
     await page.evaluate(() => window.BooTown.go('worldmap'));
     await page.waitForSelector('.worldmap');
     await sleep(300);

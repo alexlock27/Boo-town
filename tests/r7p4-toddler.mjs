@@ -5,6 +5,7 @@
 // and misses flip back without penalty; Big and Small items are verifiably size-
 // unambiguous and colour-uncorrelated with buckets; all three honour the Toddler star
 // and meter rules; frame evidence for flips, bounces and drags.
+// Expected runtime: ~31s (measured 2026-08-10, serial). Not @serial.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
@@ -48,6 +49,11 @@ for (const tier of ['light', 'medium', 'full']) {
   // column of giant ONE-WORD cards covering every toddler game. (RUN11 Q10.)
   const wantToddler = ['Count','Colours','Shapes','Letters','Animals','Pairs','Sizes','Echo'];
   assert(wantToddler.every(w => words.includes(w)) && words.every(w => /^\S+$/.test(w)), `the Toddler hub is a column of giant one-word cards (${words.join(',')})`);
+  // Alex, 2026-08-10 (TODDLER-STORIES: APPROVED): no Stories door here. The shortest story
+  // in data/stories.js is FOUR panels and params.toddler cannot shorten it, so a 3-4 year
+  // old was handed a game she consistently failed. Pinned so the door cannot come back
+  // without the content: restore BOTH the card and two 3-panel stories, together.
+  assert(!words.includes('Stories'), 'and no Stories door — four panels is beyond a pre-reader (2026-08-10)');
   // the column scrolls if it overflows
   const scrollable = await page.$eval('.toddler-cards', n => getComputedStyle(n).overflowY === 'auto' || getComputedStyle(n).overflowY === 'scroll');
   assert(scrollable, 'the Toddler card column scrolls');

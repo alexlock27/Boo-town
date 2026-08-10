@@ -205,7 +205,7 @@ export function mount(container, params, ctx) {
       if (clue) clueEl.textContent = clue;
       const peekWord = el('div', { class: 'peek-word', style: { visibility: 'hidden' } });
       const area = el('div', { class: 'spell-area' });
-      const speaker = el('button', { class: 'icon-btn speak-btn', 'aria-label': 'Say the word again', html: speakerIcon(), onclick: () => say() });
+      const speaker = el('button', { class: 'icon-btn speak-btn', 'aria-label': 'Say the word again', html: speakerIcon(), onclick: () => say({ interrupt: true }) });
       const peekBtn = el('button', { class: 'btn soft peek-btn', text: '👀 Peek (hint)', onclick: () => peekHint() });
       // free, unlimited, never disabled: it only repeats what she was already given
       const hearBtn = el('button', { class: 'btn soft hear-btn', 'aria-label': 'Hear the word again — always free',
@@ -228,13 +228,15 @@ export function mount(container, params, ctx) {
       // The peek control does both, so it splits: the spoken repeat costs nothing and is
       // unlimited, and only revealing the letters spends a hint. Star maths for
       // answer-revealing hints is untouched.
-      function sayWordAgain() { sfx.tap(); speakMaybe(word); shell.react('Have another listen!', { voice: false, hold: 1200 }); }
+      // SAY-AGAIN (approved 2026-08-10): a repeat the child asked for starts NOW, cutting
+      // any line still mid-air. First-time speech (the bare say() on mount) never interrupts.
+      function sayWordAgain() { sfx.tap(); speakMaybe(word, true, { interrupt: true }); shell.react('Have another listen!', { voice: false, hold: 1200 }); }
       function peekHint() { if (!canHint() || speller.isLocked()) return; spendHint(); sfx.tap(); reveal(); shell.react('A peek! That counts as a hint.', { voice: false, hold: 1400 }); if (!canHint()) peekBtn.disabled = true; }
       // RUN18D D3: the two-second look rides the SHELL's clock. On a bare setTimeout the
       // free auto-look for a normal word was withdrawn behind the first-play intro, so a
       // child closed the overlay to find the word she had been shown already gone.
       function reveal() { peekWord.textContent = word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); shell.cancel(reveal._t); reveal._t = shell.timeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
-      function say() { if (clue) speakMaybe(clue.replace(/_+/g, 'blank')); else speakMaybe(`Can you spell... ${word}?`); }
+      function say(opts) { if (clue) speakMaybe(clue.replace(/_+/g, 'blank'), true, opts); else speakMaybe(`Can you spell... ${word}?`, true, opts); }
       if (!clue) reveal();            // auto-look (free) for normal words
       say();
       curItemHooks = { kind: 'word', word: () => word, peekVisible: () => peekWord.style.visibility === 'visible', typeCorrect: () => typeInto(area, word), typeWrong: () => typeInto(area, word.split('').reverse().join('')), peekHint, speller };

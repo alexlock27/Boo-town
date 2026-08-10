@@ -1,5 +1,7 @@
 // tests/m2-full.mjs — Milestone 2 DoD: new player -> all three games -> opens TWO boxes,
 // keyboard used only for the name field.
+// Expected runtime: ~53s (measured 2026-08-10, serial, three consecutive runs). Not @serial —
+// it drives a real pointer, but every step waits on the game's own state, not a stopwatch.
 import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 const errors = []; let failed = false; let keystrokes = 0;
@@ -25,18 +27,52 @@ page.fill = async (sel, val) => { keystrokes++; return origFill(sel, val); };
 async function openCeremony() {
   // handles chained boxes (a duplicate can bank+auto-open another box)
   for (let guard = 0; guard < 10; guard++) {
-    await page.waitForSelector('.gift-box, .hub', { timeout: 6000 });
+    // The ceremony mounts asynchronously over the hub, so straight after the tap that opens
+    // it there is a window where the hub has gone and the box has not arrived — a 6s wait on
+    // `.gift-box, .hub` alone could expire inside it. Include the reveal (a chained box can
+    // already be past the taps) and say what WAS on screen if none of them shows, rather
+    // than dying on a bare locator timeout.
+    try {
+      await page.waitForSelector('.gift-box, .hub, .reveal-card', { timeout: 15000 });
+    } catch {
+      const state = await page.evaluate(() => ({
+        screen: (document.getElementById('screen') || {}).dataset?.screen,
+        overlays: [...document.querySelectorAll('.overlay')].map(n => n.className).slice(0, 4)
+      })).catch(() => null);
+      failed = true;
+      console.log('  ✗ FAIL: no hub, box or reveal appeared after opening a box — ' + JSON.stringify(state));
+      return;
+    }
     if (await page.$('.hub')) return;
     if (!(await page.$('.gift-box'))) return;
-    // Load-proof: the box's three squash animations and the reveal flip are rAF-paced, and
-    // under a 4-lane board a background tab's rAF slows several-fold. Generous ceilings,
-    // same assertions (serial runs still complete this in well under a second).
-    for (let i = 0; i < 3; i++) { await page.click('.gift-box', { force: true }); await page.waitForTimeout(340); }
+    // PROVE EACH TAP LANDED (2026-08-10). The box needs exactly three taps and counts them
+    // synchronously (js/ceremony.js: `taps++` then `squash-<n>`), so this was never an
+    // animation race — a click simply did not land, three fixed 340ms sleeps went by, and
+    // the reveal that only a third tap can trigger never came. Each tap is now confirmed by
+    // its own squash-<n> class before the next is sent, so a lost click is retried instead
+    // of silently costing the round.
+    for (let tap = 0; tap < 8; tap++) {
+      if (await page.$('.reveal-card')) break;
+      const level = await page.evaluate(() => {
+        const b = document.querySelector('.gift-box');
+        if (!b) return 3;
+        return [3, 2, 1].find(n => b.classList.contains('squash-' + n)) || 0;
+      });
+      if (level >= 3) break;
+      await page.click('.gift-box', { force: true });
+      await page.waitForFunction(prev => {
+        if (document.querySelector('.reveal-card')) return true;
+        const b = document.querySelector('.gift-box');
+        if (!b) return true;
+        const now = [3, 2, 1].find(n => b.classList.contains('squash-' + n)) || 0;
+        return now > prev;
+      }, level, { timeout: 4000 }).catch(() => {});
+    }
     await page.waitForSelector('.reveal-card', { timeout: 12000 });
-    await page.waitForTimeout(450);
     const btns = await page.$$('.reveal-btns .btn');
     await btns[btns.length - 1].click({ force: true }); // keep / Yay
-    await page.waitForTimeout(300);
+    // the reveal is dismissed when it leaves the DOM, or the next box/hub arrives
+    await page.waitForFunction(() => !document.querySelector('.reveal-card'), null, { timeout: 8000 }).catch(() => {});
   }
 }
 
@@ -66,6 +102,7 @@ async function playFeed(level) {
   let guard = 0;
   while (guard++ < 30) {
     const food = await page.$('.food-item'); if (!food) break;
+    const idx = await page.evaluate(() => window.__feedboos.state().idx);
     const b = await page.getAttribute('.food-item', 'data-bucket');
     const fb = await food.boundingBox();
     const feeder = await page.$(`.feeder[data-bucket="${b}"]`); const tb = await feeder.boundingBox();
@@ -73,7 +110,16 @@ async function playFeed(level) {
     await page.mouse.down();
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2, { steps: 8 });
     await page.mouse.up();
-    await page.waitForTimeout(420);
+    // WAIT FOR THE GAME, NOT A STOPWATCH (2026-08-10). A drop starts an arc during which
+    // feedboos sets `locked`; the old fixed 420ms sleep expired mid-arc, so the next
+    // iteration grabbed the SAME item again, the tray emptied with idx still 0, and the
+    // round could never reach results — the suite then died on the `.result-card` wait.
+    // Measured before/after: 2 iterations then stuck, vs all 12 items fed, 0 wrong drops.
+    await page.waitForFunction(prev => {
+      if (document.querySelector('.result-card')) return true;
+      const st = window.__feedboos.state();
+      return !st.locked && st.idx > prev;
+    }, idx, { timeout: 8000 });
     if (await page.$('.result-card')) break;
   }
   await page.waitForSelector('.result-card', { timeout: 5000 });

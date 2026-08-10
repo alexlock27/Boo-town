@@ -2,6 +2,9 @@
 // The sequence grows; the mercy-replay fires once and a second slip ends warmly at her best
 // length; the light pattern alone suffices with sound muted; the pace caps hold; the Toddler
 // cap applies.
+// Expected runtime: ~20s (measured 2026-08-10, serial). Not @serial. It was previously
+// counted as a never-completing suite: it waited on an inputPhase that RUN18B Y6's offer
+// card only a TAP can produce. It waits on real state now, and finishes.
 import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 let failed = false;
@@ -80,30 +83,92 @@ console.log('== muted: the light pattern carries it ==');
   await ctx.close();
 }
 
-// ---- 4) mercy replay fires once; a second slip ends warmly at best length ----
-console.log('== mercy replay + warm end ==');
-{
-  const { ctx, page } = await fresh();
-  await playEcho(page);
-  // build up a couple of lengths first so bestLen > 0
-  await page.evaluate(() => window.__echo.echoAll());
-  await page.waitForFunction(() => window.__echo.state().len >= 2 && window.__echo.state().inputPhase, { timeout: 5000 });
-  const bestBefore = await page.evaluate(() => window.__echo.state().bestLen);
-  // first slip: tap a wrong Boo (a value not first in the sequence)
+// ---- 4) the tune is OFFERED again, not replayed at her; a later slip ends warmly ----
+// REWRITTEN 2026-08-10. This section asserted RUN9 C5's automatic mercy replay, which
+// RUN18B Y6 (f1780e8) deliberately replaced: a slip now STOPS the play and shows a card
+// with two one-tap ways on — "🔊 Hear it again" and "Keep going" — so nothing is lit and
+// nothing is counting while she decides. The old assertions therefore waited forever for
+// an inputPhase that only a TAP can now produce: that wait, not any product fault, is why
+// this suite never finished. `mercyUsed` survives for Lightning alone (a score chase keeps
+// its own automatic mercy), so it is asserted there instead. Y6 shipped the hooks this
+// rewrite uses — offered / againUp / hearAgain / keepGoing — and nothing had used them.
+console.log('== the tune is offered again (RUN18B Y6), and a later slip ends warmly ==');
+async function slip(page) {
   const seq = await page.evaluate(() => window.__echo.sequence());
   const wrong = [0, 1, 2, 3].find(i => i !== seq[0]);
   await page.evaluate(w => window.__echo.tap(w), wrong);
-  await sleep(120);
-  assert(await page.evaluate(() => window.__echo.state().mercyUsed), 'a first slip triggers the one-mercy replay');
-  assert(!(await page.evaluate(() => window.__echo.state().ended)), 'the round does not end on the first slip');
-  // wait for the mercy replay to return to input, then slip again → warm end
-  await page.waitForFunction(() => window.__echo.state().inputPhase, { timeout: 5000 });
-  const seq2 = await page.evaluate(() => window.__echo.sequence());
-  const wrong2 = [0, 1, 2, 3].find(i => i !== seq2[0]);
-  await page.evaluate(w => window.__echo.tap(w), wrong2);
-  await sleep(150);
-  assert(await page.evaluate(() => window.__echo.state().ended), 'a second slip ends the round warmly');
-  assert(await page.evaluate(() => window.__echo.state().bestLen) >= bestBefore, `the round ends at her best length (${bestBefore})`);
+}
+{
+  const { ctx, page } = await fresh();
+  await playEcho(page);
+  // build up a length first so bestLen > 0
+  await page.evaluate(() => window.__echo.echoAll());
+  await page.waitForFunction(() => window.__echo.state().len >= 2 && window.__echo.state().inputPhase, { timeout: 8000 });
+  const bestBefore = await page.evaluate(() => window.__echo.state().bestLen);
+
+  await slip(page);
+  await page.waitForFunction(() => window.__echo.againUp(), null, { timeout: 6000 });
+  const afterSlip = await page.evaluate(() => ({
+    offered: window.__echo.offered(), ended: window.__echo.state().ended,
+    input: window.__echo.state().inputPhase, lit: window.__echo.anyLit(),
+    line: (document.querySelector('.echo-again-line') || {}).textContent || '',
+    btns: [...document.querySelectorAll('.echo-again-btns .btn')].map(b => b.textContent)
+  }));
+  assert(afterSlip.offered && !afterSlip.ended, 'a slip offers the tune again — it never ends the round');
+  assert(!afterSlip.input && !afterSlip.lit, 'and the play STOPS while she decides: nothing lit, nothing counting');
+  assert(afterSlip.line === 'Nearly! Want to hear it once more?', `the offer is warm and asks, never tells ("${afterSlip.line}")`);
+  assert(afterSlip.btns.length === 2 && /Hear it again/.test(afterSlip.btns[0]) && /Keep going/.test(afterSlip.btns[1]),
+    `two one-tap ways on, the one she came for first (${afterSlip.btns.join(' | ')})`);
+
+  // "Keep going" hands her turn straight back — same sequence, no replay
+  const seqBefore = await page.evaluate(() => window.__echo.sequence().join(','));
+  await page.evaluate(() => window.__echo.keepGoing());
+  await page.waitForFunction(() => window.__echo.state().inputPhase, { timeout: 6000 });
+  const kept = await page.evaluate(() => ({ seq: window.__echo.sequence().join(','), pos: window.__echo.state().pos, again: window.__echo.againUp(), heard: window.__echo.heardAgain() }));
+  assert(kept.seq === seqBefore && kept.pos === 0, 'Keep going hands her turn back from the top of the SAME tune');
+  assert(!kept.again && !kept.heard, 'the card is gone, and Keep going does not count as hearing it again');
+
+  // a slip once the offer has been used ends the round warmly, at her best length
+  await slip(page);
+  await page.waitForFunction(() => window.__echo.state().ended, { timeout: 6000 });
+  const end = await page.evaluate(() => ({ best: window.__echo.state().bestLen, status: (document.querySelector('.echo-status') || {}).textContent || '' }));
+  assert(end.best >= bestBefore, `the round ends at her best length, never below it (${bestBefore} → ${end.best})`);
+  assert(!/wrong|lost|fail|no\b/i.test(end.status), `and it ends warmly ("${end.status}")`);
+  await ctx.close();
+}
+{
+  // "Hear it again" replays the same tune at the same tempo, and caps the round at 2 stars
+  const { ctx, page } = await fresh();
+  await playEcho(page);
+  await page.evaluate(() => window.__echo.echoAll());
+  await page.waitForFunction(() => window.__echo.state().len >= 2 && window.__echo.state().inputPhase, { timeout: 8000 });
+  const seqBefore = await page.evaluate(() => window.__echo.sequence().join(','));
+  await slip(page);
+  await page.waitForFunction(() => window.__echo.againUp(), null, { timeout: 6000 });
+  await page.evaluate(() => window.__echo.hearAgain());
+  await page.waitForFunction(() => window.__echo.state().inputPhase, { timeout: 10000 });
+  const heard = await page.evaluate(() => ({ seq: window.__echo.sequence().join(','), heard: window.__echo.heardAgain(), again: window.__echo.againUp(), ended: window.__echo.state().ended }));
+  assert(heard.seq === seqBefore, 'Hear it again replays the SAME tune, not a new one');
+  assert(heard.heard && !heard.again && !heard.ended, 'and hands her turn back afterwards, round still alive');
+  // hearing it again is free but honest: the round caps at two stars
+  const capped = await page.evaluate(() => { window.__echo.setBestForTest(9); return window.__echo.stars(); });
+  assert(capped === 2, `hearing it again caps a would-be three-star round at two (${capped})`);
+  await ctx.close();
+}
+{
+  // Lightning keeps the AUTOMATIC one-mercy replay: it is a score chase, not a lesson.
+  const { ctx, page } = await fresh();
+  await page.evaluate(() => window.BooTown.go('echoboos', { resume: true, lightning: true }));
+  await page.waitForSelector('.echo-board', { timeout: 8000 });
+  await page.waitForFunction(() => window.__echo && window.__echo.state().lightning, null, { timeout: 8000 });
+  await page.waitForFunction(() => window.__echo.state().inputPhase, { timeout: 8000 });
+  await slip(page);
+  await page.waitForFunction(() => window.__echo.state().mercyUsed, { timeout: 6000 });
+  assert(!(await page.evaluate(() => window.__echo.state().ended)), 'Lightning: the first slip spends the one mercy and replays automatically');
+  await page.waitForFunction(() => window.__echo.state().inputPhase, { timeout: 10000 });
+  await slip(page);
+  await page.waitForFunction(() => window.__echo.state().ended, { timeout: 6000 });
+  assert(true, 'Lightning: the second slip ends the round');
   await ctx.close();
 }
 

@@ -222,17 +222,24 @@ console.log('== 6. level 3 plays, spoken and pictured ==');
 {
   const { ctx, page } = await open('rhymetime', {}, { voice: true });
   await startLevel(page, 3);
-  await page.evaluate(() => { window.__said = []; window.speechSynthesis.speak = (u) => { window.__said.push(String(u.text)); if (u.onend) setTimeout(() => u.onend(), 0); }; });
+  // Stub AND drain, in that order. The round-start couplet went to the REAL engine before
+  // this stub existed, and in headless Chromium a real utterance may never fire onend — so
+  // tts.js's `playing` can stay occupied forever and anything queued behind it (including
+  // the click below) never reaches the stub: the 31 Jul "never read aloud" failure. App-
+  // level tts.cancel() clears the queue AND `playing` synchronously, engine events or not
+  // (bare speechSynthesis.cancel() is NOT enough — tts.js frees `playing` only in finish()).
+  await page.evaluate(async () => {
+    window.__said = []; window.speechSynthesis.speak = (u) => { window.__said.push(String(u.text)); if (u.onend) setTimeout(() => u.onend(), 0); };
+    const t = await import('./js/tts.js'); t.cancel();
+  });
   const t = await page.evaluate(() => window.__rhyme.target());
   const cards = await page.evaluate(() => [...document.querySelectorAll('.rt-card')].map(n => ({ word: n.getAttribute('aria-label'), pic: !!n.querySelector('svg'), label: (n.querySelector('.rt-cardword') || {}).textContent })));
   assert(cards.length === 3, 'three options for the couplet');
   assert(cards.every(c => c.pic && c.label === c.word), 'each one is a picture with its word beneath it');
   await page.evaluate(() => document.querySelector('.ss-say').click());
-  // The click's own request correctly QUEUES behind the round-start line (spoken by the
-  // real engine a moment ago, before the stub above replaced it) rather than interrupting
-  // it — tts.js is an intentional FIFO, and a couplet takes several real seconds. Wait for
-  // the line to actually arrive rather than assuming a quarter of a second is enough; the
-  // claim under test is "read aloud on demand", not "read aloud within 250ms".
+  // Nothing is playing (cancelled above), so the on-demand line reaches the stub directly —
+  // no dependence on the say-again interrupt, and no stopwatch. The claim under test is
+  // "read aloud on demand", not "read aloud within 250ms".
   await page.waitForFunction(() => window.__said && window.__said.length > 0, null, { timeout: 8000 });
   const said = await page.evaluate(() => window.__said.slice());
   assert(said.some(s => s.includes(t.lines[0].replace(',', '').split(' ')[0])), `the couplet is read aloud on demand: "${(said[0] || '').slice(0, 60)}…"`);

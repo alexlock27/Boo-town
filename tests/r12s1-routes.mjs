@@ -10,6 +10,8 @@
 //   3. a (route, param) pair found in source with no fixture here is a FAILURE, so the
 //      next in-app link that invents a param cannot ship untested;
 //   4. any console error, page error or unhandled rejection during a mount fails.
+// Expected runtime: ~120s (measured 2026-08-10, serial). It drives every registered route
+// with every documented parameter set, so it sits at the top of the budget by nature.
 import { chromium } from 'playwright';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
@@ -136,7 +138,10 @@ const FIXTURES = {
   booroll: [["resume a course", "({ resume: { course: 'c1' } })"]],
   // RUN18E L1: the Toddler hub's restricted doors into Sound Sorter / Story Order.
   soundsorter: [["the Toddler door (initial sounds only)", "({ toddler: true })"]],
-  storyorder: [["the Toddler door (two shortest stories)", "({ toddler: true })"]],
+  // The Toddler HUB DOOR was removed 2026-08-10 (TODDLER-STORIES: APPROVED, four panels is
+  // beyond a pre-reader). The restricted MODE is kept and still routes — pinned here so the
+  // day two 3-panel stories are authored, restoring the door is one line and proven to work.
+  storyorder: [["the restricted toddler mode (door removed 2026-08-10; mode retained)", "({ toddler: true })"]],
   rhymetime: [["the Toddler door (level 1, six sets)", "({ toddler: true })"]],
   blendit: [["the Toddler door (level 1, six words, light blend not the Factory)", "({ toddler: true })"]],
   echoboos: [

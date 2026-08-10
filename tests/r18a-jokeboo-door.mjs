@@ -248,11 +248,16 @@ console.log('== 4. the stage in the Meadow still opens the jokes ==');
   await page.evaluate(() => window.BooTown.go('town', { area: 'meadow' }));
   await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'town', null, { timeout: 15000 });
   await page.waitForTimeout(1000);
-  await page.evaluate(() => {
-    const b = [...document.querySelectorAll('button')].find(x => /🔨/.test(x.textContent));
-    if (b) b.click();
-  });
-  await page.waitForTimeout(500);
+  // RUN21C-1 DELETED THE HAMMER — the drawer carries the arranging intent now (r10p1-worldmap
+  // pins its absence on every area). This block used to hunt for a 🔨 button and `if (b)
+  // b.click()` silently did nothing when it was gone, so build mode was never entered and the
+  // assertion below failed against a play-mode tap. `__town.toggleBuild()` is the alias
+  // RUN21C-1 kept for exactly this ("put the world into arranging"); assert the state is
+  // really on before tapping, so a silent no-op can never masquerade as a product fault again.
+  // (the arranging hooks live on __townLife — __town carries geometry/scroll only)
+  const softened = await page.evaluate(() => window.__townLife.toggleBuild());
+  assert(softened === true, 'the world goes into arranging mode (the drawer, not the deleted hammer)');
+  await page.waitForFunction(() => window.__townLife.buildMode() === true, null, { timeout: 8000 });
   const build = await tapStage(page);
   assert(build.landed === 'town', `and in BUILD mode the same tap does not leave the town (landed "${build.landed}")`);
   await ctx.close();
@@ -290,18 +295,36 @@ console.log('== 5. the retro ceremony leaves when its screen does ==');
 console.log('== 6. leaving the hub before the ceremony fires ==');
 for (const delay of [0, 150, 250]) {
   const { ctx, page } = await open(save({ seen: { lastStarsShown: 400 } }));   // trophyRetro NOT set
+  // OBSERVE, DO NOT SNAPSHOT (2026-08-10). "Did she see it?" was read with a single
+  // querySelector at `delay` ms and then compared against a state written LATER — but the
+  // navigation that follows is itself a round-trip of a few hundred ms, so at delay=150 the
+  // hub's ~400ms timer could fire while she was demonstrably still on the hub, after the
+  // snapshot said "not seen". The product was right (the award is spent when the ceremony
+  // really showed) and the measurement was wrong. A MutationObserver armed before the hub
+  // paints records whether the ceremony EVER attached while the hub was the live screen,
+  // which is the condition the product rule is actually about.
+  await page.evaluate(() => {
+    window.__sawRetroOnHub = false;
+    const seen = () => document.getElementById('screen');
+    new MutationObserver(muts => {
+      for (const m of muts) for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        const hit = n.matches?.('.overlay.trophy-ceremony') ? n : n.querySelector?.('.overlay.trophy-ceremony');
+        if (hit && seen() && seen().dataset.screen === 'hub') window.__sawRetroOnHub = true;
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   await page.waitForSelector('.hub', { timeout: 10000 });
   if (delay) await page.waitForTimeout(delay);
-  // Did she actually SEE it before she left? At the longest delay the 400ms timer can
-  // legitimately have fired already, in which case spending the one-time award is correct.
-  const sawOnHub = await page.evaluate(() => !!document.querySelector('.overlay.trophy-ceremony'));
   await page.evaluate(() => window.BooTown.go('jokeboo'));
   await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'jokeboo', null, { timeout: 10000 });
   await page.waitForTimeout(1500);   // well past the hub's 400ms timer
   const r = await page.evaluate(() => {
     const ov = document.querySelector('.overlay.trophy-ceremony');
-    return { covered: !!ov, screen: document.getElementById('screen').dataset.screen, retro: !!(window.BooTown.State.getState().seen || {}).trophyRetro };
+    return { covered: !!ov, screen: document.getElementById('screen').dataset.screen,
+             retro: !!(window.BooTown.State.getState().seen || {}).trophyRetro, sawOnHub: window.__sawRetroOnHub };
   });
+  const sawOnHub = r.sawOnHub;
   assert(!r.covered, `left the hub after ${delay}ms: no ceremony follows her onto the jokes screen`);
   assert(r.screen === 'jokeboo', `and she is still on the jokes (screen "${r.screen}")`);
   // The one-time award is spent EXACTLY when the ceremony was really shown to her, never

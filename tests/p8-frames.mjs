@@ -1,5 +1,6 @@
 // @serial — frame-sampling: motion proven by frame sequences under real clocks (runs alone at the board's end; RUN14 U-0)
 // tests/p8-frames.mjs — EXPANSION_2 frames: Teach Me + Boo Dash (RUN2 phase 8).
+// Expected runtime: ~34s (measured 2026-08-10, serial).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
@@ -98,20 +99,34 @@ assert(afterDash.plays === beforeDash.plays + 1 && afterDash.total > beforeDash.
 
 // bonk path: a wrong gate bonks, same fact stays, hearts never end (bonks tracked).
 // (run-up-and-wait: taps only land while WAITING at the gates, so wait for that phase.)
+// RUN18B Y7 removed the hearts ROW from every tier (it counted down while the round carried
+// on regardless); shell.dimHeart() survives as an internal counter only. So the guarantee
+// here is the Y7 one: the bonk is tracked, and no heart UI is ever drawn to count down.
 await enterDash();
 const bonkTest = await page.evaluate(async () => {
   const D = window.__dash; const sleep = ms => new Promise(r => setTimeout(r, ms));
   let g = 0; while (D.state().phase !== 'wait' && g++ < 40) await sleep(100);
-  const heartsBefore = document.querySelectorAll('.heart-ic.on').length;
+  const heartsBefore = document.querySelectorAll('.heart-ic, .hearts-row').length;
   const q0 = D.correct();
   D.tap(false); await sleep(250);   // wrong gate
   const st = D.state();
-  const heartsAfter = document.querySelectorAll('.heart-ic.on').length;
+  const heartsAfter = document.querySelectorAll('.heart-ic, .hearts-row').length;
   const sameFact = D.correct() === q0;   // the same question stays
-  return { bonks: st.bonks, gate: st.gate, sameFact, heartsBefore, heartsAfter, phase: st.phase };
+  // What the child actually GETS for a wrong tap, now that no heart dims: the gate she ran
+  // into bonks, the Boo bonks, and RUN18D's explanation names the answer.
+  const bonkedGate = document.querySelectorAll('.bonked').length;
+  const bonkedBoo = document.querySelectorAll('.bonk').length;
+  const explained = (document.querySelector('.guide-peek.show .peek-bubble') || {}).textContent || '';
+  return { bonks: st.bonks, gate: st.gate, sameFact, heartsBefore, heartsAfter, phase: st.phase, bonkedGate, bonkedBoo, explained };
 });
 assert(bonkTest.bonks === 1 && bonkTest.gate === 0, 'a wrong arch is a soft bonk that does not advance the gate');
-assert(bonkTest.heartsAfter === bonkTest.heartsBefore - 1, 'a wrong tap dims a heart (' + bonkTest.heartsBefore + ' -> ' + bonkTest.heartsAfter + ')');
+assert(bonkTest.heartsBefore === 0 && bonkTest.heartsAfter === 0, 'no hearts row is ever drawn — RUN18B Y7 (' + bonkTest.heartsBefore + '/' + bonkTest.heartsAfter + ' heart nodes)');
+// Y7 took the dimming heart away, so this suite must still prove she gets SOMETHING back
+// for a wrong tap — otherwise "no hearts" would be satisfied by silent, invisible failure.
+assert(bonkTest.bonkedGate > 0 && bonkTest.bonkedBoo > 0,
+  `she still SEES the miss: the gate and the Boo both bonk (${bonkTest.bonkedGate} gate, ${bonkTest.bonkedBoo} Boo)`);
+assert(/the answer was/i.test(bonkTest.explained),
+  `and RUN18D's explanation names the answer ("${bonkTest.explained.slice(0, 60)}")`);
 assert(bonkTest.phase === 'wait', 'after a bonk the world stays stopped at the same gates');
 assert(bonkTest.sameFact, 'the same fact re-approaches after a bonk');
 

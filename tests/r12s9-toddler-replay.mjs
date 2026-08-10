@@ -92,8 +92,17 @@ console.log('== Animal Sounds plays at a calmer pace, after a lead-in ==');
   assert(r.log.length >= 1, `the call plays (${r.log.length} so far)`);
   const src = readFileSync('js/toddler.js', 'utf8');
   assert(/LEAD_IN_MS = 900/.test(src), 'with an authored 900ms lead-in pause before it, not 240ms');
-  assert(/shell\.timeout\(\(\) => speakMaybe\(ANIMAL_WORDS\[cur\]/.test(src),
+  // Assert the SHAPE, not one exact spelling of it (2026-08-10). This was pinned as the
+  // literal text `shell.timeout(() => speakMaybe(ANIMAL_WORDS[cur]`, so it failed the moment
+  // sayCall's body grew a guard — while the behaviour it cares about was unchanged. What
+  // matters is that the word is spoken from a DELAYED timer inside sayCall, after the call
+  // itself, rather than alongside it.
+  const sayCall = (src.match(/function sayCall\([\s\S]*?\n    \}/) || [''])[0];
+  assert(/animal\.call\(/.test(sayCall) && /shell\.timeout\(/.test(sayCall) && /speakMaybe\(ANIMAL_WORDS\[/.test(sayCall),
     'and the spoken word follows the call rather than landing on top of it');
+  assert(sayCall.indexOf('animal.call(') < sayCall.indexOf('speakMaybe(ANIMAL_WORDS['),
+    'the animal call really comes first, the word second');
+  assert(/,\s*700\)/.test(sayCall), 'with the authored 700ms gap between them');
   await ctx.close();
 }
 

@@ -93,7 +93,7 @@ export function mount(container, params, ctx) {
       if (clue) clueEl.textContent = clue;
       const peekWord = el('div', { class: 'peek-word', style: { visibility: 'hidden' } });
       const area = el('div', { class: 'spell-area' });
-      const speaker = el('button', { class: 'icon-btn speak-btn', 'aria-label': 'Say again', html: speakerIcon(), onclick: () => say() });
+      const speaker = el('button', { class: 'icon-btn speak-btn', 'aria-label': 'Say again', html: speakerIcon(), onclick: () => say({ interrupt: true }) });
       const peekBtn = el('button', { class: 'btn soft peek-btn', text: '👀 Peek (hint)', onclick: () => peekHint() });
       if (!canHint()) peekBtn.disabled = true;
       promptCard.append(el('div', { class: 'spell-guide', html: renderGuide(guide, { view: 'head', size: 72 }) }), el('div', { class: 'spell-say' }, [el('span', { text: 'Golden word — spell it!' }), speaker]), peekBtn);
@@ -105,7 +105,8 @@ export function mount(container, params, ctx) {
       // free auto-look for a normal word was withdrawn behind the first-play intro, so a
       // child closed the overlay to find the word she had been shown already gone.
       function reveal() { peekWord.textContent = it.word; peekWord.style.visibility = 'visible'; peekWord.classList.remove('pop'); void peekWord.offsetWidth; peekWord.classList.add('pop'); shell.cancel(reveal._t); reveal._t = shell.timeout(() => { peekWord.style.visibility = 'hidden'; }, 2000); }
-      function say() { if (clue) speakMaybe(clue.replace(/_+/g, 'blank')); else speakMaybe(`Can you spell... ${it.word}?`); }
+      // SAY-AGAIN (approved 2026-08-10): the speaker button interrupts; first-time mount speech does not.
+      function say(opts) { if (clue) speakMaybe(clue.replace(/_+/g, 'blank'), true, opts); else speakMaybe(`Can you spell... ${it.word}?`, true, opts); }
       if (!clue) reveal();
       say();
       window.__golden && (window.__golden._cur = { kind: 'word', answer: () => it.word, typeCorrect: () => typeInto(area, it.word) });
