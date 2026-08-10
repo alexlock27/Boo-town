@@ -66,6 +66,7 @@ async function playFeed(level) {
   let guard = 0;
   while (guard++ < 30) {
     const food = await page.$('.food-item'); if (!food) break;
+    const idx = await page.evaluate(() => window.__feedboos.state().idx);
     const b = await page.getAttribute('.food-item', 'data-bucket');
     const fb = await food.boundingBox();
     const feeder = await page.$(`.feeder[data-bucket="${b}"]`); const tb = await feeder.boundingBox();
@@ -73,7 +74,16 @@ async function playFeed(level) {
     await page.mouse.down();
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2, { steps: 8 });
     await page.mouse.up();
-    await page.waitForTimeout(420);
+    // WAIT FOR THE GAME, NOT A STOPWATCH (2026-08-10). A drop starts an arc during which
+    // feedboos sets `locked`; the old fixed 420ms sleep expired mid-arc, so the next
+    // iteration grabbed the SAME item again, the tray emptied with idx still 0, and the
+    // round could never reach results — the suite then died on the `.result-card` wait.
+    // Measured before/after: 2 iterations then stuck, vs all 12 items fed, 0 wrong drops.
+    await page.waitForFunction(prev => {
+      if (document.querySelector('.result-card')) return true;
+      const st = window.__feedboos.state();
+      return !st.locked && st.idx > prev;
+    }, idx, { timeout: 8000 });
     if (await page.$('.result-card')) break;
   }
   await page.waitForSelector('.result-card', { timeout: 5000 });
