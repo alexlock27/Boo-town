@@ -1087,6 +1087,37 @@ export function renderDeco(item, opts = {}) {
         ell(60, 58, 8, 10, COLORS.cocoa, ink) +
         `<circle cx="60" cy="56" r="3" fill="${COLORS.gold}"/>`;
       break;
+    case 'lantern':
+      // RUN21E-10: a little hanging lantern. `.lamp-glow` is the house's own lit-at-night
+      // group, so town.js's existing `.lit` check does the rest with no new machinery.
+      inner =
+        `<path d="M60 14 q0 10 0 12" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+        `<path d="M48 26 a12 10 0 0 1 24 0" fill="none" stroke="${INK}" stroke-width="3"/>` +
+        rrect(44, 30, 32, 10, 4, COLORS.cocoa, halo) +
+        rrect(44, 30, 32, 10, 4, COLORS.cocoa, ink) +
+        `<g class="lamp-glow">` +
+        path('M48 40 L72 40 L76 96 L44 96 Z', COLORS.gold, halo) +
+        path('M48 40 L72 40 L76 96 L44 96 Z', '#FFF3B0', ink) +
+        `<ellipse cx="60" cy="68" rx="9" ry="13" fill="${COLORS.gold}"/>` +
+        `</g>` +
+        rrect(42, 96, 36, 12, 4, COLORS.cocoa, halo) +
+        rrect(42, 96, 36, 12, 4, COLORS.cocoa, ink) +
+        `<line x1="52" y1="40" x2="52" y2="96" stroke="${INK}" stroke-width="2" opacity="0.5"/>` +
+        `<line x1="68" y1="40" x2="68" y2="96" stroke="${INK}" stroke-width="2" opacity="0.5"/>`;
+      break;
+    case 'buntingend':
+      // A knot on a short post, with two little flags on the stub of string. The SWAG itself
+      // is drawn by town.js between two of these, because it belongs to the pair, not to one.
+      inner =
+        rrect(56, 40, 8, 56, 3, COLORS.cocoa, halo) +
+        rrect(56, 40, 8, 56, 3, COLORS.cocoa, ink) +
+        ell(60, 92, 16, 5, COLORS.teal, ink) +
+        ell(60, 38, 9, 8, COLORS.bubblegum, halo) +
+        ell(60, 38, 9, 8, COLORS.bubblegum, ink) +
+        `<path d="M64 42 q14 4 22 14" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>` +
+        path('M70 46 l11 2 l-4 11 z', COLORS.gold, ink) +
+        path('M80 52 l10 4 l-6 10 z', COLORS.aqua, ink);
+      break;
     case 'kiterack':
       // RUN21E-2: a low wooden stand with three pegs, the way a kite rack on a hill looks —
       // two feet, a crossbar, three pegs standing proud of it.

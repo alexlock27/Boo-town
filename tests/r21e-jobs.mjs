@@ -705,6 +705,89 @@ console.log('\n== E7: make it night-time in here ==');
 }
 
 // ============================================================================
+// E10 — outdoor hang points
+// ============================================================================
+console.log('\n== E10: things that hang ==');
+{
+  // A lantern in a tree — seated in the tree's slot, and alight after dark.
+  // `parent` is a placement ID, so the oak's real id has to be captured rather than guessed.
+  const oak = P('meadow', 'deco_oak', 0.12);
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [oak, P('meadow', 'land_lantern', 0.12, 1, { plane: 'surface', parent: oak.id, slot: 0 })] }), nextId: 900 } }),
+    { area: 'meadow', hour: 22 });
+  assert(await hasCls(page, '.t-item[data-item="land_lantern"].on-surface'), 'a lantern hangs in the tree (a real surface child)');
+  assert(await hasCls(page, '.t-item[data-item="land_lantern"].lit'), '…and lights itself at night');
+  await page.screenshot({ path: `${SHOTS}/e10-lantern.png` });
+  await ctx.close();
+}
+{
+  // Two bunting-ends near each other string a swag between them.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'land_buntingend', 0.08), P('meadow', 'land_buntingend', 0.22)] }), nextId: 900 } }),
+    { area: 'meadow' });
+  assert(await until(page, () => document.querySelectorAll('.t-swag').length === 1, 2500),
+    'two bunting-ends within reach string ONE swag between them');
+  await page.screenshot({ path: `${SHOTS}/e10-swag.png` });
+  await ctx.close();
+}
+{
+  // Three ends make two swags, left to right — consecutive pairs, never a tangle.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'land_buntingend', 0.06), P('meadow', 'land_buntingend', 0.18), P('meadow', 'land_buntingend', 0.30)] }), nextId: 900 } }),
+    { area: 'meadow' });
+  assert(await until(page, () => document.querySelectorAll('.t-swag').length === 2, 2500),
+    'three ends make exactly two swags');
+  const order = await page.evaluate(() => [...document.querySelectorAll('.t-swag')].map(n => parseFloat(n.style.left)));
+  assert(order.length === 2 && order[0] < order[1], `and they run left to right (${order.map(n => Math.round(n)).join(' then ')})`);
+  await page.screenshot({ path: `${SHOTS}/e10-two-swags.png` });
+  await ctx.close();
+}
+{
+  // Too far apart is no swag — the pack's 25% reach really binds.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'land_buntingend', 0.05), P('meadow', 'land_buntingend', 0.70)] }), nextId: 900 } }),
+    { area: 'meadow' });
+  await sleep(800);
+  assert(await count(page, '.t-swag') === 0, 'ends a long way apart string nothing');
+  await ctx.close();
+}
+{
+  // …and the swag FOLLOWS an end being dragged, rather than snapping on drop.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'land_buntingend', 0.08), P('meadow', 'land_buntingend', 0.20)] }), nextId: 900 } }),
+    { area: 'meadow' });
+  await until(page, () => document.querySelectorAll('.t-swag').length === 1, 2500);
+  const before = await page.evaluate(() => { const s = document.querySelector('.t-swag'); return { left: parseFloat(s.style.left), w: parseFloat(s.style.width) }; });
+  const box = await page.evaluate(() => {
+    const w = [...document.querySelectorAll('.t-item')].filter(n => n.dataset.item === 'land_buntingend')[1];
+    const r = w.getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  });
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y, { steps: 8 });
+  await sleep(200);
+  const during = await page.evaluate(() => { const s = document.querySelector('.t-swag'); return s ? { left: parseFloat(s.style.left), w: parseFloat(s.style.width) } : null; });
+  await page.mouse.up();
+  assert(during && during.w > before.w + 40,
+    `the swag stretches WHILE she drags an end (${Math.round(before.w)}px → ${during ? Math.round(during.w) : 'gone'}px)`);
+  await page.screenshot({ path: `${SHOTS}/e10-swag-drag.png` });
+  await ctx.close();
+}
+{
+  // Both smalls are free Landscape, outdoor-only, and never in a mystery box.
+  const { ctx, page } = await open(SAVE(), { area: null });
+  const cat = await page.evaluate(async () => {
+    const c = await import('/data/catalogue.js');
+    const ids = ['land_lantern', 'land_buntingend'];
+    return ids.map(id => { const it = c.BY_ID[id]; return { id, kind: it && it.kind, free: !!(it && it.free), inPool: c.COLLECTIBLES.some(x => x.id === id) }; });
+  });
+  assert(cat.every(c => c.kind === 'landscape' && c.free), 'both new smalls are free Landscape items');
+  assert(cat.every(c => !c.inPool), 'and neither can ever drop from a mystery box');
+  await ctx.close();
+}
+
+// ============================================================================
 // E15 — per-area growth tracks
 // ============================================================================
 console.log('\n== E15: every area grows ==');

@@ -1956,6 +1956,87 @@ export function mount(container, params, ctx) {
       && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
   }
 
+  // ---- RUN21E-10: the bunting swags --------------------------------------------------------
+  // A swag belongs to a PAIR, not to either end, so it cannot live inside an item's own wrap.
+  // Ends are sorted by x and paired CONSECUTIVELY — so three ends give two swags, left to
+  // right, exactly as the ACCEPT asks — and every pair within reach gets one <path>.
+  const SWAG_REACH = 0.25;    // "within 25% x of each other", in the save's own units
+  const SWAG_SAG = 0.08;      // the pack's 8% sag, as a fraction of the pixel span
+  function renderSwags() {
+    ground.querySelectorAll('.t-swag').forEach(n => n.remove());
+    if (!zoneW) return;
+    const ends = areaItems(getState()).filter(t => t.item === 'land_buntingend').slice().sort((p, q) => p.x - q.x);
+    if (ends.length < 2) return;
+    for (let i = 0; i < ends.length - 1; i++) {
+      const A = ends[i], B = ends[i + 1];
+      if (Math.abs(B.x - A.x) > SWAG_REACH) continue;
+      const pa = swagAnchor(A), pb = swagAnchor(B);
+      if (!pa || !pb) continue;
+      drawSwag(pa, pb, `${A.id}-${B.id}`);
+    }
+  }
+  // Mid-drag: rebuild every swag from where the ends are RIGHT NOW, using the dragged wrap's
+  // live x for the one under her finger.
+  function redrawSwagsLive(draggedWrap, liveX) {
+    ground.querySelectorAll('.t-swag').forEach(n => n.remove());
+    const items = areaItems(getState()).filter(t => t.item === 'land_buntingend');
+    const draggedId = draggedWrap.dataset.pid;
+    const ends = items.map(t => ({ t, x: String(t.id) === draggedId ? liveX : t.x })).sort((p, q) => p.x - q.x);
+    for (let i = 0; i < ends.length - 1; i++) {
+      if (Math.abs(ends[i + 1].x - ends[i].x) > SWAG_REACH) continue;
+      const pa = swagAnchorLive(ends[i], draggedId), pb = swagAnchorLive(ends[i + 1], draggedId);
+      if (pa && pb) drawSwag(pa, pb, `live-${i}`);
+    }
+  }
+  function swagAnchorLive(e, draggedId) {
+    const w = wrapFor(e.t);
+    if (!w) return null;
+    const isDragged = String(e.t.id) === draggedId;
+    const left = isDragged ? (e.x * zoneW - (w.offsetWidth || 60) / 2) : parseFloat(w.style.left);
+    const top = parseFloat(w.style.top);
+    if (!isFinite(left) || !isFinite(top)) return null;
+    return { x: left + (w.offsetWidth || 60) / 2, y: top + (w.offsetHeight || 60) * 0.30, z: parseInt(w.style.zIndex || '0', 10) || 0 };
+  }
+  // Where a bunting-end's string is tied, in ground-layer pixels.
+  function swagAnchor(t) {
+    const w = wrapFor(t);
+    if (!w) return null;
+    const left = parseFloat(w.style.left), top = parseFloat(w.style.top);
+    if (!isFinite(left) || !isFinite(top)) return null;
+    return { x: left + (w.offsetWidth || 60) / 2, y: top + (w.offsetHeight || 60) * 0.30, z: parseInt(w.style.zIndex || '0', 10) || 0 };
+  }
+  function drawSwag(pa, pb, key) {
+    const x0 = Math.min(pa.x, pb.x), x1 = Math.max(pa.x, pb.x);
+    const span = x1 - x0;
+    if (span < 6) return;
+    const yTop = Math.min(pa.y, pb.y), yBot = Math.max(pa.y, pb.y);
+    const sag = span * SWAG_SAG;
+    const h = (yBot - yTop) + sag + 30;
+    const node = el('div', { class: 't-swag', dataset: { swag: key }, 'aria-hidden': 'true' });
+    const ay = pa.x <= pb.x ? pa.y - yTop : pb.y - yTop;
+    const by = pa.x <= pb.x ? pb.y - yTop : pa.y - yTop;
+    // One path for the string, plus little flags hung along it. (Array.from's map callback
+    // takes (value, index) ONLY — there is no third array argument, so the count is a local.)
+    const flagCount = Math.max(3, Math.min(9, Math.round(span / 42)));
+    const flags = Array.from({ length: flagCount }, (_, i) => {
+      const p = (i + 0.5) / flagCount;
+      const fx = p * span;
+      // the quadratic's own point, so a flag hangs ON the string rather than near it
+      const fy = (1 - p) * (1 - p) * ay + 2 * (1 - p) * p * ((ay + by) / 2 + sag * 2) + p * p * by;
+      const c = ['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4];
+      return `<path d="M${fx.toFixed(1)} ${fy.toFixed(1)} l11 0 l-5.5 14 z" fill="${c}" stroke="#2A1B4E" stroke-width="1.6" stroke-linejoin="round"/>`;
+    }).join('');
+    node.style.left = x0 + 'px';
+    node.style.top = yTop + 'px';
+    node.style.width = span + 'px';
+    node.style.height = h + 'px';
+    node.style.zIndex = String(Math.max(pa.z, pb.z) + 1);
+    node.innerHTML = `<svg viewBox="0 0 ${span.toFixed(1)} ${h.toFixed(1)}" width="${span.toFixed(1)}" height="${h.toFixed(1)}" xmlns="http://www.w3.org/2000/svg">`
+      + `<path d="M0 ${ay.toFixed(1)} Q${(span / 2).toFixed(1)} ${((ay + by) / 2 + sag * 2).toFixed(1)} ${span.toFixed(1)} ${by.toFixed(1)}" fill="none" stroke="#2A1B4E" stroke-width="2.4" stroke-linecap="round"/>`
+      + flags + `</svg>`;
+    ground.appendChild(node);
+  }
+
   // ---- RUN21E-11: adjacency delights -------------------------------------------------------
   // The authored table. `when` is evaluated against the live clock, `maxDxFrac` against the
   // save's own x (a fraction of the area), and `scene` runs the moment.
@@ -2389,7 +2470,7 @@ export function mount(container, params, ctx) {
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
       // RUN21E-7: …and during a pretend night in THIS room, which is the whole point of it.
-      if (LAMP_IDS.has(t.item) && nightHere()) wrap.classList.add('lit');
+      if ((LAMP_IDS.has(t.item) || t.item === 'land_lantern') && nightHere()) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
       if (isWish(t.item)) dressWish(wrap, t);   // RUN20 W1
       
@@ -2459,6 +2540,7 @@ export function mount(container, params, ctx) {
     renderZoneScenery();   // zone identity (RUN7 C2): distinct backdrop per zone, behind items
     renderAreaAmbient();   // RUN20 W2: the area's own quiet life
     renderGrowth();
+    renderSwags();         // RUN21E-10: the bunting between paired ends — after the wraps exist
     renderFunfair();
     renderHide();
     decorateEasels().then(maybeAckEasel);   // RUN19 Z4 — after the art is actually in the DOM
@@ -5353,6 +5435,10 @@ export function mount(container, params, ctx) {
         if (!onWall) {
           showDropPreview(wrap, zi, x, row, live);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
         }
+        // RUN21E-10: a swag FOLLOWS the end being dragged. Nothing commits until pointerup, so
+        // redrawing from the save would only snap on drop; this recomputes from the live wrap
+        // positions instead, and the ordinary render on drop then makes it truthful.
+        if (wrap.dataset.item === 'land_buntingend') redrawSwagsLive(wrap, x);
       }
     });
     wrap.addEventListener('pointerup', e => {

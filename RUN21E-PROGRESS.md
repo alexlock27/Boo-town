@@ -17,7 +17,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E7 | Boo House — pretend-night lamp | **DONE** (18/18) |
 | E8 | Gallery — three pins + Featured Wall | TODO |
 | E9 | Surfaces wave two (mantelpiece, windowsills, 3 smalls; consider outdoor parent) | TODO |
-| E10 | Outdoor hang points (lantern, bunting swags) | TODO |
+| E10 | Outdoor hang points (lantern, bunting swags) | **DONE for trees** (9/9); the FENCE half is DEFERRED — see DEV-47 |
 | E11 | Adjacency delights (moth, frog/dragonfly, marshmallows) | **DONE** (15/15) |
 | E12 | Dead-prop amnesty (fridge, oven, bathtub, wardrobe, mirror) | **DONE** (22/22, 18s) |
 | E13 | Acknowledgement wave two (3 ack lines) | **DONE** (11/11) |
@@ -150,6 +150,34 @@ candidates received NO personality multiplier at all; `personalityMult` was appl
 visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier to the zone-candidate
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
+
+**DEV-47 · E10 "Trees (oak/pine/palm) AND the playground fence gain 1 surface slot each" —
+the fence half is DEFERRED, with the mechanic delivered in full.** The clause is
+self-contradictory: with ONE slot on the fence you can never have "two ends on the fence", let
+alone the three the same ACCEPT asks for. And the fence is not an item at all — it is a full-area
+picket row drawn into `playgroundScenery`, with no placement and therefore no id to be anyone's
+parent. Making it a parent needs the built-in-parent machinery E9 owns (a NEW additive child
+field, because `t.parent` is destroyed twice over by `groundOrphans` on every render and by the
+v24 parent resolution on every load). WHAT I DID → the three TREES gained their slots as a pure
+data add, and every clause of the ACCEPT is satisfied through them: a lantern hangs in a tree, two
+ends string one swag, three ends make two swags left-to-right, and a swag follows an end while it
+is being dragged. Only the fence AS A PARENT is outstanding, and it is logged rather than faked
+with a second parenting system.
+
+**DEV-48 · E10 "within 25% x of each other".** Implemented literally, as a fraction of the AREA —
+which outdoors is about one whole viewport. Generous, and deliberately so: the pairing should feel
+forgiving rather than fiddly.
+
+**DEV-49 · E10 "recomputed on move" / "follows when one is dragged".** Nothing commits until
+pointerup, so a swag driven off the save alone would snap into place on drop rather than follow.
+The drag handler recomputes the affected swags from the LIVE wrap positions, and the ordinary
+render on drop then makes them truthful.
+
+**DEV-50 · E10 `land_` ids.** The pack authors `land_lantern` and `land_buntingend`; every other
+landscape item in the game is `deco_*`. The ids ship AS AUTHORED (they are the pack's to name) and
+carry `kind:'landscape'` + `free:true`, which is what actually drives the toybox, outdoor-only
+placement, unlimited stock and exclusion from box drops. The prefix break is recorded here so
+nobody later reads it as a bug.
 
 **DEV-40 · E15 "Builders + reveal ceremony verbatim from the Meadow machine" vs "Reveal headline
 per milestone exactly `The Boo Builders finished the <Name>!`".** These contradict each other: the
@@ -437,6 +465,11 @@ parented there is wiped by the next one.
 | `r4p6-growth` | **FAIL → real defect of mine → FIXED → PASS (21)**. It asserts that a seeded gift landmark keeps its distance from what SHE placed. My Notice Post landed 0.02 away in x on the next depth row — legal by the app's per-ROW spacing rule, and visually standing on top of her Boo. The suite has quietly asserted this since RUN4 and was right to; the seeder now keeps its distance from everything she has placed, whatever row it is on. | ~60s |
 | `r21a-reach-truth` | 73/73 assertions PASS; suite FAIL on `ERR_NO_BUFFER_SPACE` only | ~2m |
 | `r10p1-worldmap` (the new ribbon) | PASS (77) | ~90s |
+| `r21e-jobs` (all twelve packets) | PASS 173/173 | ~80s |
+| `r19z6-objectmodel` (pins the existing SURFACE_SLOTS JSON exactly) | PASS (73) | ~90s |
+| `r21f5-placementids` | PASS (83) | ~90s |
+| `r10p3-buildmode` (landscape/toybox/path machinery) | PASS (74) | ~90s |
+| `r15v-economy` | PASS (64) | ~70s |
 | `r19z5-nouns` | FLAKE then PASS (53). One run failed the Sprinkle hint assertion because the hint bar had been overwritten — pre-existing contention (`updateHint`, the hider chance at ~0.9s and the pulse invitation at ~9s all write that one bar); E13 writes no hints at all. Proved by running it with my `js/town.js` stashed (PASS) and again with it restored (PASS). | ~2m each |
 
 ## Stale pins re-pointed (never weakened)
