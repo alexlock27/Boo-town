@@ -22,7 +22,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E12 | Dead-prop amnesty (fridge, oven, bathtub, wardrobe, mirror) | **DONE** (22/22, 18s) |
 | E13 | Acknowledgement wave two (3 ack lines) | **DONE** (11/11) |
 | E14 | Photo mode → postcards | TODO |
-| E15 | Per-area growth tracks | TODO |
+| E15 | Per-area growth tracks | **DONE** (20/20) |
 | H1 | Verify pumpWishIdles re-pointed to !softened (C report note 2) | DONE (verified) |
 | H2 | L_PATH_FULL "Erase some to lay more" fix (sanctioned) | DONE |
 | H3 | B1 APPROVED: bias maybePickBehaviour goals toward path runs + 90s observation | **DONE — observation PASSES, entry restored** |
@@ -150,6 +150,56 @@ candidates received NO personality multiplier at all; `personalityMult` was appl
 visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier to the zone-candidate
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
+
+**DEV-40 · E15 "Builders + reveal ceremony verbatim from the Meadow machine" vs "Reveal headline
+per milestone exactly `The Boo Builders finished the <Name>!`".** These contradict each other: the
+Meadow ceremony's line is `guideLine('builders')` = "The Builders finished something for you!",
+and the pack's sentence exists nowhere. What I did → kept the ceremony STRUCTURE verbatim (the
+overlay, the panel, the fence drop, the confetti, the Hooray button, `enqueueReveal`'s done
+callback) and gave the fifteen NEW milestones the authored sentence. The Meadow's five keep the
+line they have always had.
+
+**DEV-41 · E15 the article in both headlines.** Naive substitution ships "finished the A Little
+Cairn!" and "Look how the The Playground has grown!" — broken English for 9 of the 15 names and
+for three of the five areas. Both templates strip a leading article from the substituted name, the
+same correction the socket-claim line already makes. The exact-string diff at the gate is
+knowingly against the corrected form; the milestone's full authored name is what the reveal panel
+and the world map display.
+
+**DEV-42 · E15 "three per area on that area's item count".** The Meadow machine counts unique BOOS
+OWNED, not items, and there was no per-area counting anywhere. What I did → added a `basis` field:
+the fifteen new entries carry `basis:'area'` and count `town.areas[zone].items.length`; the
+Meadow's five keep flowing through `uniqueBoosOwned` untouched. Purely additive.
+
+**DEV-43 · E15 "RUN21A item 16's multi-cross rule applies here identically".** That rule existed
+ONLY in the funfair machine; `growth.js` had no catch-up at all and would have dribbled a rich
+save's crossings out one 24-hour build at a time. What I did → ported the pattern into growth as
+an additive `townGrowth.catchup` (safe default `[]`), scoped PER AREA — because a rich save can
+cross fifteen thresholds across five areas in a single tick, and one combined reveal for all of
+them would be a headline about five places at once.
+
+**DEV-44 · E15 "lit at night/pretend-night".** E7's pretend night is room-local to the Boo House
+by its own ACCEPT, and every one of these props is outdoors, so the two can never meet. The
+night-lit props (bridge lanterns, hill beacon, far lighthouse, extra fair lights) light on
+`isNight` alone.
+
+**DEV-45 · E15 "all backdrop-layer" vs "A Rockpool (tap: a crab peeks)".** `.t-growth` is
+`pointer-events:none` — a backdrop node cannot receive a tap. What I did → the rockpool, and only
+the rockpool, opts back in, with a ≥48px target, a focus ring and keyboard access. Every other
+new prop stays inert backdrop exactly as the pack says.
+
+**DEV-46 · E15 reveals are gated to the area they belong to.** `tickGrowth`'s ready reveal used to
+play on ANY town mount, which was harmless when every milestone was in the Meadow and is wrong now
+— a headline about the riverside, played in the Meadow, gives her nowhere to look. Non-Meadow
+reveals now wait for that area's own mount, exactly as the fair's catch-up already does.
+
+**KNOWN CONSEQUENCE, not a deviation · one Boo Builders crew for the whole town.** `townGrowth.site`
+is a single global slot, inherited verbatim from the Meadow machine as the pack requires. So two
+areas each crossing a single milestone build one after the other, 24 hours each. The multi-cross
+rule covers the bulk case (several in one area at once complete immediately), and nothing is ever
+lost — but a child who fills the riverside while the Meadow's builders are busy waits for them.
+Flagged rather than fixed: giving growth a second crew is a parallel system, which the
+engine-reuse law sends to the report rather than into the tree.
 
 **DEV-35 · E11 "night/pretend-night" and "dusk/pretend-night".** Pack said → gate on those. What
 was true → E7's pretend night is ROOM-LOCAL to one Boo House room, by its own ACCEPT, and every
@@ -383,6 +433,10 @@ parented there is wiped by the next one.
 | `r13bt7-room-identity` | PASS (40) | ~55s |
 | `r13t3-house-rooms` | PASS (56) | ~70s |
 | `r19z3-moments` | **PRE-EXISTING FAIL, proved not mine** — one pillow-clearance assertion (`eyes 456, pillow 460`). Identical on two runs, identical with my working files stashed, and **identical on a pristine `main` checkout served on its own port**. Logged to `BLOCKED.md` with the repro. 36 other assertions pass. | ~90s each |
+| `r21e-jobs` (all eleven packets) | PASS 164/164 | 71s |
+| `r4p6-growth` | **FAIL → real defect of mine → FIXED → PASS (21)**. It asserts that a seeded gift landmark keeps its distance from what SHE placed. My Notice Post landed 0.02 away in x on the next depth row — legal by the app's per-ROW spacing rule, and visually standing on top of her Boo. The suite has quietly asserted this since RUN4 and was right to; the seeder now keeps its distance from everything she has placed, whatever row it is on. | ~60s |
+| `r21a-reach-truth` | 73/73 assertions PASS; suite FAIL on `ERR_NO_BUFFER_SPACE` only | ~2m |
+| `r10p1-worldmap` (the new ribbon) | PASS (77) | ~90s |
 | `r19z5-nouns` | FLAKE then PASS (53). One run failed the Sprinkle hint assertion because the hint bar had been overwritten — pre-existing contention (`updateHint`, the hider chance at ~0.9s and the pulse invitation at ~9s all write that one bar); E13 writes no hints at all. Proved by running it with my `js/town.js` stashed (PASS) and again with it restored (PASS). | ~2m each |
 
 ## Stale pins re-pointed (never weakened)

@@ -21,7 +21,7 @@ import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-se
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
 import { sfx, music, ambient, bed, animal } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
-import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
+import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES, upgradesIn, catchupFor, completeCatchup, builderHeadline, grownHeadline, trackComplete, TRACK_AREAS } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette, isFairDay, fairPrizeWord } from './funfair.js';
@@ -892,8 +892,14 @@ export function mount(container, params, ctx) {
       const rows = [1, 2, 0];
       let position = null;
       for (const row of rows) {
+        // Deliberately stricter than the placement rule, which only forbids piling within a
+        // ROW. A gift landmark that lands 0.02 away from her Boo on the next row back is legal
+        // and looks like it is standing on top of it — the depth rows are ~12% of the viewport
+        // apart, not a whole item's width. So this keeps its distance from EVERYTHING she has
+        // put down, whatever row it is on. (Caught by r4p6-growth, which has quietly asserted
+        // exactly this since RUN4 and was right to.)
         const x = candidates.find(candidate =>
-          items.every(placed => placed.row !== row || Math.abs((placed.x || 0) - candidate) >= .09));
+          items.every(placed => Math.abs((placed.x || 0) - candidate) >= .09));
         if (x != null) { position = { x, row }; break; }
       }
       if (!position) return;   // a full Meadow keeps it in the Build drawer instead
@@ -959,12 +965,20 @@ export function mount(container, params, ctx) {
     // needs: a headline about the fair, in the Meadow, gives her nowhere to look. It keeps
     // in `funfair.catchup` until she walks in.
     const showCatchUp = ft.catchUp && AREA.key === 'funfair';
+    // RUN21E-15: the same rule for the AREA GROWTH tracks. Several milestones of one area
+    // crossing at once complete immediately and wait for THAT area's own mount, so a rich save
+    // that crosses fifteen thresholds on one load does not owe fifteen separate ceremonies.
+    const growthCatchUp = READONLY ? [] : catchupFor(AREA.key);
+    // …and a single finished milestone celebrates in the area it was built in, never over in
+    // the Meadow where there is nothing to look at.
+    const growthHere = gt.readyToReveal && gt.readyToReveal.zone === AREA.key ? gt.readyToReveal : null;
     // RUN21A-8: ONE reveal at a time. The two reveals used to be scheduled independently
     // (+700ms and +900ms) and stacked their overlays; now one timer enqueues growth then
     // funfair and the queue shows the next only when the child dismisses the first.
-    if (gt.readyToReveal || ft.readyToReveal || showCatchUp) {
+    if (growthHere || ft.readyToReveal || showCatchUp || growthCatchUp.length) {
       setTimeout(() => {
-        if (gt.readyToReveal) enqueueReveal(done => playGrowthReveal(gt.readyToReveal, done));
+        if (growthHere) enqueueReveal(done => playGrowthReveal(growthHere, done));
+        if (growthCatchUp.length) enqueueReveal(done => playAreaGrownReveal(growthCatchUp, done));   // RUN21E-15
         if (showCatchUp) enqueueReveal(done => playFairCatchupReveal(ft.catchUp, done));   // RUN21A-16
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
@@ -2570,14 +2584,16 @@ export function mount(container, params, ctx) {
   function pxAt(zone, x) { return ((ZONE_INDEX[zone] ?? 0) * zoneW + x * zoneW); }
   function renderGrowth() {
     ground.querySelectorAll('.t-growth').forEach(n => n.remove());
-    if (AREA.key !== 'meadow') return;   // every growth milestone is zone:'meadow' (growth.js) — RUN10 P1 scoping
+    // RUN21E-15: every area has a track now, so this draws whatever is finished HERE — and a
+    // construction site only when the Builders are working in this area, so a child never sees
+    // scaffolding for something that is being built somewhere else.
     const view = growthView();
-    const night = isNight(currentHour());
-    for (const m of view.upgrades) {
+    const night = nightHere();
+    for (const m of upgradesIn(AREA.key)) {
       const node = growthNode(m, night);
       if (node) ground.insertBefore(node, ground.firstChild);
     }
-    if (view.site) ground.insertBefore(siteNode(view.site), ground.firstChild);
+    if (view.site && view.site.zone === AREA.key) ground.insertBefore(siteNode(view.site), ground.firstChild);
   }
   function growthNode(m, night) {
     const wrap = el('div', { class: `t-growth tg-${m.key}${night && m.key === 'fairylights' ? ' lit' : ''}` });
@@ -2606,11 +2622,182 @@ export function mount(container, params, ctx) {
       w = zoneW * 0.55; h = 70;
       const flags = Array.from({ length: 8 }, (_, i) => { const x = 16 + i * (w - 32) / 7; const y = 20 + Math.sin(i / 7 * Math.PI) * 14; return `<path d="M${x} ${y} L${x + 14} ${y} L${x + 7} ${y + 16} Z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`; }).join('');
       svg = `<path d="M8 20 Q ${w / 2} ${52} ${w - 8} 20" fill="none" stroke="#2A1B4E" stroke-width="2.5"/>` + flags;
-    } else return null;
+    } else {
+      // RUN21E-15: the fifteen new area props. All inline SVG in the house sticker style, all
+      // backdrop-layer, all transform-free except the three that carry a light at night.
+      const built = areaGrowthArt(m, night, zoneW);
+      if (!built) return null;
+      w = built.w; h = built.h; svg = built.svg;
+      wrap.style.left = (cx - w / 2) + 'px';
+      wrap.style.top = (groundY - h + (built.dy || 6)) + 'px';
+      wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+      // The rockpool is the one that answers a tap, so it — and only it — opts out of the
+      // backdrop layer's pointer-events:none, with a real target on the crab's own pool.
+      if (m.key === 'rockpool') {
+        wrap.classList.add('tg-tappable');
+        wrap.setAttribute('role', 'button');
+        wrap.setAttribute('tabindex', '0');
+        wrap.setAttribute('aria-label', 'The rockpool — see who is in it');
+        const peek = () => {
+          if (REDUCED) { sparkleAtNode(wrap); return; }
+          propPlay(wrap, 'tg-crab-peek', 2200);
+          if (wishSound.allow('growth:rockpool', { tapped: true })) sfx.pop();
+        };
+        wrap.addEventListener('click', (e) => { e.stopPropagation(); peek(); });
+        wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); peek(); } });
+      }
+      return wrap;
+    }
     wrap.style.left = (cx - w / 2) + 'px';
     wrap.style.top = (m.key === 'banner' ? groundY - 250 : m.key === 'fairylights' ? groundY - 150 : groundY - h + 6) + 'px';
     wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
     return wrap;
+  }
+  // The art for RUN21E-15's fifteen. Kept in one place, keyed by milestone, so the reveal, the
+  // scene and the world-map ribbon all agree about what exists.
+  function areaGrowthArt(m, night, zw) {
+    const INK = '#2A1B4E';
+    const lit = night ? 1 : 0;
+    switch (m.key) {
+      // ---- riverside ----
+      case 'steppingstones':
+        return { w: Math.min(300, zw * 0.24), h: 40, dy: 4, svg: Array.from({ length: 5 }, (_, i) =>
+          `<ellipse cx="${26 + i * 52}" cy="${24 + (i % 2) * 7}" rx="21" ry="9" fill="#C9C2D8" stroke="${INK}" stroke-width="2.5"/>`
+          + `<ellipse cx="${22 + i * 52}" cy="${21 + (i % 2) * 7}" rx="8" ry="3" fill="#E4DFF0" opacity="0.7"/>`).join('') };
+      case 'heron':
+        return { w: 110, h: 150, svg:
+          `<path d="M54 146 v-42 M64 146 v-42" stroke="#E8A33C" stroke-width="4" stroke-linecap="round"/>`
+          + `<path d="M34 104 Q30 66 58 58 Q86 62 84 92 Q82 108 58 108 Z" fill="#DCE6F2" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M58 58 Q56 30 62 16" stroke="#DCE6F2" stroke-width="9" stroke-linecap="round" fill="none"/>`
+          + `<path d="M58 58 Q56 30 62 16" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" fill="none" opacity="0.5"/>`
+          + `<circle cx="63" cy="15" r="8" fill="#DCE6F2" stroke="${INK}" stroke-width="2.6"/>`
+          + `<path d="M70 15 L92 19 L70 21 Z" fill="#E8A33C" stroke="${INK}" stroke-width="2"/>`
+          + `<circle cx="61" cy="13" r="1.8" fill="${INK}"/>`
+          + `<path d="M46 70 Q60 84 76 74" fill="none" stroke="${INK}" stroke-width="2" opacity="0.45"/>`
+          + `<ellipse cx="59" cy="148" rx="34" ry="5" fill="${INK}" opacity="0.12"/>` };
+      case 'bridgelanterns': {
+        const w = Math.min(280, zw * 0.22);
+        return { w, h: 96, svg:
+          `<path d="M10 40 Q ${w / 2} 74 ${w - 10} 40" fill="none" stroke="#6E4534" stroke-width="3"/>`
+          + Array.from({ length: 4 }, (_, i) => {
+            const x = 24 + i * (w - 48) / 3, y = 46 + Math.sin(i / 3 * Math.PI) * 20;
+            return `<line x1="${x}" y1="${y - 8}" x2="${x}" y2="${y}" stroke="${INK}" stroke-width="2"/>`
+              + `<g class="tg-lantern"><path d="M${x - 9} ${y} h18 l-3 20 h-12 z" fill="${lit ? '#FFE9A8' : '#E8DFC8'}" stroke="${INK}" stroke-width="2.4"/>`
+              + (lit ? `<ellipse cx="${x}" cy="${y + 10}" rx="15" ry="14" fill="#FFC93C" opacity="0.30"/>` : '') + `</g>`;
+          }).join('') };
+      }
+      // ---- hilltop ----
+      case 'cairn':
+        return { w: 96, h: 104, svg:
+          `<ellipse cx="48" cy="98" rx="34" ry="7" fill="${INK}" opacity="0.12"/>`
+          + [[48, 86, 30, 12], [48, 66, 25, 11], [46, 48, 19, 10], [48, 32, 13, 8], [48, 20, 8, 6]]
+            .map(([x, y, rx, ry], i) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${['#B9AFC4', '#CFC6D8', '#A9A0B6', '#C4BBD0', '#B0A7BE'][i]}" stroke="${INK}" stroke-width="2.6"/>`).join('') };
+      case 'crestflag':
+        return { w: 96, h: 150, svg:
+          `<ellipse cx="34" cy="146" rx="26" ry="6" fill="${INK}" opacity="0.12"/>`
+          + `<rect x="30" y="14" width="7" height="130" rx="3" fill="#8A6B3A" stroke="${INK}" stroke-width="2.4"/>`
+          + `<path class="tg-flag" d="M37 20 L92 34 L37 50 Z" fill="#FF7AC6" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>`
+          + `<circle cx="33" cy="12" r="6" fill="#FFC93C" stroke="${INK}" stroke-width="2.4"/>` };
+      case 'beacon':
+        return { w: 110, h: 140, svg:
+          `<ellipse cx="55" cy="134" rx="38" ry="7" fill="${INK}" opacity="0.12"/>`
+          + `<path d="M34 132 L44 56 h22 l10 76 z" fill="#9A8FAE" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M40 96 h30 M37 116 h36" stroke="${INK}" stroke-width="2" opacity="0.4"/>`
+          + `<rect x="40" y="34" width="30" height="24" rx="5" fill="${lit ? '#FFE9A8' : '#D8CFE4'}" stroke="${INK}" stroke-width="2.8"/>`
+          + (lit ? `<ellipse cx="55" cy="46" rx="34" ry="26" fill="#FFC93C" opacity="0.26"/>`
+                 + `<path class="tg-beam" d="M55 46 L106 20 L106 72 Z" fill="#FFE9A8" opacity="0.20"/>` : '')
+          + `<path d="M38 34 h34 l-6 -10 h-22 z" fill="#7A6F8E" stroke="${INK}" stroke-width="2.6"/>` };
+      // ---- beach ----
+      case 'parasols': {
+        const w = Math.min(300, zw * 0.24);
+        return { w, h: 112, svg: [0, 1, 2].map(i => {
+          const x = 50 + i * (w - 100) / 2;
+          const c = ['#FF7AC6', '#35D0BA', '#FFC93C'][i];
+          return `<line x1="${x}" y1="46" x2="${x}" y2="104" stroke="#8A5A32" stroke-width="5" stroke-linecap="round"/>`
+            + `<path d="M${x - 38} 46 A 38 26 0 0 1 ${x + 38} 46 Z" fill="${c}" stroke="${INK}" stroke-width="2.8"/>`
+            + `<path d="M${x - 13} 46 A 13 26 0 0 1 ${x + 13} 46 Z" fill="#FFF8F0" opacity="0.85"/>`
+            + `<circle cx="${x}" cy="20" r="4.5" fill="#FFC93C" stroke="${INK}" stroke-width="2"/>`;
+        }).join('') };
+      }
+      case 'rockpool':
+        return { w: 150, h: 78, dy: 2, svg:
+          `<ellipse cx="75" cy="52" rx="62" ry="22" fill="#9FD8E8" stroke="${INK}" stroke-width="3"/>`
+          + `<ellipse cx="75" cy="50" rx="46" ry="14" fill="#BFEAF4" opacity="0.8"/>`
+          + `<ellipse cx="20" cy="54" rx="16" ry="12" fill="#B9AFC4" stroke="${INK}" stroke-width="2.6"/>`
+          + `<ellipse cx="132" cy="52" rx="14" ry="11" fill="#A9A0B6" stroke="${INK}" stroke-width="2.6"/>`
+          + `<g class="tg-crab"><ellipse cx="75" cy="46" rx="15" ry="11" fill="#FF7A5C" stroke="${INK}" stroke-width="2.4"/>`
+          + `<circle cx="70" cy="40" r="2.2" fill="${INK}"/><circle cx="80" cy="40" r="2.2" fill="${INK}"/>`
+          + `<path d="M60 46 q-8 -6 -12 -1 M90 46 q8 -6 12 -1" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/></g>` };
+      case 'lighthouse':
+        return { w: 110, h: 178, svg:
+          `<ellipse cx="55" cy="172" rx="40" ry="7" fill="${INK}" opacity="0.12"/>`
+          + `<path d="M32 170 L42 56 h26 l10 114 z" fill="#FFF8F0" stroke="${INK}" stroke-width="3"/>`
+          + [0, 1, 2].map(i => `<path d="M${36 + i * 1.5} ${86 + i * 28} h${38 - i * 3} l-1 16 h-${36 - i * 3} z" fill="#FF5C8A" opacity="0.9"/>`).join('')
+          + `<rect x="38" y="32" width="34" height="26" rx="4" fill="${lit ? '#FFE9A8' : '#D8D2E0'}" stroke="${INK}" stroke-width="2.8"/>`
+          + (lit ? `<ellipse cx="55" cy="45" rx="36" ry="26" fill="#FFC93C" opacity="0.26"/>` : '')
+          + `<path d="M34 32 h42 l-8 -12 h-26 z" fill="#4E9A8F" stroke="${INK}" stroke-width="2.6"/>`
+          + `<circle cx="55" cy="14" r="5" fill="#FFC93C" stroke="${INK}" stroke-width="2.2"/>` };
+      // ---- playground ----
+      case 'hopscotch': {
+        // The playground already HAS a painted hopscotch, drawn into its zone scenery. This is
+        // a fresh coat over it — brighter chalk in the same shape, in the growth layer.
+        const w = 130;
+        return { w, h: 210, dy: 4, svg: [0, 1, 2, 3, 4, 5, 6].map(i => {
+          const row = Math.floor(i / 1), y = 176 - row * 26;
+          return `<rect x="34" y="${y}" width="58" height="24" rx="4" fill="none" stroke="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke-width="4" opacity="0.95"/>`
+            + `<text x="63" y="${y + 17}" font-family="Fredoka,sans-serif" font-size="14" font-weight="700" fill="${INK}" text-anchor="middle" opacity="0.75">${i + 1}</text>`;
+        }).join('') };
+      }
+      case 'scoreboard':
+        return { w: 140, h: 132, svg:
+          `<rect x="26" y="104" width="10" height="26" rx="3" fill="#8A6B3A" stroke="${INK}" stroke-width="2.4"/>`
+          + `<rect x="104" y="104" width="10" height="26" rx="3" fill="#8A6B3A" stroke="${INK}" stroke-width="2.4"/>`
+          + `<rect x="14" y="16" width="112" height="92" rx="8" fill="#3B3357" stroke="${INK}" stroke-width="3"/>`
+          + `<rect x="24" y="28" width="92" height="30" rx="4" fill="#1F1B33"/>`
+          + `<text x="70" y="51" font-family="Fredoka,sans-serif" font-size="21" font-weight="700" fill="#FFC93C" text-anchor="middle">HOORAY</text>`
+          + [0, 1, 2, 3].map(i => `<circle cx="${34 + i * 24}" cy="80" r="9" fill="${['#FF7AC6', '#35D0BA', '#FFC93C', '#8FC7FF'][i]}" stroke="${INK}" stroke-width="2.2"/>`).join('') };
+      case 'pgbunting': {
+        const w = Math.min(320, zw * 0.26);
+        return { w, h: 92, dy: -70, svg:
+          `<path d="M8 18 Q ${w / 2} 62 ${w - 8} 18" fill="none" stroke="${INK}" stroke-width="2.6"/>`
+          + Array.from({ length: 9 }, (_, i) => {
+            const x = 14 + i * (w - 28) / 8, y = 20 + Math.sin(i / 8 * Math.PI) * 30;
+            return `<path d="M${x} ${y} l14 0 l-7 18 z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="${INK}" stroke-width="1.8"/>`;
+          }).join('') };
+      }
+      // ---- funfair ----
+      case 'photobooth':
+        return { w: 116, h: 156, svg:
+          `<rect x="14" y="26" width="88" height="126" rx="8" fill="#8FA8E0" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M8 26 h100 l-8 -16 h-84 z" fill="#FF5C8A" stroke="${INK}" stroke-width="2.8"/>`
+          + `<rect x="26" y="42" width="64" height="46" rx="5" fill="#FFF8F0" stroke="${INK}" stroke-width="2.4"/>`
+          + `<circle cx="58" cy="65" r="14" fill="#3B3357" stroke="${INK}" stroke-width="2.4"/>`
+          + `<circle cx="53" cy="60" r="4" fill="#FFF8F0" opacity="0.8"/>`
+          + `<rect x="30" y="98" width="56" height="46" rx="4" fill="#6E86C0" stroke="${INK}" stroke-width="2.4"/>`
+          + [0, 1, 2].map(i => `<rect x="${38}" y="${104 + i * 14}" width="40" height="10" rx="2" fill="#FFF8F0" opacity="0.9"/>`).join('') };
+      case 'fairlights': {
+        const w = Math.min(300, zw * 0.24);
+        return { w, h: 88, dy: -90, svg:
+          `<path d="M8 20 Q ${w / 2} 60 ${w - 8} 20" fill="none" stroke="${INK}" stroke-width="2.4" opacity="0.7"/>`
+          + Array.from({ length: 10 }, (_, i) => {
+            const x = 12 + i * (w - 24) / 9, y = 22 + Math.sin(i / 9 * Math.PI) * 28;
+            const c = ['#FFC93C', '#FF7AC6', '#35D0BA'][i % 3];
+            return `<circle class="tg-bulb" cx="${x}" cy="${y}" r="6" fill="${c}" opacity="${lit ? 1 : 0.72}"/>`
+              + (lit ? `<circle cx="${x}" cy="${y}" r="12" fill="${c}" opacity="0.22"/>` : '');
+          }).join('') };
+      }
+      case 'fairarch': {
+        const w = 230;
+        return { w, h: 190, svg:
+          `<rect x="16" y="86" width="22" height="100" rx="5" fill="#FF5C8A" stroke="${INK}" stroke-width="3"/>`
+          + `<rect x="${w - 38}" y="86" width="22" height="100" rx="5" fill="#FF5C8A" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M27 90 Q ${w / 2} 8 ${w - 27} 90" fill="none" stroke="#FFC93C" stroke-width="20" stroke-linecap="round"/>`
+          + `<path d="M27 90 Q ${w / 2} 8 ${w - 27} 90" fill="none" stroke="${INK}" stroke-width="3"/>`
+          + `<text x="${w / 2}" y="62" font-family="Fredoka,sans-serif" font-size="22" font-weight="700" fill="${INK}" text-anchor="middle">FUNFAIR</text>`
+          + [0, 1, 2, 3, 4].map(i => `<circle cx="${44 + i * (w - 88) / 4}" cy="${70 - Math.sin(i / 4 * Math.PI) * 26}" r="5" fill="#FFF8F0" stroke="${INK}" stroke-width="1.8"/>`).join('') };
+      }
+      default: return null;
+    }
   }
   // A construction site: fence, sign, two hard-hat builder Boos, sawdust puffs.
   function siteNode(m) {
@@ -2882,12 +3069,42 @@ export function mount(container, params, ctx) {
   }
 
   // The reveal ceremony: fence drops, confetti, guide line, Journal stamp (C6).
-  function playGrowthReveal(m, done = () => {}) {
+  // RUN21E-15: several milestones of one area, celebrated together in ONE reveal — the same
+  // ceremony, the same fence drop, one combined headline instead of a queue of them.
+  function playAreaGrownReveal(list, done = () => {}) {
     sfx.fanfare();
+    const headline = grownHeadline(AREA.name);
     const ov = el('div', { class: 'overlay growth-reveal' });
     const panel = el('div', { class: 'card gr-panel' }, [
       el('h2', { class: 'gr-title', text: '🔨 Ta-daa!' }),
-      el('p', { class: 'gr-line', text: guideLine('builders') }),
+      el('p', { class: 'gr-line', text: headline }),
+      el('div', { class: 'gr-scene' }, [
+        el('div', { class: 'gr-upgrade', html: list.map(m => `<div class="gr-name">${m.name}</div>`).join('') }),
+        el('div', { class: 'gr-fence' })
+      ]),
+      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => {
+        sfx.tap(); ov.remove();
+        completeCatchup(AREA.key);
+        for (const m of list) stampJournal('growth_' + m.key);
+        renderPlaced();
+        done();
+      } })
+    ]);
+    ov.appendChild(panel);
+    root.appendChild(ov);
+    requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
+    confetti({ count: 110, power: 1.1 });
+    speakMaybe(headline);
+  }
+  function playGrowthReveal(m, done = () => {}) {
+    sfx.fanfare();
+    // The Meadow's original five keep the line they have always had; RUN21E-15's fifteen name
+    // what the Builders finished, which is what the pack authors.
+    const line = m.basis === 'area' ? builderHeadline(m) : guideLine('builders');
+    const ov = el('div', { class: 'overlay growth-reveal' });
+    const panel = el('div', { class: 'card gr-panel' }, [
+      el('h2', { class: 'gr-title', text: '🔨 Ta-daa!' }),
+      el('p', { class: 'gr-line', text: line }),
       el('div', { class: 'gr-scene' }, [
         el('div', { class: 'gr-upgrade', html: `<div class="gr-name">${m.name}</div>` }),
         el('div', { class: 'gr-fence' })
@@ -2903,7 +3120,7 @@ export function mount(container, params, ctx) {
     root.appendChild(ov);
     requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
     confetti({ count: 110, power: 1.1 });
-    speakMaybe(guideLine('builders'));
+    speakMaybe(line);
   }
 
   // ---- the Boo Funfair (RUN6 C1b) -----------------------------------------

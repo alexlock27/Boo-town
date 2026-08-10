@@ -705,6 +705,122 @@ console.log('\n== E7: make it night-time in here ==');
 }
 
 // ============================================================================
+// E15 — per-area growth tracks
+// ============================================================================
+console.log('\n== E15: every area grows ==');
+{
+  // The table itself: three per area on 5/12/20, the Meadow's five untouched.
+  const { ctx, page } = await open(SAVE(), { area: null });
+  const g = await page.evaluate(async () => {
+    const m = await import('/js/growth.js');
+    const area = m.GROWTH_MILESTONES.filter(x => x.basis === 'area');
+    const meadow = m.GROWTH_MILESTONES.filter(x => x.basis !== 'area');
+    return {
+      total: m.GROWTH_MILESTONES.length,
+      meadow: meadow.map(x => x.name),
+      zones: [...new Set(area.map(x => x.zone))],
+      perZone: [...new Set(area.map(x => x.zone))].map(z => area.filter(x => x.zone === z).map(x => x.count)),
+      names: area.map(x => x.name),
+      headline: m.builderHeadline(area.find(x => x.name === 'A Little Cairn')),
+      combined: m.grownHeadline('The Playground')
+    };
+  });
+  assert(JSON.stringify(g.meadow) === JSON.stringify(['Wildflowers', 'Fairy lights', 'A little fountain', 'Pretty paving', 'Celebration bunting']),
+    "the Meadow's original five are untouched");
+  assert(JSON.stringify(g.zones) === JSON.stringify(['riverside', 'hilltop', 'beach', 'playground', 'funfair']),
+    `five areas gained a track (${g.zones.join(', ')})`);
+  assert(g.perZone.every(c => JSON.stringify(c) === JSON.stringify([5, 12, 20])), 'each track is 5 / 12 / 20 items');
+  assert(g.names.length === 15, `fifteen new milestones (${g.names.length})`);
+  const WANT = ['Stepping Stones', 'Heron Statue', 'Bridge Lanterns', 'A Little Cairn', 'A Flag on the Crest',
+    'The Hill Beacon', 'A Parasol Row', 'A Rockpool', 'The Far Lighthouse', 'Painted Hopscotch Refresh',
+    'A Scoreboard', 'Celebration Bunting', 'A Photo Booth', 'Extra Fair Lights', 'The Fair Arch'];
+  assert(JSON.stringify(g.names) === JSON.stringify(WANT), 'named exactly as the pack authors them');
+  assert(g.headline === 'The Boo Builders finished the Little Cairn!', `the reveal headline reads correctly (got "${g.headline}")`);
+  assert(g.combined === 'Look how the Playground has grown!', `and the combined one too (got "${g.combined}")`);
+  await ctx.close();
+}
+{
+  // Seeded counts trigger the track in order. Five things in the riverside → the first one.
+  // The Meadow's own five are marked DONE in this fixture: there is ONE Boo Builders crew for
+  // the whole town (`townGrowth.site`), inherited verbatim from the Meadow machine as the pack
+  // requires, so with the Meadow's wildflowers still owed the riverside would correctly QUEUE
+  // behind them rather than break ground. (The first run of this block caught exactly that.)
+  const five = Array.from({ length: 5 }, (_, i) => P('riverside', 'deco_rock', +(0.06 + i * 0.03).toFixed(3), i % 3));
+  const { ctx, page } = await open(SAVE({
+    town: { areas: withItems({ riverside: five }), nextId: 900 },
+    townGrowth: { done: [0, 1, 2, 3, 4], pending: [], site: null, catchup: [] }
+  }), { area: 'riverside' });
+  const st = await page.evaluate(() => window.BooTown.State.getState().townGrowth);
+  assert(st.site && st.site.idx === 5,
+    `five things in the riverside starts the Stepping Stones (site ${st.site && st.site.idx}, pending ${JSON.stringify(st.pending)})`);
+  assert(await until(page, () => !!document.querySelector('.t-growth'), 3000), 'the Builders put up their site, in the riverside itself');
+  await page.screenshot({ path: `${SHOTS}/e15-site.png` });
+  await ctx.close();
+}
+{
+  // A finished track renders its three props, and the night-lit one really lights.
+  const twenty = Array.from({ length: 20 }, (_, i) => P('beach', 'deco_rock', +(0.04 + i * 0.012).toFixed(3), i % 3));
+  const done = { done: [11, 12, 13], pending: [], site: null, catchup: [] };
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ beach: twenty }), nextId: 900 }, townGrowth: done }), { area: 'beach', hour: 13 });
+  const props = await page.evaluate(() => [...document.querySelectorAll('.t-growth')].map(n => n.className));
+  assert(props.length === 3, `a finished beach track draws all three of its props (${props.length})`);
+  assert(props.some(c => /tg-lighthouse/.test(c)) && props.some(c => /tg-rockpool/.test(c)) && props.some(c => /tg-parasols/.test(c)),
+    'the parasols, the rockpool and the lighthouse');
+  await page.screenshot({ path: `${SHOTS}/e15-beach-day.png` });
+  // The rockpool answers a tap — the one growth prop that is not pure backdrop.
+  await page.evaluate(() => document.querySelector('.t-growth.tg-rockpool').click());
+  assert(await until(page, () => !!document.querySelector('.t-growth.tg-crab-peek'), 2000), 'tapping the rockpool makes a crab peek out');
+  await page.screenshot({ path: `${SHOTS}/e15-crab.png` });
+  await ctx.close();
+}
+{
+  const twenty = Array.from({ length: 20 }, (_, i) => P('beach', 'deco_rock', +(0.04 + i * 0.012).toFixed(3), i % 3));
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ beach: twenty }), nextId: 900 }, townGrowth: { done: [11, 12, 13], pending: [], site: null, catchup: [] } }), { area: 'beach', hour: 22 });
+  assert(await page.evaluate(() => {
+    const lh = document.querySelector('.t-growth.tg-lighthouse');
+    return !!lh && /FFC93C/.test(lh.innerHTML);   // the lamp's glow is only drawn at night
+  }), 'at night the far lighthouse lights its lamp');
+  await page.screenshot({ path: `${SHOTS}/e15-beach-night.png` });
+  await ctx.close();
+}
+{
+  // THE MULTI-CROSS RULE: twenty things dropped in at once crosses all three thresholds, and
+  // that is ONE combined reveal, in that area, not three queued ceremonies.
+  const twenty = Array.from({ length: 20 }, (_, i) => P('hilltop', 'deco_rock', +(0.04 + i * 0.012).toFixed(3), i % 3));
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ hilltop: twenty }), nextId: 900 } }), { area: 'hilltop' });
+  assert(await until(page, () => document.querySelectorAll('.overlay.growth-reveal').length === 1, 4000),
+    'three milestones at once make exactly ONE reveal');
+  const line = await page.evaluate(() => { const p = document.querySelector('.growth-reveal .gr-line'); return p ? p.textContent : null; });
+  assert(line === 'Look how the Hilltop has grown!', `saying exactly "Look how the Hilltop has grown!" (got "${line}")`);
+  const named = await page.evaluate(() => [...document.querySelectorAll('.growth-reveal .gr-name')].map(n => n.textContent));
+  assert(named.length === 3, `and naming all three of them (${named.join(', ')})`);
+  await page.screenshot({ path: `${SHOTS}/e15-combined.png` });
+  await page.evaluate(() => document.querySelector('.growth-reveal .btn.big').click());
+  assert(await until(page, () => document.querySelectorAll('.overlay.growth-reveal').length === 0, 2000), 'Hooray dismisses it');
+  assert(await until(page, () => document.querySelectorAll('.t-growth').length === 3, 2500), 'and all three props are standing there afterwards');
+  await ctx.close();
+}
+{
+  // A milestone finished elsewhere does NOT celebrate over here — nowhere to look.
+  const twenty = Array.from({ length: 20 }, (_, i) => P('hilltop', 'deco_rock', +(0.04 + i * 0.012).toFixed(3), i % 3));
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ hilltop: twenty }), nextId: 900 } }), { area: 'meadow' });
+  await sleep(1800);
+  assert(await count(page, '.overlay.growth-reveal') === 0, 'standing in the Meadow, the Hilltop\'s news waits until she goes there');
+  await ctx.close();
+}
+{
+  // The world map ribbons a finished track.
+  const { ctx, page } = await open(SAVE({ townGrowth: { done: [5, 6, 7], pending: [], site: null, catchup: [] } }), { area: null });
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await page.waitForSelector('.map-badge', { timeout: 8000 });
+  await sleep(400);
+  const ribbons = await page.evaluate(() => [...document.querySelectorAll('.map-badge')].filter(b => b.querySelector('.mb-ribbon')).length);
+  assert(ribbons === 1, `exactly the one area whose track is finished gets a ribbon (${ribbons})`);
+  await page.screenshot({ path: `${SHOTS}/e15-ribbon.png` });
+  await ctx.close();
+}
+
+// ============================================================================
 // E11 — adjacency delights
 // ============================================================================
 console.log('\n== E11: things that are better together ==');
