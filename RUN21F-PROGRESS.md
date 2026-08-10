@@ -7,7 +7,40 @@
 - [ ] F5 — save v24 — STRICTLY LAST
 - [ ] F6
 - [ ] F7
-- [ ] F8 — SKIPPED-GATED: NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE`
+- [ ] F8 — IN PROGRESS on branch `run21f8` (TONIGHT-2026-08-10 Lane 2). Gate re-checked at
+      session start: NEEDS_ALEX.md line 404 now carries `LEITMOTIFS: APPROVED-TO-COMPOSE`,
+      so the SKIPPED-GATED status above is superseded for this branch.
+
+      DECISION: the loops are AUTHORED as note-event arrays in the band engine's event
+      shape (`{t,i,v}` + a duration field `d` the band player would simply ignore), but
+      PLAYBACK in town rides the music bus via a lookahead scheduler in sfx.js's new
+      leitmotif region, not `startBandWatch`. · WHY: the pack's two sentences pull apart —
+      "note-event arrays for the existing band engine" but "play as the area's calm-music
+      variant at existing music volume". startBandWatch plays on the SFX bus at band level
+      through setTimeout (loose timing) and adds a +900ms gap between loops: wrong bus,
+      wrong mute, and a continuity-law breach for a piece sold as continuous area music.
+      The music bus's own scheduler pattern (startScheduler/scheduleAhead, audio-clock
+      lookahead — the same pattern F7 extended) gives sample-accurate seamless looping at
+      existing music volume with duck-and-mute for free. Authoring stays band-shaped so the
+      arrays remain engine-portable data, exactly what the pack asked to own. ·
+      REVERSIBLE: the arrays are pure data; pointing startBandWatch at them needs no
+      re-authoring.
+
+      DECISION: per-area roots and tempi — meadow C·84, riverside F·88, hilltop G·76,
+      beach D·80, playground A·92, all inside the pack's 76–92 window, all pentatonic
+      major. · WHY: the pack fixes scale/tempo-range/voice-cap but leaves root and exact
+      bpm open; distinct root + distinct tempo per area is what makes five loops in one
+      scale-family identifiable blind (the F7 beds set the "each area audibly distinct"
+      bar). Funfair excluded (its jingle/bandstand rules own that air — pack F7 precedent);
+      interiors keep plain 'calm'. · REVERSIBLE: one constant per area in
+      data/leitmotifs.js.
+
+      DECISION: composition ran as a judged panel (two independent candidates per area,
+      one judge per area, one cross-area distinctness/originality reviewer) rather than a
+      single pass. · WHY: originality is a protected-core law and pentatonic major invites
+      accidental nursery-rhyme echoes; independent attempts plus an adversarial originality
+      check is the strongest defence I can run without ears. Alex's audition gate remains
+      the human check. · REVERSIBLE: fully — the deliverable is still just data.
 - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
 - [ ] F10
 
