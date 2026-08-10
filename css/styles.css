@@ -7209,6 +7209,34 @@ html.bigger-text { --vz: 1.125; }
 /* The hop-out shake. */
 .pd-shake { animation: pd-shake 420ms ease-out 1; }
 @keyframes pd-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-8deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } }
+/* ---- RUN21E-3: the beach's shells and the sand the tide smooths -------------------------- */
+/* Real buttons in the ground layer — the decorative shells in the scenery SVG are
+   pointer-events:none and could never be picked up. 44px target around a 26px shell. */
+.t-shell {
+  position: absolute; width: 44px; height: 44px; padding: 0; border: 0; background: transparent;
+  cursor: pointer; display: grid; place-items: center; border-radius: 50%;
+}
+.t-shell:focus-visible { outline: 3px solid var(--star); outline-offset: 2px; }
+.t-shell svg { animation: t-shell-glint 5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes t-shell-glint { 0%, 88%, 100% { transform: rotate(0); } 94% { transform: rotate(-6deg); } }
+/* The +1 that flies off the shell she just picked up. */
+.fly-star {
+  position: absolute; font: 700 15px/1 Fredoka, system-ui, sans-serif; color: var(--ink);
+  pointer-events: none; z-index: 60; animation: fly-star 1.2s ease-out forwards; white-space: nowrap;
+}
+@keyframes fly-star { 0% { opacity: 0; transform: translateY(0) scale(0.8); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-52px) scale(1.1); } }
+/* A soft puff of sand where a castle used to be. */
+.sand-puff { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 40; }
+.sand-puff i {
+  position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #E8C784;
+  opacity: 0; animation: sand-puff 900ms ease-out forwards; animation-delay: var(--d, 0ms);
+}
+@keyframes sand-puff { 0% { opacity: 0.9; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -20px)) scale(0.5); } }
+@media (prefers-reduced-motion: reduce) {
+  .t-shell svg, .fly-star, .sand-puff i { animation: none !important; }
+  .fly-star { opacity: 1; }
+}
+
 /* ---- RUN21E-2: a kite flying from its rack ----------------------------------------------- */
 /* It hovers on its string rather than drifting free across the sky. Transform-only. */
 .t-item.wish-racked { animation: none; }

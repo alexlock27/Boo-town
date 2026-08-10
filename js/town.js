@@ -516,6 +516,18 @@ function qaHourOverride() {
   } catch { return null; }
 }
 const isNight = (h) => h >= 19 || h < 7;
+// ---- RUN21E-3: tide, shells and the sandcastle that survives -------------------------------
+// The pack authors two windows: high 06:00-13:59, low 14:00-21:59, "night keeps low". Those
+// collapse to one hour test — everything outside the morning window is low, including the whole
+// night — so that is what this says, rather than pretending there is a third state.
+const TIDE_HIGH_FROM = 6, TIDE_HIGH_TO = 14;
+const tideFor = (h) => (h >= TIDE_HIGH_FROM && h < TIDE_HIGH_TO) ? 'high' : 'low';
+const TIDE_LINE = { high: 'The tide has come in!', low: 'The tide has gone out!' };
+const CASTLE_SMOOTHED_LINE = 'The tide smoothed the sand — room for a new castle!';
+const SHELLS_PER_DAY = 3;
+const SHELL_REWARD = 1;          // one stardust each
+const SHELL_Y = 0.70;            // fraction of viewport height: on the tide mark, above the band
+const SHELL_XS = [0.10, 0.19, 0.28];   // three spots on the first screenful, spread out
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -614,6 +626,11 @@ export function mount(container, params, ctx) {
   // `pumpWishIdles` is gated `!document.hidden && !buildMode`. There is no `buildMode` any
   // more — that gate must become `!document.hidden && !softened`, or the wish idles never
   // pause while she arranges. ***
+  // ---- RUN21E-3: the tide ------------------------------------------------------------------
+  // Frozen ONCE per mount. The pack says the change applies at mount and never animates, and
+  // renderZoneScenery re-runs on every renderPlaced — so computing this from the clock deeper
+  // down would flip the waterline on the next drag rather than on the next visit.
+  const TIDE = tideFor(currentHour());
   let softened = false, pathStyle = 'stone';
   let potHeld = false;          // the Path Pot is lifted (RUN21C-2)
   let pendingPaths = null, pathCommitTimer = null, painting = false;
@@ -858,6 +875,9 @@ export function mount(container, params, ctx) {
     // RUN21E-13: arriving in a room she has just redecorated, with a Boo already in it, is
     // the other way "a Boo enters a room" really happens.
     if (!READONLY) maybeAckDressing();
+    // RUN21E-3: the beach's news — the tide has turned, or the sea has smoothed her castle.
+    // After updateHint(), which would otherwise clobber whichever line this writes.
+    settleBeachDay();
     // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
     // there", so she arrives with the tray already open on that item's own drawer tab — no
     // hunting through six tabs. Selected, not held on the finger: the pack is explicit that
@@ -1884,6 +1904,114 @@ export function mount(container, params, ctx) {
       && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
   }
 
+  // ---- RUN21E-3: shells, the tide line, and the castle that survives -----------------------
+  // Positions are DAILY-DETERMINISTIC from the day key — the app's own idiom for "the same all
+  // day, different tomorrow, nothing stored" (isRainDay, booOfTheDay). Only what she has PICKED
+  // UP is saved, and yesterday's record is pruned on sight rather than by a timer that would
+  // have to survive a tablet going to sleep.
+  function beachState() { return (getState().beach) || { tideDay: '', tideSeen: '', shellsDay: '', shellsTaken: [], castle: null }; }
+  function shellSpots() {
+    const day = todayKeyLocal();
+    return SHELL_XS.map((baseX, i) => {
+      const n = dayNoise('shell:' + day + ':' + i);
+      return { i, x: +(baseX + ((n % 60) / 1000)).toFixed(4), y: SHELL_Y + ((n >> 6) % 30) / 1000 };
+    });
+  }
+  function shellsTakenToday() {
+    const b = beachState();
+    return b.shellsDay === todayKeyLocal() ? (b.shellsTaken || []) : [];
+  }
+  function renderShells() {
+    ground.querySelectorAll('.t-shell').forEach(n => n.remove());
+    if (AREA.key !== 'beach' || TIDE !== 'low' || !zoneW) return;   // shells belong to a low tide
+    const taken = shellsTakenToday();
+    for (const s of shellSpots()) {
+      if (taken.includes(s.i)) continue;   // collected shells stay gone for the day
+      const btn = el('button', {
+        class: 't-shell', type: 'button', 'aria-label': 'A little shell — pick it up',
+        html: `<svg viewBox="0 0 28 24" width="26" height="22" aria-hidden="true">`
+          + `<path d="M14 21 C3 21 3 4 14 4 C25 4 25 21 14 21 Z" fill="#FFD9EC" stroke="#B06A8A" stroke-width="2"/>`
+          + `<path d="M14 4 V21 M8 7 L9.5 20 M20 7 L18.5 20" fill="none" stroke="#B06A8A" stroke-width="1.6"/></svg>`,
+        onclick: (e) => { e.stopPropagation(); takeShell(s, btn); }
+      });
+      btn.style.left = (s.x * zoneW - 22) + 'px';
+      btn.style.top = (viewH * s.y) + 'px';
+      btn.style.zIndex = String(Math.round(viewH * s.y) + 1);
+      ground.appendChild(btn);
+    }
+  }
+  function takeShell(s, btn) {
+    if (READONLY) return;                       // a visitor never pockets her friend's stardust
+    if (shellsTakenToday().includes(s.i)) return;
+    const day = todayKeyLocal();
+    mutate(st => {
+      st.beach = st.beach || { tideDay: '', tideSeen: '', shellsDay: '', shellsTaken: [], castle: null };
+      if (st.beach.shellsDay !== day) { st.beach.shellsDay = day; st.beach.shellsTaken = []; }
+      if (!st.beach.shellsTaken.includes(s.i)) st.beach.shellsTaken.push(s.i);
+      st.stardust = (st.stardust || 0) + SHELL_REWARD;
+    });
+    sfx.star();
+    sparkleAtNode(btn);
+    // The +1 flies off the shell itself — there is no stardust counter on this screen to fly
+    // TO, and inventing one would be a second place for the number to be wrong.
+    const fly = el('i', { class: 'fly-star', text: '+1 ✨' });
+    fly.style.left = btn.style.left; fly.style.top = btn.style.top;
+    ground.appendChild(fly);
+    setTimeout(() => fly.remove(), 1200);
+    btn.remove();
+  }
+  // The castle the Boos build, saved in FRACTIONS so it lands in the same place on a phone as
+  // on a tablet, and re-created after every renderPlaced wipe.
+  function renderSavedCastle() {
+    ground.querySelectorAll('.t-sandcastle.t-castle-kept').forEach(n => n.remove());
+    if (AREA.key !== 'beach') return;
+    const c = beachState().castle;
+    if (!c) return;
+    const node = el('div', { class: 't-sandcastle t-castle-kept', html: sandcastleSVG ? sandcastleSVG() : '' });
+    node.style.left = (c.xFrac * zoneW) + 'px';
+    node.style.top = (c.topFrac * viewH) + 'px';
+    ground.appendChild(node);
+  }
+  // At mount: if the tide has turned since the castle was built, the sea has smoothed the sand.
+  // Never called losing — the line offers the next castle in the same breath.
+  function settleBeachDay() {
+    if (AREA.key !== 'beach' || READONLY) return;
+    const day = todayKeyLocal();
+    const b = beachState();
+    const castleGone = b.castle && b.castle.tide !== TIDE;
+    if (castleGone) {
+      mutate(st => { st.beach = Object.assign({}, st.beach, { castle: null }); });
+      if (!REDUCED) sandPuffAt(b.castle.xFrac, b.castle.topFrac);
+      renderSavedCastle();   // …and the castle really goes, rather than lingering until the next render
+    }
+    // "Once per change per day": she is told about a waterline she has not been shown today.
+    const tideNews = (b.tideDay !== day || b.tideSeen !== TIDE);
+    if (tideNews) mutate(st => { st.beach = Object.assign({}, st.beach, { tideDay: day, tideSeen: TIDE }); });
+    // ONE line, through sayInWorld — NOT the hint bar. The hint bar is shared, and the Pulse's
+    // own opening beat writes to it ~900ms after first paint: the first version of this used
+    // `hint.textContent` and the tide line was reliably replaced by "Squish, squish!" before a
+    // child could read it. sayInWorld is the announced-moment primitive for exactly this, and
+    // it speaks as well, so a voice-off house gets the same moment.
+    // The castle's news wins when both are due — it is the one that changed something she made.
+    const line = castleGone ? CASTLE_SMOOTHED_LINE : (tideNews ? TIDE_LINE[TIDE] : null);
+    if (line) sayInWorld(line);
+  }
+  function sandPuffAt(xFrac, topFrac) {
+    const puff = el('div', { class: 'sand-puff' });
+    puff.style.left = (xFrac * zoneW) + 'px';
+    puff.style.top = (topFrac * viewH) + 'px';
+    for (let i = 0; i < 10; i++) {
+      const a = (Math.PI * i) / 9;
+      const bit = el('i');
+      bit.style.setProperty('--dx', `${Math.cos(a) * (18 + Math.random() * 26)}px`);
+      bit.style.setProperty('--dy', `${-Math.abs(Math.sin(a)) * 22 - 4}px`);
+      bit.style.setProperty('--d', `${i * 26}ms`);
+      puff.appendChild(bit);
+    }
+    ground.appendChild(puff);
+    setTimeout(() => puff.remove(), 1100);
+  }
+
   // ---- RUN21E-2: the kite rack ------------------------------------------------------------
   // Which rack, if any, a placed kite belongs to. Nothing is STORED: rackedness is derived
   // from the placements on every render, so putting the rack away lets the kite go back to
@@ -2602,7 +2730,7 @@ export function mount(container, params, ctx) {
       // scenery is built — reading it from inside the scenery would race and silently give ''.
       const rain = (typeof window !== 'undefined' && window.__bootownWeather === 'rain')
         || isRainDay(seasonOf(currentMonth()), todayKeyLocal());
-      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen, rain });
+      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen, rain, tide: TIDE });
       if (!html) return;
       const wrap = el('div', { class: 't-zone-props ' + z.key + (night ? ' night' : ''), html });
       wrap.style.left = (i * zoneW) + 'px'; wrap.style.top = '0';
@@ -2613,6 +2741,8 @@ export function mount(container, params, ctx) {
       ground.insertBefore(wrap, ground.firstChild);
     });
     renderNoticePoster();   // RUN21E-4C: the tappable half of the Playground's noticeboard
+    renderShells();         // RUN21E-3: the low tide's three shells — buttons, not scenery,
+    renderSavedCastle();    //           and the castle the sea has not taken yet
   }
 
   function renderFunfair() {
@@ -6394,15 +6524,27 @@ export function mount(container, params, ctx) {
     const cy = parseFloat(a.wrap.style.top) + a.wrap.offsetHeight - 12;
     c.style.left = (cx - 32) + 'px'; c.style.top = (cy - 42) + 'px';
     c.style.zIndex = String(Math.round(cy) + 6);   // in front, so she reads as patting it up
-    c.innerHTML = `<svg width="64" height="52" viewBox="0 0 64 52"><g fill="#E8C784" stroke="#C79A54" stroke-width="2.5">
+    c.innerHTML = sandcastleSVG();
+    ground.appendChild(c);
+    requestAnimationFrame(() => c.classList.add('rise'));
+    // RUN21E-3: it no longer fades at 22s. The castle she watched a Boo build is SAVED — in
+    // fractions, so it lands in the same place at any viewport — and stands until the next tide
+    // change smooths the sand. Only the newest survives: one castle, never a beach of them.
+    if (!READONLY) {
+      mutate(st => {
+        st.beach = Object.assign({}, st.beach, {
+          castle: { xFrac: +((cx - 32) / (zoneW || 1)).toFixed(4), topFrac: +((cy - 42) / (viewH || 1)).toFixed(4), day: todayKeyLocal(), tide: TIDE }
+        });
+      });
+    }
+    return c;
+  }
+  // The castle's art, shared by the one a Boo is patting up and the one restored from the save.
+  function sandcastleSVG() {
+    return `<svg width="64" height="52" viewBox="0 0 64 52"><g fill="#E8C784" stroke="#C79A54" stroke-width="2.5">
       <rect x="5" y="22" width="12" height="26"/><rect x="26" y="14" width="12" height="34"/><rect x="47" y="22" width="12" height="26"/><rect x="2" y="42" width="60" height="8"/></g>
       <path d="M5 22 l6 -10 6 10 z M26 14 l6 -10 6 10 z M47 22 l6 -10 6 10 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.8"/>
       <path d="M11 12 v-8 l5 4 z M32 4 v-8 l5 4 z M53 12 v-8 l5 4 z" fill="#35D0BA"/></svg>`;
-    ground.appendChild(c);
-    requestAnimationFrame(() => c.classList.add('rise'));
-    // it fades later (C2) — a gentle, then removed
-    setTimeout(() => { c.classList.add('fade'); setTimeout(() => { try { c.remove(); } catch {} }, 1600); }, SANDCASTLE_FADE_MS);
-    return c;
   }
   function spawnTowel(a) {
     const t = el('div', { class: 't-towel' });
@@ -7536,7 +7678,7 @@ function zoneScenery(key, w, h, night, opts = {}) {
   if (key === 'meadow')     return meadowScenery(w, h, night);
   if (key === 'riverside')  return riversideScenery(w, h, night);
   if (key === 'hilltop')    return hilltopScenery(w, h, night, opts);
-  if (key === 'beach')      return beachScenery(w, h, night);
+  if (key === 'beach')      return beachScenery(w, h, night, opts);
   if (key === 'playground') return playgroundScenery(w, h, night, opts);
   return '';
 }
@@ -7703,8 +7845,15 @@ function hilltopScenery(w, h, night, opts = {}) {
   return rSVG(w, h, `${farHills}${hill}${kite}${windmill}${longGrass}`) + clouds;
 }
 
-function beachScenery(w, h, night) {
-  const seaTop = h * 0.26, seaBot = h * 0.38;   // sea band y 26-38% (RUN10 P1)
+function beachScenery(w, h, night, opts = {}) {
+  // RUN21E-3: THE TIDE. Two authored waterlines, 6% of scene height apart. LOW is exactly
+  // where the sea has always stopped (0.38h), so a low-tide beach is pixel-familiar; HIGH
+  // deepens the band to 0.44h. seaTop is untouched — the sea comes IN, it does not slide down.
+  // Which line is showing is decided ONCE at mount and passed in, never recomputed here:
+  // renderZoneScenery re-runs on every renderPlaced, so reading the clock at this depth would
+  // flip the waterline mid-session on the next drag instead of at the next visit.
+  const TIDE_LOW_Y = 0.38, TIDE_HIGH_Y = 0.44;
+  const seaTop = h * 0.26, seaBot = h * (opts.tide === 'high' ? TIDE_HIGH_Y : TIDE_LOW_Y);
   const sea = night ? '#2C567A' : '#4FB3D9', sea2 = night ? '#21415E' : '#3C97C2';
   // rolling foam edge: a wavy white band that rolls sideways at the shore line
   const foamPath = (dl, op) => `<path class="bc-foam" style="--d:${(w * 0.16).toFixed(0)}px;--dl:${dl}s" d="M-30 ${seaBot.toFixed(0)} q 26 -9 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="${op}"/>`;

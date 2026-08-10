@@ -10,7 +10,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 |---|---|---|
 | E1 | Riverside — jetty, float sailing, feedable ducks | TODO |
 | E2 | Hilltop — train line, kite rack, rain windmill | **DONE** (17/17) |
-| E3 | Beach — tide, shells, sandcastle persists | TODO |
+| E3 | Beach — tide, shells, sandcastle persists | **DONE** (19/19) |
 | E4 | Playground — tag, ring-a-roses, notice poster | **DONE** (15/15) |
 | E5 | Meadow — signpost (shared Today card) | **DONE** (7/7) |
 | E6 | Funfair — fair day (Saturday) | **DONE** (19/19) |
@@ -151,6 +151,38 @@ visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
 
+**DEV-25 · E3 "+1 ✨ fly to the stardust count".** Pack said → fly to the count. What was true →
+there IS no stardust count on the town screen (the only visible one is on the collection screen),
+and `st.sparkles` is a different thing entirely — the Sprinkle day-stamp map, not a currency. What
+I did → credited `st.stardust` (the literal reading; stardust has a real in-town spend at 5 per
+Sprinkle) and flew the `+1 ✨` off the shell itself. There is nothing to fly TO, and inventing a
+counter would have been a second place for the number to be wrong.
+
+**DEV-26 · E3 "positions daily-deterministic (hider pattern)".** Pack said → the hider pattern.
+What was true → the hider is `Math.random()` THEN persisted; it is not deterministic from the day
+at all. The codebase's real daily-deterministic idiom is `dayNoise()` over a day-keyed string with
+nothing stored (`isRainDay`, `booOfTheDay`). What I did → used that, and saved only which shells
+she has PICKED UP.
+
+**DEV-27 · E3 "night keeps low".** The two authored windows plus that clause collapse to a single
+hour test — everything outside 06:00-13:59 is low, including the whole night — so `tideFor()` says
+exactly that rather than pretending there is a third state.
+
+**DEV-28 · E3 "change applies at mount only, no live animation".** True as authored, but
+`renderZoneScenery` re-runs on EVERY `renderPlaced` (drags, placements, undo, sparkles), so
+computing the tide inside the scenery would have flipped the waterline mid-session on the next
+drag. `TIDE` is frozen once in mount scope and passed down through the existing `opts` channel.
+
+**DEV-29 · E3 the two one-shot lines land through `sayInWorld`, not the hint bar.** FOUND BY THE
+FIRST TEST RUN, and it is a real child-facing defect rather than a test artefact: written to
+`hint.textContent`, the tide line was reliably replaced by the Pulse's own signature beat
+("Squish, squish!") about 900ms after first paint — a child would never have read it. `sayInWorld`
+is the announced-moment primitive built for exactly this, and it speaks too, so a voice-off house
+gets the same moment. When both lines are due at once the castle's wins, as the pack orders.
+
+**DEV-30 · E3 "the Boo-built sandcastle" (singular).** Boos build them repeatedly all day. Only the
+NEWEST is saved — one castle, never a beach of them. The build animation still plays every time.
+
 **DEV-22 · E13-2 "a Boo ENTERS a room".** Pack said → detect a Boo entering. What was true → Boos
 never walk between rooms; an interior actor is spawned from that room's own placements at mount,
 and `applyDressing` recorded no timestamp at all. What I did → recorded `{roomKey, slot, t}` at
@@ -289,6 +321,11 @@ parented there is wiped by the next one.
 | `r20-wishlife` | FLAKE then PASS (74). First run died on a `.hub` boot timeout — the failure mode the handover names. One serial re-run per board law: clean. | ~2m |
 | `r21e-jobs` (all five packets so far) | PASS 98/98 | 68s |
 | `r19z4-acknowledge` | PASS (34) | ~45s |
+| `r21e-jobs` (E12+E4+E5+E6+E2+E3+E13) | PASS 117/117 | 55s |
+| `r8p1-migrations` (core; the additive `beach` key) | PASS (334) | ~2m |
+| `r13bt8-town-dressing` (@serial; beach scenery census) | PASS (52) | ~90s |
+| `r17x4-whatsnew` (deploy gate: every route resolves) | PASS (116) | ~95s |
+| `r18a-buildstamp` | PASS (8) | ~15s |
 | `r19z5-nouns` | FLAKE then PASS (53). One run failed the Sprinkle hint assertion because the hint bar had been overwritten — pre-existing contention (`updateHint`, the hider chance at ~0.9s and the pulse invitation at ~9s all write that one bar); E13 writes no hints at all. Proved by running it with my `js/town.js` stashed (PASS) and again with it restored (PASS). | ~2m each |
 
 ## Stale pins re-pointed (never weakened)

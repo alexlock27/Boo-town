@@ -509,6 +509,113 @@ for (const [label, day, want] of [['Saturday', '2026-08-08', true], ['Sunday', '
 }
 
 // ============================================================================
+// E3 — Beach: tide, shells, and a castle that lasts
+// ============================================================================
+console.log('\n== E3: the Beach ==');
+{
+  // 10:00 vs 15:00: two different waterlines, each with its own line, said once.
+  const seen = {};
+  for (const [hour, tide, line] of [[10, 'high', 'The tide has come in!'], [15, 'low', 'The tide has gone out!']]) {
+    const { ctx, page } = await open(SAVE(), { area: 'beach', hour });
+    const y = await page.evaluate(() => {
+      const p = document.querySelector('.t-zone-props.beach .bc-foam');
+      return p ? p.getBoundingClientRect().top - document.querySelector('.t-viewport').getBoundingClientRect().top : null;
+    });
+    const vh = await page.evaluate(() => document.querySelector('.t-viewport').getBoundingClientRect().height);
+    seen[tide] = y / vh;
+    assert(y != null, `${hour}:00 — the waterline is drawn`);
+    // The line lands as an announced moment (.wish-said), NOT in the shared hint bar — the
+    // Pulse's own opening beat overwrites that bar ~900ms in.
+    const said = await page.evaluate(() => { const n = document.querySelector('.wish-said'); return n ? n.textContent : null; });
+    assert(said === line, `${hour}:00 (${tide} tide) — exactly "${line}" (got "${said}")`);
+    await page.screenshot({ path: `${SHOTS}/e3-tide-${tide}.png` });
+    await ctx.close();
+  }
+  assert(seen.high > seen.low, `the high-tide waterline really is lower down the scene than the low one (high ${seen.high.toFixed(3)} vs low ${seen.low.toFixed(3)} of viewport height)`);
+}
+{
+  // The line is once per change per day: a second mount at the same tide says nothing new.
+  const { ctx, page } = await open(SAVE(), { area: 'beach', hour: 15 });
+  await until(page, () => { const n = document.querySelector('.wish-said'); return n && n.textContent === 'The tide has gone out!'; }, 3000);
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await sleep(400);
+  // Clear the FIRST mount's notice, or this would just be reading the line it already said.
+  await page.evaluate(() => document.querySelectorAll('.wish-said').forEach(n => n.remove()));
+  await page.evaluate(() => window.BooTown.go('town', { area: 'beach' }));
+  await page.waitForSelector('.town2');
+  await sleep(1200);
+  const again = await page.evaluate(() => { const n = document.querySelector('.wish-said'); return n ? n.textContent : null; });
+  assert(again !== 'The tide has gone out!', `coming back at the same tide does not repeat the news (said ${again === null ? 'nothing' : '"' + again + '"'})`);
+  await ctx.close();
+}
+{
+  // --- shells: three at low tide, +1 stardust each, and gone for the day ---
+  const { ctx, page } = await open(SAVE({ stardust: 0 }), { area: 'beach', hour: 15 });
+  assert(await count(page, '.t-shell') === 3, `low tide puts out exactly three shells (${await count(page, '.t-shell')})`);
+  const pos = await page.evaluate(() => [...document.querySelectorAll('.t-shell')].map(s => s.style.left));
+  assert(new Set(pos).size === 3, 'and they are in three different places');
+  await page.screenshot({ path: `${SHOTS}/e3-shells.png` });
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => document.querySelector('.t-shell').click());
+    await sleep(250);
+  }
+  assert(await count(page, '.t-shell') === 0, 'picking all three takes them all');
+  const dust = await page.evaluate(() => window.BooTown.State.getState().stardust);
+  assert(dust === 3, `three shells make exactly +3 stardust (${dust})`);
+  // …and no more today: coming back finds none.
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await sleep(300);
+  await page.evaluate(() => window.BooTown.go('town', { area: 'beach' }));
+  await page.waitForSelector('.town2');
+  await sleep(700);
+  assert(await count(page, '.t-shell') === 0, 'collected shells stay gone for the rest of the day');
+  const dust2 = await page.evaluate(() => window.BooTown.State.getState().stardust);
+  assert(dust2 === 3, `and the stardust does not keep climbing (${dust2})`);
+  await ctx.close();
+}
+{
+  // High tide has no shells to collect — they belong to the sand the sea has left.
+  const { ctx, page } = await open(SAVE(), { area: 'beach', hour: 10 });
+  assert(await count(page, '.t-shell') === 0, 'high tide: no shells (the sand they sit on is under water)');
+  await ctx.close();
+}
+{
+  // --- the castle survives re-entry, and only the tide takes it ---
+  const castle = { xFrac: 0.12, topFrac: 0.66, day: today, tide: 'low' };
+  const { ctx, page } = await open(SAVE({ beach: { tideDay: today, tideSeen: 'low', shellsDay: today, shellsTaken: [0, 1, 2], castle } }), { area: 'beach', hour: 15 });
+  assert(await count(page, '.t-sandcastle') === 1, 'a castle built earlier is still standing when she comes back');
+  await page.screenshot({ path: `${SHOTS}/e3-castle-kept.png` });
+  await ctx.close();
+}
+{
+  // …and the tide turning smooths it, with the authored line, never calling it lost.
+  const castle = { xFrac: 0.12, topFrac: 0.66, day: today, tide: 'low' };
+  const { ctx, page } = await open(SAVE({ beach: { tideDay: today, tideSeen: 'low', shellsDay: today, shellsTaken: [], castle } }), { area: 'beach', hour: 10 });
+  assert(await until(page, () => document.querySelectorAll('.t-sandcastle').length === 0, 3000),
+    'when the tide turns, the sea has smoothed the sand');
+  const hint = await page.evaluate(() => { const n = document.querySelector('.wish-said'); return n ? n.textContent : ''; });
+  assert(hint === 'The tide smoothed the sand — room for a new castle!',
+    `and says exactly "The tide smoothed the sand — room for a new castle!" (got "${hint}")`);
+  assert(!/lost|gone forever|sorry/i.test(hint), 'and never calls it lost');
+  const saved = await page.evaluate(() => window.BooTown.State.getState().beach.castle);
+  assert(saved === null, 'the record is cleared, so it is smoothed exactly once');
+  await ctx.close();
+}
+{
+  // Her PLACED things are never touched by any of this.
+  const items = [P('beach', 'deco_palm', 0.10), P('beach', 'boo_inky', 0.16), P('beach', 'deco_bench', 0.22)];
+  const { ctx, page } = await open(SAVE({
+    town: { areas: withItems({ beach: items }), nextId: 900 },
+    beach: { tideDay: today, tideSeen: 'low', shellsDay: '', shellsTaken: [], castle: { xFrac: 0.12, topFrac: 0.66, day: today, tide: 'low' } }
+  }), { area: 'beach', hour: 10 });
+  await sleep(900);
+  const left = await page.evaluate(() => window.__townLife.placements().map(p => p.item).sort());
+  assert(JSON.stringify(left) === JSON.stringify(['boo_inky', 'deco_bench', 'deco_palm']),
+    `the tide smooths sand, never her things (${left.join(', ')})`);
+  await ctx.close();
+}
+
+// ============================================================================
 // E13 — acknowledgement wave two
 // ============================================================================
 console.log('\n== E13: the town notices ==');
