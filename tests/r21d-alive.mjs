@@ -100,8 +100,12 @@ async function watchBeat(page, ms = 3000) {
       request:   () => has('.request-thought.rq-pulse3'),
       newItem:   () => has('.wish-airborne, .wish-glint, .wish-launch, .wish-wobble, .wish-lit')
                        || goals().some(g => g.goal === 'approach'),
+      // RUN21E-4 re-points this: the Playground gained ZONE_BEHAVIOURS of its own (tag,
+      // ring-a-roses), so a playground mount's zone beat is now one of those goals. Same
+      // rigour — the proof is still a real goal running or a real prop on screen.
       zone:      () => has('.t-kite-wrap, .t-skip-stone, .t-splash, .t-sandcastle, .t-towel')
-                       || goals().some(g => ['paddle', 'shallow', 'skim', 'kite', 'bridgesit', 'sandcastle', 'sunbathe'].includes(g.goal)),
+                       || goals().some(g => ['paddle', 'shallow', 'skim', 'kite', 'bridgesit', 'sandcastle', 'sunbathe',
+                                             'tag', 'tagpartner', 'ringroses', 'ringpartner'].includes(g.goal)),
       idle:      () => window.__townLife.idleClasses().length > 0 || has('.t-seat-hop'),
       signature: () => has('.t-petal, .t-skip, .t-footprint, .t-train, .t-kernel')
     };
@@ -122,7 +126,9 @@ async function watchBeat(page, ms = 3000) {
 const INVITATION = {
   meadow: 'Try tapping a flower…', riverside: 'Try tapping the river…',
   hilltop: 'Try tapping the sky…', beach: 'Try tapping the sand…',
-  playground: 'Try the swings…', funfair: 'The bandstand plays if you wander right…',
+  // RUN21E-4 lands tag, so the Playground's authored invitation replaces RUN21D's stand-in
+  // (RUN21D-PROGRESS deviation 1 — the debt this run was handed).
+  playground: 'Someone fancies a game of tag…', funfair: 'The bandstand plays if you wander right…',
   boohouse: 'Try tapping a sleepy Boo…'
 };
 

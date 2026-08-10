@@ -199,6 +199,152 @@ console.log('\n== E12: the dead-prop amnesty ==');
 }
 
 // ============================================================================
+// E4 — the Playground is the social ground
+// ============================================================================
+console.log('\n== E4: tag, ring-a-roses and the notice poster ==');
+{
+  // Four Boos on the entry screen, all within playmate reach of each other.
+  const boos = ['boo_inky', 'boo_plum', 'boo_pippin', 'boo_lolly']
+    .map((b, i) => P('playground', b, +(0.08 + i * 0.05).toFixed(3)));
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ playground: boos }), nextId: 900 } }), { area: 'playground' });
+
+  // --- tag: forced, so the frame evidence is deterministic (the r7p2 pattern) ---
+  const tagKind = await page.evaluate(() => window.__townLife.force(0, 'tag'));
+  assert(tagKind === 'tag', `tag starts when a Boo picks it (got ${tagKind})`);
+  assert(await page.evaluate(() => window.__townLife.goals().filter(g => g.goal === 'tag' || g.goal === 'tagpartner').length === 2),
+    'tag: exactly two Boos are playing — one chasing, one running');
+  // Motion proven by frames spanning seconds, not by a single still (evidence standard).
+  const tagFrames = await page.evaluate(async () => {
+    const out = [];
+    for (let i = 0; i < 8; i++) { out.push(window.__townLife.transform(0)); await new Promise(r => setTimeout(r, 420)); }
+    return out;
+  });
+  assert(new Set(tagFrames).size >= 4, `tag: the chase really moves (${new Set(tagFrames).size} distinct transforms over 8 frames / 3.4s)`);
+  await page.screenshot({ path: `${SHOTS}/e4-tag.png` });
+  // 8s game: both Boos must be free again afterwards — a partner left holding a goal would
+  // stand frozen for ever, which is the whole risk of a two-Boo behaviour.
+  assert(await until(page, () => window.__townLife.goals().every(g => g.goal !== 'tag' && g.goal !== 'tagpartner'), 9000),
+    'tag: the game ends and BOTH Boos are released');
+
+  // --- ring-a-roses ---
+  const ringKind = await page.evaluate(() => window.__townLife.force(0, 'ringroses'));
+  assert(ringKind === 'ringroses', `ring-a-roses starts with three Boos (got ${ringKind})`);
+  assert(await page.evaluate(() => window.__townLife.goals().filter(g => g.goal === 'ringroses' || g.goal === 'ringpartner').length === 3),
+    'ring-a-roses: exactly three Boos in the ring');
+  const ringFrames = await page.evaluate(async () => {
+    const out = [];
+    for (let i = 0; i < 7; i++) { out.push(window.__townLife.transform(0)); await new Promise(r => setTimeout(r, 450)); }
+    return out;
+  });
+  assert(new Set(ringFrames).size >= 4, `ring-a-roses: the ring really turns (${new Set(ringFrames).size} distinct transforms over 3.1s)`);
+  await page.screenshot({ path: `${SHOTS}/e4-ring.png` });
+  assert(await until(page, () => window.__townLife.goals().every(g => g.goal !== 'ringroses' && g.goal !== 'ringpartner'), 8000),
+    'ring-a-roses: it ends and all three are released');
+
+  // --- a game needs partners: one Boo alone must not wedge ---
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ playground: [P('playground', 'boo_inky', 0.10)] }), nextId: 900 } }), { area: 'playground' });
+  const lone = await page.evaluate(() => window.__townLife.force(0, 'tag'));
+  assert(lone === null, 'tag with nobody to play with returns goal-less (the Pulse falls through instead of wedging)');
+  await ctx.close();
+}
+{
+  // --- E4-C: the notice poster, in four seeded states ---
+  const base = { town: { areas: withItems({ playground: [P('playground', 'boo_inky', 0.10)] }), nextId: 900 } };
+  const cases = [
+    // The hider must be seeded against a REAL hide point that is really placed, or ensureHide
+    // re-picks one at mount and the line names wherever it landed instead — which is how the
+    // first version of this block "passed" while proving nothing about the area name.
+    { name: 'hider',
+      over: { town: { areas: withItems({ playground: [P('playground', 'boo_inky', 0.10)], beach: [P('beach', 'deco_palm', 0.18), P('beach', 'boo_plum', 0.22)] }), nextId: 900 },
+        delights: { hideDay: today, hideFound: false, hideSpot: { zone: 'beach', x: 0.18, item: 'deco_palm' }, hideBoo: 'boo_plum' } },
+      want: /^Someone's playing hide-and-seek at Sunny Beach! 👀$/ },
+    { name: 'builders', over: { ...base, delights: { hideDay: today, hideFound: true },
+      townGrowth: { done: [], pending: [], site: { idx: 0, startedAt: Date.now() } } },
+      want: /^The Boo Builders are busy at .+…$/ },
+    // "Quiet day" has to be genuinely quiet: this save owns six Boos, which really has crossed
+    // the Meadow's first growth milestone, so the Builders line is CORRECT unless the fixture
+    // says the work is already done. (The first run of this block caught exactly that.)
+    { name: 'quiet day', over: { ...base, delights: { hideDay: today, hideFound: true },
+      townGrowth: { done: [0, 1, 2, 3, 4], pending: [], site: null } },
+      want: /^A lovely day for the playground!$/ }
+  ];
+  for (const c of cases) {
+    const { ctx, page } = await open(SAVE(c.over), { area: 'playground' });
+    const line = await page.evaluate(() => {
+      const b = document.querySelector('.pg-notice-btn');
+      if (!b) return '__NO_BUTTON__';
+      b.click();
+      const n = document.querySelector('.today-card .today-line');
+      return n ? n.textContent : '__NO_CARD__';
+    });
+    assert(c.want.test(line), `poster (${c.name}): "${line}"`);
+    const title = await page.evaluate(() => { const t = document.querySelector('.today-card .today-title'); return t ? t.textContent : null; });
+    assert(title === 'Today at Boo Town', `poster (${c.name}): the card is titled exactly "Today at Boo Town"`);
+    if (c.name === 'quiet day') await page.screenshot({ path: `${SHOTS}/e4-poster-card.png` });
+    await ctx.close();
+  }
+}
+
+// ============================================================================
+// E5 — the Meadow's Notice Post
+// ============================================================================
+console.log('\n== E5: the Notice Post ==');
+{
+  // A fresh Meadow seeds it, beside the Well, without displacing anything.
+  const { ctx, page } = await open(SAVE(), { area: 'meadow' });
+  const seeded = await page.evaluate(() => window.__townLife.placements().filter(p => p.item === 'deco_noticepost'));
+  assert(seeded.length === 1, `the Notice Post is seeded exactly once (${seeded.length})`);
+  const well = await page.evaluate(() => window.__townLife.placements().find(p => p.item === 'deco_wishwell'));
+  // "Beside the Well" is a PREFERENCE ordering, not an absolute distance: the well and the
+  // joke stage are seeded first and the min-spacing rule (0.09) reserves the ground either
+  // side of each. So the honest assertion is the rule itself — nothing legal on the post's own
+  // row was closer to the well than the spot it took.
+  const nearest = await page.evaluate(() => {
+    const all = window.__townLife.placements();
+    const post = all.find(p => p.item === 'deco_noticepost');
+    const well2 = all.find(p => p.item === 'deco_wishwell');
+    if (!post || !well2) return null;
+    const others = all.filter(p => p.item !== 'deco_noticepost');
+    const closerAndFree = [.20, .32, .44, .56, .68, .80, .88, .10]
+      .filter(c => Math.abs(c - well2.x) < Math.abs(post.x - well2.x))
+      .filter(c => others.every(o => o.row !== post.row || Math.abs((o.x || 0) - c) >= .09));
+    return { postX: post.x, wellX: well2.x, closerAndFree };
+  });
+  assert(nearest && nearest.closerAndFree.length === 0,
+    `it takes the nearest legal spot to the Well (post ${nearest && nearest.postX}, well ${nearest && nearest.wellX}, nothing closer was free)`);
+  assert(await page.evaluate(() => [...document.querySelectorAll('.t-item')].some(n => n.dataset.item === 'deco_noticepost')),
+    'the Notice Post renders in the Meadow');
+  // The Meadow is FOUR viewports wide and the post can legitimately seed onto screen 2, where
+  // no real click can reach it at the default scroll (handover trap 2). Pan to it first — the
+  // child does this with a swipe or a landmark dot.
+  await page.evaluate(() => {
+    const p = window.__townLife.placements().find(x => x.item === 'deco_noticepost');
+    const g = window.__town.geometry();
+    window.__town.scrollTo(p.x * g.zoneW - g.viewW / 2);
+  });
+  await sleep(250);
+  assert(await tapItem(page, 'deco_noticepost'), 'the Notice Post is clickable with a real mouse');
+  assert(await until(page, () => !!document.querySelector('.today-card .today-line'), 2000),
+    'tapping it opens the same "Today at Boo Town" card');
+  await page.screenshot({ path: `${SHOTS}/e5-noticepost.png` });
+  await ctx.close();
+}
+{
+  // A FULL Meadow refuses to seed and does NOT burn the flag — the RUN18A H3 lesson.
+  const full = Array.from({ length: 24 }, (_, i) => P('meadow', 'deco_rock', +(0.03 + i * 0.04).toFixed(3), i % 3));
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ meadow: full }), nextId: 900 },
+    seen: { trophyRetro: true, townFirst: true, lastStarsShown: 400, whatsnewVersion: 'x', funfairOpened: true, wishWellSeeded: true, jokeStageSeeded: true } }), { area: 'meadow' });
+  const posts = await page.evaluate(() => window.__townLife.placements().filter(p => p.item === 'deco_noticepost').length);
+  assert(posts === 0, 'a full 24-item Meadow is never displaced to make room for it');
+  const flag = await page.evaluate(() => (JSON.parse(localStorage.getItem('bootown.save.v1')).seen || {}).noticePostSeeded);
+  assert(!flag, 'and the seeding flag is NOT burned, so it still arrives the day she makes room');
+  await ctx.close();
+}
+
+// ============================================================================
 console.log('\n== console health ==');
 // ERR_NO_BUFFER_SPACE is this machine's socket exhaustion when several lanes serve at once,
 // not anything the app did — the lane brief names it by name. Everything else counts.

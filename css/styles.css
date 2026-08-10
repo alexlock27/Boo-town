@@ -7196,6 +7196,23 @@ html.bigger-text { --vz: 1.125; }
 /* The hop-out shake. */
 .pd-shake { animation: pd-shake 420ms ease-out 1; }
 @keyframes pd-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-8deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } }
+/* ---- RUN21E-4: the playground's two social games ----------------------------------------- */
+/* The end-of-game hop, everyone together. Transform-only, like every other pose. */
+.pd-giggle-hop { animation: pd-giggle-hop 620ms cubic-bezier(.3,1.5,.5,1) 1; transform-origin: 50% 100%; }
+@keyframes pd-giggle-hop { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-16px) scale(0.94, 1.08); } 70% { transform: translateY(0) scale(1.06, 0.94); } }
+/* The tappable half of the Playground's drawn noticeboard: a real 92x76 target sitting over
+   the painted board, invisible until focused. The board itself stays pure scenery. */
+.pg-notice-btn {
+  position: absolute; width: 92px; height: 76px; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; cursor: pointer; z-index: 4;
+}
+.pg-notice-btn:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
+/* "Today at Boo Town" — one line about the whole town, from the poster or the notice post. */
+.today-card { max-width: 22rem; text-align: center; }
+.today-card .today-title { margin: 0 0 .5rem; font-size: 1.15rem; color: var(--ink); }
+.today-card .today-line { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.45; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .pd-giggle-hop { animation: none !important; } }
+
 /* Catching your own eye in the mirror: a small lean in, and back. */
 .pd-mirror-look { animation: pd-mirror-look 1.5s ease-in-out 1; transform-origin: 50% 100%; }
 @keyframes pd-mirror-look { 0%, 100% { transform: none; } 25% { transform: scale(1.06) rotate(-3deg); } 60% { transform: scale(1.06) rotate(3deg); } }

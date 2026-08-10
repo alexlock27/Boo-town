@@ -6,7 +6,7 @@
 import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './ui.js';
 import { getState, mutate, commit, nextPlacementId } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
-import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
+import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, HOUSE_ROOM_KEYS, houseRoom } from './areas.js';
 import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX, WISH_ART } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { priceOf } from '../data/shop.js';   // RUN21C-4: the Pot's locked styles show their shelf price
@@ -260,10 +260,22 @@ const BRIDGE_SIT_MS = 5200;     // sitting on the bridge (riverside)
 const SANDCASTLE_MS = 3600;     // patting up a sandcastle (beach)
 const SANDCASTLE_FADE_MS = 22000;  // …which fades later (C2)
 const SUNBATHE_MS = 6000;       // sunbathing on a towel (beach)
+const TAG_MS = 8000;            // RUN21E-4: a game of tag runs eight seconds
+const TAG_CHASER_MULT = 1.3;    // …with the chaser a third faster than the one running
+const TAG_CATCH_PX = 40;        // close enough to touch: the swap happens here
+const RING_MS = 6000;           // RUN21E-4: ring-a-roses, three Boos, six seconds
+const RING_SLOTS = [-52, 52, 0];   // the ring, in px around the middle of the three
+const RING_ARRIVE_MS = 1200;    // the campfire circle's own arrive-lerp, reused
+const GIGGLE_HOP_MS = 620;      // the end-of-game hop, both/all together
 const ZONE_BEHAVIOURS = {       // which zone-only acts a Boo may pick, by zone + weight
   riverside: [['paddle', 1.9], ['bridgesit', 1.5], ['skim', 1.3]],
   hilltop:   [['kite', 2.2]],
-  beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]]
+  beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]],
+  // RUN21E-4: the playground is the SOCIAL ground — its two acts need each other. The pack
+  // says "weight as riverside behaviours"; riverside is a three-rung ladder and the
+  // playground has two acts, so it takes the top two rungs, tag first (which also makes tag
+  // the Pulse's guaranteed opening beat here — the invitation names it).
+  playground: [['tag', 1.9], ['ringroses', 1.5]]
 };
 
 // ---- RUN21D: pulse ---------------------------------------------------------------------
@@ -282,14 +294,15 @@ const PULSE_HINT_MS = 9000;      // …and the invitation, once, at nine seconds
 const PULSE_PAN_MS = 600;        // the pack's ease for "come and look at this"
 const PULSE_BUBBLE_PULSES = 3;   // a request bubble breathes three times, then stops
 const PULSE_BUBBLE_MS = 2400;    // 3 × the .rq-pulse3 cycle in styles.css
-// The invitation, per area, exactly as authored. The Playground names the swings until
-// RUN21E lands tag; the pack authors both and says which one binds until then.
+// The invitation, per area, exactly as authored. RUN21D shipped the Playground's line as the
+// pack's own stand-in ("Try the swings…") because tag did not exist yet; RUN21E-4 lands tag,
+// so the authored line takes its place — the debt RUN21D-PROGRESS logged as deviation 1.
 const PULSE_INVITATIONS = {
   meadow:            'Try tapping a flower…',
   riverside:         'Try tapping the river…',
   hilltop:           'Try tapping the sky…',
   beach:             'Try tapping the sand…',
-  playground:        'Try the swings…',
+  playground:        'Someone fancies a game of tag…',
   funfair:           'The bandstand plays if you wander right…',
   boohouse:          'Try tapping a sleepy Boo…',
   boohouse_kitchen:  'Try tapping a sleepy Boo…',
@@ -799,6 +812,34 @@ export function mount(container, params, ctx) {
       if (!position) return;   // a full Meadow keeps it in the Build drawer instead
       items.push({ id: nextPlacementId(st), zone:'meadow', ...position, item:'deco_jokestage', scale:1.05 });
       st.seen.jokeStageSeeded = true;
+    });
+  }
+  // RUN21E-5: the Notice Post, BESIDE THE WELL. Same gift-landmark terms as the two above,
+  // and the same corrected pattern — the flag is burned only once something is really placed,
+  // so a Meadow that is full today gets its post the first time she makes room.
+  //
+  // "Beside the Well" is a preference, not a requirement: the well is a placement she can move
+  // or put away, so the candidate list is simply ORDERED by nearness to wherever the well
+  // actually stands, and falls back to the plain scan when there is no well at all.
+  if (!READONLY && AREA.key === 'meadow' && !((getState().seen || {}).noticePostSeeded)) {
+    mutate(st => {
+      st.seen = st.seen || {};
+      const items = areaItems(st);
+      if (items.length >= AREA_CAP) return;
+      const well = items.find(t => t.item === 'deco_wishwell');
+      const candidates = [.20, .32, .44, .56, .68, .80, .88, .10]
+        .slice()
+        .sort((p, q) => (well ? Math.abs(p - well.x) - Math.abs(q - well.x) : 0));
+      const rows = [1, 2, 0];
+      let position = null;
+      for (const row of rows) {
+        const x = candidates.find(candidate =>
+          items.every(placed => placed.row !== row || Math.abs((placed.x || 0) - candidate) >= .09));
+        if (x != null) { position = { x, row }; break; }
+      }
+      if (!position) return;   // a full Meadow keeps it in the Build drawer instead
+      items.push({ id: nextPlacementId(st), zone:'meadow', ...position, item:'deco_noticepost', scale:1 });
+      st.seen.noticePostSeeded = true;
     });
   }
 
@@ -2480,6 +2521,7 @@ export function mount(container, params, ctx) {
       wrap.style.width = zoneW + 'px'; wrap.style.height = viewH + 'px'; wrap.style.zIndex = '3';
       ground.insertBefore(wrap, ground.firstChild);
     });
+    renderNoticePoster();   // RUN21E-4C: the tappable half of the Playground's noticeboard
   }
 
   function renderFunfair() {
@@ -3397,6 +3439,74 @@ export function mount(container, params, ctx) {
 
   // The request card: the line (spoken), a 48px picture of the wanted thing, and — for the
   // verbs that live on another screen — one button that takes her straight there.
+  // ---- RUN21E-4C / E5: "Today at Boo Town" ------------------------------------------------
+  // ONE line about what is happening in the whole town right now, chosen by priority. Two
+  // things open it — the Playground's notice poster and the Meadow's signpost — and both read
+  // this single function, which is what the pack means by "shared component, one copy source".
+  //
+  // The names carry their own articles ('The Meadow', 'Riverside'), so the template is
+  // "at <Name>" rather than the pack's literal "at the <Area>" — writing it literally ships
+  // "at the The Meadow". Same correction the socket-claim line already makes.
+  const TODAY_FALLBACK = 'A lovely day for the playground!';
+  function areaDisplayName(key) {
+    if (HOUSE_ROOM_KEYS.includes(key)) return 'The Boo House';
+    const a = AREAS.find(x => x.key === key);
+    return a ? a.name : 'The Meadow';
+  }
+  // Saturday, device-local, honouring the same day override todayKeyLocal already respects.
+  // E6 owns fair day; E4's own ACCEPT needs the line, so the check lives here once and E6
+  // reads it rather than growing a second source of truth.
+  function isFairDay() {
+    const key = todayKeyLocal();
+    const [y, m, d] = key.split('-').map(Number);
+    // Component parse ONLY: new Date('YYYY-MM-DD') is parsed as UTC and reads as the day
+    // before on any device west of Greenwich.
+    return new Date(y, m - 1, d).getDay() === 6;
+  }
+  function todayLine() {
+    const hide = currentHide();
+    if (hide && hide.spot) return `Someone's playing hide-and-seek at ${areaDisplayName(hide.spot.zone)}! 👀`;
+    if (isFairDay() && funfairUnlocked(getState())) return `It's fair day at the Boo Funfair! 🎪`;
+    const gSite = growthView().site;
+    if (gSite) return `The Boo Builders are busy at ${areaDisplayName(gSite.zone)}…`;
+    if (funfairView().site) return `The Boo Builders are busy at ${areaDisplayName('funfair')}…`;
+    const req = activeRequests()[0];
+    if (req) return `${getDisplayName(req.booId)} is wondering something — go and see!`;
+    return TODAY_FALLBACK;
+  }
+  function openTodayCard() {
+    sfx.tap();
+    const line = todayLine();
+    const ov = el('div', { class: 'overlay show today-card-ov' });
+    const card = el('div', { class: 'card today-card', role: 'dialog', 'aria-label': 'Today at Boo Town' });
+    card.appendChild(el('h3', { class: 'today-title', text: 'Today at Boo Town' }));
+    card.appendChild(el('p', { class: 'today-line', text: line }));
+    const dismiss = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
+    card.appendChild(el('div', { class: 'dialog-btns' }, [
+      el('button', { class: 'btn soft', text: 'Okay!', onclick: () => { sfx.tap(); dismiss(); } })
+    ]));
+    ov.appendChild(card);
+    ov.addEventListener('click', e => { if (e.target === ov) dismiss(); });
+    document.body.appendChild(ov);
+    speakMaybe(line);
+  }
+  // The Playground's noticeboard is DRAWN in the zone-scenery layer, which is
+  // pointer-events:none by law (a placement tap must fall through it). So the tappable poster
+  // is its own button in the ground layer, sitting exactly over the drawn board — the same
+  // shape the fair signs and the bandstand already use.
+  const NOTICE_X = 0.215;          // where playgroundScenery draws the board
+  function renderNoticePoster() {
+    if (AREA.key !== 'playground' || !zoneW) return;
+    ground.querySelectorAll('.pg-notice-btn').forEach(n => n.remove());
+    const btn = el('button', {
+      class: 'pg-notice-btn', type: 'button', 'aria-label': 'Today at Boo Town — read the notice',
+      onclick: (e) => { e.stopPropagation(); openTodayCard(); }
+    });
+    btn.style.left = (NOTICE_X * zoneW - 46) + 'px';
+    btn.style.top = (groundY - 76) + 'px';
+    ground.appendChild(btn);
+  }
+
   function openRequestCard(r) {
     sfx.tap();
     const line = requestLine(r);
@@ -3774,7 +3884,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall') || e.target.closest('.pg-notice-btn')) return; // interactive scenery handles its own taps
     // RUN20 W2: a tap on the right PART of the scene is this area's own secret. It runs before
     // the scroll drag starts, and only when it actually matched something — a miss falls
     // straight through to the normal pan, so the scene never feels sticky.
@@ -4690,6 +4800,11 @@ export function mount(container, params, ctx) {
     // and simply do not open.
     if (item.id === 'deco_wishwell') { if (!READONLY) openWellHere(wrap); return; }
     if (item.id === 'deco_jokestage') { sfx.tap(); if (!READONLY) ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
+    // RUN21E-5: the Notice Post reads out the same "Today at Boo Town" card the Playground's
+    // poster shows — one function, one copy source. The shop's four-armed Signpost gets it
+    // too: it is a signpost with nothing to say today, which is the definition of a dead prop.
+    // Reading the news grants nothing, so a visitor may read it as well.
+    if (item.id === 'deco_noticepost' || item.id === 'deco_signpost') { openTodayCard(); return; }
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
     // RUN21E-12: the five amnestied props answer the tap instead of opening the menu — the
     // same shape as the wish verbs above, and for the same reason.
@@ -5826,7 +5941,11 @@ export function mount(container, params, ctx) {
     const music = pickMusicTarget(a);
     if (music) cands.push(['musicwatch', 1.2 * personalityMult(booId, music.kind)]);
     // zone-only behaviours (RUN7 C2): daytime acts tied to the zone she's standing in
-    if (!night) { const zb = ZONE_BEHAVIOURS[a.place.zone]; if (zb) for (const [k, wt] of zb) cands.push([k, wt]); }
+    // RUN21E-4: zone acts take the personality tilt too, the way every other candidate above
+    // already does. Behaviour-neutral for every act that shipped before this run — none of
+    // them appear in WEIGHTS, so their multiplier is exactly 1 — and it is what makes a sporty
+    // Boo the one who starts the game of tag.
+    if (!night) { const zb = ZONE_BEHAVIOURS[a.place.zone]; if (zb) for (const [k, wt] of zb) cands.push([k, wt * personalityMult(booId, k)]); }
     return cands.length ? weightedPick(cands) : null;
   }
   // The nearest thing worth dancing near: a placed Dance Stage anywhere in the area, else
@@ -5874,6 +5993,46 @@ export function mount(container, params, ctx) {
     const st = getState(); const zi = ZONE_INDEX[a.place.zone];
     return areaItems(st).some(t => t.item === 'deco_boohouse' && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) <= ACT_RADIUS);
   }
+  // RUN21E-4: who is free to be PLAYED WITH. Stricter than pickFriend, which happily picks a
+  // Boo that is already off doing something — a game needs partners who can actually come.
+  // Same-zone, on screen (a hider's wrap is display:none and a rider's is hidden too), not
+  // roled, not parading, not already in a goal of their own, and near enough to run to.
+  const PLAYMATE_REACH = 0.30;   // zone-x fraction: across a screen or so, not across the area
+  function pickPlaymates(a, n) {
+    const zi = ZONE_INDEX[a.place.zone];
+    const mine = a.place.x + (a.dx || 0) / (zoneW || 1);
+    return actors
+      .filter(b => b !== a && !b.role && !b.goal && !b.dancing && !b.parading && !b.riding
+        && b.wrap && b.wrap.style.display !== 'none'
+        && (ZONE_INDEX[b.place.zone] ?? 0) === zi
+        && Math.abs((b.place.x + (b.dx || 0) / (zoneW || 1)) - mine) <= PLAYMATE_REACH)
+      .sort((p, q) => Math.abs(p.place.x - mine) - Math.abs(q.place.x - mine))
+      .slice(0, n);
+  }
+  // Every multi-Boo game ends for EVERYONE, on every exit path — the timer running out, a tap
+  // interrupting, the area unmounting. A partner left holding a goal nobody drives would stand
+  // frozen for ever and never be picked again, so release is one function and endGoal calls it.
+  function releaseTeam(a) {
+    const g = a && a.goal;
+    if (!g || !g.team) return;
+    for (const mate of g.team) {
+      if (mate === a || !mate.goal) continue;
+      if (mate.goal.kind === 'tagpartner' || mate.goal.kind === 'ringpartner') {
+        mate.goal = null; mate.state = 'pause'; mate.vx = 0; mate.t = 0; mate.next = 500 + Math.random() * 1200;
+        mate.home = Math.max(-zoneW * 0.45, Math.min(zoneW * 0.45, mate.dx || 0));
+      }
+    }
+  }
+  // The giggle-hop every game ends on: everyone at once, one sound between them.
+  function giggleHop(team) {
+    if (!team || !team.length) return;
+    sfx.giggle();
+    if (REDUCED) return;
+    for (const b of team) {
+      const s = b.wrap && b.wrap.querySelector('svg');
+      if (s) propPlay(s, 'pd-giggle-hop', GIGGLE_HOP_MS);
+    }
+  }
   function startBehaviour(a, kind, now) {
     now = now || performance.now();
     if (kind === 'visit') {
@@ -5894,6 +6053,27 @@ export function mount(container, params, ctx) {
     } else if (kind === 'nap') {
       const d = pickNapSpot(a); if (!d) return;
       a.goal = { kind, spot: d, targetDx: (d.x - a.place.x) * zoneW, start: now, curled: false };
+    } else if (kind === 'tag') {
+      // RUN21E-4: TAG. Two Boos, and it takes two — with nobody free to play, this returns
+      // goal-less and the chooser (and the Pulse's beat ladder) simply moves on.
+      const partner = pickPlaymates(a, 1)[0];
+      if (!partner) return;
+      // Whoever is on the left runs first; the other one is It. Arbitrary and fair.
+      const runner = partner.place.x < a.place.x ? partner : a;
+      const chaser = runner === a ? partner : a;
+      const team = [a, partner];
+      a.goal = { kind, start: now, team, chaser, runner, swaps: 0, dir: Math.random() < 0.5 ? -1 : 1 };
+      partner.goal = { kind: 'tagpartner', start: now, leader: a };
+    } else if (kind === 'ringroses') {
+      // RUN21E-4: RING-A-ROSES. Three Boos in a circle for six seconds, then one hop
+      // together. The ring geometry and the arrive-lerp are the campfire circle's own; what
+      // is new is that this is a daytime GOAL and needs no fire to gather round.
+      const mates = pickPlaymates(a, 2);
+      if (mates.length < 2) return;
+      const team = [a, ...mates];
+      const centre = team.reduce((s, b) => s + b.place.x + (b.dx || 0) / (zoneW || 1), 0) / team.length;
+      a.goal = { kind, start: now, team, centreFrac: centre };
+      mates.forEach(m => { m.goal = { kind: 'ringpartner', start: now, leader: a }; });
     } else if (kind === 'chase') {
       a.goal = { kind, start: now, critter: spawnChaseCritter(a), dir: Math.random() < 0.5 ? -1 : 1 };
     } else if (kind === 'watch') {
@@ -6017,6 +6197,7 @@ export function mount(container, params, ctx) {
   function spawnHeart(wrap) { const h = el('div', { class: 'pop-heart', text: '❤' }); wrap.appendChild(h); setTimeout(() => h.remove(), 900); }
   function endGoal(a) {
     const g = a.goal;
+    releaseTeam(a);   // RUN21E-4: a game ends for everyone playing it, however it ended
     if (g && g.critter) { try { g.critter.remove(); } catch {} }
     if (g && g.kite) { try { g.kite.remove(); } catch {} }         // put the kite away (C2)
     if (g && g.towel) { try { g.towel.remove(); } catch {} }       // fold up the towel (C2)
@@ -6113,6 +6294,62 @@ export function mount(container, params, ctx) {
         svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
         if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
       }
+      return;
+    }
+    // ---- RUN21E-4: the playground's two social games ------------------------------------
+    // Both are driven ENTIRELY from the leader's goal: the leader's step writes its partners'
+    // transforms too. A partner carries only a marker goal ('tagpartner'/'ringpartner') so
+    // nothing else conscripts it mid-game, and releaseTeam frees them however this ends.
+    if (g.kind === 'tagpartner' || g.kind === 'ringpartner') {
+      // Driven by the leader. If the leader is gone (unmounted, tapped, timed out), stop
+      // waiting — a Boo is never stuck.
+      if (!g.leader || g.leader.goal == null || !g.leader.goal.team || !g.leader.goal.team.includes(a)) endGoal(a);
+      return;
+    }
+    if (g.kind === 'tag') {
+      const T = now - g.start;
+      const other = g.chaser === a ? g.runner : g.chaser;
+      const chaserA = g.chaser, runnerA = g.runner;
+      const cSvg = chaserA.wrap.querySelector('svg'), rSvg = runnerA.wrap.querySelector('svg');
+      // The runner flees along the band, turning at the edges of its own wander room; the
+      // chaser runs it down a third faster (the 'chase' branch's own 1.3x).
+      const room = zoneW * 0.16;
+      runnerA.dx += g.dir * stride * 0.9;
+      if (Math.abs(runnerA.dx) > room) { g.dir *= -1; runnerA.dx = Math.sign(runnerA.dx) * room; }
+      const gapPx = (runnerA.place.x * zoneW + runnerA.dx) - (chaserA.place.x * zoneW + chaserA.dx);
+      chaserA.dx += Math.sign(gapPx) * Math.min(Math.abs(gapPx), stride * TAG_CHASER_MULT);
+      const bounce = (who, phase) => -Math.abs(Math.sin((T + phase) / 210)) * 11;
+      if (rSvg) rSvg.style.transform = `translate(${runnerA.dx.toFixed(1)}px, ${bounce(runnerA, 0).toFixed(1)}px) scaleX(${g.dir < 0 ? -1 : 1})`;
+      if (cSvg) cSvg.style.transform = `translate(${chaserA.dx.toFixed(1)}px, ${bounce(chaserA, 90).toFixed(1)}px) scaleX(${gapPx < 0 ? -1 : 1})`;
+      // Caught! Swap who is It, and keep playing — being caught is the fun, never a loss.
+      if (Math.abs(gapPx) < TAG_CATCH_PX && now - (g.lastSwap || 0) > 900) {
+        g.lastSwap = now; g.swaps++;
+        g.chaser = runnerA; g.runner = chaserA;
+        g.dir = gapPx < 0 ? -1 : 1;
+        sparkleAtNode(runnerA.wrap);
+      }
+      if (T > TAG_MS) { giggleHop(g.team); endGoal(a); }
+      return;
+    }
+    if (g.kind === 'ringroses') {
+      const T = now - g.start;
+      const arrive = Math.min(1, T / RING_ARRIVE_MS);
+      // The ring turns slowly once everyone is in place — "circle for 6s" read as a circle
+      // that actually goes round, which is what the game is.
+      const spin = arrive >= 1 ? ((T - RING_ARRIVE_MS) / 1800) * Math.PI * 2 : 0;
+      g.team.forEach((b, i) => {
+        const s = b.wrap.querySelector('svg'); if (!s) return;
+        const base = RING_SLOTS[i % RING_SLOTS.length];
+        const ang = spin + (i / g.team.length) * Math.PI * 2;
+        const ringX = Math.cos(ang) * 52;
+        const home = (g.centreFrac - b.place.x) * zoneW;
+        const target = home + (arrive >= 1 ? ringX : base);
+        b.dx = lerp(b.dx, target, arrive >= 1 ? 0.12 : Math.min(1, dt / 260));
+        const sway = arrive >= 1 ? Math.sin(T / 520 + i) * 3 : 0;
+        const lift = arrive >= 1 ? Math.sin(T / 380 + i * 1.4) * 3 : 0;
+        s.style.transform = `translate(${b.dx.toFixed(1)}px, ${lift.toFixed(1)}px) rotate(${sway.toFixed(1)}deg)`;
+      });
+      if (T > RING_MS) { giggleHop(g.team); endGoal(a); }
       return;
     }
     // RUN21E-12: BATH TIME. Walk to the tub, hop in, and paddle — the transform is the

@@ -1087,6 +1087,24 @@ export function renderDeco(item, opts = {}) {
         ell(60, 58, 8, 10, COLORS.cocoa, ink) +
         `<circle cx="60" cy="56" r="3" fill="${COLORS.gold}"/>`;
       break;
+    case 'noticepost':
+      // RUN21E-5: a small wooden post with ONE arm — deliberately not the four-armed
+      // shop Signpost. The arm carries a little pinned notice, which is what it is for.
+      inner =
+        ell(60, 112, 20, 6, COLORS.teal, halo) +
+        ell(60, 112, 20, 6, COLORS.teal, ink) +
+        rrect(55, 40, 10, 72, 4, COLORS.cocoa, halo) +
+        rrect(55, 40, 10, 72, 4, COLORS.cocoa, ink) +
+        path('M64 46 L100 52 L100 70 L64 64 Z', COLORS.sand, halo) +
+        path('M64 46 L100 52 L100 70 L64 64 Z', COLORS.sand, ink) +
+        `<line x1="70" y1="54" x2="94" y2="58" stroke="${INK}" stroke-width="3" stroke-linecap="round" opacity="0.55"/>` +
+        `<line x1="70" y1="60" x2="88" y2="63" stroke="${INK}" stroke-width="3" stroke-linecap="round" opacity="0.4"/>` +
+        rrect(30, 58, 26, 22, 3, COLORS.cream, halo) +
+        rrect(30, 58, 26, 22, 3, COLORS.cream, ink) +
+        `<line x1="35" y1="65" x2="51" y2="65" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>` +
+        `<line x1="35" y1="72" x2="47" y2="72" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>` +
+        `<circle cx="60" cy="38" r="5" fill="${COLORS.gold}" ${ink}/>`;
+      break;
     case 'lamp':
       inner =
         rrect(56, 60, 8, 52, 4, COLORS.cocoa, halo) +

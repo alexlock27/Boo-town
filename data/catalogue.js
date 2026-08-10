@@ -149,6 +149,10 @@ export const CATALOGUE = [
   // RUN17 X1: the Joke Boo's stage. Same contract as the Wish Well — a free landmark that
   // always lives in Build → Landscape, so putting it away is never losing it.
   { id: 'deco_jokestage',  kind: 'landscape', name: 'Joke Boo',   rarity: 'rare',   deco: 'jokestage',  free: true, blurb: 'A Boo with 120 jokes and no shame whatsoever.' },
+  // RUN21E-5: the Meadow's notice post. Same contract as the Well and the stage — a free
+  // landmark that is seeded once and always lives in Build → Landscape, so putting it away is
+  // never losing it. One arm, and it tells you what is happening in the town today.
+  { id: 'deco_noticepost', kind: 'landscape', name: 'Notice Post', rarity: 'rare',  deco: 'noticepost', free: true, blurb: 'One little arm, and all the news in Boo Town.' },
 
   // --- Furniture (8, RUN10 P4): kind:'furniture', indoor-only, joins box pools at
   // decoration odds (bucketed under 'deco' in BY_TYPE_RARITY below, not a separate type
