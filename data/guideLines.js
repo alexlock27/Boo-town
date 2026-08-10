@@ -252,6 +252,13 @@ export const LINES = {
   ackEasel: ["I do like the painting by the easel. One of yours, isn't it?"],
   ackPath: ["{booName} loves the {style} path you made!"],
 
+  // ---- RUN21E E12/E13: acknowledgement wave two (authored verbatim in the pack) ------
+  ackOven: ["Something smells lovely!"],
+  ackAreaBusy: ["Look how busy the {areaName} is getting!"],
+  ackDressing: ["Ooh — new wallpaper!"],
+  ackDressingFloor: ["Ooh — a new floor!"],
+  ackNewItem: ["{booName} loves the new {itemName}!"],
+
   // ---- RUN19 Z5: stardust, surfaced ------------------------------------------------
   stardustExplain: ["Stardust comes from doubles — 10 makes a Boo shiny, 5 makes anything sparkle!"],
 

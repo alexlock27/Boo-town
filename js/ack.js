@@ -25,7 +25,16 @@ export const ACK_MOMENTS = {
   socketClaim: { line: 'socketClaim', once: false },   // Z3: a Boo takes a seat
   restyle:     { line: 'ackRestyle',  once: true },    // Z4: the guide's new look
   easel:       { line: 'ackEasel',    once: true },    // Z4: her art on the easel
-  path:        { line: 'ackPath',     once: false }    // Z4: a Boo crossing her path
+  path:        { line: 'ackPath',     once: false },   // Z4: a Boo crossing her path
+  // RUN21E-12/13: the second wave. Same budget, same latch — seven moments still share two
+  // slots, which is the point: the town notices, it does not chatter.
+  ovenBake:    { line: 'ackOven',     once: true },    // E12: the oven dings in the kitchen
+  areaBusy:    { line: 'ackAreaBusy', once: false },   // E13: an area reaches 12 items
+  // Walls and floors are separate moments because they are separate authored sentences;
+  // one moment with a swapped line key would make `once` mean the wrong thing for the pair.
+  newDressing:      { line: 'ackDressing',      once: false },   // E13: a Boo meets new wallpaper
+  newDressingFloor: { line: 'ackDressingFloor', once: false },   // E13: …or a new floor
+  newItemLove: { line: 'ackNewItem',  once: true }     // E13: a named Boo by her newest thing
 };
 
 let said = 0;

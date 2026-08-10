@@ -7174,6 +7174,36 @@ html.bigger-text { --vz: 1.125; }
   .costume-salute, .costume-scan, .costume-spyglass, .costume-floatspin, .t-item.t-bonked { animation: none !important; }
 }
 
+/* ---- RUN21E-12: the dead-prop amnesty — five props answer a tap -------------------------- */
+/* Doors are their own svg groups (art.js), hinged with transform-box: opening is a pure
+   transform (each door collapses toward its hinge) and the painted inside shows through. */
+.pd-door { transform-box: fill-box; transform-origin: left center; transition: transform 420ms cubic-bezier(.34, 1.4, .64, 1); }
+.pd-door-r { transform-origin: right center; }
+.t-item.prop-open .pd-door { transform: scaleX(0.16); }
+/* The fridge peek: the food art pops up as the door swings. */
+.pd-peek { opacity: 0; }
+.t-item.prop-open .pd-peek { opacity: 1; animation: pd-peek 700ms ease-out 1; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes pd-peek { 0% { transform: translateY(8px) scale(0.7); } 60% { transform: translateY(-2px) scale(1.04); } 100% { transform: none; } }
+/* The oven's bright pane fades up while it cooks and breathes — light, not motion. */
+.pd-ovenlight { opacity: 0; transition: opacity 500ms ease; }
+.t-item.prop-cooking .pd-ovenlight { opacity: 1; animation: pd-ovenbreathe 1s ease-in-out infinite alternate; }
+@keyframes pd-ovenbreathe { from { opacity: 0.55; } to { opacity: 1; } }
+/* Bath time: foam pips and the little rubber duck bobbing in the tub (DOM overlays). */
+.pd-foam { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; opacity: 0.9; pointer-events: none; z-index: 3; animation: pd-foam 2.2s ease-in-out infinite alternate; }
+@keyframes pd-foam { from { transform: translateY(0) scale(1); } to { transform: translateY(-4px) scale(1.15); } }
+.pd-duck { position: absolute; pointer-events: none; z-index: 3; animation: pd-duckbob 1.6s ease-in-out infinite alternate; }
+@keyframes pd-duckbob { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-5px) rotate(4deg); } }
+/* The hop-out shake. */
+.pd-shake { animation: pd-shake 420ms ease-out 1; }
+@keyframes pd-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-8deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } }
+/* Catching your own eye in the mirror: a small lean in, and back. */
+.pd-mirror-look { animation: pd-mirror-look 1.5s ease-in-out 1; transform-origin: 50% 100%; }
+@keyframes pd-mirror-look { 0%, 100% { transform: none; } 25% { transform: scale(1.06) rotate(-3deg); } 60% { transform: scale(1.06) rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pd-door, .pd-ovenlight { transition: none; }
+  .t-item.prop-open .pd-peek, .t-item.prop-cooking .pd-ovenlight, .pd-foam, .pd-duck, .pd-shake, .pd-mirror-look { animation: none !important; }
+}
+
 /* RUN20 W4: one shared 6s flourish loop per unlocked badge, with per-area content. Three nodes
    max per badge, transform-only, static under reduced motion. */
 .mb-flourish { position: absolute; inset: 0; pointer-events: none; overflow: visible; }

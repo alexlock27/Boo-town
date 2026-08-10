@@ -7,7 +7,7 @@ import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './
 import { getState, mutate, commit, nextPlacementId } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
-import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX } from './art.js';
+import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX, WISH_ART } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { priceOf } from '../data/shop.js';   // RUN21C-4: the Pot's locked styles show their shelf price
 import { resolveItem } from './customs.js';
@@ -19,7 +19,7 @@ import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreograph
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
-import { sfx, music, ambient, bed } from './sfx.js';
+import { sfx, music, ambient, bed, animal } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
@@ -4519,6 +4519,150 @@ export function mount(container, params, ctx) {
     wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); clearSlotGlow(); });   // RUN21B-4
   }
 
+  // ---- RUN21E-12: the dead-prop amnesty --------------------------------------------------
+  // Five things a child could always SEE and never do anything with. Each now answers her
+  // finger with the engine that already exists for it: the fridge and the wardrobe open
+  // (hinged svg door groups, art.js), the oven lights and dings, the bath borrows the
+  // paddle-pool's own transform, and the mirror borrows the wander pause.
+  //
+  // Nothing here is added to ACT_IDS or SOCKETS on purpose: the role sweep would then claim
+  // these props AMBIENTLY, and the pack asks for a response to HER TAP, not for a fridge that
+  // opens itself. Verbs run on the play path only (`!softened`) so an arranging tap still
+  // gets Move / Put away, exactly as the wish verbs do.
+  const PROP_VERB_IDS = new Set(['deco_fridge', 'deco_oven', 'deco_bathtub', 'deco_wardrobe', 'deco_wardrobe2', 'deco_mirror']);
+  const FRIDGE_OPEN_MS = 2600;      // door held open long enough to read what peeked out
+  const OVEN_COOK_MS = 3000;        // the pack's 3s glow, then the ding
+  const BATH_MS = 8000;             // the pack's soak
+  const BATH_REACH = 0.15;          // "a Boo within 15%" — zone-x fraction, the save's own unit
+  const MIRROR_REACH = 0.06;        // a passing Boo is one that walks CLOSE to the glass
+  const FOOD_WORDS = ['cake', 'apple', 'pizza', 'banana', 'carrot', 'cheese', 'cookie'];
+  let mirrorSeenThisVisit = false;
+
+  // The nearest placed Boo to an x, with its live actor when it has one.
+  function nearestBooTo(xFrac, maxFrac = Infinity) {
+    let best = null, bestD = Infinity;
+    for (const t of areaItems(getState())) {
+      const id = t.item || '';
+      if (!id.startsWith('boo_') && !id.startsWith('custom:')) continue;
+      const d = Math.abs(t.x - xFrac);
+      if (d < bestD) { bestD = d; best = t; }
+    }
+    if (!best || bestD > maxFrac) return null;
+    return { place: best, actor: actors.find(a => a.place && a.place.item === best.item) || null, dist: bestD };
+  }
+  // A one-shot class on a node, token-guarded so a second tap can never be cut short by the
+  // first tap's cleanup (the RUN21B lesson from playOnce, applied to wraps as well as svgs).
+  function propPlay(node, cls, ms) {
+    if (!node) return;
+    const token = (node._propToken = (node._propToken || 0) + 1);
+    node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls);
+    setTimeout(() => { if (node._propToken === token) node.classList.remove(cls); }, ms);
+  }
+
+  // The whole dispatch. Returns true when it OWNED the tap (so the arranging menu stays shut).
+  function itemVerb(wrap, place, item) {
+    const id = item && item.id;
+    if (!PROP_VERB_IDS.has(id)) return false;
+    switch (id) {
+      case 'deco_fridge': {
+        // The door swings, the inside lights, and one of her food wishes peeks out. The
+        // nearest Boo trots over for the chomp the FOOD wishes already run.
+        const peek = wrap.querySelector('.pd-peek');
+        if (peek) {
+          const word = FOOD_WORDS[Math.floor(Math.random() * FOOD_WORDS.length)];
+          const art = WISH_ART[word];
+          peek.innerHTML = art ? `<svg x="44" y="62" width="34" height="37" viewBox="0 0 120 130">${art}</svg>` : '';
+        }
+        propPlay(wrap, 'prop-open', FRIDGE_OPEN_MS);
+        sfx.tap();
+        const near = nearestBooTo(place.x);
+        if (near && near.actor) {
+          clearRole(near.actor); endWait(near.actor);
+          near.actor.goal = { kind: 'approach', deco: place, targetDx: (place.x - near.actor.place.x) * zoneW, start: performance.now() };
+          if (wishSound.allow(placementIdOf(place), { tapped: true })) sfx.chomp();
+        }
+        // No line by design (pack): the animation IS the response.
+        return true;
+      }
+      case 'deco_oven': {
+        // Three seconds of oven light, then the ding and a puff of steam. The ack line is
+        // "may" — it asks the shared budget and takes silence for an answer.
+        propPlay(wrap, 'prop-cooking', OVEN_COOK_MS + 400);
+        sfx.tap();
+        setTimeout(() => {
+          if (!wrap.isConnected) return;
+          sfx.chime(4);
+          for (let i = 0; i < 3; i++) {
+            const pip = el('i', { class: 'wish-wisp' });
+            pip.style.left = (36 + i * 14) + '%';
+            pip.style.animationDelay = (i * 160) + 'ms';
+            wrap.appendChild(pip);
+            setTimeout(() => pip.remove(), 1800 + i * 160);
+          }
+          if (roomId === 'kitchen') {
+            const line = acknowledge('ovenBake');
+            if (line) sayOver(wrap, line, 2600);
+          }
+        }, OVEN_COOK_MS);
+        return true;
+      }
+      case 'deco_bathtub': {
+        const near = nearestBooTo(place.x, BATH_REACH);
+        if (!near || !near.actor) {
+          // Never a dead tap: the tub sloshes and says what would make it happen.
+          propPlay(wrap, 'pd-shake', 460);
+          sfx.tap();
+          hint.textContent = 'Pop a Boo beside the bath for a splash!';
+          return true;
+        }
+        const a = near.actor;
+        clearRole(a); endWait(a); if (a.goal) endGoal(a);
+        a.goal = { kind: 'bath', tub: place, tubWrap: wrap, targetDx: (place.x - a.place.x) * zoneW, start: performance.now() };
+        sfx.tap();
+        return true;
+      }
+      case 'deco_wardrobe':
+      case 'deco_wardrobe2': {
+        propPlay(wrap, 'prop-open', 2200);
+        sfx.tap();
+        // Dress-up EDITS a Boo, so a visitor watches the doors open and nothing more.
+        if (READONLY) return true;
+        const near = nearestBooTo(place.x);
+        const booItem = near && resolveItem(near.place.item);
+        if (booItem) setTimeout(() => openDressUp(booItem, { onDone: () => renderPlaced() }), 320);
+        else hint.textContent = 'Put a Boo nearby and open the doors again!';
+        return true;
+      }
+      case 'deco_mirror': {
+        const near = nearestBooTo(place.x);
+        sfx.tap();
+        if (near && near.actor) mirrorLook(near.actor);
+        else { sparkleAtNode(wrap); hint.textContent = 'Who will look in the mirror?'; }
+        return true;
+      }
+    }
+    return false;
+  }
+  // A Boo catching its own reflection: it stops, faces out, one sparkle, and walks on.
+  function mirrorLook(a) {
+    if (!a) return;
+    a.state = 'pause'; a.vx = 0; a.walkTo = null; a.next = 1600;
+    const svg = a.wrap.querySelector('svg');
+    if (svg && !REDUCED) propPlay(svg, 'pd-mirror-look', 1500);
+    sparkleAtNode(a.wrap);
+  }
+  // ...and the ambient half: once a visit, a Boo that happens to walk past a placed mirror
+  // does it without being asked. Called from the wanderer's own arrival, beside the path ack.
+  function maybeMirrorLook(a) {
+    if (mirrorSeenThisVisit || REDUCED || !a || !a.place) return;
+    const mirrors = areaItems(getState()).filter(t => t.item === 'deco_mirror');
+    if (!mirrors.length) return;
+    const landing = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    if (!mirrors.some(m => Math.abs(m.x - landing) <= MIRROR_REACH)) return;
+    mirrorSeenThisVisit = true;
+    mirrorLook(a);
+  }
+
   function onTap(wrap, place, item) {
     if (item.kind === 'boo') {
       const napper = actors.find(x => x.wrap === wrap);
@@ -4547,6 +4691,9 @@ export function mount(container, params, ctx) {
     if (item.id === 'deco_wishwell') { if (!READONLY) openWellHere(wrap); return; }
     if (item.id === 'deco_jokestage') { sfx.tap(); if (!READONLY) ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
+    // RUN21E-12: the five amnestied props answer the tap instead of opening the menu — the
+    // same shape as the wish verbs above, and for the same reason.
+    if (!softened && itemVerb(wrap, place, item)) return;
     if (READONLY) return;   // …and the arranging menu (Move / Put away / size) never opens
     openMenu(wrap, place, item);
   }
@@ -5412,6 +5559,8 @@ export function mount(container, params, ctx) {
         // stand still. If it happens to have landed on a path she painted, the town notices
         // (once or twice a session at most, per the shared budget).
         if (a.state === 'walk') maybeAckPath(a);
+        // RUN21E-12: and if it has stopped beside a mirror, it catches its own eye (1/visit).
+        if (a.state === 'walk') maybeMirrorLook(a);
         if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.walkTo = null; a.next = 700 + Math.random() * 1600; }
         else if (roll < 0.85) {
           a.state = 'walk';
@@ -5872,6 +6021,7 @@ export function mount(container, params, ctx) {
     if (g && g.kite) { try { g.kite.remove(); } catch {} }         // put the kite away (C2)
     if (g && g.towel) { try { g.towel.remove(); } catch {} }       // fold up the towel (C2)
     if (g && g.stone) { try { g.stone.remove(); } catch {} }       // the stone sinks (C2)
+    if (g && g.pips) { for (const p of g.pips) { try { p.remove(); } catch {} } }   // RUN21E-12: the foam and the duck drain away with the bath
     // NOTE: a sandcastle deliberately LINGERS and fades on its own timer (C2) — not removed here.
     a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
     a.goal = null; a.state = 'pause'; a.vx = 0; a.t = 0; a.next = 600 + Math.random() * 1400;
@@ -5962,6 +6112,46 @@ export function mount(container, params, ctx) {
       } else {
         svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
         if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      }
+      return;
+    }
+    // RUN21E-12: BATH TIME. Walk to the tub, hop in, and paddle — the transform is the
+    // paddle-pool's own (stepRole case 'paddle'), because a Boo splashing in a bath and a Boo
+    // splashing in a pool are the same Boo doing the same thing. Foam and the duck are DOM
+    // pips on the TUB's wrap, never on the actor's svg: stepGoal rewrites that transform every
+    // frame and anything parented there is wiped by the next one.
+    if (g.kind === 'bath') {
+      if (!g.soaking) {
+        if (Math.abs(a.dx - g.targetDx) > zoneW * 0.02) {
+          svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+          if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+          return;
+        }
+        g.soaking = true; g.soakStart = now;
+        sfx.splash();
+        const tub = g.tubWrap;
+        if (tub && !REDUCED) {
+          g.pips = [];
+          for (let i = 0; i < 4; i++) {
+            const foam = el('i', { class: 'pd-foam' });
+            foam.style.left = (18 + i * 20) + '%';
+            foam.style.top = (24 + (i % 2) * 12) + '%';
+            foam.style.animationDelay = (i * 240) + 'ms';
+            tub.appendChild(foam); g.pips.push(foam);
+          }
+          const duck = el('i', { class: 'pd-duck', html: `<svg width="26" height="28" viewBox="0 0 120 130" aria-hidden="true">${WISH_ART.duck || ''}</svg>` });
+          duck.style.left = '58%'; duck.style.top = '18%';
+          tub.appendChild(duck); g.pips.push(duck);
+        }
+      }
+      const T = now - g.soakStart;
+      // The paddle-pool's own numbers, verbatim (stepRole 'paddle').
+      const px = a.dx + Math.sin(T / 900) * 12;
+      const py = -18 + Math.sin(T / 500) * 4;
+      svg.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) rotate(${(Math.sin(T / 700) * 8).toFixed(1)}deg)`;
+      if (T > BATH_MS) {
+        if (svg && !REDUCED) propPlay(svg, 'pd-shake', 460);
+        endGoal(a);
       }
       return;
     }
