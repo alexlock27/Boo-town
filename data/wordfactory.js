@@ -17,6 +17,10 @@ const RULE_DESC = {
   IC_ALLY: 'Words ending ic take -ally.',
   DOUBLE: 'Short vowel, one consonant: double the last letter.',
   DROP_E: 'Drop the silent e before -ing or -ed.',
+  // RUN21H A2: B4 builds -ation and -ous words, so the -ing/-ed wording above was FALSE on
+  // the card the child was looking at (prepare → preparation, fame → famous). Same rule,
+  // stated for the ending actually on screen.
+  DROP_E_ENDING: 'Drop the silent e before the ending.',
   JUST_ADD: 'Most words just add the ending.',
   STRESS_END: 'The stress is at the end, so the last letter doubles.',
   STRESS_START: 'The stress is at the start, so just add.'
@@ -99,12 +103,12 @@ export const B3PLUS = [
 // A naming word is a noun; a describing word is an adjective (KS2-friendly names).
 export const B4 = [
   { id: 'information', parts: [{ k: 'inform', l: 'inform' }, { k: 'ation', l: 'ation' }], build: 'information', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘inform’ into a naming word!', ruleType: 'JUST ADD' },
-  { id: 'preparation', parts: [{ k: 'prepare', l: 'prepare' }, { k: 'ation', l: 'ation' }], build: 'preparation', rule: RULE_DESC.DROP_E, order: 'Make ‘prepare’ into a naming word!', ruleType: 'DROP THE E' },
-  { id: 'admiration', parts: [{ k: 'admire', l: 'admire' }, { k: 'ation', l: 'ation' }], build: 'admiration', rule: RULE_DESC.DROP_E, order: 'Turn ‘admire’ into a naming word!', ruleType: 'DROP THE E' },
-  { id: 'sensation', parts: [{ k: 'sense', l: 'sense' }, { k: 'ation', l: 'ation' }], build: 'sensation', rule: RULE_DESC.DROP_E, order: 'Make ‘sense’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'preparation', parts: [{ k: 'prepare', l: 'prepare' }, { k: 'ation', l: 'ation' }], build: 'preparation', rule: RULE_DESC.DROP_E_ENDING, order: 'Make ‘prepare’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'admiration', parts: [{ k: 'admire', l: 'admire' }, { k: 'ation', l: 'ation' }], build: 'admiration', rule: RULE_DESC.DROP_E_ENDING, order: 'Turn ‘admire’ into a naming word!', ruleType: 'DROP THE E' },
+  { id: 'sensation', parts: [{ k: 'sense', l: 'sense' }, { k: 'ation', l: 'ation' }], build: 'sensation', rule: RULE_DESC.DROP_E_ENDING, order: 'Make ‘sense’ into a naming word!', ruleType: 'DROP THE E' },
   { id: 'dangerous', parts: [{ k: 'danger', l: 'danger' }, { k: 'ous', l: 'ous' }], build: 'dangerous', rule: RULE_DESC.JUST_ADD, order: 'Turn ‘danger’ into a describing word!', ruleType: 'JUST ADD' },
   { id: 'poisonous', parts: [{ k: 'poison', l: 'poison' }, { k: 'ous', l: 'ous' }], build: 'poisonous', rule: RULE_DESC.JUST_ADD, order: 'Make ‘poison’ into a describing word!', ruleType: 'JUST ADD' },
-  { id: 'famous', parts: [{ k: 'fame', l: 'fame' }, { k: 'ous', l: 'ous' }], build: 'famous', rule: RULE_DESC.DROP_E, order: 'Turn ‘fame’ into a describing word!', ruleType: 'DROP THE E' },
+  { id: 'famous', parts: [{ k: 'fame', l: 'fame' }, { k: 'ous', l: 'ous' }], build: 'famous', rule: RULE_DESC.DROP_E_ENDING, order: 'Turn ‘fame’ into a describing word!', ruleType: 'DROP THE E' },
   { id: 'various', parts: [{ k: 'vary', l: 'vary' }, { k: 'ous', l: 'ious' }], build: 'various', rule: 'vary + ous → various. ' + RULE_DESC.Y_TO_I_LY.replace('-ly', '-ous'), order: 'Make ‘vary’ into a describing word!', ruleType: 'Y TURNS TO I' },
   { id: 'courageous', parts: [{ k: 'courage', l: 'courage' }, { k: 'ous', l: 'eous' }], build: 'courageous', rule: 'KEEP the e — it keeps the g soft!', order: 'Turn ‘courage’ into a describing word!', ruleType: 'KEEP THE E' },
   { id: 'outrageous', parts: [{ k: 'outrage', l: 'outrage' }, { k: 'ous', l: 'eous' }], build: 'outrageous', rule: 'Keep the e again. Outrageous!', order: 'Make ‘outrage’ into a describing word!', ruleType: 'KEEP THE E' }

@@ -22,7 +22,24 @@ import { explainPanel } from '../celebrate.js';
 
 const rand = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function pickN(pool, n) { return shuffle(pool.slice()).slice(0, Math.min(n, pool.length)); }
+// RUN21H A4: session-scoped repeat avoidance — items this session has not dealt come
+// first; an exhausted pool resets its cycle. Module state only, nothing saved.
+const SEEN = new Set();
+export function pickN(pool, n) {   // exported so the A4 seam is testable (r21h-norepeat)
+  const want = Math.min(n, pool.length);
+  if (pool.every(it => SEEN.has(it.id))) pool.forEach(it => SEEN.delete(it.id));
+  const fresh = pool.filter(it => !SEEN.has(it.id));
+  const picks = shuffle(fresh.slice()).slice(0, want);
+  if (picks.length < want) {
+    const have = new Set(picks.map(it => it.id));
+    for (const it of shuffle(pool.slice())) {
+      if (picks.length >= want) break;
+      if (!have.has(it.id)) { picks.push(it); have.add(it.id); }
+    }
+  }
+  picks.forEach(it => SEEN.add(it.id));
+  return picks;
+}
 export { VAN_PX_S };
 
 export function mount(container, params, ctx) {

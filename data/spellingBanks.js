@@ -95,14 +95,21 @@ export const BANKS = [
       { w: 'grate', t: 2, clue: '___ the cheese for the pizza' },
       { w: 'meet', t: 2, clue: 'We ___ at the park at noon' },
       { w: 'meat', t: 2, clue: 'Lions eat ___' },
-      { w: 'mail', t: 2, clue: 'The ___ arrives each morning' },
+      // RUN21H A2: 'The ___ arrives each morning' let "The male arrives each morning" stand
+      // as a defensible answer, and the clue is the ONLY disambiguator here. Kept in
+      // lockstep with data/soundTwins.js.
+      { w: 'mail', t: 2, clue: 'The parcel came by ___' },
       { w: 'male', t: 2, clue: 'A ___ lion has a big mane' },
       { w: 'hear', t: 2, clue: 'I can ___ music playing' },
       { w: 'here', t: 2, clue: 'Come over ___ right now' },
       { w: 'whether', t: 2, clue: 'I wonder ___ it will rain' },
       { w: 'weather', t: 2, clue: 'The ___ is sunny today' },
-      { w: 'Whose', t: 2, clue: '___ coat is this on the floor' },
-      { w: "Who's", t: 2, clue: '___ coming to the party' },
+      // RUN21H A2: these were the only capitalised non-proper-noun targets in any bank.
+      // Spell Boo builds its tiles from the word's own letters and its decoys from
+      // decoysFor(), which returns lowercase — so a capital W sat among lowercase decoys and
+      // pointed at the answer's first letter. Lowercase, and the questions get their marks.
+      { w: 'whose', t: 2, clue: '___ coat is this on the floor?' },
+      { w: "who's", t: 2, clue: '___ coming to the party?' },
       { w: 'accept', t: 2, clue: 'Please ___ this little gift' },
       { w: 'except', t: 2, clue: 'Everyone came ___ my cousin' },
       { w: 'affect', t: 2, clue: "The rain didn't ___ our fun" },

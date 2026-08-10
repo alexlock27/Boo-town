@@ -33,14 +33,18 @@ export const POSSESSION = [   // D2 — eighteen items, verbatim
   { id: 'dog1', sentence: 'The ___ bowl is empty.', word: 'dog', form: 'before', count: 'One dog', many: false, build: "dog's" },
   { id: 'dogmany', sentence: 'The ___ tails wagged.', word: 'dogs', form: 'after', count: 'Lots of dogs', many: true, build: "dogs'" },
   { id: 'children', sentence: '___ toys were everywhere.', word: 'children', form: 'before', count: 'The children', many: true, build: "children's", note: 'children is already lots — so it just takes ’s!' },
-  { id: 'men', sentence: 'The ___ shoes are muddy.', word: 'men', form: 'before', count: 'The men', many: true, build: "men's" },
+  // RUN21H A2: `men` and `mice` had no `note`, so commaWhyLine fell through to its
+  // form-derived sentence and told the child "The men — only one!" about a plural — false,
+  // and false about the exact thing the item drills. They now carry the same irregular-plural
+  // note `children` already had.
+  { id: 'men', sentence: 'The ___ shoes are muddy.', word: 'men', form: 'before', count: 'The men', many: true, build: "men's", note: 'men is already lots — so it just takes ’s!' },
   { id: 'grandma', sentence: 'My ___ garden has a pond.', word: 'grandma', form: 'before', count: 'One grandma', many: false, build: "grandma's" },
   { id: 'bird1', sentence: 'The ___ nest has three eggs.', word: 'bird', form: 'before', count: 'One bird', many: false, build: "bird's" },
   { id: 'birdmany', sentence: 'The ___ nests line the cliff.', word: 'birds', form: 'after', count: 'Many birds', many: true, build: "birds'" },
   { id: 'school', sentence: 'The ___ playground opens at nine.', word: 'school', form: 'before', count: 'The school', many: false, build: "school's" },
   { id: 'teachers', sentence: 'Both ___ scarves are stripy.', word: 'teachers', form: 'after', count: 'Two teachers', many: true, build: "teachers'" },
   { id: 'mouse', sentence: 'The ___ cheese went missing.', word: 'mouse', form: 'before', count: 'One mouse', many: false, build: "mouse's" },
-  { id: 'mice', sentence: 'The ___ favourite game is chase.', word: 'mice', form: 'before', count: 'The mice', many: true, build: "mice's" },
+  { id: 'mice', sentence: 'The ___ favourite game is chase.', word: 'mice', form: 'before', count: 'The mice', many: true, build: "mice's", note: 'mice is already lots — so it just takes ’s!' },
   { id: 'dad', sentence: '___ jokes are the silliest.', word: 'Dad', form: 'before', count: 'Dad', many: false, build: "Dad's" },
   { id: 'girls', sentence: 'The ___ sandcastle survived the wave!', word: 'girls', form: 'after', count: 'The girls', many: true, build: "girls'" },
   { id: 'child', sentence: 'One ___ wish came true.', word: 'child', form: 'before', count: 'One child', many: false, build: "child's" }
@@ -63,7 +67,10 @@ export const VAN_PX_S = 40;   // level 3: the sign's delivery-van drift speed
 // the game, and shared by the right AND wrong paths so the lesson is identical either way.
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 export function commaWhyLine(item) {
-  if (item.kind === 'decoy' || !item.form) return `${cap(item.word)} already owns it — no flying comma needed!`;
+  // RUN21H A2: the decoy line used to CAPITALISE the word, so an its/hers/yours decoy read
+  // "Its already owns it" — which is the very its/it's error this game teaches, printed by
+  // the game itself. Quoting the word names it as a word instead of opening a sentence with it.
+  if (item.kind === 'decoy' || !item.form) return `‘${item.word}’ already owns it — no flying comma needed!`;
   return item.note || `${item.count} — ${item.form === 'after' ? 'more than one' : 'only one'}! The apostrophe goes ${item.form === 'after' ? 'AFTER' : 'BEFORE'} the s.`;
 }
 export function commaRightLine(item) {

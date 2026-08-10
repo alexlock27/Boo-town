@@ -5,7 +5,29 @@
 
 const rnd = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function sampleN(arr, n) { return shuffle(arr.slice()).slice(0, Math.min(n, arr.length)); }
+// RUN21H A4: session-scoped repeat avoidance. A round prefers items this session has not
+// dealt yet; only when a pool genuinely exhausts does its membership reset and a fresh
+// cycle begin. Module state only — nothing saved, nothing decays, nothing punishes a
+// return visit (a reload simply starts a fresh cycle).
+const SEEN = new Set();
+function freshFirst(arr) {
+  const unseen = arr.filter(it => !SEEN.has(it.key));
+  if (!unseen.length && arr.length) { arr.forEach(it => SEEN.delete(it.key)); return arr.slice(); }
+  return unseen;
+}
+function sampleN(arr, n) {
+  const want = Math.min(n, arr.length);
+  const picks = shuffle(freshFirst(arr)).slice(0, want);
+  if (picks.length < want) {
+    const have = new Set(picks.map(it => it.key));
+    for (const it of shuffle(arr.slice())) {
+      if (picks.length >= want) break;
+      if (!have.has(it.key)) { picks.push(it); have.add(it.key); }
+    }
+  }
+  picks.forEach(it => SEEN.add(it.key));
+  return picks;
+}
 function range(lo, hi) { const a = []; for (let i = lo; i <= hi; i++) a.push(i); return a; }
 
 // Build a balanced round from per-bucket candidate pools.
@@ -24,7 +46,13 @@ function assemble(buckets, pools, total = 12) {
     for (let b = 0; b < B && picks.length < total; b++) {
       const used = new Set(picks.filter(x => x.bucket === b).map(x => x.key));
       const spare = pools[b].filter(x => !used.has(x.key));
-      if (spare.length) { picks.push(spare[rnd(spare.length)]); added = true; }
+      if (spare.length) {
+        // RUN21H A4: top-ups prefer items this session has not seen either
+        const fresh = spare.filter(x => !SEEN.has(x.key));
+        const it = (fresh.length ? fresh : spare)[rnd((fresh.length ? fresh : spare).length)];
+        SEEN.add(it.key);
+        picks.push(it); added = true;
+      }
     }
     if (!added) break;
   }
@@ -78,7 +106,7 @@ export const TEMPLATES = [
     const pool0 = range(N + 1, N + 4).map(n => numItem(n, 0));
     const pool1 = [...range(N + 6, N + 9).map(n => numItem(n, 1)), numItem(N + 5, 1)];
     return round(buckets, assemble(buckets, [pool0, pool1], 9),
-      it => `${it.value} rounds to the nearest ten. Remember, a 5 rounds up!`);
+      it => `Round ${it.value} to the nearest ten. Remember, a 5 rounds up!`);
   }},
 
   // 4. round100 (L2)
@@ -88,7 +116,7 @@ export const TEMPLATES = [
     const pool0 = range(H + 1, H + 49).map(n => numItem(n, 0));
     const pool1 = [...range(H + 51, H + 99).map(n => numItem(n, 1)), numItem(H + 50, 1)];
     return round(buckets, assemble(buckets, [sampleN(pool0, 20), sampleN(pool1, 20)]),
-      it => `${it.value} rounds to the nearest hundred. Look at the tens digit — 50 rounds up!`);
+      it => `Round ${it.value} to the nearest hundred. If the tens digit is 5 or more, round up!`);
   }},
 
   // 5. tableMember (L1 [2,5,10], L2 [3,4,8], L3 [6,7,9])
@@ -125,15 +153,29 @@ export const TEMPLATES = [
       it => `Is ${it.num}/${it.den} less than, equal to, or more than a half?`);
   }},
 
-  // 8. units (L1 & L2)
-  ...[1, 2].map(lvl => ({ id: 'units' + lvl, level: lvl, make() {
+  // 8. units (L1 small units, L2 big units)
+  // RUN21H A2: these two were a `[1,2].map(...)` of ONE template, so levelling up served the
+  // identical round advertised as harder. They are now two templates with two different unit
+  // families — small (cm/kg/ml) then big (metres/tonnes-ish/litres) — so level 2 is a step up
+  // rather than a relabel. Captions that named a THING a child could defensibly measure two
+  // ways ('a book', 'a dog', 'a bicycle') now name the ATTRIBUTE, the way the authored
+  // 'the width of a table' already did.
+  { id: 'units1', level: 1, make() {
     const buckets = ['centimetres', 'kilograms', 'millilitres'];
-    const cm = [['✏️','a pencil'],['📕','a book'],['🖐️','your hand span'],['👟','a shoe'],['🪵','the width of a table'],['🪱','a worm']].map(([e,c]) => unitItem(e, c, 0));
-    const kg = [['🐕','a dog'],['🍉','a watermelon'],['🥔','a bag of potatoes'],['🚲','a bicycle'],['🎃','a pumpkin'],['🎒','a school bag']].map(([e,c]) => unitItem(e, c, 1));
+    const cm = [['✏️','a pencil'],['🎀','a ribbon'],['🖐️','your hand span'],['👟','the length of a shoe'],['🪵','the width of a table'],['🪱','a worm']].map(([e,c]) => unitItem(e, c, 0));
+    const kg = [['🐕','how heavy a dog is'],['🍉','how heavy a watermelon is'],['🥔','a bag of potatoes'],['🧳','a heavy suitcase'],['🎃','how heavy a pumpkin is'],['🎒','a full school bag']].map(([e,c]) => unitItem(e, c, 1));
     const ml = [['🥤','water in a cup'],['🧃','juice in a carton'],['🥄','a spoon of medicine'],['🥛','milk on cereal'],['🥫','a can of pop'],['🎨','paint in a pot']].map(([e,c]) => unitItem(e, c, 2));
     return round(buckets, assemble(buckets, [cm, kg, ml]),
       it => `Would you measure ${it.caption} in centimetres, kilograms or millilitres?`);
-  }})),
+  }},
+  { id: 'units2', level: 2, make() {
+    const buckets = ['metres', 'grams', 'litres'];
+    const m = [['🏊','the length of a swimming pool'],['🌳','how tall a tree is'],['🏠','how wide a house is'],['🚌','the length of a bus'],['⚽','how far you can kick a ball'],['🪜','how tall a ladder is']].map(([e,c]) => unitItem(e, c, 0));
+    const g = [['🪶','how heavy a feather is'],['🍬','how heavy a sweet is'],['📎','how heavy a paperclip is'],['🍪','how heavy a biscuit is'],['🔑','how heavy a key is'],['🍇','how heavy one grape is']].map(([e,c]) => unitItem(e, c, 1));
+    const l = [['🪣','water in a bucket'],['⛽','petrol in a car'],['🛁','water in a bath'],['🥛','milk in a big bottle'],['💧','water in a watering can'],['🐟','water in a fish tank']].map(([e,c]) => unitItem(e, c, 2));
+    return round(buckets, assemble(buckets, [m, g, l]),
+      it => `Would you measure ${it.caption} in metres, grams or litres?`);
+  }},
 
   // 10. twoRule (L3) — RUN18B Y5. Two predicates at once, from the authored set; the rule
   // is spoken and shown exactly as written. Both halves have to be true to feed the left Boo.

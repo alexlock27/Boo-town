@@ -77,8 +77,13 @@ export function buildTarget(sound, level) {
   if (!usable.length) return null;
   const position = usable[rand(usable.length)];
   const pool = shuffle(authoredAt(sound, position));
+  // RUN21H A4: lead with words this session has not yet asked for this sound; an
+  // exhausted pool resets its cycle (session memory only, nothing saved).
+  if (pool.every(w => SEEN_WORDS.has(sound + ':' + w))) pool.forEach(w => SEEN_WORDS.delete(sound + ':' + w));
+  pool.sort((a, b) => (SEEN_WORDS.has(sound + ':' + a) ? 1 : 0) - (SEEN_WORDS.has(sound + ':' + b) ? 1 : 0));
   const wantCorrect = Math.min(pool.length, 2 + rand(2));   // 2 or 3
   const correct = pool.slice(0, wantCorrect);
+  correct.forEach(w => SEEN_WORDS.add(sound + ':' + w));
 
   // Distractors: never share the target SOUND (in any position), never accent-fragile.
   // Level 4 fills from the authored near-miss list first — the confusable sounds — then
@@ -104,17 +109,23 @@ export function buildTarget(sound, level) {
   return { sound, position, correct: onBoard, cards };
 }
 
+// RUN21H A4: session memory for words asked per sound (buildTarget) and sounds asked
+// (buildRound). Module state only; a fresh visit simply starts a fresh cycle.
+const SEEN_WORDS = new Set();
+const SEEN_SOUNDS = new Set();
 export function buildRound(sounds, level, n = ROUND_TARGETS) {
   const eligible = sounds.filter(s => targetsForLevel(level).includes(s));
   if (!eligible.length) return [];
   const out = [];
   let guard = 0;
   while (out.length < n && guard++ < n * 40) {
-    const s = eligible[rand(eligible.length)];
+    if (eligible.every(s => SEEN_SOUNDS.has(s))) eligible.forEach(s => SEEN_SOUNDS.delete(s));
+    const fresh = eligible.filter(s => !SEEN_SOUNDS.has(s));
+    const s = (fresh.length ? fresh : eligible)[rand((fresh.length ? fresh : eligible).length)];
     // don't ask the same sound twice in a row when there is a choice
     if (eligible.length > 1 && out.length && out[out.length - 1].sound === s) continue;
     const t = buildTarget(s, level);
-    if (t) out.push(t);
+    if (t) { out.push(t); SEEN_SOUNDS.add(s); }
   }
   return out;
 }
@@ -130,6 +141,17 @@ export function missLine(word, target) {
   const base = `${word} hasn't got ${target} in it — listen: ${word}.`;
   const others = soundsIn(word).filter(s => s !== target);
   return others.length ? `${base} ${others[0]}, not ${target}!` : base;
+}
+// RUN21H A2: the SPOKEN form of the same line. missLine interpolates the sound KEYS, which
+// are graphemes — 'igh', 'ai', 'oa' — and a speech engine handed "hasn't got igh in it"
+// says something that is not the sound. Every phoneme already carries a `say` field written
+// for exactly this (phonemeMiss uses it); missLine was the one speech path that did not.
+// The displayed line still shows the graphemes, because seeing the letters is the point.
+const sayOf = (key) => (PHONEME_BY_KEY[key] && PHONEME_BY_KEY[key].say) || key;
+export function missLineSpoken(word, target) {
+  const base = `${word} hasn't got ${sayOf(target)} in it — listen: ${word}.`;
+  const others = soundsIn(word).filter(s => s !== target);
+  return others.length ? `${base} ${sayOf(others[0])}, not ${sayOf(target)}!` : base;
 }
 
 export function mount(container, params, ctx) {
@@ -313,8 +335,10 @@ export function mount(container, params, ctx) {
         const line = missLine(word, t.sound);
         shell.react(line, { voice: false, hold: 3000 });
         // the pack asks for the WORD to be spoken, so she hears the thing being talked
-        // about rather than only reading about it.
-        speakMaybe(line);
+        // about rather than only reading about it. RUN21H A2: what she READS keeps the
+        // graphemes; what she HEARS uses each phoneme's authored `say`, so the sounds in
+        // the sentence are the sounds, not the letter names.
+        speakMaybe(missLineSpoken(word, t.sound));
       }
     }
 

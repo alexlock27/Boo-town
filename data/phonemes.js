@@ -71,10 +71,16 @@ export const PHONEME_KEYS = PHONEMES.map(p => p.key);
 // Every word in every authored list appears exactly once here. A word can hold two
 // taught sounds (thorn = th + or; church holds ch twice), so positions are always arrays.
 //
-// `avoid` names sounds this word must never be offered as a distractor FOR, because its
-// vowel is accent-dependent in England: southern English says bath/path with the /ar/
-// vowel, northern English does not. Neither child should ever be told she is wrong, so
-// these two words simply never appear on an /ar/ card.
+// `avoid` names sounds this word must never be offered as a distractor FOR. Two reasons
+// qualify a word, and both come to the same thing — a child is never told she is wrong for
+// an answer she can defend:
+//   1. an accent-dependent vowel — southern English says bath/path with the /ar/ vowel and
+//      northern English does not, so those two never appear on an /ar/ card;
+//   2. (RUN21H A2) a spelling that contains the target's LETTERS without its sound — chair
+//      is spelt c-h-a-i-r, so a child reading the 'ai' card taps it and, without this guard,
+//      is told "chair hasn't got ai in it", which is false to the letters in front of her.
+// Swept across all 72 pool words against all 12 taught graphemes, chair/ai is the only
+// letters-without-the-sound case, so this one entry closes the whole class.
 export const WORD_SOUNDS = {
   // sh
   ship:   { sh: ['initial'] },
@@ -85,7 +91,7 @@ export const WORD_SOUNDS = {
   wish:   { sh: ['final'] },
   // ch
   chip:   { ch: ['initial'] },
-  chair:  { ch: ['initial'] },
+  chair:  { ch: ['initial'], avoid: ['ai'] },
   beach:  { ee: ['medial'], ch: ['final'] },
   cheese: { ch: ['initial'], ee: ['medial'] },
   church: { ch: ['initial', 'final'] },

@@ -5,7 +5,28 @@
 
 const rnd = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function sampleN(arr, n) { return shuffle(arr.slice()).slice(0, Math.min(n, arr.length)); }
+// RUN21H A4: session-scoped repeat avoidance — same seam as data/sorting.js (this file
+// stays deliberately self-contained, so it carries its own copy). A round prefers items
+// this session has not dealt yet; a genuinely exhausted pool resets and cycles fresh.
+const SEEN = new Set();
+function freshFirst(arr) {
+  const unseen = arr.filter(it => !SEEN.has(it.key));
+  if (!unseen.length && arr.length) { arr.forEach(it => SEEN.delete(it.key)); return arr.slice(); }
+  return unseen;
+}
+function sampleN(arr, n) {
+  const want = Math.min(n, arr.length);
+  const picks = shuffle(freshFirst(arr)).slice(0, want);
+  if (picks.length < want) {
+    const have = new Set(picks.map(it => it.key));
+    for (const it of shuffle(arr.slice())) {
+      if (picks.length >= want) break;
+      if (!have.has(it.key)) { picks.push(it); have.add(it.key); }
+    }
+  }
+  picks.forEach(it => SEEN.add(it.key));
+  return picks;
+}
 function range(lo, hi) { const a = []; for (let i = lo; i <= hi; i++) a.push(i); return a; }
 
 // Build a balanced round from per-bucket candidate pools.
@@ -24,7 +45,13 @@ function assemble(buckets, pools, total = 12) {
     for (let b = 0; b < B && picks.length < total; b++) {
       const used = new Set(picks.filter(x => x.bucket === b).map(x => x.key));
       const spare = pools[b].filter(x => !used.has(x.key));
-      if (spare.length) { picks.push(spare[rnd(spare.length)]); added = true; }
+      if (spare.length) {
+        // RUN21H A4: top-ups prefer items this session has not seen either
+        const fresh = spare.filter(x => !SEEN.has(x.key));
+        const it = (fresh.length ? fresh : spare)[rnd((fresh.length ? fresh : spare).length)];
+        SEEN.add(it.key);
+        picks.push(it); added = true;
+      }
     }
     if (!added) break;
   }
@@ -117,7 +144,10 @@ export const TEMPLATES_EXTRA = [
       ['🏫', 'a whole school day'],
       ['🎬', 'a film'],
       ['😴', "tonight's sleep"],
-      ['🚗', 'a drive to the seaside']
+      // RUN21H A2: was 'a drive to the seaside' — true in hours only if you live inland.
+      // A child in Blackpool or Brighton drives to the seaside in minutes and would be
+      // marked soft-wrong for the right answer. 'long' pins the bucket for every child.
+      ['🚗', 'a long car journey']
     ].map(([e, c]) => unitItem(e, c, 2));
     return round(buckets, assemble(buckets, [secs, mins, hours]),
       it => `Does ${it.caption} take seconds, minutes or hours?`);
@@ -164,8 +194,10 @@ export const TEMPLATES_EXTRA = [
   // 17. capacityLitre (L2)
   { id: 'capacityLitre', level: 2, make() {
     const buckets = ['less than 1 litre', 'more than 1 litre'];
+    // RUN21H A2: '2 l' and '3 l' spelt out — in a rounded child sans a lowercase l is a
+    // bare stroke, so '2 l' can be read as '21'. The hint already says "1 litre".
     const less = ['500 ml', '250 ml', '999 ml', '100 ml', '750 ml', '900 ml'].map(t => textItem(t, 0));
-    const more = ['1500 ml', '2 l', '1250 ml', '1001 ml', '3 l', '2500 ml'].map(t => textItem(t, 1));
+    const more = ['1500 ml', '2 litres', '1250 ml', '1001 ml', '3 litres', '2500 ml'].map(t => textItem(t, 1));
     return round(buckets, assemble(buckets, [less, more]),
       it => `Is ${it.text} less or more than 1 litre? 1 litre is 1000 ml.`);
   }},
@@ -213,8 +245,11 @@ export const TEMPLATES_EXTRA = [
     const buckets = ['same as 1/4', 'same as 3/4'];
     const q1 = [[2, 8], [3, 12], [25, 100], [5, 20]].map(([n, d]) => fracItem(n, d, 0));
     const q3 = [[6, 8], [9, 12], [75, 100], [15, 20]].map(([n, d]) => fracItem(n, d, 1));
+    // RUN21H A2: the hint said "Try simplifying it" — 'simplify' is Year 6 vocabulary, so
+    // the one word a stuck Y3/4 child was offered was two years above her tier. The method
+    // is now spelt out, and it works on every item in both pools.
     return round(buckets, assemble(buckets, [q1, q3]),
-      it => `Is ${it.num}/${it.den} the same as 1/4 or 3/4? Try simplifying it.`);
+      it => `Is ${it.num}/${it.den} the same as 1/4 or 3/4? Divide the top and the bottom by the same number.`);
   }},
 
   // 23. tenths (L3, Year 4 bridge). Mixed decimal / word / fraction rendering.
@@ -242,11 +277,16 @@ export const TEMPLATES_EXTRA = [
   }},
 
   // 24. nounVerbAdjective (L1)
+  // RUN21H A2: six words were swapped because each had a DEFENSIBLE second reading a
+  // Y3/4 child would be marked soft-wrong for — 'a whisper', 'the giggles', 'give me a
+  // shout' and 'front crawl' are everyday nouns; 'he stormed off' is everyday reading-book
+  // English; and a colour word ('purple') genuinely names a colour as well as describing.
+  // Every replacement has one dominant part of speech in a child's world.
   { id: 'nounVerbAdjective', level: 1, make() {
     const buckets = ['naming word', 'doing word', 'describing word'];
-    const nouns = ['giraffe', 'kitchen', 'teacher', 'bicycle', 'storm', 'pocket', 'castle', 'biscuit'].map(w => textItem(w, 0));
-    const verbs = ['gallop', 'whisper', 'giggle', 'vanish', 'munch', 'stumble', 'shout', 'crawl'].map(w => textItem(w, 1));
-    const adjs = ['enormous', 'grumpy', 'purple', 'gentle', 'curious', 'slippery', 'brave', 'shiny'].map(w => textItem(w, 2));
+    const nouns = ['giraffe', 'kitchen', 'teacher', 'bicycle', 'puddle', 'pocket', 'castle', 'biscuit'].map(w => textItem(w, 0));
+    const verbs = ['gallop', 'scamper', 'gobble', 'vanish', 'munch', 'stumble', 'explore', 'wriggle'].map(w => textItem(w, 1));
+    const adjs = ['enormous', 'grumpy', 'sparkly', 'gentle', 'curious', 'slippery', 'brave', 'shiny'].map(w => textItem(w, 2));
     return round(buckets, assemble(buckets, [nouns, verbs, adjs]),
       it => `Is "${it.text}" a naming word, a doing word, or a describing word?`);
   }},

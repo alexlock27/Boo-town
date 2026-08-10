@@ -13,7 +13,9 @@ export const FOUR = [
 export const FIVE = [
   'apple', 'tiger', 'sheep', 'house', 'mouse', 'plant', 'bread', 'chair', 'cloud', 'dance',
   'smile', 'grape', 'horse', 'lemon', 'magic', 'night', 'ocean', 'party', 'queen', 'river',
-  'snake', 'stone', 'sugar', 'table', 'train', 'whale', 'zebra', 'beach', 'brick', 'candy',
+  // RUN21H A2: 'candy' → 'sweet'. British children say sweets; candy reaches them through
+  // American television, and the house rule is British vocabulary throughout.
+  'snake', 'stone', 'sugar', 'table', 'train', 'whale', 'zebra', 'beach', 'brick', 'sweet',
   'dream', 'flame', 'giant', 'heart', 'jelly', 'koala', 'light', 'money', 'music', 'paint',
   'pizza', 'robot', 'shine', 'storm', 'tooth'
 ];
