@@ -77,9 +77,21 @@ Served from the worktree on **8048**. Board law: affected + core, no full board.
 | `r6p1-town` | town.js changed | 27s | **PASS** |
 | `r18d-hub-scroll` | hub.js changed · 8-button law | 11s | **PASS** |
 | `r17x4-whatsnew` | whatsnew.js changed | 111s | **PASS** |
+| `r12s13-a11y` | extra — a new interactive element | 27s ✗ → 94s ✓ | **PASS** (1 flake) |
 
-**17 suites, ~14 minutes, zero failures, zero flakes.** No full board (board law). No walk
-(Lanes 1 and 5 own tonight's two).
+**18 suites, ~16 minutes, zero real failures.** No full board (board law). No walk (Lanes 1
+and 5 own tonight's two).
+
+**The one flake, recorded rather than hidden.** `r12s13-a11y` failed its first run on a
+`waitForFunction(() => window.BooTown)` **boot timeout** in its `open()` helper, on the
+second iteration of a two-route loop (`town` with `openWishWell`; the `detective` iteration
+before it passed). That is precisely the flake class PICK-UP-HERE names — *"frame-evidence
+suites are the flaky ones, plus `.hub` boot timeouts"* — it is not an assertion failure, and
+the app under test never reported an error. Board law allows ONE serial re-run to confirm:
+it passed clean at 94s, all sections including its own OFFLINE-LAW check. Moved on, as the
+law directs. Note this suite is **not** in the pack's gate list — `r12s4-contrast` is the
+core's tap-target/contrast slot and passed first time; I ran this one as extra assurance
+because the feature adds a new interactive element.
 
 ### What the gate actually caught
 
