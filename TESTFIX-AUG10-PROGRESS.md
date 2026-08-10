@@ -240,7 +240,9 @@ cannot come back without the content, and `r12s1-routes`' entry re-worded to say
 is kept while the door is gone. **No What's New entry** — nothing announces a removal.
 
 Proved with the affected toddler-hub suites only: `r7p4-toddler` PASS 31s (new pin
-asserting), `r5p8-toddler` PASS 21s, `r12s1-routes` PASS 120s.
+asserting), `r5p8-toddler` PASS 21s, `r12s1-routes` PASS 120s. Additionally
+`r19d-endtoend` PASS 80s — it drives `storyorder({ toddler: true })` directly and plays it
+to results, so the restricted mode is proved still working, not merely still registered.
 
 ---
 
