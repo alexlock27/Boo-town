@@ -97,6 +97,22 @@ replay, not speech; the grown-ups voice preview is not child-facing; `guide.js`'
 coercion is left alone (booleans pass through unchanged, so `r17x1-jokes` stays out of the
 blast radius).
 
+**The interrupt is proved behaviourally, not just by green suites.** Because the suites must
+pass with or without it, they cannot be the evidence that it works — so
+`.tmp/interrupt-probe.mjs` proves it directly, using a stub that **never** fires `onend` so
+a line stays stuck "playing" until something cuts it. Rhyme Time's "Say it again", pressed
+while that line is stuck:
+
+```
+queue before: length=1 playing=3
+queue after:  length=1 playing=4      ← the stuck line was CUT and the new one took over
+```
+
+The playing id advances and the queue does **not** grow. Queueing (the old behaviour) would
+read `length=2 playing=3` — the child's request waiting behind a line that never ends. The
+control case confirms the other half: a game mount produces no interrupt storm on its
+first-time lines, and only the subsequent "Hear it again" press cuts through.
+
 **Affected-suite gate, each run alone on 8044 — all PASS:** `r16w2-blendit` 21s ·
 `r16w3-rhymetime` 22s · `r16w4-storyorder` 55s · `r17x2-encouragement` 4.5s ·
 `r12s13-a11y` 92s · `r16w1-soundsorter` 22s · `r18a-soundsorter-modes` 80s ·
