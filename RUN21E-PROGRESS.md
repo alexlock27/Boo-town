@@ -481,6 +481,60 @@ parented there is wiped by the next one.
 - `tests/p3-town.mjs:17` `SEEDED_LANDMARKS` — gained `deco_noticepost`, so "what SHE put down"
   still excludes what the town gave her.
 
+## Delight self-critique (honest, with before/after frames)
+
+**What I changed after LOOKING at it, not after reading it.** Three things passed their assertions
+and still were not good enough on screen:
+
+1. **The tide line was invisible.** `_evidence/run21e/e3-tide-high.png`. Written to the hint bar,
+   it was reliably overwritten by the Pulse's own opening beat ("Squish, squish!") about 900ms
+   after first paint. The DOM assertion was green and a child would never have read the sentence.
+   Moved to `sayInWorld`. The walk's own frame
+   (`_evidence/walk/2026-08-10/1024x768-beach.png`) now shows "The tide has come in!" sitting
+   beside a Boo on a bright beach, which is what it was always meant to look like.
+
+2. **The marshmallows were on the Boos' faces.** Before/after: the earlier
+   `e11-marshmallows.png` had the sticks at 0.55/0.42 of the wrap — squarely over each Boo's own
+   face, and at 24px barely findable. Now 0.74/0.62 and 32px: held out and down, at hand height,
+   pointing at the fire. Same assertion, a completely different picture.
+
+3. **Every evidence frame was a lie about the colour.** `.town2` fades in over 300ms from
+   `opacity: 0`, and my screenshots were catching the crossfade — the dark page background showing
+   through a half-transparent town, which reads as "the whole app is dimmed". I only noticed by
+   comparing my frames against `tests/walk.mjs`'s, which wait long enough and came out
+   full-colour. `open()` now waits for the crossfade to finish before anything is photographed.
+   Every frame in `_evidence/run21e/` was regenerated.
+
+**What I am happy with.** The combined growth reveal (`e15-combined.png`) genuinely feels like a
+celebration rather than a notification. Tag (`e4-tag.png`) reads instantly as two Boos playing —
+you can see who is chasing whom. The two swags (`e10-two-swags.png`) sag and hang like real
+bunting, and follow a dragged end rather than snapping. Fair day (`e6-fairday.png`) makes the fair
+look like it is throwing a party in broad daylight, which was the whole point of not reusing the
+night class.
+
+**What I am not happy with, and did not fix.** The pretend night's dim is a filter transition on
+one layer; it eases nicely, but the *sky* through the room's window changes in a single frame when
+the built-ins re-render. A child watching closely will see the window pop rather than fade. It is
+a re-render, not a transition, and doing it properly means cross-fading two copies of the
+built-ins layer — more machinery than E7 asked for, so it is written down rather than built.
+
+## Pre-merge walk (RUN21F F10) — PASS
+
+`BASE=http://127.0.0.1:8041 WALK_MIN=8 node tests/walk.mjs` — **RESULT: PASS, 0 errors captured.**
+
+```
+  ok tablet-landscape: 5 lap(s) of all 10 stops, 10 distinct places, 10 screenshots, 40 real-mouse handles
+  ok tablet-portrait:  5 lap(s) of all 10 stops, 10 distinct places, 10 screenshots, 40 real-mouse handles
+  ok phone:            5 lap(s) of all 10 stops, 10 distinct places, 10 screenshots, 41 real-mouse handles
+  wall time: 8.1 min · screenshots in _evidence/walk/2026-08-10
+```
+
+Every area and every room, at 1024x768 / 768x1024 / 390x844, with the console, pageerror,
+window.onerror, unhandledrejection and request-failure hooks all armed. Two earlier attempts at
+the authored 10-minute length were reaped by the shell's own 10-minute ceiling partway through the
+phone viewport (both had already passed both tablet viewports clean); `WALK_MIN=8` fits inside it
+and still walks everything at every size.
+
 ## Notes for resumption
 - Required reading done: lane brief, CLAUDE.md, RUN21E pack + handover, RUN21C report notes 0–7,
   PICK-UP-HERE.md, BLOCKED.md. Key collisions: no buildMode (use `worldSoftened()`); pan only via

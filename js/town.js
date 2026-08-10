@@ -2127,10 +2127,12 @@ export function mount(container, params, ctx) {
     for (const a of round) {
       const stick = el('i', {
         class: 't-marshmallow', 'aria-hidden': 'true',
-        html: `<svg viewBox="0 0 26 10" width="24" height="9"><line x1="1" y1="8" x2="19" y2="4" stroke="#8A6B3A" stroke-width="2" stroke-linecap="round"/>`
-          + `<ellipse cx="21" cy="4" rx="4" ry="3.4" fill="#FFF3E6" stroke="#D8B48A" stroke-width="1.2"/></svg>`
+        html: `<svg viewBox="0 0 32 14" width="32" height="14"><line x1="1" y1="12" x2="23" y2="6" stroke="#8A6B3A" stroke-width="2.6" stroke-linecap="round"/>`
+          + `<ellipse cx="26" cy="5" rx="5" ry="4.2" fill="#FFF3E6" stroke="#D8B48A" stroke-width="1.4"/></svg>`
       });
-      overlayOverWrap(a.wrap, stick, { dx: (a.wrap.offsetWidth || 60) * 0.55, dy: (a.wrap.offsetHeight || 60) * 0.42 });
+      // Held OUT and DOWN, at hand height beside the body — the first frames put it at
+      // 0.55/0.42 of the wrap, which is squarely on the Boo's own face.
+      overlayOverWrap(a.wrap, stick, { dx: (a.wrap.offsetWidth || 60) * 0.74, dy: (a.wrap.offsetHeight || 60) * 0.62 });
       setTimeout(() => { try { stick.remove(); } catch {} }, MARSHMALLOW_MS);
       if (!pipped) {
         pipped = true;

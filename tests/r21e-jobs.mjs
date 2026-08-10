@@ -68,6 +68,15 @@ async function open(save, { area = 'meadow', room = null, w = 1024, h = 768, hou
     await page.waitForFunction(() => window.__townLife, { timeout: 8000 });
     // Multi-threshold fixtures legitimately open with a combined celebration (handover trap 4).
     await page.evaluate(() => document.querySelectorAll('.overlay.growth-reveal').forEach(o => o.remove()));
+    // …and let the ENTRY CROSSFADE finish before anything is photographed. `.town2` fades in
+    // over 300ms from opacity 0; screenshots taken during it show the dark page background
+    // through a half-transparent town, which reads as "the whole scene is dimmed" and makes
+    // every evidence frame a lie about what a child sees. (Found by comparing these frames
+    // against tests/walk.mjs's, which wait long enough at each stop and are full-colour.)
+    await page.waitForFunction(() => {
+      const t = document.querySelector('.town2');
+      return t && !t.classList.contains('entering') && parseFloat(getComputedStyle(t).opacity) > 0.98;
+    }, null, { timeout: 6000 }).catch(() => {});
   }
   return { ctx, page };
 }
