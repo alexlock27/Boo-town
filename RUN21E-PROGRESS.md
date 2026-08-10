@@ -432,6 +432,11 @@ than by copy-paste of a role.
 wrap, never to the actor's `svg` — `stepGoal` rewrites that transform every frame and anything
 parented there is wiped by the next one.
 
+## Final core run, on the exact commit that is pushed
+`r12s1-routes` 288 PASS · `r8p1-migrations` 334 PASS · `m3-pwa` 10 PASS · `r12s4-contrast` 2 PASS ·
+`r18a-copyguard` 13 PASS · `r21e-jobs` 174 PASS. All five fixed-core suites plus this run's own,
+green, against `run21e` HEAD.
+
 ## Wall times (everything actually run, in order)
 | Suite | Result | Wall |
 |---|---|---|
