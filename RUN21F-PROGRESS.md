@@ -151,6 +151,27 @@
       places have tunes; after that it is for noticing. · REVERSIBLE: trivially, if Alex
       disagrees on audition.
 
+### FOR THE MERGE GATE (Alex)
+
+- **The sign-off gate is UNMET and binding.** `NEEDS_ALEX: audition leitmotifs before
+  merge`. Do not merge F8 until NEEDS_ALEX.md gains `LEITMOTIFS: SIGNED-OFF`. `main` is
+  untouched at `22b8d40`; all six F8 commits exist only on `run21f8` / `origin/run21f8`.
+- **The live-URL half of the deploy gate is suspended** for tonight by the lane brief (no
+  merges, no pushes to main, no deploys). `BUILD_STAMP` is bumped to `run21f8-20260810`
+  and the What's New block is prepared ON THE BRANCH; both were verified served from the
+  branch on :8042, but "fetch the live URL and confirm the stamp serves" is necessarily
+  outstanding until the merge. If another pack ships first, the stamp needs re-checking.
+- **PROJECT_STATE.md was deliberately NOT regenerated.** DECISION · WHY: `tools/gen-state.mjs`
+  derives it from the build id, the registry and the catalogue, so all seven lanes running
+  tonight would each produce a different one and collide at merge — the same reasoning the
+  F7 lane used for its stamp. It belongs to the whole-run gate, after the lanes are in. ·
+  REVERSIBLE: `node tools/gen-state.mjs` at the merge gate.
+- **Lane 5 overlap:** the leitmotif work is a self-contained region at the END of
+  `js/sfx.js`, deliberately away from the `band` object, so Lane 5's `pluck` voice beside
+  `guitar()` should merge cleanly. The only edits outside that region are three small ones
+  at the existing music seams (`initAudio` was already fine, `setMusicEnabled`, `music.play`
+  / `music.stop`, `visibilitychange`) — the same four places F7 wired its beds through.
+
 ### F8 originality working (the record for the "no known melodies" law)
 
 The panel's cross-area reviewer died on a session limit before it ran, so I did this check
