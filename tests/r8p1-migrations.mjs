@@ -217,6 +217,39 @@ console.log('== v23 → v24 placement ids are lossless ==');
   assert(eq(m, migrate(structuredClone(m))), 'and the whole step is idempotent');
 }
 
+// v24→v25 (RUN21J): "Today in Boo Town". ONE additive field, `daily`, whose default IS the
+// migration — a pre-v25 save must come through with everything byte-preserved and a fresh
+// (empty-day) daily field, which the running app reads as "a fresh day" without writing.
+// MERGE NOTE: if run21e also claimed v25 tonight, whichever merges second renumbers this
+// pin's title and nothing else — the assertions are all shape, not number.
+console.log('== v24 → v25 daily field is additive-only ==');
+{
+  const v24 = {
+    version: 24, name: 'Ada',
+    inventory: { boo_pip: 1, deco_bench: 2 }, stardust: 4,
+    stars: { total: 75, byGame: { spellboo: { best: 3, plays: 9, earned: 30 } } },
+    quests: { day: '2026-08-09', list: ['q1'], done: [], progress: {}, boxDay: '' },
+    town: { areas: { meadow: { items: [{ id: 1, zone: 'meadow', x: 0.4, row: 1, item: 'deco_bench' }], paths: [] } }, nextId: 2 }
+  };
+  const m = migrate(structuredClone(v24));
+  assert(m.version === VERSION, `reaches VERSION ${VERSION}`);
+  assert(!!m.daily && typeof m.daily === 'object', 'gains a daily field');
+  assert(m.daily.day === '', 'whose day is EMPTY — a fresh day, not a backfilled one');
+  assert(m.daily.doings && m.daily.doings.play === false && m.daily.doings.visit === false && m.daily.doings.care === false,
+    'three unticked doings');
+  assert(Array.isArray(m.daily.visited) && m.daily.visited.length === 0 && m.daily.delivered === false,
+    'no visits recorded, nothing delivered');
+  assert(eq(m.town, v24.town) || (m.town.nextId === 2 && eq(m.town.areas.meadow.items, v24.town.areas.meadow.items)),
+    'placements byte-preserved');
+  assert(m.stars.total === 75 && m.inventory.boo_pip === 1 && m.stardust === 4, 'unrelated data untouched');
+  assert(eq(m, migrate(structuredClone(m))), 'idempotent');
+  // A save that already carries a live daily day (same-day reload) keeps it exactly.
+  const live = migrate(structuredClone({ ...v24, version: VERSION, daily: { day: '2026-08-10', doings: { play: true, visit: false, care: true }, visited: ['meadow'], delivered: false } }));
+  assert(live.daily.day === '2026-08-10' && live.daily.doings.play === true && live.daily.doings.care === true
+    && eq(live.daily.visited, ['meadow']) && live.daily.delivered === false,
+    'a live same-day daily field round-trips untouched');
+}
+
 // idempotence: migrating an already-current save changes nothing material
 console.log('== idempotence ==');
 {

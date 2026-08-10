@@ -24,6 +24,7 @@ import { guideLine, speakMaybe } from './guide.js';
 import { stampJournal } from './quests.js';
 import { contentTier } from './content.js';
 import { runIntro, introSeen, INTRO_SCRIPTS, createRoundTimers } from './intro.js';
+import { noteDailyCare } from './daily.js';   // RUN21J: "Look after a Boo" ticks on any completed care action
 
 const ACTIONS = [
   { id: 'feed', icon: '🍪', label: 'Treat' },
@@ -702,6 +703,18 @@ export function openCare(item, options = {}) {
     status.textContent = `${displayName} loved that! +${POINTS[action]} friendship points`;
     stage.appendChild(el('div', { class: 'care-particle care-float-heart', text: '♥' }));
     if (result.crossed.length) showLevelUp(result.crossed.at(-1));
+    // RUN21J: the third Daily Doing. When THIS action completes all three, the line
+    // (already spoken; tts queues) also lands visibly in the care overlay itself —
+    // and if care is open over the Meadow, the parcel is popping in behind it.
+    const dailyLine = noteDailyCare();
+    // The AUTHORED line is the announcement — it must not be introduced by a heading that
+    // says the same words. One of the two L_DAILY_DONE variants literally opens "All three
+    // doings done!", so an earlier cut printed that sentence twice, one above the other,
+    // half the time. A gift icon carries the moment without competing with the copy.
+    if (dailyLine) stage.appendChild(el('div', { class: 'care-levelup daily-done-note' }, [
+      el('span', { class: 'ddn-ic', text: '🎁' }),
+      el('span', { text: dailyLine })
+    ]));
     sfx.star();
     if (options.onDone) options.onDone(result);
     return result;

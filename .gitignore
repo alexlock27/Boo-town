@@ -86,3 +86,5 @@ _evidence/
 
 # RUN21H sourcing scratch — regenerable by tools/sfx-source.mjs and tools/sfx-verify.mjs
 .tmp-*
+# RUN21J evidence shots + the throwaway shot script (screenshots are evidence, not source)
+_evidence-shots.mjs

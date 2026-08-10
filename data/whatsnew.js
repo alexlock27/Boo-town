@@ -69,6 +69,18 @@ export const WHATSNEW = [
         route: 'toddlergame', params: { game: 'animals' } }
     ]
   },
+  // RUN21J "Today in Boo Town". STAGED ON BRANCH `run21j` — its `version` is a placeholder
+  // until the merge stamps the build it actually ships under (deploy-gate live steps were
+  // suspended for this run; everything else applies). ONE entry: the three doings and the
+  // parcel are one idea, and a child needs to be told the idea, not the mechanism.
+  // Deliberately NOT mentioned: what is inside the parcel (finding out is the gift), and
+  // there is nothing here a grown-up has to switch on.
+  {
+    version: 'run21j-STAGED',
+    entries: [
+      { icon: '🎁', title: 'Today in Boo Town', blurb: 'Three little doings every day — play a game, say hello somewhere, look after a Boo — and a parcel arrives in the Meadow just for you.', route: 'hub' }
+    ]
+  },
   // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it
   // buys is not: things she puts ON things now travel with them. F6 gets NO entry — it
   // completes the promise RUN21A already made ("a friend can come and look around your

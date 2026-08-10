@@ -3,7 +3,7 @@
 // drag placement along the ground band, wandering Boos, real-clock day/night. Multi-area
 // navigation lives in worldmap.js; this file only ever renders one already-unlocked area.
 
-import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './ui.js';
+import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog, giftSVG } from './ui.js';
 import { getState, mutate, commit, nextPlacementId } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
 import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, HOUSE_ROOM_KEYS, houseRoom } from './areas.js';
@@ -23,6 +23,7 @@ import { sfx, music, ambient, bed, animal } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES, upgradesIn, catchupFor, completeCatchup, builderHeadline, grownHeadline, trackComplete, TRACK_AREAS } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
+import { noteDailyVisit, parcelDue, claimParcel, PARCEL_SPOT } from './daily.js';   // RUN21J: the Daily Delivery
 import { addMeterPoints } from './rewards.js';
 import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette, isFairDay, fairPrizeWord } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
@@ -987,6 +988,11 @@ export function mount(container, params, ctx) {
     // RUN21D-1: the town's one guaranteed opening breath. Last, so everything it can choose
     // from (placed items, actors, the fair, request bubbles) is already on screen.
     startPulse();
+    // RUN21J: the second Daily Doing — "say hello somewhere new" ticks on entering any
+    // area not yet visited today (the first of the day included; there is no wrong way
+    // to say hello). After layout, so if this very entrance completes all three, the
+    // dailydone listener above finds zoneW/viewH ready and pops the parcel in live.
+    if (!READONLY) noteDailyVisit(AREA.key);
   });
   const onResize = () => layout();
   window.addEventListener('resize', onResize);
@@ -1406,7 +1412,62 @@ export function mount(container, params, ctx) {
       visitorNode.style.left = (zoneW * .9) + 'px'; visitorNode.style.top = (groundY - 82) + 'px';
       ground.appendChild(visitorNode);
     }
+    renderDailyParcel();   // RUN21J: the Daily Delivery, if one is waiting (Meadow only)
   }
+
+  // RUN21J — the Daily Delivery. A wrapped parcel at the fixed on-camera Meadow spot
+  // (PARCEL_SPOT: placement-grammar x/row, x ≤ 0.25 so it sits on screen 1 at default
+  // scroll). It is DERIVED from save state (all three doings done, unclaimed), never a
+  // placement — renderScenery wipes and redraws it like the dusk visitor, so it exists
+  // exactly as long as the state says it should. Tapping it claims (grant happens
+  // BEFORE navigation — a closed tablet mid-reveal loses nothing) and opens the
+  // standard box ceremony on the granted thing.
+  function renderDailyParcel(live = false) {
+    ground.querySelectorAll('.daily-parcel').forEach(n => n.remove());
+    if (READONLY || AREA.key !== 'meadow' || !parcelDue()) return;
+    const size = 96;
+    const feetY = viewH * ROWS[PARCEL_SPOT.row];
+    const node = el('button', {
+      class: 'daily-parcel' + (live && !REDUCED ? ' parcel-pop' : ''),
+      'aria-label': 'A parcel for you — tap to open it!',
+      html: giftSVG(size),
+      onclick: (e) => {
+        e.stopPropagation();
+        sfx.fanfare();
+        const res = claimParcel();
+        if (!res) return;
+        if (res.box) ctx.go('ceremony');                                    // pool complete: a free surprise box
+        else ctx.go('ceremony', { grant: res.id, shiny: res.shiny });       // the day's item, already granted
+      }
+    });
+    node.style.left = (zoneW * PARCEL_SPOT.x - size / 2) + 'px';
+    node.style.top = (feetY - size + 8) + 'px';
+    node.style.zIndex = String(Math.round(feetY));
+    ground.appendChild(node);
+  }
+
+  // The witnessed arrival: the third doing ticked while this area is open. Pop the
+  // parcel in (Meadow) and let the guide's line land as a bubble beside the spot —
+  // motion + a line + a place to look, never merely a toast (announced-moments law).
+  let dailyBubbleTimer = null;
+  const onDailyDone = (ev) => {
+    if (READONLY) return;
+    renderDailyParcel(true);
+    const line = ev && ev.detail && ev.detail.line;
+    if (!line) return;
+    // The line lands in WHICHEVER area she is standing in — the parcel only exists in the
+    // Meadow, but the announcement must not. An earlier cut returned early outside the
+    // Meadow, which meant completing the third doing by walking into Riverside (five of the
+    // six unlocked areas) produced nothing on screen at all, and with voice off — the
+    // default — the moment was completely silent. The authored line names the Meadow, so
+    // it works as a signpost from anywhere.
+    viewport.querySelectorAll('.daily-town-bubble').forEach(n => n.remove());
+    const bub = el('div', { class: 'speech-bubble daily-town-bubble' + (AREA.key === 'meadow' ? ' at-parcel' : ' elsewhere'), text: line });
+    viewport.appendChild(bub);
+    clearTimeout(dailyBubbleTimer);
+    dailyBubbleTimer = setTimeout(() => bub.remove(), 8000);
+  };
+  window.addEventListener('bootown:dailydone', onDailyDone);
 
   // Room backdrop (RUN10 P4, rebuilt RUN13B T7): a wall band (top 55%) + a floor band, no
   // sky/hills/signpost — the Boo House is always unlocked and is never a "place to
@@ -7951,6 +8012,8 @@ export function mount(container, params, ctx) {
       bed.stop();
       stopBand();
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('bootown:dailydone', onDailyDone);   // RUN21J
+      clearTimeout(dailyBubbleTimer);                                 // RUN21J
       closeMenu();
     }
   };
