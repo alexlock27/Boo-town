@@ -705,6 +705,109 @@ console.log('\n== E7: make it night-time in here ==');
 }
 
 // ============================================================================
+// E11 — adjacency delights
+// ============================================================================
+console.log('\n== E11: things that are better together ==');
+{
+  // A lamppost and a bench, side by side, after dark: a moth loops the lamp.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'deco_lamppost', 0.12), P('meadow', 'deco_bench', 0.18)] }), nextId: 900 } }),
+    { area: 'meadow', hour: 22 });
+  assert(await hasCls(page, '.t-item[data-item="deco_lamppost"].lit'),
+    'the lamppost is LIT at night (it never has been — its own blurb promised light)');
+  await page.evaluate(() => window.__townLife.checkAdjacency());
+  assert(await until(page, () => document.querySelectorAll('.t-moth').length === 1, 2500),
+    'lamppost + bench at night: a moth loops the lamp');
+  assert(await page.evaluate(() => !/[\u{1F300}-\u{1FAFF}]/u.test(document.querySelector('.t-moth').textContent || '')),
+    '…drawn as inline SVG, never an emoji');
+  await page.screenshot({ path: `${SHOTS}/e11-moth.png` });
+  await ctx.close();
+}
+{
+  // Too far apart is not adjacency.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'deco_lamppost', 0.05), P('meadow', 'deco_bench', 0.60)] }), nextId: 900 } }),
+    { area: 'meadow', hour: 22 });
+  await page.evaluate(() => window.__townLife.checkAdjacency());
+  await sleep(600);
+  assert(await count(page, '.t-moth') === 0, 'a bench across the field is not next to the lamppost');
+  await ctx.close();
+}
+{
+  // Flowers by the pond in the daytime, with no frog owned: a dragonfly visits.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'deco_flowers', 0.12), P('meadow', 'deco_pond', 0.20)] }), nextId: 900 } }),
+    { area: 'meadow', hour: 13 });
+  await page.evaluate(() => window.__townLife.checkAdjacency());
+  assert(await until(page, () => document.querySelectorAll('.t-dragonfly').length === 1, 2500),
+    'flowers + pond by day: a dragonfly visits');
+  await page.screenshot({ path: `${SHOTS}/e11-dragonfly.png` });
+  await ctx.close();
+}
+{
+  // …and if she has wished for a frog and it is here, HER frog comes instead.
+  const { ctx, page } = await open(SAVE({
+    wishes: { unlocked: { frog: true } },
+    town: { areas: withItems({ meadow: [P('meadow', 'deco_flowers', 0.12), P('meadow', 'deco_pond', 0.20), P('meadow', 'wish_frog', 0.08)] }), nextId: 900 }
+  }), { area: 'meadow', hour: 13 });
+  await page.evaluate(() => window.__townLife.checkAdjacency());
+  assert(await until(page, () => !!document.querySelector('.t-item[data-item="wish_frog"].t-frog-hop'), 2500),
+    'with her own frog placed here, the frog hops over instead');
+  assert(await count(page, '.t-dragonfly') === 0, '…and no dragonfly is sent as well');
+  await page.screenshot({ path: `${SHOTS}/e11-frog.png` });
+  await ctx.close();
+}
+{
+  // A campfire at night with Boos round it: marshmallows, and one contented pip.
+  const boos = ['boo_inky', 'boo_plum', 'boo_pippin'].map((b, i) => P('meadow', b, +(0.14 + i * 0.03).toFixed(3)));
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'deco_campfire', 0.18), ...boos] }), nextId: 900 } }),
+    { area: 'meadow', hour: 22 });
+  // The night role sweep gathers them into the circle first.
+  const gathered = await until(page, () => window.__townLife.goals().filter(g => g.role === 'campfire').length >= 2, 12000, 400);
+  assert(gathered, 'the Boos gather round the fire at night');
+  await page.evaluate(() => { window.__townLife.resetAdjacency(); window.__townLife.checkAdjacency(); });
+  assert(await until(page, () => document.querySelectorAll('.t-marshmallow').length >= 2, 3000),
+    'campfire + Boos round it: marshmallow sticks appear in their hands');
+  assert(await until(page, () => [...document.querySelectorAll('.catchphrase-bubble')].some(b => b.textContent === 'Mmm!'), 3000),
+    '…and exactly one contented "Mmm!"');
+  const pips = await page.evaluate(() => [...document.querySelectorAll('.catchphrase-bubble')].filter(b => b.textContent === 'Mmm!').length);
+  assert(pips === 1, `one pip between them, not one each (${pips})`);
+  await page.screenshot({ path: `${SHOTS}/e11-marshmallows.png` });
+  await ctx.close();
+}
+{
+  // The budget: two scenes a SESSION, shared, and it must not reset when she leaves an area.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'deco_lamppost', 0.12), P('meadow', 'deco_bench', 0.18)] }), nextId: 900 } }),
+    { area: 'meadow', hour: 22 });
+  await page.evaluate(() => { window.__townLife.resetAdjacency(); });
+  for (let i = 0; i < 5; i++) { await page.evaluate(() => window.__townLife.checkAdjacency()); await sleep(120); }
+  const spent = await page.evaluate(() => window.__townLife.adjacencyScenes());
+  assert(spent === 2, `five checks spend at most two scenes (${spent})`);
+  // Leave and come back: the budget is SESSION-scoped, so it must still read 2.
+  await page.evaluate(() => window.BooTown.go('worldmap'));
+  await sleep(300);
+  await page.evaluate(() => window.BooTown.go('town', { area: 'meadow' }));
+  await page.waitForSelector('.town2');
+  await page.waitForFunction(() => window.__townLife);
+  const after = await page.evaluate(() => window.__townLife.adjacencyScenes());
+  assert(after === 2, `and coming back does NOT hand her two more (${after}) — this is per session, not per visit`);
+  await ctx.close();
+}
+{
+  // Reduced motion: the props are there, the performances are not.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({
+    meadow: [P('meadow', 'deco_lamppost', 0.12), P('meadow', 'deco_bench', 0.18)] }), nextId: 900 } }),
+    { area: 'meadow', hour: 22, reduced: 'reduce' });
+  await page.evaluate(() => window.__townLife.checkAdjacency());
+  await sleep(700);
+  assert(await count(page, '.t-moth') === 0, 'reduced motion: nothing flies (the lamp and bench are still there)');
+  assert(await count(page, '.t-item[data-item="deco_lamppost"]') === 1, '…and the props themselves are untouched');
+  await ctx.close();
+}
+
+// ============================================================================
 // E13 — acknowledgement wave two
 // ============================================================================
 console.log('\n== E13: the town notices ==');

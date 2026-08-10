@@ -90,7 +90,11 @@ const isWallPlane = (t) => planeOf(t) === 'wall';
 const pidOf = (t) => (t && t.id != null ? t.id : null);
 const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
 // RUN13 T4: every lamp carries a night state, not just the original table lamp.
-const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp']);
+// RUN21E-11: the LAMPPOST joins them. It is the one lamp in the game whose own catalogue blurb
+// promises light ("Glows warm and gold so no Boo is ever scared of the dark") and which never
+// received the `.lit` class, so it has stood dark through every night since it shipped. The
+// moth in E11 loops a lamp; a dark lamp is not one.
+const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp', 'deco_lamppost']);
 const CLOCK_TICK_MS = 20000;     // how often a placed wall clock re-reads the device time
 // RUN13 T3: each Boo House room remembers where its camera was left. Module-level, so it
 // survives the re-mount that switching rooms performs (the module itself is cached).
@@ -104,6 +108,19 @@ let lastDressingApply = null;
 // { roomKey, until } — a wall-clock deadline, so leaving and returning inside the 90s picks
 // up the remainder rather than starting again.
 let pretendNight = null;
+// ---- RUN21E-11: adjacency delights --------------------------------------------------------
+// Two things standing near each other can be worth more than either alone. This table says
+// which pairs, how near, when, and what happens — checked once per mount and again whenever
+// she puts something down.
+//
+// The budget is MODULE-scoped on purpose: `areaSeen` and the mount's other counters reset on
+// every remount, so a per-mount counter would silently mean "2 per visit" and a child walking
+// in and out would see them over and over. This is 2 per SESSION, shared across all three
+// scenes, and it is separate from the acknowledgement speech budget in ack.js.
+const ADJACENCY_PER_SESSION = 2;
+let adjacencyScenes = 0;
+function adjacencyBudgetLeft() { return Math.max(0, ADJACENCY_PER_SESSION - adjacencyScenes); }
+const MOTH_MS = 8000, MARSHMALLOW_MS = 10000, DRAGONFLY_MS = 6000, FROG_HOP_MS = 2600;
 const PRETEND_MS = 90000;                       // the pack's 90 seconds
 const PRETEND_HOUR = 22;                        // the hour the room's built-ins are drawn at
 const PRETEND_END_LINE = 'Morning again!';
@@ -896,6 +913,9 @@ export function mount(container, params, ctx) {
     // RUN21E-7: she left this room mid-pretend-night and came back inside the 90 seconds —
     // it is still dusk in here, for the remainder, and it still ends with its own line.
     if (pretendHere()) { applyPretendDressing(true); armPretendTimer(); }
+    // RUN21E-11: once per mount, a moment later — the role sweep needs a beat to gather Boos
+    // round a campfire before there is anything to hand a marshmallow to.
+    setTimeout(() => { if (ground.isConnected) checkAdjacency(); }, 1500);
     // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
     // there", so she arrives with the tray already open on that item's own drawer tab — no
     // hunting through six tabs. Selected, not held on the finger: the pack is explicit that
@@ -1920,6 +1940,110 @@ export function mount(container, params, ctx) {
     if (pid != null) { const byId = list.find(t => pidOf(t) === pid); if (byId) return byId; }
     return list.find(t => t.item === place.item && t.zone === place.zone
       && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
+  }
+
+  // ---- RUN21E-11: adjacency delights -------------------------------------------------------
+  // The authored table. `when` is evaluated against the live clock, `maxDxFrac` against the
+  // save's own x (a fraction of the area), and `scene` runs the moment.
+  const ADJACENCY = [
+    { a: 'deco_lamppost', b: 'deco_bench',   maxDxFrac: 0.10, when: () => nightHere(),  scene: sceneMoth },
+    { a: 'flowers',       b: 'deco_pond',    maxDxFrac: 0.12, when: () => !nightHere(), scene: scenePondVisitor },
+    { a: 'deco_campfire', b: null,           maxDxFrac: 0,    when: () => isSleepTime(currentHour()), scene: sceneMarshmallows }
+  ];
+  // `flowers` matches the several things that are flowers, which is what "any flower(s)" means.
+  const matchesKey = (itemId, key) => key === 'flowers' ? /flower/.test(itemId) : itemId === key;
+  function findAdjacentPair(rule, items) {
+    const as = items.filter(t => matchesKey(t.item, rule.a));
+    if (!as.length) return null;
+    if (!rule.b) return { a: as[0], b: null };
+    const bs = items.filter(t => matchesKey(t.item, rule.b));
+    for (const A of as) for (const B of bs) if (Math.abs(A.x - B.x) <= rule.maxDxFrac) return { a: A, b: B };
+    return null;
+  }
+  function checkAdjacency() {
+    // REDUCED gets the props and none of the performances — the pack asks for exactly that.
+    if (REDUCED || READONLY || softened) return;
+    if (!adjacencyBudgetLeft() || !zoneW) return;
+    const items = areaItems(getState());
+    for (const rule of ADJACENCY) {
+      if (!rule.when()) continue;
+      const pair = findAdjacentPair(rule, items);
+      if (!pair) continue;
+      if (rule.scene(pair) !== false) { adjacencyScenes++; return; }   // one scene at a time
+    }
+  }
+  // A moth loops the lamp: a pale little SVG orbiting the lamp head. Drawn, never an emoji —
+  // the ambient butterfly's text glyph is a grandfathered violation, not a precedent.
+  function sceneMoth(pair) {
+    const w = wrapFor(pair.a);
+    if (!w) return false;
+    const moth = el('i', {
+      class: 't-moth', 'aria-hidden': 'true',
+      html: `<svg viewBox="0 0 20 16" width="18" height="15"><g fill="#F2E7C9" stroke="#8A7B5A" stroke-width="1.2">`
+        + `<ellipse cx="10" cy="9" rx="2" ry="4"/><path d="M9 7 Q2 1 3 8 Q4 13 9 11 Z"/><path d="M11 7 Q18 1 17 8 Q16 13 11 11 Z"/></g>`
+        + `<path d="M9 5 L7 2 M11 5 L13 2" stroke="#8A7B5A" stroke-width="1" fill="none"/></svg>`
+    });
+    const left = parseFloat(w.style.left) || 0, top = parseFloat(w.style.top) || 0;
+    moth.style.left = (left + (w.offsetWidth || 60) / 2 - 9) + 'px';
+    moth.style.top = (top + (w.offsetHeight || 60) * 0.16) + 'px';
+    moth.style.zIndex = String((parseInt(w.style.zIndex || '0', 10) || 0) + 5);
+    ground.appendChild(moth);
+    setTimeout(() => { try { moth.remove(); } catch {} }, MOTH_MS);
+    return true;
+  }
+  // Flowers by the pond: her frog comes over for one ribbit if she has one HERE; otherwise a
+  // dragonfly visits. ("Placed anywhere" cannot mean another area — only this area renders.)
+  function scenePondVisitor(pair) {
+    const pond = pair.b, items = areaItems(getState());
+    const frog = items.find(t => t.item === 'wish_frog');
+    if (frog) {
+      const fw = wrapFor(frog);
+      if (fw) {
+        const dx = (pond.x - frog.x) * zoneW;
+        fw.style.setProperty('--hop-dx', dx.toFixed(0) + 'px');
+        propPlay(fw, 't-frog-hop', FROG_HOP_MS);
+        setTimeout(() => { if (wishSound.allow('adj:frog', { tapped: false })) animal.call('frog'); }, FROG_HOP_MS * 0.55);
+        return true;
+      }
+    }
+    const pw = wrapFor(pond);
+    if (!pw) return false;
+    const fly = el('i', {
+      class: 't-dragonfly', 'aria-hidden': 'true',
+      html: `<svg viewBox="0 0 22 14" width="20" height="13"><g stroke="#4E9A8F" stroke-width="1.2" fill="#BFEFE8">`
+        + `<ellipse cx="11" cy="7" rx="1.6" ry="5"/><path d="M10 5 Q3 1 2 5 Q3 8 10 7 Z"/><path d="M12 5 Q19 1 20 5 Q19 8 12 7 Z"/></g></svg>`
+    });
+    const left = parseFloat(pw.style.left) || 0, top = parseFloat(pw.style.top) || 0;
+    fly.style.left = (left + (pw.offsetWidth || 60) / 2 - 10) + 'px';
+    fly.style.top = (top - 12) + 'px';
+    fly.style.zIndex = String((parseInt(pw.style.zIndex || '0', 10) || 0) + 5);
+    ground.appendChild(fly);
+    setTimeout(() => { try { fly.remove(); } catch {} }, DRAGONFLY_MS);
+    return true;
+  }
+  // Marshmallows round the fire. Boos are never "seated" at a campfire — the only campfire
+  // behaviour is the night CIRCLE role — so the trigger is two or more Boos actually in that
+  // circle, which is what the pack is describing.
+  function sceneMarshmallows(pair) {
+    const round = actors.filter(a => a.role && a.role.kind === 'campfire'
+      && a.role.deco && Math.abs(a.role.deco.x - pair.a.x) < 0.001);
+    if (round.length < 2) return false;
+    let pipped = false;
+    for (const a of round) {
+      const stick = el('i', {
+        class: 't-marshmallow', 'aria-hidden': 'true',
+        html: `<svg viewBox="0 0 26 10" width="24" height="9"><line x1="1" y1="8" x2="19" y2="4" stroke="#8A6B3A" stroke-width="2" stroke-linecap="round"/>`
+          + `<ellipse cx="21" cy="4" rx="4" ry="3.4" fill="#FFF3E6" stroke="#D8B48A" stroke-width="1.2"/></svg>`
+      });
+      overlayOverWrap(a.wrap, stick, { dx: (a.wrap.offsetWidth || 60) * 0.55, dy: (a.wrap.offsetHeight || 60) * 0.42 });
+      setTimeout(() => { try { stick.remove(); } catch {} }, MARSHMALLOW_MS);
+      if (!pipped) {
+        pipped = true;
+        // One contented pip between them, not one each — a chorus would be noise.
+        setTimeout(() => { if (a.wrap.isConnected) sayOver(a.wrap, 'Mmm!', 1600, { speak: false }); }, 1200);
+      }
+    }
+    return true;
   }
 
   // ---- RUN21E-7: the pretend-night lamp ----------------------------------------------------
@@ -3958,6 +4082,7 @@ export function mount(container, params, ctx) {
     fireRequest('placement', { area: STORE_KEY });
     maybeAckAreaBusy();       // RUN21E-13
     maybeAckNewItem();        // RUN21E-13
+    checkAdjacency();         // RUN21E-11: what she just put down may have made a pair
     maybeAckDressing();       // RUN21E-13: a Boo just arrived in a freshly-decorated room
   }
   // ---- RUN21E-13: acknowledgement wave two ------------------------------------------------
@@ -7153,6 +7278,10 @@ export function mount(container, params, ctx) {
       // RUN21E-7 seams: start it without the card (the card itself is tested by clicking it),
       // read whether this room is pretending, and end it early instead of waiting out 90s.
       pretendNight: () => pretendHere(),
+      // RUN21E-11 seams: run the check on demand, and read the shared session budget.
+      checkAdjacency: () => { checkAdjacency(); return adjacencyScenes; },
+      adjacencyScenes: () => adjacencyScenes,
+      resetAdjacency: () => { adjacencyScenes = 0; return adjacencyScenes; },
       startPretendNight: () => { startPretendNight(); return pretendHere(); },
       endPretendNight: () => { endPretendNight(); return pretendHere(); },
       todayLine: () => todayLine(),

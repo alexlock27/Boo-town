@@ -18,7 +18,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E8 | Gallery — three pins + Featured Wall | TODO |
 | E9 | Surfaces wave two (mantelpiece, windowsills, 3 smalls; consider outdoor parent) | TODO |
 | E10 | Outdoor hang points (lantern, bunting swags) | TODO |
-| E11 | Adjacency delights (moth, frog/dragonfly, marshmallows) | TODO |
+| E11 | Adjacency delights (moth, frog/dragonfly, marshmallows) | **DONE** (15/15) |
 | E12 | Dead-prop amnesty (fridge, oven, bathtub, wardrobe, mirror) | **DONE** (22/22, 18s) |
 | E13 | Acknowledgement wave two (3 ack lines) | **DONE** (11/11) |
 | E14 | Photo mode → postcards | TODO |
@@ -150,6 +150,35 @@ candidates received NO personality multiplier at all; `personalityMult` was appl
 visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier to the zone-candidate
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
+
+**DEV-35 · E11 "night/pretend-night" and "dusk/pretend-night".** Pack said → gate on those. What
+was true → E7's pretend night is ROOM-LOCAL to one Boo House room, by its own ACCEPT, and every
+E11 scene is outdoors, so the two can never meet. There is also no "dusk" state: the four time
+bands in this codebase are `isNight` (19-7), `bandOfHour` (dusk 17-19), `skyBandName` (dusk 17-18)
+and `duskVisitor` (18-21). What I did → moth on `isNight`, frog/dragonfly on `!isNight`, and the
+campfire scene on the campfire circle ACTUALLY RUNNING, which is `isSleepTime` (21-7) — the hours
+the circle exists at all.
+
+**DEV-36 · E11 "campfire + 2 SEATED Boos".** Pack said → seated. What was true → Boos are never
+seated at a campfire: `deco_campfire` has no `SOCKETS` entry and is not in `ACT_IDS`. The only
+campfire behaviour is the night circle role, where up to three Boos STAND in a ring. What I did →
+triggered on two or more actors actually holding that role for that campfire, which is the thing
+the pack is describing.
+
+**DEV-37 · E11 "the frog wish (if owned+placed anywhere)".** Only the CURRENT area renders, so a
+frog in another area cannot hop across the map. What I did → her frog comes if it is placed in
+this area; otherwise the authored dragonfly fallback visits. Both branches were already in the
+pack, so nothing is invented — only the reading of "anywhere" is narrowed to what can be seen.
+
+**DEV-38 · E11 the moth needed a lit lamp.** `deco_lamppost` was missing from `LAMP_IDS`, so it
+has never received `.lit` and has stood dark through every night since it shipped — while its own
+catalogue blurb promises "Glows warm and gold so no Boo is ever scared of the dark". Its art has
+carried an unused `.lamp-glow` group all along. Added it to `LAMP_IDS`: one line, and the moth now
+loops a lamp that is actually alight.
+
+**DEV-39 · E11 "budgeted 2/session (shared)".** The counter is MODULE-scoped. Declared inside
+`mount()` it would have meant 2 per VISIT — a child walking in and out would have seen them over
+and over — which the suite now pins from both sides.
 
 **DEV-31 · E7 "fairy-lights glow".** Pack said → they glow during the pretend night, and its own
 acceptance scene is the KITCHEN. What was true → fairy lights are a BEDROOM-only built-in; the
