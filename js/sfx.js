@@ -685,10 +685,14 @@ function lmTone(f, t0, dur, type, peak, sustain, attack, tag) {
   if (audioLog && tag) logEvent({ kind: 'note', t: t0, freq: Math.round(f), dur, bus: 'music', tag });
 }
 
-// Three voices on the music bus. Peaks sit beside the classic calm loop's (sparkle 0.18 /
-// pads 0.12+0.09) so a leitmotif area is no louder than a calm one. Notes tag as
-// 'lm:<area>:<voice>' (the beds' 'bed:beach:gull' convention), so a capture proves WHICH
-// tune was playing, not merely that one was.
+// Three voices on the music bus, at the music bus's own volume — "at existing music
+// volume" is the same gain, the same mute and the same duck, not merely similar numbers.
+// Each per-voice peak sits at or below the classic calm loop's (sparkle 0.18, pads 0.12 +
+// 0.09); what a listener actually hears is the SUM of what sounds at once, so that is
+// what is bounded, in tests/r21f8-leitmotifs.mjs §0 — calm's loudest instant is its
+// downbeat at 0.39 and no tune may exceed 0.60. Notes tag as 'lm:<area>:<voice>' (the
+// beds' 'bed:beach:gull' convention), so a capture proves WHICH tune was playing rather
+// than merely that one was.
 function lmNote(ev, at) {
   const area = currentLoop.slice(10);
   const f = ROOT * Math.pow(2, ev.v / 12);

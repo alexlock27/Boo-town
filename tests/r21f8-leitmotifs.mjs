@@ -16,11 +16,16 @@ const today = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '
 // ==================== 0. the authored data obeys the pack ====================
 console.log('== the authored loops obey the pack (deterministic, no browser) ==');
 const { LEITMOTIFS } = await import(new URL('../data/leitmotifs.js', import.meta.url));
+const { AREAS } = await import(new URL('../js/areas.js', import.meta.url));
 const ROOT_SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-const LM_AREAS = ['meadow', 'riverside', 'hilltop', 'beach', 'playground'];
+// Derived from js/areas.js, never hardcoded: "one loop per outdoor area" has to stay true
+// when an area is ADDED. The funfair is the one deliberate exclusion (its jingle and
+// bandstand already own that air — the same carve-out the F7 beds make).
+const LM_AREAS = AREAS.filter(a => a.kind === 'outdoor' && a.key !== 'funfair').map(a => a.key);
 {
   const keys = Object.keys(LEITMOTIFS).sort();
-  assert(keys.join(',') === [...LM_AREAS].sort().join(','), `exactly the five outdoor areas have tunes (${keys.join(', ')})`);
+  assert(LM_AREAS.length === 5, `js/areas.js still has 5 tune-bearing outdoor areas (${LM_AREAS.join(', ')})`);
+  assert(keys.join(',') === [...LM_AREAS].sort().join(','), `every outdoor area but the funfair has a tune (${keys.join(', ')})`);
   const openings = {};
   for (const area of LM_AREAS) {
     const s = LEITMOTIFS[area];
@@ -72,6 +77,18 @@ const LM_AREAS = ['meadow', 'riverside', 'hilltop', 'beach', 'playground'];
     assert(peak.t >= 12 * beatMs - 2 && peak.t <= 28 * beatMs + 2,
       `${area}: the melodic peak (v=${peak.v}) lands at beat ${(peak.t / beatMs).toFixed(1)} (bars 4-7)`);
     openings[area] = lead.slice(0, 5).map((e, i, a) => i ? e.v - a[i - 1].v : 0).slice(1).join(',');
+    // LEVEL: the pack says "at existing music volume". Per-voice peaks sit at or below the
+    // classic calm loop's, but what a listener hears is the SUM of what sounds at once, so
+    // bound that instead of the parts. Calm's own worst instant is its downbeat:
+    // 0.18 sparkle + 0.12 + 0.09 pads = 0.39. A ceiling of 0.60 leaves a tune room for a
+    // lead over a bass over a pad dyad without letting an area become the loud one.
+    const PEAK = { lead: 0.16 + 0.05, pad: 0.10, bass: 0.12 };   // lead carries its shimmer
+    let worst = 0, worstAt = 0;
+    for (const t of [...new Set(sorted.map(e => e.t))]) {
+      const sum = sorted.filter(e => e.t <= t + 1 && e.t + e.d > t + 1).reduce((a, e) => a + PEAK[e.i], 0);
+      if (sum > worst) { worst = sum; worstAt = t; }
+    }
+    assert(worst <= 0.60, `${area}: loudest instant sums to ${worst.toFixed(2)} at ${(worstAt / 1000).toFixed(1)}s (calm's downbeat is 0.39; ceiling 0.60)`);
   }
   // five identifiable tunes: distinct roots, distinct tempi, distinct opening gestures
   const roots = LM_AREAS.map(a => LEITMOTIFS[a].root), bpms = LM_AREAS.map(a => LEITMOTIFS[a].bpm);
@@ -169,7 +186,12 @@ console.log('== each area mounts ITS tune; funfair and interiors are untouched =
     const lmNotes = log.filter(e => e.kind === 'note' && e.tag && e.tag.startsWith('lm:'));
     assert(info.area === null && !info.scheduling, `${room ? area + '/' + room : area}: no leitmotif (loop: ${info.loop})`);
     assert(lmNotes.length === 0, `${room ? area + '/' + room : area}: zero leitmotif notes scheduled`);
-    if (area === 'funfair') assert(info.loop === 'fair' || info.loop === null, `funfair: the jingle owns the air (loop: ${info.loop})`);
+    if (area === 'funfair') {
+      // Positive proof, from the town's own zone-music state: "not a leitmotif" would also
+      // be satisfied by nothing playing at all, which is not what the pack preserved.
+      const zm = await page.evaluate(() => window.__townLife.zoneMusic());
+      assert(zm === 'fair' || zm === 'band', `funfair: its own jingle/bandstand rules still own the air (zoneMusic: ${zm})`);
+    }
     if (area === 'boohouse') assert(info.loop === 'calm', `${area}/${room}: plain calm indoors (loop: ${info.loop})`);
   }
   // switching areas switches tunes cleanly
@@ -203,10 +225,18 @@ console.log('== seamless looping across the bar-32 boundary (25s capture) ==');
   for (let i = 1; i < onsets.length; i++) maxGap = Math.max(maxGap, (onsets[i] - onsets[i - 1]) * 1000);
   const expected = spec.events.length * (T / spec.durMs);
   assert(onsets.length > spec.events.length, `the capture crossed the seam (${onsets.length} onsets > one pass's ${spec.events.length})`);
-  assert(onsets.length > expected * 0.8 && onsets.length < expected * 1.2,
+  assert(onsets.length > expected * 0.85 && onsets.length < expected * 1.15,
     `onset count ${onsets.length} ≈ expected ${expected.toFixed(0)} for ${T / 1000}s of continuous loop`);
-  assert(maxGap < 2.5 * beatMs,
-    `max onset gap ${(maxGap / beatMs).toFixed(2)} beats over 25s — no loop-boundary silence (a band-watch-style +900ms gap would read ${((2.5 * beatMs + 900) / beatMs).toFixed(1)})`);
+  // The threshold is the tune's OWN largest authored onset gap plus a little scheduling
+  // slack — not a fixed 2.5 beats, which at 92bpm is 1630ms and would wave through the
+  // band-watch player's +900ms inter-loop pause (652 + 900 = 1552ms). Measured against
+  // what this tune actually contains, any inserted gap at the seam fails.
+  const auth = [...new Set(spec.events.map(e => e.t))].sort((a, b) => a - b);
+  let authGap = (spec.durMs - auth[auth.length - 1]) + auth[0];
+  for (let i = 1; i < auth.length; i++) authGap = Math.max(authGap, auth[i] - auth[i - 1]);
+  const ceiling = authGap + 0.35 * beatMs;
+  assert(maxGap < ceiling,
+    `max onset gap ${maxGap.toFixed(0)}ms over 25s vs the tune's own authored max of ${authGap.toFixed(0)}ms (ceiling ${ceiling.toFixed(0)}ms) — a band-watch +900ms inter-loop pause would read ${(authGap + 900).toFixed(0)}ms and fail`);
 
   // ---- and the scheduler itself is near-free (240 frames sampled) ----
   const frames = await page.evaluate(() => new Promise(res => {
@@ -299,17 +329,27 @@ console.log('== the mute contract, ducking under speech, and re-entry ==');
   await goArea(page, 'meadow');
   await goArea(page, 'meadow');   // and a second mount of the same area
   await takeLog(page);
-  await sleep(2000);
+  // A 6-second window, not 2: at meadow's rate 2s expects only 3.5 lead notes, and any
+  // tolerance wide enough to survive scheduling jitter on so small a sample is also wide
+  // enough to admit the doubling it is meant to catch. 6s expects 10.5 against a doubled
+  // 21, which a 1.45x band separates cleanly.
+  const W = 6000;
+  await sleep(W);
   const re = await takeLog(page);
   const leads = re.filter(e => e.kind === 'note' && e.tag === 'lm:meadow:lead').map(e => e.t).sort((a, b) => a - b);
   const spec = LEITMOTIFS.meadow;
   const leadCount = spec.events.filter(e => e.i === 'lead').length;
-  const maxExpected = Math.ceil(leadCount * (2000 / spec.durMs) * 1.5) + 2;
+  const rate = leadCount * (W / spec.durMs);
   assert((await lmInfo(page)).scheduling, 're-entering the area: the tune is running');
-  assert(leads.length > 0 && leads.length <= maxExpected,
-    `…and exactly one of it (${leads.length} lead notes in 2s; a doubled scheduler would read ~${2 * Math.round(leadCount * 2000 / spec.durMs)})`);
+  assert(leads.length >= rate * 0.55 && leads.length <= rate * 1.45,
+    `…and exactly one of it (${leads.length} lead notes in ${W / 1000}s vs ${rate.toFixed(1)} expected; a doubled scheduler would read ~${(2 * rate).toFixed(0)} and fail this band)`);
   const dup = leads.filter((t, i) => i > 0 && (t - leads[i - 1]) * 1000 < 30);
   assert(dup.length === 0, `no simultaneous duplicate lead notes (${dup.length})`);
+  // …and the classic calm loop is NOT still running underneath it. Its notes log on the
+  // music bus with no tag, so an untagged music note while a leitmotif plays means two
+  // pieces of music at once — which nothing else in this file would notice.
+  const untagged = re.filter(e => e.kind === 'note' && e.bus === 'music' && !e.tag);
+  assert(untagged.length === 0, `the classic calm loop is stopped, not layered underneath (${untagged.length} untagged music notes)`);
   await ctx.close();
 }
 
