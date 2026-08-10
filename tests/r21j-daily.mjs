@@ -186,6 +186,23 @@ console.log('== ACCEPT 1: three doings tick at their own seams; the parcel arriv
   assert(/parcel/i.test(p.label), `it announces itself to a screen reader ("${p.label}")`);
   await page.screenshot({ path: 'screenshots/r21j-parcel-1024.png' });
 
+  // A re-render must neither lose the parcel nor grow a second one. renderScenery wipes
+  // the ground layer and renderDailyParcel redraws from state, so a resize exercises the
+  // whole path — and a missing remove-first guard would show up here as two parcels.
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.waitForTimeout(700);
+  const afterResize = await page.evaluate(() => {
+    const all = document.querySelectorAll('.daily-parcel');
+    const n = all[0];
+    if (!n) return { count: 0 };
+    const b = n.getBoundingClientRect();
+    return { count: all.length, items: document.querySelectorAll('.t-item').length,
+      hit: n.contains(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)) };
+  });
+  assert(afterResize.count === 1, `a re-render leaves EXACTLY ONE parcel (${afterResize.count})`);
+  assert(afterResize.hit, 'still tappable after the re-render');
+  assert(afterResize.items > 0, `and the area's placed items rendered alongside it (${afterResize.items})`);
+
   assert(errors.length === 0, `no console/page errors (${errors.join(' | ') || 'none'})`);
   await ctx.close();
 }
