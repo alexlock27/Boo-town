@@ -5,6 +5,7 @@
 // and misses flip back without penalty; Big and Small items are verifiably size-
 // unambiguous and colour-uncorrelated with buckets; all three honour the Toddler star
 // and meter rules; frame evidence for flips, bounces and drags.
+// Expected runtime: ~31s (measured 2026-08-10, serial). Not @serial.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';

@@ -2,6 +2,9 @@
 // The sequence grows; the mercy-replay fires once and a second slip ends warmly at her best
 // length; the light pattern alone suffices with sound muted; the pace caps hold; the Toddler
 // cap applies.
+// Expected runtime: ~20s (measured 2026-08-10, serial). Not @serial. It was previously
+// counted as a never-completing suite: it waited on an inputPhase that RUN18B Y6's offer
+// card only a TAP can produce. It waits on real state now, and finishes.
 import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
 let failed = false;

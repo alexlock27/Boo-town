@@ -10,6 +10,8 @@
 //   3. a (route, param) pair found in source with no fixture here is a FAILURE, so the
 //      next in-app link that invents a param cannot ship untested;
 //   4. any console error, page error or unhandled rejection during a mount fails.
+// Expected runtime: ~120s (measured 2026-08-10, serial). It drives every registered route
+// with every documented parameter set, so it sits at the top of the budget by nature.
 import { chromium } from 'playwright';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';

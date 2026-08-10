@@ -262,6 +262,10 @@ export function mount(container, params, ctx) {
       // The generation token is the other half: tap 2's interrupt fires tap 1's onend, and
       // without the token the OLD chain would advance too — two chains interleaving cut-off
       // fragments. A stale generation abandons its chain instead.
+      // SCOPE, precisely: `replay` is per ITEM (it lives in renderItem), so the token guards
+      // repeated taps on the SAME word — which is the case a child creates. It does not
+      // reach across an item change; a chain still speaking as the next word mounts is
+      // pre-existing behaviour, unchanged by this flag.
       function replay() {
         const gen = (replay._gen = (replay._gen || 0) + 1);
         const parts = item.g;

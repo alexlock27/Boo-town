@@ -4,6 +4,8 @@
 // into its mapped area at the expected proportional x; entry crossfade; every scenery
 // minimum present per area with frame evidence (windmill ≥6 frames, foam sine); header
 // strip on every area; funfair unchanged inside the new routing.
+// Expected runtime: ~30s (measured 2026-08-10, serial; 28-45s across four consecutive runs,
+// the upper end being a boot retry). Not @serial.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import { migrateForTest } from './lib/migrateForTest.mjs';

@@ -7,6 +7,8 @@
 // The effort-not-ability rule is checked by MACHINE here as well as by the review
 // checklist in PROGRESS.md, because it is the one rule in this pack that a well-meaning
 // future edit would break without noticing ("you're so clever!" feels kind).
+// Expected runtime: ~5s (measured 2026-08-10, serial; it was ~7s before the fixed sleeps
+// became condition-waits). Not @serial.
 import { chromium } from 'playwright';
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { LINES } from '../data/guideLines.js';

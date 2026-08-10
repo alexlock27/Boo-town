@@ -3,6 +3,7 @@
 //     504-ing offline, so the home screen never loaded on a cold cache);
 //  2) every visible control carries an accessible name and a 44px touch target;
 //  3) the Expedition picker has a real first-run state instead of a dead Start button.
+// Expected runtime: ~7s (measured 2026-08-10, serial). Not @serial.
 import { chromium } from 'playwright';
 const RAW = process.env.BASE || 'http://127.0.0.1:8000';
 const BASE = RAW.replace('127.0.0.1', 'app.localhost').replace('//localhost', '//app.localhost');

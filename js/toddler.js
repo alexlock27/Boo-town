@@ -600,8 +600,12 @@ export function mount(container, params, ctx) {
     let repeatTimer = null, autoRepeated = false;
     function sayCall({ spoken = true, interrupt = false } = {}) {
       if (!cur) return false;
-      animal.call(cur);
-      if (spoken) shell.timeout(() => speakMaybe(ANIMAL_WORDS[cur] + '!', true, { interrupt }), 700);   // call first, word after
+      const who = cur;                 // the animal asked about NOW — the round may move on
+      animal.call(who);                // inside the 700ms, and a late line about the last
+      if (spoken) shell.timeout(() => { // animal must never cut the new question.
+        if (cur !== who) return;
+        speakMaybe(ANIMAL_WORDS[who] + '!', true, { interrupt });
+      }, 700);                          // call first, word after
       return true;
     }
     function armAutoRepeat() {

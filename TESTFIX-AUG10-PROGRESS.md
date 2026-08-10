@@ -20,8 +20,10 @@ racy TEST**. Stated plainly because the brief asked for the opposite finding to 
   *test* was asserting a design the product had deliberately moved on from, and in the
   jokeboo case fixing the test PROVED the product right.
 
-One thing genuinely worth a grown-up's eye is in **Deviations**, item D2 (a suite was
-silently not testing what it claimed for ~2 weeks).
+Two things genuinely worth a grown-up's eye, neither a child-facing fault:
+1. **Deviations D2** — a suite was silently not testing what it claimed for ~2 weeks.
+2. **`tests/p7-expansion.mjs` §6.4 cannot fail**, by construction — see the "Also found"
+   section at the end. Pre-existing, outside this lane's items, logged with the diagnosis.
 
 ---
 
@@ -78,7 +80,7 @@ One line per game:
 | `js/games/spellboo.js` | 🔊 Hear it again · speaker icon | `say()` takes opts; bare mount call unchanged |
 | `js/golden.js` | speaker icon | same split |
 | `js/games/soundsorter.js` | 🔊 Say them again | button only; first-time naming pass + QA hook keep FIFO |
-| `js/toddler.js` | the big "Again" speaker | all six `sayAgain` targets |
+| `js/toddler.js` | the big "Again" speaker | its five `sayAgain` implementations, covering all seven toddler games (the drag engine's one serves colour, shape and big/small) |
 | `js/a11y.js` | `readAloudButton` | fixes beat + bubblepop + dash at once |
 | `js/games/blendit.js` | 🔊 Blend it again | see below |
 
@@ -112,6 +114,20 @@ The playing id advances and the queue does **not** grow. Queueing (the old behav
 read `length=2 playing=3` — the child's request waiting behind a line that never ends. The
 control case confirms the other half: a game mount produces no interrupt storm on its
 first-time lines, and only the subsequent "Hear it again" press cuts through.
+
+**And that proof is now a committed suite, not a scratch probe: `tests/r21t1-sayagain-interrupt.mjs`**
+(PASS, 5–6s, twice). This was the most important gap the self-review found: because every
+game suite is required to pass with *or* without the flag, **reverting all eight one-liners
+would have left the whole board green** and the only evidence was a gitignored `.tmp` file
+that would vanish. The new suite covers Rhyme Time, Spell Boo (both controls), Sound Sorter,
+the toddler "Again" speaker and `a11y.readAloudButton` (which serves Boo Beat, Bubble Pop and
+Boo Dash), asserts that ordinary speech still queues, and pins that the behaviour rides
+`speakMaybe`'s shared option rather than a per-game reimplementation.
+
+**The guard is proved to bite.** With one `interrupt: true` temporarily removed from
+`rhymetime.js`, the suite fails with exactly the queueing signature —
+`playing 3 → 3, queue 2 → 3, 0 new utterance` — and passes again when restored. A guard that
+has never been seen to fail is not a guard.
 
 **Affected-suite gate, each run alone on 8044 — all PASS:** `r16w2-blendit` 21s ·
 `r16w3-rhymetime` 22s · `r16w4-storyorder` 55s · `r17x2-encouragement` 4.5s ·
@@ -165,7 +181,7 @@ All eight now finish. **None was a product fault.**
 | Suite | Before | After | Cause |
 |---|---|---|---|
 | `r9p5-echoboos` | 400s timeout | **PASS 20s**, 4→12 assertions | superseded design |
-| `m2-full` | died 15s | **PASS 53s** ×3 | fixed sleep vs game lock |
+| `m2-full` | died 15s | **PASS 49s** ×3 | two fixed-sleep races |
 | `r10p1-worldmap` | intermittent 30s timeout | **PASS ×4**, 77 checks, 28–45s | seed race + starved boot |
 | `r18a-jokeboo-door` | FAIL | **PASS 34s** ×2, 43 checks | two stale tests |
 | `r18b-flashboos` | listed intermittent | PASS 34s | already fine |
@@ -188,7 +204,11 @@ automatic mercy (where `mercyUsed` still legitimately lives).
 during the drop arc, so the next iteration re-grabbed the **same** item; the tray emptied
 with `idx` still 0 and results became unreachable. Measured with `.tmp/feed-probe.mjs`:
 2 iterations then stuck → **all 12 items fed, 0 wrong drops** once it waits for
-`!locked && idx advanced`. Three consecutive PASS at 52–53s.
+`!locked && idx advanced`. A later round of runs exposed the SAME shape a second time in
+`openCeremony` — three blind taps at 340ms against a box that counts taps synchronously, so a
+lost click silently cost the round — plus an async-mount window at the ceremony's entry wait.
+Each tap is now confirmed by its own `squash-<n>` class and the entry wait reports what was on
+screen instead of dying. Three consecutive PASS at 49s.
 
 **`r10p1-worldmap`** — two distinct causes, both fixed:
 1. `goto → setItem → reload` booted the app **twice**. The first boot has no save at all,
@@ -218,9 +238,19 @@ with `idx` still 0 and results became unreachable. Measured with `.tmp/feed-prob
    ceremony **ever** attached while the hub was the live screen — the condition the rule is
    actually about.
 
-`tests/lib/board-durations.json` updated with **23 measured serial runtimes**. Nothing
-touched exceeds the 120s budget; the only entries above it are the pre-existing
-`r12s12-bubble-containment`, `r13t1-care-direct`, `r13t5-cosmetics`.
+`tests/lib/board-durations.json` updated with measured serial runtimes: **19 entries
+(12 corrected, 7 added)**, plus two more recorded during the self-review below — 21 in all.
+
+**Two runtime facts that are NOT tidy, recorded because they are true:**
+- **`r12s4-contrast` measured 142s tonight**, against a recorded 109s and the Board Law's
+  120s single-suite budget. I did not touch that suite — it is one of the five core suites —
+  but a stale duration mis-balances the shard lanes, so the measured value is now recorded.
+  **It is over budget and is not in `board-serial-baseline.md`.** Someone should either
+  split it or justify it there; it is not mine to decide and nothing tonight made it slower.
+- **`r12s1-routes` measured 119–120s**, against a recorded 94s. It sits exactly on the cap.
+  Nothing this lane did could plausibly add 25s to it (one re-worded label); the likelier
+  cause is that the route roster has grown since 94s was recorded. Flagged rather than
+  smoothed over — it is one route away from breaching the budget.
 
 ---
 
@@ -275,8 +305,13 @@ section is one contiguous block in one test file; `git revert` restores the old 
 itself** and, on second failure, reports what was on screen keeps the signal. Justified by
 evidence rather than convenience: 40 isolated boots of the same fixture, 0 failures — so
 the app is sound and the pressure is the harness's. BLOCKED.md's standing warning ("do not
-widen the tolerance to make it green") is honoured: nothing green was made greener; a suite
-that could not finish now finishes and still fails loudly if the app really breaks.
+widen the tolerance to make it green") is honoured in that nothing green was made greener.
+*THE HONEST COST, stated plainly:* this **is** a mask for one class of fault. A genuine,
+low-frequency boot race **in the app** would now be retried, logged as "harness pressure,
+not the app", and the suite would PASS. I accepted that because the alternative was a suite
+that proves nothing at all, and because the retry leaves a greppable line in the output —
+but the wording of that line is now the only thing distinguishing the two causes, so if a
+future session sees it fire *often*, it should be read as evidence about the app, not noise.
 *REVERSIBLE:* `bootSeeded`'s loop bound is a single `attempt <= 2`.
 
 **DECISION D3: pin the Toddler Stories removal in a test.**
@@ -291,10 +326,97 @@ still not have proved the first-run state *works*, only that a node exists — s
 compares against the exported constant (catching copy drift) and clicks through to the
 collection. *REVERSIBLE:* test-only.
 
+**DECISION D5: the toddler "?" help control now interrupts, and that is intended.**
+*WHY:* `js/toddler.js:262` replays the first-play intro and then calls `api.sayAgain()`, and
+`js/intro.js` fires `onDone` on **Skip** as well as on finish — so a child who skips now has
+the intro's own line cut by the prompt. That reads wrong on paper ("first-time speech never
+interrupts") but right in the hand: she pressed Skip, which means she does not want to hear
+it, and the thing she does want is the prompt. Recorded because it is the one place where a
+repeat pre-empts *instructional* speech. *REVERSIBLE:* give `sayAgain` an argument and pass
+`{ interrupt: false }` from the intro's `onDone`.
+
+**DECISION D6: record `r12s4-contrast`'s real 142s even though it is over budget and not
+mine.** *WHY:* a stale duration mis-balances the shard lanes for everyone, and the Board Law
+wants measured runtimes. Recording it makes a real problem visible; leaving 109s would have
+hidden it behind a suite I happened to run. I did not split or justify it — that is a
+decision for whoever owns that suite. *REVERSIBLE:* one number.
+
 **No rules were changed.** Nothing in `CLAUDE.md` obstructed this lane. Nothing was
 escalated: no item touched money, accounts, children's privacy (the one privacy assertion
 was verified intact), wholesale feature removal beyond the pre-approved Toddler door, or an
 unverifiable licence.
+
+---
+
+## Self-review — what a cold adversarial read of this branch found, and what I did
+
+I had the finished tree read back adversarially with fresh context, and it found real things.
+Recorded in full, including the ones that were my errors:
+
+**Fixed as a result:**
+1. **The approved product change had no regression coverage at all** — the single most
+   important finding. Fixed: `tests/r21t1-sayagain-interrupt.mjs`, proved to bite.
+2. **`p8-frames` had lost a behavioural assertion.** Re-pinning the hearts as *absent* was
+   correct, but nothing then asserted the child gets **any** response to a wrong tap — an
+   invisible, silent failure would have satisfied it. Now also asserts the gate and the Boo
+   both bonk and that RUN18D's explanation names the answer
+   ("That gate said 25 — the answer was 40!").
+3. **Animal Sounds' delayed line could cut the *next* question.** `sayCall`'s 700ms timer
+   re-read `cur` at fire time, so if the round advanced inside that window an interrupting
+   line about the previous animal would pre-empt the new prompt. Now captures the animal at
+   call time and drops the line if the round has moved on.
+4. **`r12s9-toddler-replay` pinned one exact spelling of a line of source** and broke on that
+   refactor while the behaviour was unchanged. Re-pinned as the property that matters: the
+   call comes first, the word second, 700ms apart.
+5. **`m2-full`'s ceremony entry had the same fixed-sleep shape** as the feed loop I had
+   already fixed — three blind taps against a box that counts them synchronously, so a lost
+   click cost the round. Each tap is now confirmed by its own `squash-<n>` class; a fourth
+   run had also exposed an async-mount window at the ceremony's entry wait, now widened and
+   made diagnosable rather than fatal.
+6. **The blendit comment overclaimed.** The generation token is per-**item**, guarding
+   repeated taps on the same word (the case a child creates), not across an item change. The
+   comment now says exactly that.
+7. **Ledger inaccuracies**, all corrected above: "23" durations was really 19; the
+   `r12s4-contrast` 142s measurement contradicted both the recorded 109s and the 120s budget
+   and is now recorded and flagged; the "Files changed" list omitted this ledger itself and
+   claimed "nothing else"; "all six sayAgain targets" was five implementations over seven
+   games; a pre-existing `hub.js` comment named two files for one remaining door.
+
+**Accepted, not fixed, with reasons:** the `r10p1-worldmap` retry is a mask for one fault
+class (now stated plainly in D2); one stray grapheme can still speak out of order if a guide
+line sits between two taps on the same blendit word (a consequence of the deliberate FIFO
+choice, low severity); the toddler "?" path interrupts instructional speech (D5).
+
+---
+
+## Also found, NOT fixed — logged and left, per "log it and move on"
+
+While diagnosing `r18a-jokeboo-door` I found the *shape* worth cataloguing, so I audited the
+whole board for it read-only. **These are pre-existing and outside this lane's four items —
+listed so a future session can pick them up with the diagnosis already done.** No suite below
+was edited.
+
+**The headline: `tests/p7-expansion.mjs` §6.4 is structurally incapable of failing.** Its
+assertion ends `|| ...stars.byGame.spellboo.plays >= 0`, and `freshSave()` seeds `plays: 0`
+while `migrate()` applies `deepDefaults`, so that clause is **always true**. The
+`assert(spelled, 'homophone round is playable to completion without voice or Peek')` has been
+passing unconditionally whether or not a single tile was ever clicked. Highest-value fix on
+the board.
+
+**Two fixtures set flags the app does not read**, which silently makes "defensive" dismissals
+load-bearing: `r18d-funfair-scenery` seeds `seen.funfairOpen` but `js/town.js` gates on
+`funfairOpened`; `r18a-shop-chrome` seeds `seen.shopWelcomed` but `js/shop.js` gates on
+`shop.welcomed`. Both overlays therefore fire on *every* mount.
+
+**Five inert tab clicks prove nothing**, because `js/drawer.js` and `js/grownups.js` keep
+every panel mounted and only toggle a class — so the panel's contents are queryable whether
+the tab was clicked or not: `r21f6-visit` ×3, `r18b-shop-handoff` ×2, plus
+`r18a-jokeboo-door`'s Landscape tab. **Two dead lookups**: `r5p6-intros` waits for a golden
+"Start" button that does not exist, and `r12s13-a11y:149` pairs an optional click with a
+"nothing was spoken" assertion that a *missing* button satisfies perfectly.
+
+The mechanical cure for all of them is the one this branch used: return the boolean from the
+`evaluate` and assert it Node-side, instead of letting `if (x) x.click()` swallow the answer.
 
 ---
 
@@ -318,11 +440,33 @@ unverifiable licence.
   **exported constant** or a **state hook** rather than a hard-coded selector or string.
 - `BLOCKED.md` gained nothing tonight: no item in this lane resolved to a product fault.
 
-## Files changed
+## Files changed — complete, including this file
 
-`tests/` — `p8-frames`, `r11audit`, `r17x3-feelings`, `r16w2-blendit`, `r16w3-rhymetime`,
-`r17x2-encouragement`, `r9p5-echoboos`, `m2-full`, `r10p1-worldmap`, `r18a-jokeboo-door`,
-`r7p4-toddler`, `r12s1-routes`, `lib/board-durations.json`.
-`js/` — the approved say-again change (`rhymetime`, `storyorder`, `spellboo`, `golden`,
-`soundsorter`, `toddler`, `a11y`, `blendit`) and the approved one-line `hub.js` removal.
-Nothing else. No `css/`, no `data/`, no `sw.js`.
+**`tests/` (13 modified):** `p8-frames`, `r11audit`, `r17x3-feelings`, `r16w2-blendit`,
+`r16w3-rhymetime`, `r17x2-encouragement`, `r9p5-echoboos`, `m2-full`, `r10p1-worldmap`,
+`r18a-jokeboo-door`, `r7p4-toddler`, `r12s1-routes`, `r12s9-toddler-replay`, plus
+`lib/board-durations.json`.
+**`tests/` (1 new):** `r21t1-sayagain-interrupt.mjs` — the interrupt's regression guard.
+**`js/` (9):** the approved say-again change (`games/rhymetime`, `games/storyorder`,
+`games/spellboo`, `golden`, `games/soundsorter`, `toddler`, `a11y`, `games/blendit`) and the
+approved one-line door removal in `hub` — which also re-words two adjacent comments, one of
+them a pre-existing line that named two files for what is now one door.
+**Repo root (1 new):** `TESTFIX-AUG10-PROGRESS.md` — this ledger. It is **tracked, not
+gitignored**, because the brief asks for it "on the branch"; it follows the precedent of the
+committed `RUN21*-PROGRESS.md` files that `PICK-UP-HERE.md` records. Checked for names and
+secrets. Gitignore it if you would rather it stayed private.
+
+No `css/`, no `data/`, no `sw.js`, and no new `js/` or `data/` file — so the offline law needs
+nothing from this branch.
+
+## Handoff — what this branch does NOT do (deliberately)
+
+The brief forbids merging and deploying, so the deploy gate is untouched and these are for
+whoever merges:
+- **`BUILD_STAMP` is still `run21f-20260804`** and there is no `PROJECT_STATE.md` regeneration.
+- **The say-again change is child-facing behaviour and needs a What's New entry.** The Toddler
+  Stories removal correctly needs none (nothing announces a removal to a child), but "press
+  the speaker and it starts again straight away" is a real improvement a child would notice.
+  It was not written here because What's New blocks carry the BUILD_STAMP they ship under,
+  which this branch does not set.
+- Run `tests/walk.mjs` (the RUN21F F10 pre-merge smoke) before merging, per the Board Law.

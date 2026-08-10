@@ -664,7 +664,7 @@ function mountToddlerHub(container, params, ctx) {
   } }, [el('span', { class: 'tc-icon', text: '👀' }), el('span', { class: 'tc-word', text: 'Flash' })]));
 
   // RUN18E L1: the RUN16 reading games that genuinely suit a pre-reader join the Toddler
-  // hub too, each opened restricted (soundsorter.js/storyorder.js read params.toddler).
+  // hub too, opened restricted (soundsorter.js reads params.toddler).
   cards.appendChild(el('button', { class: 'toddler-card', 'aria-label': 'Sounds', onclick: () => {
     sfx.tap(); speakMaybe('Sounds'); ctx.go('soundsorter', { toddler: true });
   } }, [el('span', { class: 'tc-icon', text: '🔤' }), el('span', { class: 'tc-word', text: 'Sounds' })]));
