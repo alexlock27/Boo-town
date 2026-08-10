@@ -40,7 +40,14 @@ export const SURFACE_SLOTS = {
   deco_bookshelf:    [{ x: -0.18, surfaceY: 0.138 }, { x: 0.18, surfaceY: 0.462 }],   // books stand at y=102 / y=60
   deco_bookshelf2:   [{ x: -0.18, surfaceY: 0.108 }, { x: 0.18, surfaceY: 0.308 }],   // books stand at y=106 / y=80
   deco_bookshelf3:   [{ x: -0.18, surfaceY: 0.262 }, { x: 0.18, surfaceY: 0.462 }],   // planks' top faces y=86 / y=60
-  deco_toybox:       [{ x: 0 }]
+  deco_toybox:       [{ x: 0 }],
+  // ---- RUN21E-10: outdoor hang points ------------------------------------------------------
+  // The three trees each gain ONE hanging point, up among their leaves — a branch, not a shelf,
+  // so `surfaceY` is high and the thing hangs from it rather than standing on it. Read off each
+  // tree's own art in js/art.js renderDeco.
+  deco_oak:          [{ x: 0.02, surfaceY: 0.446 }],   // canopy ell(60,54,36,30) — its underside is y=84, well inside the leaves
+  deco_pine:         [{ x: 0.00, surfaceY: 0.400 }],   // the lowest bough of the three stacked triangles, y=68
+  deco_palm:         [{ x: -0.04, surfaceY: 0.523 }]   // where the fronds spring from the trunk, y=52 (the trunk leans left)
 };
 
 // The height of each surface. RUN21B item 5 re-measured every one against the art (before ->
@@ -61,7 +68,11 @@ export const SURFACE_Y = {
   deco_bookshelf: 0.138,    // the slots carry their own two shelves; this is the fallback
   deco_bookshelf2: 0.108,
   deco_bookshelf3: 0.262,
-  deco_toybox: 0.508
+  deco_toybox: 0.508,
+  // RUN21E-10: the trees' hanging points (each slot also carries its own, above).
+  deco_oak: 0.446,
+  deco_pine: 0.400,
+  deco_palm: 0.523
 };
 
 // RUN21B item 5, the CHILD half of the residual. A parent's surfaceY says where the tabletop
@@ -77,14 +88,19 @@ export const SMALL_ITEM_BASE_Y = {
   deco_tablelamp: 104,     // rrect(52,96,16,8) foot
   deco_lamp2: 104,         // same foot
   deco_plant1: 114,        // pot path M44 96 L76 96 L72 114 L48 114 Z
-  deco_photoframe: 110     // rrect(24,26,72,84) frame
+  deco_photoframe: 110,    // rrect(24,26,72,84) frame
+  // RUN21E-10: both HANG, so their art's own bottom is where the hook holds them.
+  land_lantern: 108,       // the lantern body's base, y=108
+  land_buntingend: 92      // the knot the swag is tied at, y=92
 };
 export const baseYFor = (itemId) => SMALL_ITEM_BASE_Y[itemId] != null ? SMALL_ITEM_BASE_Y[itemId] : 120;
 
 // `sizeClass:'small'` — the items that may sit in a slot. photoframe LOSES its wall-only
 // exclusivity here (the pack: "either"), so it can hang on a wall OR stand on a shelf.
 // wallclock stays wall-only, deliberately: a clock on a table is a different object.
-export const SMALL_ITEMS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_plant1', 'deco_photoframe']);
+// RUN21E-10 adds the two free Landscape smalls that hang outdoors.
+export const SMALL_ITEMS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_plant1', 'deco_photoframe',
+  'land_lantern', 'land_buntingend']);
 
 export const SURFACE_ITEM_IDS = new Set(Object.keys(SURFACE_SLOTS));
 export function slotsFor(itemId) { return SURFACE_SLOTS[itemId] || null; }

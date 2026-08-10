@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21f-20260804` (sw.js; 159 precached assets)
+- BUILD_STAMP: `run21e-20260810` (sw.js; 159 precached assets)
 - SAVE VERSION: 24 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
@@ -24,13 +24,13 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - `boohouse` — The Boo House (interior)
 - `gallery` — The Gallery (interior)
 
-## Catalogue — 152 items by kind (data/catalogue.js)
+## Catalogue — 156 items by kind (data/catalogue.js)
 
 - accessory: 34
 - boo: 44
 - deco: 27
 - furniture: 36
-- landscape: 8
+- landscape: 12
 - path: 3
 
 ## Content counts
@@ -38,9 +38,9 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - wishes: 60 (data/wishes.js WISH_WORDS)
 - dressings: 24 (data/dressings.js DRESSINGS, free defaults included)
 
-## Tests — 212 files under tests/
+## Tests — 214 files under tests/
 
-- board suites: 187 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
+- board suites: 189 (+ 25 not on the board: shoot*, sim-blocks*, device-qa*, walk*, and run.mjs, the runner itself)
 - `npm test` runs `node tests/run.mjs` — `tests/run.mjs` EXISTS (resolves)
 
 ### Suite list
@@ -174,6 +174,8 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - r20-wishlife.mjs
 - r21a-reach-truth.mjs
 - r21d-alive.mjs
+- r21e-b1-observe.mjs
+- r21e-jobs.mjs
 - r21f10-journal.mjs
 - r21f5-placementids.mjs
 - r21f6-visit.mjs
@@ -273,6 +275,9 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - RUN21A-PROGRESS.md: ## BLOCKED
 - RUN21A-PROGRESS.md: - NEEDS_ALEX gates for F8/F9 are ABSENT in NEEDS_ALEX.md → both will log SKIPPED-GATED.
 - RUN21B-PROGRESS.md: ## BLOCKED
+- RUN21E-PROGRESS.md: | F9 | Voice: VOICE still HELD → SKIPPED-GATED | GATED |
+- RUN21E-PROGRESS.md: | `r19z3-moments` | **PRE-EXISTING FAIL, proved not mine** — one pillow-clearance assertion (`eyes 456, pillow 460`). Identical on two runs, identical with my working files stashed, and **identical on a pristine `main` checkout served on its own port**. Logged to `BLOCKED.md` with the repro. 36 other assertions pass. | ~90s each |
+- RUN21E-PROGRESS.md: PICK-UP-HERE.md, BLOCKED.md. Key collisions: no buildMode (use `worldSoftened()`); pan only via
 - RUN21F-PROGRESS.md: - [ ] F8 — SKIPPED-GATED: NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE`
 - RUN21F-PROGRESS.md: - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
 - RUN21F2-PROGRESS.md: SKIPPED-GATED (NEEDS_ALEX.md lacks their approval lines). Nothing else in the pack is

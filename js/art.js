@@ -1087,6 +1087,71 @@ export function renderDeco(item, opts = {}) {
         ell(60, 58, 8, 10, COLORS.cocoa, ink) +
         `<circle cx="60" cy="56" r="3" fill="${COLORS.gold}"/>`;
       break;
+    case 'lantern':
+      // RUN21E-10: a little hanging lantern. `.lamp-glow` is the house's own lit-at-night
+      // group, so town.js's existing `.lit` check does the rest with no new machinery.
+      inner =
+        `<path d="M60 14 q0 10 0 12" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` +
+        `<path d="M48 26 a12 10 0 0 1 24 0" fill="none" stroke="${INK}" stroke-width="3"/>` +
+        rrect(44, 30, 32, 10, 4, COLORS.cocoa, halo) +
+        rrect(44, 30, 32, 10, 4, COLORS.cocoa, ink) +
+        `<g class="lamp-glow">` +
+        path('M48 40 L72 40 L76 96 L44 96 Z', COLORS.gold, halo) +
+        path('M48 40 L72 40 L76 96 L44 96 Z', '#FFF3B0', ink) +
+        `<ellipse cx="60" cy="68" rx="9" ry="13" fill="${COLORS.gold}"/>` +
+        `</g>` +
+        rrect(42, 96, 36, 12, 4, COLORS.cocoa, halo) +
+        rrect(42, 96, 36, 12, 4, COLORS.cocoa, ink) +
+        `<line x1="52" y1="40" x2="52" y2="96" stroke="${INK}" stroke-width="2" opacity="0.5"/>` +
+        `<line x1="68" y1="40" x2="68" y2="96" stroke="${INK}" stroke-width="2" opacity="0.5"/>`;
+      break;
+    case 'buntingend':
+      // A knot on a short post, with two little flags on the stub of string. The SWAG itself
+      // is drawn by town.js between two of these, because it belongs to the pair, not to one.
+      inner =
+        rrect(56, 40, 8, 56, 3, COLORS.cocoa, halo) +
+        rrect(56, 40, 8, 56, 3, COLORS.cocoa, ink) +
+        ell(60, 92, 16, 5, COLORS.teal, ink) +
+        ell(60, 38, 9, 8, COLORS.bubblegum, halo) +
+        ell(60, 38, 9, 8, COLORS.bubblegum, ink) +
+        `<path d="M64 42 q14 4 22 14" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>` +
+        path('M70 46 l11 2 l-4 11 z', COLORS.gold, ink) +
+        path('M80 52 l10 4 l-6 10 z', COLORS.aqua, ink);
+      break;
+    case 'kiterack':
+      // RUN21E-2: a low wooden stand with three pegs, the way a kite rack on a hill looks —
+      // two feet, a crossbar, three pegs standing proud of it.
+      inner =
+        ell(60, 112, 30, 7, COLORS.teal, halo) +
+        ell(60, 112, 30, 7, COLORS.teal, ink) +
+        rrect(30, 84, 8, 28, 3, COLORS.cocoa, halo) +
+        rrect(30, 84, 8, 28, 3, COLORS.cocoa, ink) +
+        rrect(82, 84, 8, 28, 3, COLORS.cocoa, halo) +
+        rrect(82, 84, 8, 28, 3, COLORS.cocoa, ink) +
+        rrect(26, 76, 68, 10, 4, COLORS.sand, halo) +
+        rrect(26, 76, 68, 10, 4, COLORS.sand, ink) +
+        [38, 58, 78].map((x, i) =>
+          rrect(x - 3, 56 - i % 2 * 4, 6, 22 + i % 2 * 4, 3, COLORS.cocoa, ink) +
+          ell(x, 54 - i % 2 * 4, 5, 5, [COLORS.bubblegum, COLORS.gold, COLORS.aqua][i], ink)).join('');
+      break;
+    case 'noticepost':
+      // RUN21E-5: a small wooden post with ONE arm — deliberately not the four-armed
+      // shop Signpost. The arm carries a little pinned notice, which is what it is for.
+      inner =
+        ell(60, 112, 20, 6, COLORS.teal, halo) +
+        ell(60, 112, 20, 6, COLORS.teal, ink) +
+        rrect(55, 40, 10, 72, 4, COLORS.cocoa, halo) +
+        rrect(55, 40, 10, 72, 4, COLORS.cocoa, ink) +
+        path('M64 46 L100 52 L100 70 L64 64 Z', COLORS.sand, halo) +
+        path('M64 46 L100 52 L100 70 L64 64 Z', COLORS.sand, ink) +
+        `<line x1="70" y1="54" x2="94" y2="58" stroke="${INK}" stroke-width="3" stroke-linecap="round" opacity="0.55"/>` +
+        `<line x1="70" y1="60" x2="88" y2="63" stroke="${INK}" stroke-width="3" stroke-linecap="round" opacity="0.4"/>` +
+        rrect(30, 58, 26, 22, 3, COLORS.cream, halo) +
+        rrect(30, 58, 26, 22, 3, COLORS.cream, ink) +
+        `<line x1="35" y1="65" x2="51" y2="65" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>` +
+        `<line x1="35" y1="72" x2="47" y2="72" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>` +
+        `<circle cx="60" cy="38" r="5" fill="${COLORS.gold}" ${ink}/>`;
+      break;
     case 'lamp':
       inner =
         rrect(56, 60, 8, 52, 4, COLORS.cocoa, halo) +
@@ -1316,11 +1381,25 @@ export function renderDeco(item, opts = {}) {
         `</g>`;
       break;
     case 'wardrobe':
+      // RUN21E-12: two hinged door groups over a dark inside with a clothes rail. A tap
+      // flings both toward their hinges (CSS scaleX), then dress-up opens. Closed, the
+      // doors redraw the old flat front exactly (centre split + two gold knobs).
       inner =
         rrect(30, 30, 60, 82, 8, COLORS.cocoa, halo) +
         rrect(30, 30, 60, 82, 8, COLORS.cocoa, ink) +
-        `<line x1="60" y1="34" x2="60" y2="108" stroke="${INK}" stroke-width="3"/>` +
-        `<circle cx="54" cy="70" r="2.5" fill="${COLORS.gold}"/><circle cx="66" cy="70" r="2.5" fill="${COLORS.gold}"/>`;
+        `<g class="pd-inner" aria-hidden="true">` +
+        rrect(34, 34, 52, 74, 5, '#4A3B72', '') +
+        `<line x1="37" y1="44" x2="83" y2="44" stroke="${COLORS.gold}" stroke-width="2.5" opacity="0.8"/>` +
+        `<path d="M48 44 q0 7 5 7 M62 44 q0 7 5 7 M76 44 q0 7 -5 7" fill="none" stroke="${COLORS.cream}" stroke-width="2" opacity="0.7"/>` +
+        `</g>` +
+        `<g class="pd-door pd-door-l">` +
+        rrect(30, 30, 30, 82, 8, COLORS.cocoa, ink) +
+        `<circle cx="54" cy="70" r="2.5" fill="${COLORS.gold}"/>` +
+        `</g>` +
+        `<g class="pd-door pd-door-r">` +
+        rrect(60, 30, 30, 82, 8, COLORS.cocoa, ink) +
+        `<circle cx="66" cy="70" r="2.5" fill="${COLORS.gold}"/>` +
+        `</g>`;
       break;
     case 'bathtub':
       inner =
@@ -1431,20 +1510,37 @@ export function renderDeco(item, opts = {}) {
         rrect(57, 82, 6, 26, 3, COLORS.cocoa, ink);
       break;
     case 'fridge':
+      // RUN21E-12: the lower door is its own hinged group so a tap can swing it open
+      // (CSS collapses it toward the left hinge), revealing the inside — warm light, two
+      // shelf lines and a `.pd-peek` slot town.js fills with a random food-wish art.
+      // Closed, it draws pixel-for-pixel what the old flat art drew.
       inner =
         rrect(32, 24, 56, 86, 8, COLORS.iceblue, halo) +
         rrect(32, 24, 56, 86, 8, COLORS.iceblue, ink) +
         `<line x1="32" y1="56" x2="88" y2="56" stroke="${INK}" stroke-width="3"/>` +
-        rrect(78, 34, 5, 16, 2, COLORS.ink, '') + rrect(78, 64, 5, 20, 2, COLORS.ink, '') +
+        rrect(78, 34, 5, 16, 2, COLORS.ink, '') +
         path(starPath(52, 42, 6, 2.6), COLORS.gold, '') +
-        ell(60, 84, 8, 8, COLORS.bubblegum, ink);
+        `<g class="pd-inner" aria-hidden="true">` +
+        rrect(36, 60, 48, 46, 5, '#FFF7DF', '') +
+        `<line x1="38" y1="77" x2="82" y2="77" stroke="${INK}" stroke-width="2" opacity="0.3"/>` +
+        `<line x1="38" y1="92" x2="82" y2="92" stroke="${INK}" stroke-width="2" opacity="0.3"/>` +
+        `<g class="pd-peek"></g>` +
+        `</g>` +
+        `<g class="pd-door">` +
+        rrect(32, 56, 56, 54, 8, COLORS.iceblue, ink) +
+        rrect(78, 64, 5, 20, 2, COLORS.ink, '') +
+        ell(60, 84, 8, 8, COLORS.bubblegum, ink) +
+        `</g>`;
       break;
     case 'oven':
+      // RUN21E-12: the window carries a bright pane (`.pd-ovenlight`, opacity 0 at rest)
+      // that town.js's 3s `.prop-cooking` state fades up — the tap's glow, no motion.
       inner =
         rrect(28, 44, 64, 66, 8, COLORS.ghost, halo) +
         rrect(28, 44, 64, 66, 8, COLORS.ghost, ink) +
         rrect(36, 68, 48, 32, 5, COLORS.midnight, ink) +
         rrect(40, 74, 40, 20, 3, COLORS.orange, '') +
+        `<g class="pd-ovenlight" aria-hidden="true">` + rrect(40, 74, 40, 20, 3, '#FFDF6B', '') + `</g>` +
         ell(42, 56, 4, 4, COLORS.red, ink) + ell(56, 56, 4, 4, COLORS.teal, ink) + ell(70, 56, 4, 4, COLORS.gold, ink);
       break;
     case 'bunkbed':
@@ -1461,13 +1557,26 @@ export function renderDeco(item, opts = {}) {
         [46, 58, 70].map(y => `<line x1="98" y1="${y}" x2="112" y2="${y}" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>`).join('');
       break;
     case 'wardrobe2':
+      // RUN21E-12: same hinged-door construction as the Lounge wardrobe — each door
+      // keeps its own two spots and its knob, so closed it draws what it always drew.
       inner =
         rrect(30, 28, 60, 82, 8, COLORS.lilac, halo) +
         rrect(30, 28, 60, 82, 8, COLORS.lilac, ink) +
-        `<line x1="60" y1="32" x2="60" y2="106" stroke="${INK}" stroke-width="3"/>` +
-        ell(45, 52, 6, 6, COLORS.bubblegum, ink) + ell(75, 52, 6, 6, COLORS.gold, ink) +
-        ell(45, 82, 6, 6, COLORS.teal, ink) + ell(75, 82, 6, 6, COLORS.bubblegum, ink) +
-        `<circle cx="55" cy="68" r="2.5" fill="${INK}"/><circle cx="65" cy="68" r="2.5" fill="${INK}"/>`;
+        `<g class="pd-inner" aria-hidden="true">` +
+        rrect(34, 32, 52, 74, 5, '#4A3B72', '') +
+        `<line x1="37" y1="42" x2="83" y2="42" stroke="${COLORS.gold}" stroke-width="2.5" opacity="0.8"/>` +
+        `<path d="M48 42 q0 7 5 7 M62 42 q0 7 5 7 M76 42 q0 7 -5 7" fill="none" stroke="${COLORS.cream}" stroke-width="2" opacity="0.7"/>` +
+        `</g>` +
+        `<g class="pd-door pd-door-l">` +
+        rrect(30, 28, 30, 82, 8, COLORS.lilac, ink) +
+        ell(45, 52, 6, 6, COLORS.bubblegum, ink) + ell(45, 82, 6, 6, COLORS.teal, ink) +
+        `<circle cx="55" cy="68" r="2.5" fill="${INK}"/>` +
+        `</g>` +
+        `<g class="pd-door pd-door-r">` +
+        rrect(60, 28, 30, 82, 8, COLORS.lilac, ink) +
+        ell(75, 52, 6, 6, COLORS.gold, ink) + ell(75, 82, 6, 6, COLORS.bubblegum, ink) +
+        `<circle cx="65" cy="68" r="2.5" fill="${INK}"/>` +
+        `</g>`;
       break;
     case 'lamp2':
       inner =

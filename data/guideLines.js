@@ -146,7 +146,9 @@ export const LINES = {
   L_AREA_FULL: ["This spot's bursting! Try another area?"],
 
   // ---- Run 10 P3 additions (Town 4.0: build mode, paths, landscape, fishing) ----
-  L_PATH_FULL: ["That's a LOT of path! Erase some to lay more."],
+  // RUN21E (sanctioned by the RUN21C report): the Erase tool is gone — painting over a
+  // path sweeps it away — so the line names the verb the control actually has.
+  L_PATH_FULL: ["That's a LOT of path! Paint over some to lay more."],
 
   // ---- Run 10 P4 additions (Interiors: the Boo House and the Gallery) ----
   // Superseded L_LANDSCAPE_OUTDOORS — the packet's own general-purpose line now covers
@@ -249,6 +251,16 @@ export const LINES = {
   ackRestyle: ["Ooh — do you like my new look? I love it."],
   ackEasel: ["I do like the painting by the easel. One of yours, isn't it?"],
   ackPath: ["{booName} loves the {style} path you made!"],
+
+  // ---- RUN21E E12/E13: acknowledgement wave two (authored verbatim in the pack) ------
+  ackOven: ["Something smells lovely!"],
+  ackAreaBusy: ["Look how busy the {areaName} is getting!"],
+  ackDressing: ["Ooh — new wallpaper!"],
+  ackDressingFloor: ["Ooh — a new floor!"],
+  ackNewItem: ["{booName} loves the new {itemName}!"],
+
+  // ---- RUN21E E2: the Hilltop's little train names the hour ---------------------------
+  hilltopTrain: ["Listen — the {hour} o'clock train!"],
 
   // ---- RUN19 Z5: stardust, surfaced ------------------------------------------------
   stardustExplain: ["Stardust comes from doubles — 10 makes a Boo shiny, 5 makes anything sparkle!"],

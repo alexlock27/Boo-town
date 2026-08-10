@@ -8,6 +8,7 @@ import { getState, mutate, todayKey } from './state.js';
 import { AREAS, MAP_POS, AREA_UNLOCK_STARS, HOUSE_ROOM_KEYS, flattenTownItems } from './areas.js';
 import { activeRequests } from './requests.js';
 import { getDisplayName } from './accessories.js';
+import { trackComplete } from './growth.js';   // RUN21E-15: the finished-track ribbon
 
 // RUN20 W4: how many nodes each badge's flourish needs. Capped at three by the pack; most want
 // one or two, and the CSS drives all of them off one shared 6s loop.
@@ -126,6 +127,7 @@ export function mount(container, params, ctx) {
         // The chip carries the authored sentence itself, but a button's aria-label wins over
         // its children — so the badge repeats it, exactly as the hide chip already does.
         'aria-label': a.name + (hiding ? ' — someone is hiding here' : '') + (wonder ? ' — ' + wonder : '')
+          + (unlocked && trackComplete(a.key, s) ? ' — all built!' : '')
       }, [
         el('div', { class: 'mb-dot', html: unlocked ? areaIcon(a.key) : '🔒' }),
         el('div', { class: 'mb-label', text: a.name }),
@@ -141,7 +143,15 @@ export function mount(container, params, ctx) {
         // fair light twinkles, a ball rolls, a window glows, a spotlight breathes. At most
         // three nodes per badge, transform-only, and static under reduced motion.
         unlocked ? el('div', { class: 'mb-flourish f-' + a.key, 'aria-hidden': 'true' },
-          Array.from({ length: FLOURISH_NODES[a.key] || 1 }, () => el('i'))) : null
+          Array.from({ length: FLOURISH_NODES[a.key] || 1 }, () => el('i'))) : null,
+        // RUN21E-15: a tiny ribbon when this area's whole three-milestone track is finished —
+        // "the Builders have nothing left to do here". Deliberately OUTSIDE .mb-flourish (which
+        // r20-wishlife counts the children of) and clear of .mb-label's box, whose contrast the
+        // same suite samples.
+        unlocked && trackComplete(a.key, s)
+          ? el('div', { class: 'mb-ribbon', 'aria-hidden': 'true',
+              html: '<svg viewBox="0 0 22 16" width="20" height="15"><path d="M2 2 h18 l-4 6 l4 6 h-18 l4 -6 z" fill="#FFC93C" stroke="#2A1B4E" stroke-width="1.6" stroke-linejoin="round"/><circle cx="11" cy="8" r="2.2" fill="#FF7AC6"/></svg>' })
+          : null
       ]);
       badge.addEventListener('click', () => {
         if (unlocked) enterArea(a.key);

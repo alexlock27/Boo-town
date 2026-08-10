@@ -23,7 +23,9 @@ export const WEIGHTS = {
   cheeky:  { chase: 1.6, visit: 1.4, watch: 0.7 },
   shy:     { watch: 2.2, visit: 0.5 },
   musical: { danceStage: 2.2, fairBand: 1.6 },
-  sporty:  { slide: 1.8, swings: 1.6, seesaw: 1.5 }
+  // RUN21E-4: 'tag' keys the Playground's zone behaviour — a sporty Boo is half again as
+  // likely to be the one who starts the game.
+  sporty:  { slide: 1.8, swings: 1.6, seesaw: 1.5, tag: 1.5 }
 };
 export const SHY_GREET_DIST_PX = 20;   // a shy Boo stands 20px further back on a friend visit
 

@@ -14,7 +14,7 @@ const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m
 const browser = await chromium.launch();
 // Gift landmarks the Meadow pre-places for her: they are scenery the app gave, not
 // placements she made, so counts of "what SHE put down" exclude them.
-const SEEDED_LANDMARKS = ['deco_wishwell', 'deco_jokestage'];
+const SEEDED_LANDMARKS = ['deco_wishwell', 'deco_jokestage', 'deco_noticepost'];
 function watch(p) { p.on('pageerror', e => errors.push('PE ' + e.message)); p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/i.test(m.text())) errors.push(m.text()); }); }
 const BASESAVE = (o) => ({ version: 6, name: 'Ada',
   guide: { species: 'giraffe', body: 'sunshine', pattern: 'spots', patternColour: 'cocoa', eyes: 'round', acc: 'none', name: 'Twiggy' },

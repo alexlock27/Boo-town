@@ -6,8 +6,8 @@
 import { el, clear, confetti, REDUCED, backControl, sparkleAt, dialog } from './ui.js';
 import { getState, mutate, commit, nextPlacementId } from './state.js';
 import { CAPER_SIGNS } from './caper/state.js';   // RUN10 P17: silly signposts while a caper is open
-import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, houseRoom } from './areas.js';
-import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX } from './art.js';
+import { AREAS, AREA_W_VIEWPORTS, areaByKey, HOUSE_ROOMS, HOUSE_ROOM_KEYS, houseRoom } from './areas.js';
+import { renderItem, renderDeco, clockHands, renderPathPot, WISH_SIZE, WISH_PX, WISH_ART } from './art.js';
 import { BY_ID } from '../data/catalogue.js';
 import { priceOf } from '../data/shop.js';   // RUN21C-4: the Pot's locked styles show their shelf price
 import { resolveItem } from './customs.js';
@@ -19,12 +19,12 @@ import { openChoreographer, routineFor, applyMove, STEP_MS } from './choreograph
 import { guideLine, speakMaybe } from './guide.js';
 import { acknowledge } from './ack.js';   // RUN19 Z3/Z4: the shared ≤2-per-session budget
 import { equippedArt, openDressUp, getDisplayName, locomotionFor, costumeFor, costumeIdleDelay, motionFor } from './accessories.js';
-import { sfx, music, ambient, bed } from './sfx.js';
+import { sfx, music, ambient, bed, animal } from './sfx.js';
 import { noteQuest, stampJournal } from './quests.js';
-import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
+import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES, upgradesIn, catchupFor, completeCatchup, builderHeadline, grownHeadline, trackComplete, TRACK_AREAS } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
 import { addMeterPoints } from './rewards.js';
-import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
+import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette, isFairDay, fairPrizeWord } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
@@ -90,11 +90,46 @@ const isWallPlane = (t) => planeOf(t) === 'wall';
 const pidOf = (t) => (t && t.id != null ? t.id : null);
 const HOUSE_STARTER_STOCK = { deco_rug: 1, deco_tablelamp: 1 };
 // RUN13 T4: every lamp carries a night state, not just the original table lamp.
-const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp']);
+// RUN21E-11: the LAMPPOST joins them. It is the one lamp in the game whose own catalogue blurb
+// promises light ("Glows warm and gold so no Boo is ever scared of the dark") and which never
+// received the `.lit` class, so it has stood dark through every night since it shipped. The
+// moth in E11 loops a lamp; a dark lamp is not one.
+const LAMP_IDS = new Set(['deco_tablelamp', 'deco_lamp2', 'deco_floorlamp', 'deco_lamppost']);
 const CLOCK_TICK_MS = 20000;     // how often a placed wall clock re-reads the device time
 // RUN13 T3: each Boo House room remembers where its camera was left. Module-level, so it
 // survives the re-mount that switching rooms performs (the module itself is cached).
 const roomScroll = new Map();
+// RUN21E-13: the last wallpaper/floor she applied, at MODULE scope — a room switch is a
+// remount, so a mount-local record would be gone before a Boo could meet the new wall.
+let lastDressingApply = null;
+// ---- RUN21E-7: the pretend night --------------------------------------------------------
+// Also module-scoped, and for the same reason: a room switch is a remount, so "one pretend
+// night at a time" and "come back and it is still dusk in here" both need to outlive a mount.
+// { roomKey, until } — a wall-clock deadline, so leaving and returning inside the 90s picks
+// up the remainder rather than starting again.
+let pretendNight = null;
+// ---- RUN21E-11: adjacency delights --------------------------------------------------------
+// Two things standing near each other can be worth more than either alone. This table says
+// which pairs, how near, when, and what happens — checked once per mount and again whenever
+// she puts something down.
+//
+// The budget is MODULE-scoped on purpose: `areaSeen` and the mount's other counters reset on
+// every remount, so a per-mount counter would silently mean "2 per visit" and a child walking
+// in and out would see them over and over. This is 2 per SESSION, shared across all three
+// scenes, and it is separate from the acknowledgement speech budget in ack.js.
+const ADJACENCY_PER_SESSION = 2;
+let adjacencyScenes = 0;
+function adjacencyBudgetLeft() { return Math.max(0, ADJACENCY_PER_SESSION - adjacencyScenes); }
+const MOTH_MS = 8000, MARSHMALLOW_MS = 10000, DRAGONFLY_MS = 6000, FROG_HOP_MS = 2600;
+const PRETEND_MS = 90000;                       // the pack's 90 seconds
+const PRETEND_HOUR = 22;                        // the hour the room's built-ins are drawn at
+const PRETEND_END_LINE = 'Morning again!';
+const PRETEND_CARD_TITLE = 'Make it night-time in here?';
+function pretendNightIn(roomKey) {
+  if (!pretendNight) return false;
+  if (Date.now() >= pretendNight.until) { pretendNight = null; return false; }
+  return pretendNight.roomKey === roomKey;
+}
 // House furniture that a Boo can actually USE (RUN13 T3). These join ACT_IDS below, so the
 // existing generic socket loop claims them exactly like a swing or a bench — one code path,
 // no parallel system. NOTHING here is a need: a snack is a scene, a nap is a nap (G9).
@@ -254,16 +289,35 @@ const BRIDGE_X = 0.5;           // the little wooden bridge sits mid-zone (river
 const WINDMILL_X = 0.7;         // the windmill turns on the hill crest (hilltop)
 const PALM_X = 0.10, PALM2_X = 0.92, HUT_X = 0.75;   // two palms bookend the beach (RUN10 P1: palm×2)
 const KITE_MS = 6000;           // a Boo flies a kite for a spell (hilltop)
+const KITE_RACK_REACH = 0.20;   // RUN21E-2: "within 20% x of a rack" — zone-x, the save's unit
+const KITE_RACK_PEGS = 3;       // three pegs on the rack, so three kites fly from it
+const KITE_FLY_Y = 0.34;        // fraction of viewport height a racked kite hovers at
+// RUN21E-2: the hour, spelled. 12-hour, lowercase, index = hour % 12 with noon/midnight
+// reading "twelve" — the way a child says it out loud.
+const HOUR_WORDS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+const hourWord = (h) => HOUR_WORDS[((h % 12) + 12) % 12];
 const PADDLE_MS = 4200;         // paddling at the bank / in the shallows (riverside / beach)
 const SKIM_MS = 2600;           // a stone skim + plink (riverside)
 const BRIDGE_SIT_MS = 5200;     // sitting on the bridge (riverside)
 const SANDCASTLE_MS = 3600;     // patting up a sandcastle (beach)
 const SANDCASTLE_FADE_MS = 22000;  // …which fades later (C2)
 const SUNBATHE_MS = 6000;       // sunbathing on a towel (beach)
+const TAG_MS = 8000;            // RUN21E-4: a game of tag runs eight seconds
+const TAG_CHASER_MULT = 1.3;    // …with the chaser a third faster than the one running
+const TAG_CATCH_PX = 40;        // close enough to touch: the swap happens here
+const RING_MS = 6000;           // RUN21E-4: ring-a-roses, three Boos, six seconds
+const RING_SLOTS = [-52, 52, 0];   // the ring, in px around the middle of the three
+const RING_ARRIVE_MS = 1200;    // the campfire circle's own arrive-lerp, reused
+const GIGGLE_HOP_MS = 620;      // the end-of-game hop, both/all together
 const ZONE_BEHAVIOURS = {       // which zone-only acts a Boo may pick, by zone + weight
   riverside: [['paddle', 1.9], ['bridgesit', 1.5], ['skim', 1.3]],
   hilltop:   [['kite', 2.2]],
-  beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]]
+  beach:     [['shallow', 1.9], ['sandcastle', 1.7], ['sunbathe', 1.3]],
+  // RUN21E-4: the playground is the SOCIAL ground — its two acts need each other. The pack
+  // says "weight as riverside behaviours"; riverside is a three-rung ladder and the
+  // playground has two acts, so it takes the top two rungs, tag first (which also makes tag
+  // the Pulse's guaranteed opening beat here — the invitation names it).
+  playground: [['tag', 1.9], ['ringroses', 1.5]]
 };
 
 // ---- RUN21D: pulse ---------------------------------------------------------------------
@@ -282,14 +336,15 @@ const PULSE_HINT_MS = 9000;      // …and the invitation, once, at nine seconds
 const PULSE_PAN_MS = 600;        // the pack's ease for "come and look at this"
 const PULSE_BUBBLE_PULSES = 3;   // a request bubble breathes three times, then stops
 const PULSE_BUBBLE_MS = 2400;    // 3 × the .rq-pulse3 cycle in styles.css
-// The invitation, per area, exactly as authored. The Playground names the swings until
-// RUN21E lands tag; the pack authors both and says which one binds until then.
+// The invitation, per area, exactly as authored. RUN21D shipped the Playground's line as the
+// pack's own stand-in ("Try the swings…") because tag did not exist yet; RUN21E-4 lands tag,
+// so the authored line takes its place — the debt RUN21D-PROGRESS logged as deviation 1.
 const PULSE_INVITATIONS = {
   meadow:            'Try tapping a flower…',
   riverside:         'Try tapping the river…',
   hilltop:           'Try tapping the sky…',
   beach:             'Try tapping the sand…',
-  playground:        'Try the swings…',
+  playground:        'Someone fancies a game of tag…',
   funfair:           'The bandstand plays if you wander right…',
   boohouse:          'Try tapping a sleepy Boo…',
   boohouse_kitchen:  'Try tapping a sleepy Boo…',
@@ -493,6 +548,18 @@ function qaHourOverride() {
   } catch { return null; }
 }
 const isNight = (h) => h >= 19 || h < 7;
+// ---- RUN21E-3: tide, shells and the sandcastle that survives -------------------------------
+// The pack authors two windows: high 06:00-13:59, low 14:00-21:59, "night keeps low". Those
+// collapse to one hour test — everything outside the morning window is low, including the whole
+// night — so that is what this says, rather than pretending there is a third state.
+const TIDE_HIGH_FROM = 6, TIDE_HIGH_TO = 14;
+const tideFor = (h) => (h >= TIDE_HIGH_FROM && h < TIDE_HIGH_TO) ? 'high' : 'low';
+const TIDE_LINE = { high: 'The tide has come in!', low: 'The tide has gone out!' };
+const CASTLE_SMOOTHED_LINE = 'The tide smoothed the sand — room for a new castle!';
+const SHELLS_PER_DAY = 3;
+const SHELL_REWARD = 1;          // one stardust each
+const SHELL_Y = 0.70;            // fraction of viewport height: on the tide mark, above the band
+const SHELL_XS = [0.10, 0.19, 0.28];   // three spots on the first screenful, spread out
 
 export function mount(container, params, ctx) {
   const s = getState();
@@ -591,6 +658,11 @@ export function mount(container, params, ctx) {
   // `pumpWishIdles` is gated `!document.hidden && !buildMode`. There is no `buildMode` any
   // more — that gate must become `!document.hidden && !softened`, or the wish idles never
   // pause while she arranges. ***
+  // ---- RUN21E-3: the tide ------------------------------------------------------------------
+  // Frozen ONCE per mount. The pack says the change applies at mount and never animates, and
+  // renderZoneScenery re-runs on every renderPlaced — so computing this from the clock deeper
+  // down would flip the waterline on the next drag rather than on the next visit.
+  const TIDE = tideFor(currentHour());
   let softened = false, pathStyle = 'stone';
   let potHeld = false;          // the Path Pot is lifted (RUN21C-2)
   let pendingPaths = null, pathCommitTimer = null, painting = false;
@@ -801,9 +873,55 @@ export function mount(container, params, ctx) {
       st.seen.jokeStageSeeded = true;
     });
   }
+  // RUN21E-5: the Notice Post, BESIDE THE WELL. Same gift-landmark terms as the two above,
+  // and the same corrected pattern — the flag is burned only once something is really placed,
+  // so a Meadow that is full today gets its post the first time she makes room.
+  //
+  // "Beside the Well" is a preference, not a requirement: the well is a placement she can move
+  // or put away, so the candidate list is simply ORDERED by nearness to wherever the well
+  // actually stands, and falls back to the plain scan when there is no well at all.
+  if (!READONLY && AREA.key === 'meadow' && !((getState().seen || {}).noticePostSeeded)) {
+    mutate(st => {
+      st.seen = st.seen || {};
+      const items = areaItems(st);
+      if (items.length >= AREA_CAP) return;
+      const well = items.find(t => t.item === 'deco_wishwell');
+      const candidates = [.20, .32, .44, .56, .68, .80, .88, .10]
+        .slice()
+        .sort((p, q) => (well ? Math.abs(p - well.x) - Math.abs(q - well.x) : 0));
+      const rows = [1, 2, 0];
+      let position = null;
+      for (const row of rows) {
+        // Deliberately stricter than the placement rule, which only forbids piling within a
+        // ROW. A gift landmark that lands 0.02 away from her Boo on the next row back is legal
+        // and looks like it is standing on top of it — the depth rows are ~12% of the viewport
+        // apart, not a whole item's width. So this keeps its distance from EVERYTHING she has
+        // put down, whatever row it is on. (Caught by r4p6-growth, which has quietly asserted
+        // exactly this since RUN4 and was right to.)
+        const x = candidates.find(candidate =>
+          items.every(placed => Math.abs((placed.x || 0) - candidate) >= .09));
+        if (x != null) { position = { x, row }; break; }
+      }
+      if (!position) return;   // a full Meadow keeps it in the Build drawer instead
+      items.push({ id: nextPlacementId(st), zone:'meadow', ...position, item:'deco_noticepost', scale:1 });
+      st.seen.noticePostSeeded = true;
+    });
+  }
 
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
+    // RUN21E-13: arriving in a room she has just redecorated, with a Boo already in it, is
+    // the other way "a Boo enters a room" really happens.
+    if (!READONLY) maybeAckDressing();
+    // RUN21E-3: the beach's news — the tide has turned, or the sea has smoothed her castle.
+    // After updateHint(), which would otherwise clobber whichever line this writes.
+    settleBeachDay();
+    // RUN21E-7: she left this room mid-pretend-night and came back inside the 90 seconds —
+    // it is still dusk in here, for the remainder, and it still ends with its own line.
+    if (pretendHere()) { applyPretendDressing(true); armPretendTimer(); }
+    // RUN21E-11: once per mount, a moment later — the role sweep needs a beat to gather Boos
+    // round a campfire before there is anything to hand a marshmallow to.
+    setTimeout(() => { if (ground.isConnected) checkAdjacency(); }, 1500);
     // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
     // there", so she arrives with the tray already open on that item's own drawer tab — no
     // hunting through six tabs. Selected, not held on the finger: the pack is explicit that
@@ -847,12 +965,20 @@ export function mount(container, params, ctx) {
     // needs: a headline about the fair, in the Meadow, gives her nowhere to look. It keeps
     // in `funfair.catchup` until she walks in.
     const showCatchUp = ft.catchUp && AREA.key === 'funfair';
+    // RUN21E-15: the same rule for the AREA GROWTH tracks. Several milestones of one area
+    // crossing at once complete immediately and wait for THAT area's own mount, so a rich save
+    // that crosses fifteen thresholds on one load does not owe fifteen separate ceremonies.
+    const growthCatchUp = READONLY ? [] : catchupFor(AREA.key);
+    // …and a single finished milestone celebrates in the area it was built in, never over in
+    // the Meadow where there is nothing to look at.
+    const growthHere = gt.readyToReveal && gt.readyToReveal.zone === AREA.key ? gt.readyToReveal : null;
     // RUN21A-8: ONE reveal at a time. The two reveals used to be scheduled independently
     // (+700ms and +900ms) and stacked their overlays; now one timer enqueues growth then
     // funfair and the queue shows the next only when the child dismisses the first.
-    if (gt.readyToReveal || ft.readyToReveal || showCatchUp) {
+    if (growthHere || ft.readyToReveal || showCatchUp || growthCatchUp.length) {
       setTimeout(() => {
-        if (gt.readyToReveal) enqueueReveal(done => playGrowthReveal(gt.readyToReveal, done));
+        if (growthHere) enqueueReveal(done => playGrowthReveal(growthHere, done));
+        if (growthCatchUp.length) enqueueReveal(done => playAreaGrownReveal(growthCatchUp, done));   // RUN21E-15
         if (showCatchUp) enqueueReveal(done => playFairCatchupReveal(ft.catchUp, done));   // RUN21A-16
         if (ft.readyToReveal) enqueueReveal(done => playFunfairReveal(ft.readyToReveal, done));
       }, REDUCED ? 100 : 700);
@@ -1442,8 +1568,13 @@ export function mount(container, params, ctx) {
         // same sightline — take half the growth back to keep it where it always ran.
         const train = el('i', { class: 't-train', style: { top: (r.height * 0.34 - 12) + 'px' } });
         put(train, 4200);
-        hint.textContent = 'Choo choo! There goes the little train!';
-        if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.chime(4);
+        // RUN21E-2: the train stops being silent — a real two-note whistle instead of the
+        // generic chime — and Twiggy names the hour, once per visit, so the little train is
+        // also the hilltop's clock.
+        if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.choo();
+        const line = guideLine('hilltopTrain', { hour: hourWord(currentHour()) });
+        hint.textContent = line;
+        speakMaybe(line);
         return true;
       }
       case 'meadow': {
@@ -1470,7 +1601,11 @@ export function mount(container, params, ctx) {
         if (!cart) return false;
         const cr = cart.getBoundingClientRect();
         if (Math.abs((cr.left + cr.width / 2) - clientX) > 100) return false;
-        for (let i = 0; i < 3; i++) put(el('i', { class: 't-kernel', style: { left: (worldX + (i - 1) * 14) + 'px', top: (r.height * 0.6) + 'px', animationDelay: (i * 110) + 'ms' } }), 1100 + i * 110);
+        // RUN21E-6: "popcorn ambient rate ×2" on fair day. There is no ambient popcorn emitter
+        // in this app — this tap-triggered burst is the only popcorn there has ever been — so
+        // the doubling lands where the popcorn actually is: twice the kernels per burst.
+        const kernels = isFairDay(todayKeyLocal()) ? 6 : 3;
+        for (let i = 0; i < kernels; i++) put(el('i', { class: 't-kernel', style: { left: (worldX + (i - (kernels - 1) / 2) * 14) + 'px', top: (r.height * 0.6) + 'px', animationDelay: (i * 110) + 'ms' } }), 1100 + i * 110);
         if (wishSound.allow('sig:funfair', { tapped: true })) sfx.pop();
         return true;
       }
@@ -1674,6 +1809,10 @@ export function mount(container, params, ctx) {
     if (band && !REDUCED) { band.classList.remove('dressing-wash'); void band.offsetWidth; band.classList.add('dressing-wash'); setTimeout(() => band.classList.remove('dressing-wash'), 340); }
     hint.textContent = `${d.name}!`;
     sfx.tap();
+    // RUN21E-13: remember WHEN and WHICH, at module scope so it survives the remount a room
+    // switch performs. The line lands when a Boo is next in this room within two minutes.
+    lastDressingApply = { roomKey: STORE_KEY, slot: d.slot, t: nowMs() };
+    maybeAckDressing();   // …and immediately, if one is already standing here
     return true;
   }
   // The Decorate tab: two rows of swatches, Walls and Floors. Owned ones apply instantly;
@@ -1817,6 +1956,406 @@ export function mount(container, params, ctx) {
       && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
   }
 
+  // ---- RUN21E-10: the bunting swags --------------------------------------------------------
+  // A swag belongs to a PAIR, not to either end, so it cannot live inside an item's own wrap.
+  // Ends are sorted by x and paired CONSECUTIVELY — so three ends give two swags, left to
+  // right, exactly as the ACCEPT asks — and every pair within reach gets one <path>.
+  const SWAG_REACH = 0.25;    // "within 25% x of each other", in the save's own units
+  const SWAG_SAG = 0.08;      // the pack's 8% sag, as a fraction of the pixel span
+  function renderSwags() {
+    ground.querySelectorAll('.t-swag').forEach(n => n.remove());
+    if (!zoneW) return;
+    const ends = areaItems(getState()).filter(t => t.item === 'land_buntingend').slice().sort((p, q) => p.x - q.x);
+    if (ends.length < 2) return;
+    for (let i = 0; i < ends.length - 1; i++) {
+      const A = ends[i], B = ends[i + 1];
+      if (Math.abs(B.x - A.x) > SWAG_REACH) continue;
+      const pa = swagAnchor(A), pb = swagAnchor(B);
+      if (!pa || !pb) continue;
+      drawSwag(pa, pb, `${A.id}-${B.id}`);
+    }
+  }
+  // Mid-drag: rebuild every swag from where the ends are RIGHT NOW, using the dragged wrap's
+  // live x for the one under her finger.
+  function redrawSwagsLive(draggedWrap, liveX) {
+    ground.querySelectorAll('.t-swag').forEach(n => n.remove());
+    const items = areaItems(getState()).filter(t => t.item === 'land_buntingend');
+    const draggedId = draggedWrap.dataset.pid;
+    const ends = items.map(t => ({ t, x: String(t.id) === draggedId ? liveX : t.x })).sort((p, q) => p.x - q.x);
+    for (let i = 0; i < ends.length - 1; i++) {
+      if (Math.abs(ends[i + 1].x - ends[i].x) > SWAG_REACH) continue;
+      const pa = swagAnchorLive(ends[i], draggedId), pb = swagAnchorLive(ends[i + 1], draggedId);
+      if (pa && pb) drawSwag(pa, pb, `live-${i}`);
+    }
+  }
+  function swagAnchorLive(e, draggedId) {
+    const w = wrapFor(e.t);
+    if (!w) return null;
+    const isDragged = String(e.t.id) === draggedId;
+    const left = isDragged ? (e.x * zoneW - (w.offsetWidth || 60) / 2) : parseFloat(w.style.left);
+    const top = parseFloat(w.style.top);
+    if (!isFinite(left) || !isFinite(top)) return null;
+    return { x: left + (w.offsetWidth || 60) / 2, y: top + (w.offsetHeight || 60) * 0.30, z: parseInt(w.style.zIndex || '0', 10) || 0 };
+  }
+  // Where a bunting-end's string is tied, in ground-layer pixels.
+  function swagAnchor(t) {
+    const w = wrapFor(t);
+    if (!w) return null;
+    const left = parseFloat(w.style.left), top = parseFloat(w.style.top);
+    if (!isFinite(left) || !isFinite(top)) return null;
+    return { x: left + (w.offsetWidth || 60) / 2, y: top + (w.offsetHeight || 60) * 0.30, z: parseInt(w.style.zIndex || '0', 10) || 0 };
+  }
+  function drawSwag(pa, pb, key) {
+    const x0 = Math.min(pa.x, pb.x), x1 = Math.max(pa.x, pb.x);
+    const span = x1 - x0;
+    if (span < 6) return;
+    const yTop = Math.min(pa.y, pb.y), yBot = Math.max(pa.y, pb.y);
+    const sag = span * SWAG_SAG;
+    const h = (yBot - yTop) + sag + 30;
+    const node = el('div', { class: 't-swag', dataset: { swag: key }, 'aria-hidden': 'true' });
+    const ay = pa.x <= pb.x ? pa.y - yTop : pb.y - yTop;
+    const by = pa.x <= pb.x ? pb.y - yTop : pa.y - yTop;
+    // One path for the string, plus little flags hung along it. (Array.from's map callback
+    // takes (value, index) ONLY — there is no third array argument, so the count is a local.)
+    const flagCount = Math.max(3, Math.min(9, Math.round(span / 42)));
+    const flags = Array.from({ length: flagCount }, (_, i) => {
+      const p = (i + 0.5) / flagCount;
+      const fx = p * span;
+      // the quadratic's own point, so a flag hangs ON the string rather than near it
+      const fy = (1 - p) * (1 - p) * ay + 2 * (1 - p) * p * ((ay + by) / 2 + sag * 2) + p * p * by;
+      const c = ['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4];
+      return `<path d="M${fx.toFixed(1)} ${fy.toFixed(1)} l11 0 l-5.5 14 z" fill="${c}" stroke="#2A1B4E" stroke-width="1.6" stroke-linejoin="round"/>`;
+    }).join('');
+    node.style.left = x0 + 'px';
+    node.style.top = yTop + 'px';
+    node.style.width = span + 'px';
+    node.style.height = h + 'px';
+    node.style.zIndex = String(Math.max(pa.z, pb.z) + 1);
+    node.innerHTML = `<svg viewBox="0 0 ${span.toFixed(1)} ${h.toFixed(1)}" width="${span.toFixed(1)}" height="${h.toFixed(1)}" xmlns="http://www.w3.org/2000/svg">`
+      + `<path d="M0 ${ay.toFixed(1)} Q${(span / 2).toFixed(1)} ${((ay + by) / 2 + sag * 2).toFixed(1)} ${span.toFixed(1)} ${by.toFixed(1)}" fill="none" stroke="#2A1B4E" stroke-width="2.4" stroke-linecap="round"/>`
+      + flags + `</svg>`;
+    ground.appendChild(node);
+  }
+
+  // ---- RUN21E-11: adjacency delights -------------------------------------------------------
+  // The authored table. `when` is evaluated against the live clock, `maxDxFrac` against the
+  // save's own x (a fraction of the area), and `scene` runs the moment.
+  const ADJACENCY = [
+    { a: 'deco_lamppost', b: 'deco_bench',   maxDxFrac: 0.10, when: () => nightHere(),  scene: sceneMoth },
+    { a: 'flowers',       b: 'deco_pond',    maxDxFrac: 0.12, when: () => !nightHere(), scene: scenePondVisitor },
+    { a: 'deco_campfire', b: null,           maxDxFrac: 0,    when: () => isSleepTime(currentHour()), scene: sceneMarshmallows }
+  ];
+  // `flowers` matches the several things that are flowers, which is what "any flower(s)" means.
+  const matchesKey = (itemId, key) => key === 'flowers' ? /flower/.test(itemId) : itemId === key;
+  function findAdjacentPair(rule, items) {
+    const as = items.filter(t => matchesKey(t.item, rule.a));
+    if (!as.length) return null;
+    if (!rule.b) return { a: as[0], b: null };
+    const bs = items.filter(t => matchesKey(t.item, rule.b));
+    for (const A of as) for (const B of bs) if (Math.abs(A.x - B.x) <= rule.maxDxFrac) return { a: A, b: B };
+    return null;
+  }
+  function checkAdjacency() {
+    // REDUCED gets the props and none of the performances — the pack asks for exactly that.
+    if (REDUCED || READONLY || softened) return;
+    if (!adjacencyBudgetLeft() || !zoneW) return;
+    const items = areaItems(getState());
+    for (const rule of ADJACENCY) {
+      if (!rule.when()) continue;
+      const pair = findAdjacentPair(rule, items);
+      if (!pair) continue;
+      if (rule.scene(pair) !== false) { adjacencyScenes++; return; }   // one scene at a time
+    }
+  }
+  // A moth loops the lamp: a pale little SVG orbiting the lamp head. Drawn, never an emoji —
+  // the ambient butterfly's text glyph is a grandfathered violation, not a precedent.
+  function sceneMoth(pair) {
+    const w = wrapFor(pair.a);
+    if (!w) return false;
+    const moth = el('i', {
+      class: 't-moth', 'aria-hidden': 'true',
+      html: `<svg viewBox="0 0 20 16" width="18" height="15"><g fill="#F2E7C9" stroke="#8A7B5A" stroke-width="1.2">`
+        + `<ellipse cx="10" cy="9" rx="2" ry="4"/><path d="M9 7 Q2 1 3 8 Q4 13 9 11 Z"/><path d="M11 7 Q18 1 17 8 Q16 13 11 11 Z"/></g>`
+        + `<path d="M9 5 L7 2 M11 5 L13 2" stroke="#8A7B5A" stroke-width="1" fill="none"/></svg>`
+    });
+    const left = parseFloat(w.style.left) || 0, top = parseFloat(w.style.top) || 0;
+    moth.style.left = (left + (w.offsetWidth || 60) / 2 - 9) + 'px';
+    moth.style.top = (top + (w.offsetHeight || 60) * 0.16) + 'px';
+    moth.style.zIndex = String((parseInt(w.style.zIndex || '0', 10) || 0) + 5);
+    ground.appendChild(moth);
+    setTimeout(() => { try { moth.remove(); } catch {} }, MOTH_MS);
+    return true;
+  }
+  // Flowers by the pond: her frog comes over for one ribbit if she has one HERE; otherwise a
+  // dragonfly visits. ("Placed anywhere" cannot mean another area — only this area renders.)
+  function scenePondVisitor(pair) {
+    const pond = pair.b, items = areaItems(getState());
+    const frog = items.find(t => t.item === 'wish_frog');
+    if (frog) {
+      const fw = wrapFor(frog);
+      if (fw) {
+        const dx = (pond.x - frog.x) * zoneW;
+        fw.style.setProperty('--hop-dx', dx.toFixed(0) + 'px');
+        propPlay(fw, 't-frog-hop', FROG_HOP_MS);
+        setTimeout(() => { if (wishSound.allow('adj:frog', { tapped: false })) animal.call('frog'); }, FROG_HOP_MS * 0.55);
+        return true;
+      }
+    }
+    const pw = wrapFor(pond);
+    if (!pw) return false;
+    const fly = el('i', {
+      class: 't-dragonfly', 'aria-hidden': 'true',
+      html: `<svg viewBox="0 0 22 14" width="20" height="13"><g stroke="#4E9A8F" stroke-width="1.2" fill="#BFEFE8">`
+        + `<ellipse cx="11" cy="7" rx="1.6" ry="5"/><path d="M10 5 Q3 1 2 5 Q3 8 10 7 Z"/><path d="M12 5 Q19 1 20 5 Q19 8 12 7 Z"/></g></svg>`
+    });
+    const left = parseFloat(pw.style.left) || 0, top = parseFloat(pw.style.top) || 0;
+    fly.style.left = (left + (pw.offsetWidth || 60) / 2 - 10) + 'px';
+    fly.style.top = (top - 12) + 'px';
+    fly.style.zIndex = String((parseInt(pw.style.zIndex || '0', 10) || 0) + 5);
+    ground.appendChild(fly);
+    setTimeout(() => { try { fly.remove(); } catch {} }, DRAGONFLY_MS);
+    return true;
+  }
+  // Marshmallows round the fire. Boos are never "seated" at a campfire — the only campfire
+  // behaviour is the night CIRCLE role — so the trigger is two or more Boos actually in that
+  // circle, which is what the pack is describing.
+  function sceneMarshmallows(pair) {
+    const round = actors.filter(a => a.role && a.role.kind === 'campfire'
+      && a.role.deco && Math.abs(a.role.deco.x - pair.a.x) < 0.001);
+    if (round.length < 2) return false;
+    let pipped = false;
+    for (const a of round) {
+      const stick = el('i', {
+        class: 't-marshmallow', 'aria-hidden': 'true',
+        html: `<svg viewBox="0 0 32 14" width="32" height="14"><line x1="1" y1="12" x2="23" y2="6" stroke="#8A6B3A" stroke-width="2.6" stroke-linecap="round"/>`
+          + `<ellipse cx="26" cy="5" rx="5" ry="4.2" fill="#FFF3E6" stroke="#D8B48A" stroke-width="1.4"/></svg>`
+      });
+      // Held OUT and DOWN, at hand height beside the body — the first frames put it at
+      // 0.55/0.42 of the wrap, which is squarely on the Boo's own face.
+      overlayOverWrap(a.wrap, stick, { dx: (a.wrap.offsetWidth || 60) * 0.74, dy: (a.wrap.offsetHeight || 60) * 0.62 });
+      setTimeout(() => { try { stick.remove(); } catch {} }, MARSHMALLOW_MS);
+      if (!pipped) {
+        pipped = true;
+        // One contented pip between them, not one each — a chorus would be noise.
+        setTimeout(() => { if (a.wrap.isConnected) sayOver(a.wrap, 'Mmm!', 1600, { speak: false }); }, 1200);
+      }
+    }
+    return true;
+  }
+
+  // ---- RUN21E-7: the pretend-night lamp ----------------------------------------------------
+  // A child cannot make it night to see the town's night things — the clock decides, and at
+  // four in the afternoon it decides no. So a lamp she has placed offers to make it night-time
+  // IN THIS ROOM for ninety seconds: the room dims through its real night class, the window
+  // fills with stars, the lamps light, and Boos in here get sleepy.
+  //
+  // Everything outside this room is untouched — the real clock, the wall clock's hands, the
+  // other rooms, every outdoor area. It is a game of pretend, and it says so.
+  const pretendHere = () => pretendNightIn(STORE_KEY);
+  // "Night" for the things that follow the clock, plus this room's pretend one.
+  const nightHere = () => isNight(currentHour()) || pretendHere();
+  function offerPretendNight(wrap, item) {
+    if (!isInterior || READONLY || softened) return false;
+    if (!LAMP_IDS.has(item.id)) return false;
+    if (isNight(currentHour())) return false;      // it is already night; there is nothing to pretend
+    if (pretendHere()) return false;               // already dusk in here
+    if (pretendNight) return false;                // one at a time, anywhere in the house
+    sfx.tap();
+    dialog({
+      title: PRETEND_CARD_TITLE,
+      body: '',
+      buttons: [{ label: 'Yes, night-night!', value: true }, { label: 'Not now', value: false, kind: 'soft' }],
+      dismissable: true
+    }).then(yes => { if (yes) startPretendNight(); });
+    return true;
+  }
+  function applyPretendDressing(on) {
+    root.classList.toggle('night', on || isNight(currentHour()));
+    // The built-ins are SVG regenerated from an hour, not classes — so the starry window,
+    // the drawn curtains and the bedroom's fairy lights need a re-render at the pretend hour.
+    const builtins = hills.querySelector('.t-room-builtins');
+    if (builtins) builtins.innerHTML = roomBuiltinsHTML(roomId || 'lounge', worldW, viewH * INTERIOR_WALL_FRAC, viewH, on ? PRETEND_HOUR : currentHour());
+    renderPlaced();   // …and the lamps light, through the widened night check
+  }
+  function startPretendNight() {
+    pretendNight = { roomKey: STORE_KEY, until: Date.now() + PRETEND_MS };
+    applyPretendDressing(true);
+    sfx.chime(0);
+    armPretendTimer();
+  }
+  let pretendTimer = null;
+  function armPretendTimer() {
+    clearTimeout(pretendTimer);
+    if (!pretendHere()) return;
+    // The REMAINDER, not a fresh 90s: leaving the room and coming back does not extend it.
+    pretendTimer = setTimeout(() => endPretendNight(), Math.max(0, pretendNight.until - Date.now()));
+  }
+  function endPretendNight() {
+    clearTimeout(pretendTimer); pretendTimer = null;
+    const wasHere = pretendHere();
+    pretendNight = null;
+    if (!wasHere || !ground.isConnected) return;
+    // Recompute against the REAL clock: a pretend night that began at 18:59 ends in a room
+    // where it is genuinely night, and "restoring day" would be wrong twice over.
+    applyPretendDressing(false);
+    sayInWorld(PRETEND_END_LINE);
+  }
+
+  // ---- RUN21E-3: shells, the tide line, and the castle that survives -----------------------
+  // Positions are DAILY-DETERMINISTIC from the day key — the app's own idiom for "the same all
+  // day, different tomorrow, nothing stored" (isRainDay, booOfTheDay). Only what she has PICKED
+  // UP is saved, and yesterday's record is pruned on sight rather than by a timer that would
+  // have to survive a tablet going to sleep.
+  function beachState() { return (getState().beach) || { tideDay: '', tideSeen: '', shellsDay: '', shellsTaken: [], castle: null }; }
+  function shellSpots() {
+    const day = todayKeyLocal();
+    return SHELL_XS.map((baseX, i) => {
+      const n = dayNoise('shell:' + day + ':' + i);
+      return { i, x: +(baseX + ((n % 60) / 1000)).toFixed(4), y: SHELL_Y + ((n >> 6) % 30) / 1000 };
+    });
+  }
+  function shellsTakenToday() {
+    const b = beachState();
+    return b.shellsDay === todayKeyLocal() ? (b.shellsTaken || []) : [];
+  }
+  function renderShells() {
+    ground.querySelectorAll('.t-shell').forEach(n => n.remove());
+    if (AREA.key !== 'beach' || TIDE !== 'low' || !zoneW) return;   // shells belong to a low tide
+    const taken = shellsTakenToday();
+    for (const s of shellSpots()) {
+      if (taken.includes(s.i)) continue;   // collected shells stay gone for the day
+      const btn = el('button', {
+        class: 't-shell', type: 'button', 'aria-label': 'A little shell — pick it up',
+        html: `<svg viewBox="0 0 28 24" width="26" height="22" aria-hidden="true">`
+          + `<path d="M14 21 C3 21 3 4 14 4 C25 4 25 21 14 21 Z" fill="#FFD9EC" stroke="#B06A8A" stroke-width="2"/>`
+          + `<path d="M14 4 V21 M8 7 L9.5 20 M20 7 L18.5 20" fill="none" stroke="#B06A8A" stroke-width="1.6"/></svg>`,
+        onclick: (e) => { e.stopPropagation(); takeShell(s, btn); }
+      });
+      btn.style.left = (s.x * zoneW - 22) + 'px';
+      btn.style.top = (viewH * s.y) + 'px';
+      btn.style.zIndex = String(Math.round(viewH * s.y) + 1);
+      ground.appendChild(btn);
+    }
+  }
+  function takeShell(s, btn) {
+    if (READONLY) return;                       // a visitor never pockets her friend's stardust
+    if (shellsTakenToday().includes(s.i)) return;
+    const day = todayKeyLocal();
+    mutate(st => {
+      st.beach = st.beach || { tideDay: '', tideSeen: '', shellsDay: '', shellsTaken: [], castle: null };
+      if (st.beach.shellsDay !== day) { st.beach.shellsDay = day; st.beach.shellsTaken = []; }
+      if (!st.beach.shellsTaken.includes(s.i)) st.beach.shellsTaken.push(s.i);
+      st.stardust = (st.stardust || 0) + SHELL_REWARD;
+    });
+    sfx.star();
+    sparkleAtNode(btn);
+    // The +1 flies off the shell itself — there is no stardust counter on this screen to fly
+    // TO, and inventing one would be a second place for the number to be wrong.
+    const fly = el('i', { class: 'fly-star', text: '+1 ✨' });
+    fly.style.left = btn.style.left; fly.style.top = btn.style.top;
+    ground.appendChild(fly);
+    setTimeout(() => fly.remove(), 1200);
+    btn.remove();
+  }
+  // The castle the Boos build, saved in FRACTIONS so it lands in the same place on a phone as
+  // on a tablet, and re-created after every renderPlaced wipe.
+  function renderSavedCastle() {
+    ground.querySelectorAll('.t-sandcastle.t-castle-kept').forEach(n => n.remove());
+    if (AREA.key !== 'beach') return;
+    const c = beachState().castle;
+    if (!c) return;
+    const node = el('div', { class: 't-sandcastle t-castle-kept', html: sandcastleSVG ? sandcastleSVG() : '' });
+    node.style.left = (c.xFrac * zoneW) + 'px';
+    node.style.top = (c.topFrac * viewH) + 'px';
+    ground.appendChild(node);
+  }
+  // At mount: if the tide has turned since the castle was built, the sea has smoothed the sand.
+  // Never called losing — the line offers the next castle in the same breath.
+  function settleBeachDay() {
+    if (AREA.key !== 'beach' || READONLY) return;
+    const day = todayKeyLocal();
+    const b = beachState();
+    const castleGone = b.castle && b.castle.tide !== TIDE;
+    if (castleGone) {
+      mutate(st => { st.beach = Object.assign({}, st.beach, { castle: null }); });
+      if (!REDUCED) sandPuffAt(b.castle.xFrac, b.castle.topFrac);
+      renderSavedCastle();   // …and the castle really goes, rather than lingering until the next render
+    }
+    // "Once per change per day": she is told about a waterline she has not been shown today.
+    const tideNews = (b.tideDay !== day || b.tideSeen !== TIDE);
+    if (tideNews) mutate(st => { st.beach = Object.assign({}, st.beach, { tideDay: day, tideSeen: TIDE }); });
+    // ONE line, through sayInWorld — NOT the hint bar. The hint bar is shared, and the Pulse's
+    // own opening beat writes to it ~900ms after first paint: the first version of this used
+    // `hint.textContent` and the tide line was reliably replaced by "Squish, squish!" before a
+    // child could read it. sayInWorld is the announced-moment primitive for exactly this, and
+    // it speaks as well, so a voice-off house gets the same moment.
+    // The castle's news wins when both are due — it is the one that changed something she made.
+    const line = castleGone ? CASTLE_SMOOTHED_LINE : (tideNews ? TIDE_LINE[TIDE] : null);
+    if (line) sayInWorld(line);
+  }
+  function sandPuffAt(xFrac, topFrac) {
+    const puff = el('div', { class: 'sand-puff' });
+    puff.style.left = (xFrac * zoneW) + 'px';
+    puff.style.top = (topFrac * viewH) + 'px';
+    for (let i = 0; i < 10; i++) {
+      const a = (Math.PI * i) / 9;
+      const bit = el('i');
+      bit.style.setProperty('--dx', `${Math.cos(a) * (18 + Math.random() * 26)}px`);
+      bit.style.setProperty('--dy', `${-Math.abs(Math.sin(a)) * 22 - 4}px`);
+      bit.style.setProperty('--d', `${i * 26}ms`);
+      puff.appendChild(bit);
+    }
+    ground.appendChild(puff);
+    setTimeout(() => puff.remove(), 1100);
+  }
+
+  // ---- RUN21E-2: the kite rack ------------------------------------------------------------
+  // Which rack, if any, a placed kite belongs to. Nothing is STORED: rackedness is derived
+  // from the placements on every render, so putting the rack away lets the kite go back to
+  // the free sky with no save change and no migration.
+  //
+  // 0.20 is read the only way the save can express it — a fraction of the AREA — which
+  // outdoors is generous (an outdoor area is four viewports wide). That generosity is
+  // deliberate: a child parking a kite "by the rack" should not have to be precise.
+  function rackFor(t, st) {
+    if (AREA.key !== 'hilltop' || t.item !== 'wish_kite') return null;
+    const racks = areaItems(st).filter(p => p.item === 'deco_kiterack');
+    if (!racks.length) return null;
+    let best = null, bestD = KITE_RACK_REACH;
+    for (const r of racks) {
+      const d = Math.abs(r.x - t.x);
+      if (d <= bestD) { bestD = d; best = r; }
+    }
+    if (!best) return null;
+    // Three pegs, three kites. A fourth kite by the same rack simply keeps flying free.
+    const mine = areaItems(st)
+      .filter(p => p.item === 'wish_kite' && Math.abs(p.x - best.x) <= KITE_RACK_REACH)
+      .sort((p, q) => Math.abs(p.x - best.x) - Math.abs(q.x - best.x));
+    const idx = mine.findIndex(p => p === t);
+    return (idx >= 0 && idx < KITE_RACK_PEGS) ? { rack: best, peg: idx } : null;
+  }
+  // The string: from the kite's own belly down to the rack's pegs. Drawn in the wrap so it
+  // travels with the kite and is torn down with it.
+  function attachKiteString(wrap, kiteTopPx, racked) {
+    const rackPx = racked.rack.x * zoneW;
+    const kitePx = parseFloat(wrap.style.left || '0') + (wrap.offsetWidth || 60) / 2;
+    const dx = rackPx - kitePx;
+    const dy = (groundY + viewH * 0.06) - kiteTopPx;   // down to the pegs, roughly rack height
+    if (!isFinite(dx) || !isFinite(dy) || dy <= 0) return;
+    const w = Math.max(2, Math.abs(dx) + 4), h = Math.max(2, dy);
+    const x0 = dx >= 0 ? 2 : w - 2, x1 = dx >= 0 ? w - 2 : 2;
+    const html = `<svg class="wish-string" width="${w.toFixed(0)}" height="${h.toFixed(0)}" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" aria-hidden="true">`
+      + `<path d="M${x0.toFixed(0)} 0 Q${((x0 + x1) / 2).toFixed(0)} ${(h * 0.62).toFixed(0)} ${x1.toFixed(0)} ${h.toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="1.6" opacity="0.5" stroke-linecap="round"/></svg>`;
+    let node = wrap.querySelector('.wish-string');
+    if (!node) { wrap.insertAdjacentHTML('beforeend', html); node = wrap.querySelector('.wish-string'); }
+    else if (node.outerHTML !== html) node.outerHTML = html;
+    node = wrap.querySelector('.wish-string');
+    if (node) {
+      node.style.left = (dx >= 0 ? (wrap.offsetWidth || 60) / 2 - 2 : (wrap.offsetWidth || 60) / 2 - w + 2) + 'px';
+      node.style.top = ((wrap.offsetHeight || 60) * 0.6) + 'px';
+    }
+  }
+
   function renderPlaced() {
     groundOrphans();   // RUN19 Z6: nothing she placed is ever lost when its table goes away
     const existing = Array.from(ground.querySelectorAll('.t-item'));
@@ -1846,9 +2385,16 @@ export function mount(container, params, ctx) {
       // RUN20 W1 — the SKY plane (reserved in Z6's plane union precisely so this needed no
       // second migration). A sky wish anchors by fraction of viewport height inside the sky
       // band, not on a ground row, and drifts along it.
-      const onSky = planeOf(t) === 'sky' || (wishNeedsSky(t.item) && SKY_WISHES.has(t.item));
+      // RUN21E-2: A RACKED KITE. On the Hilltop, a kite parked near a Kite Rack comes off the
+      // free sky plane and flies FROM THE RACK — hovering on a visible string above its own
+      // spot, for as long as it stands there. Everywhere else (and with no rack near) it keeps
+      // its RUN20 sky behaviour untouched, which is what "elsewhere kites keep RUN20
+      // behaviour" means with no code at all.
+      const racked = rackFor(t, st);
+      const onSky = !racked && (planeOf(t) === 'sky' || (wishNeedsSky(t.item) && SKY_WISHES.has(t.item)));
       const row = onWall ? WALL_ROW : rowOf(t);
-      const rowGroundPx = onSky ? viewH * skyYFor(t)
+      const rowGroundPx = racked ? viewH * KITE_FLY_Y
+        : onSky ? viewH * skyYFor(t)
         : onWall ? viewH * clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : viewH * ROWS[row];
       const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
       const size = baseSize * itemScaleOf(t, scaleMaxFor(item, isInterior));
@@ -1886,6 +2432,7 @@ export function mount(container, params, ctx) {
         // pumpWishIdles below. Recomputed here every render, which is also how the owl's
         // night gate re-evaluates as the clock rolls over.
         + (isWish(t.item) ? ' wishidle-' + (wishIdleClass(t.item, isNight(currentHour())) || 'none').toLowerCase() : '')
+        + (racked ? ' wish-racked' : '')
         + (bff ? ' care-bff' : '');
       if (wrap.className !== newClass) wrap.className = newClass;
 
@@ -1924,7 +2471,8 @@ export function mount(container, params, ctx) {
       
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
-      if (LAMP_IDS.has(t.item) && isNight(currentHour())) wrap.classList.add('lit');
+      // RUN21E-7: …and during a pretend night in THIS room, which is the whole point of it.
+      if ((LAMP_IDS.has(t.item) || t.item === 'land_lantern') && nightHere()) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
       if (isWish(t.item)) dressWish(wrap, t);   // RUN20 W1
       
@@ -1947,7 +2495,12 @@ export function mount(container, params, ctx) {
         wrap.innerHTML = newHTML;
         wrap._lastHTML = newHTML;
       }
-      
+      // RUN21E-2: the racked kite's STRING. It lives inside the wrap and is re-added after the
+      // innerHTML diff above (which would otherwise wipe it on the next unrelated placement),
+      // and it is drawn as an overflow-visible SVG so the line can reach down to the rack.
+      if (racked) attachKiteString(wrap, placedTop, racked);
+      else { const old = wrap.querySelector('.wish-string'); if (old) old.remove(); }
+
       // Shared rarity VFX (C2): full effect for the first RARITY_TOWN_CAP fancy items,
       // then a static sheen so the emitter cap holds (distant/numerous items degrade).
       const shiny = ((st.shinies && st.shinies[t.item]) || 0) > 0;
@@ -1989,6 +2542,7 @@ export function mount(container, params, ctx) {
     renderZoneScenery();   // zone identity (RUN7 C2): distinct backdrop per zone, behind items
     renderAreaAmbient();   // RUN20 W2: the area's own quiet life
     renderGrowth();
+    renderSwags();         // RUN21E-10: the bunting between paired ends — after the wraps exist
     renderFunfair();
     renderHide();
     decorateEasels().then(maybeAckEasel);   // RUN19 Z4 — after the art is actually in the DOM
@@ -2114,14 +2668,16 @@ export function mount(container, params, ctx) {
   function pxAt(zone, x) { return ((ZONE_INDEX[zone] ?? 0) * zoneW + x * zoneW); }
   function renderGrowth() {
     ground.querySelectorAll('.t-growth').forEach(n => n.remove());
-    if (AREA.key !== 'meadow') return;   // every growth milestone is zone:'meadow' (growth.js) — RUN10 P1 scoping
+    // RUN21E-15: every area has a track now, so this draws whatever is finished HERE — and a
+    // construction site only when the Builders are working in this area, so a child never sees
+    // scaffolding for something that is being built somewhere else.
     const view = growthView();
-    const night = isNight(currentHour());
-    for (const m of view.upgrades) {
+    const night = nightHere();
+    for (const m of upgradesIn(AREA.key)) {
       const node = growthNode(m, night);
       if (node) ground.insertBefore(node, ground.firstChild);
     }
-    if (view.site) ground.insertBefore(siteNode(view.site), ground.firstChild);
+    if (view.site && view.site.zone === AREA.key) ground.insertBefore(siteNode(view.site), ground.firstChild);
   }
   function growthNode(m, night) {
     const wrap = el('div', { class: `t-growth tg-${m.key}${night && m.key === 'fairylights' ? ' lit' : ''}` });
@@ -2150,11 +2706,182 @@ export function mount(container, params, ctx) {
       w = zoneW * 0.55; h = 70;
       const flags = Array.from({ length: 8 }, (_, i) => { const x = 16 + i * (w - 32) / 7; const y = 20 + Math.sin(i / 7 * Math.PI) * 14; return `<path d="M${x} ${y} L${x + 14} ${y} L${x + 7} ${y + 16} Z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`; }).join('');
       svg = `<path d="M8 20 Q ${w / 2} ${52} ${w - 8} 20" fill="none" stroke="#2A1B4E" stroke-width="2.5"/>` + flags;
-    } else return null;
+    } else {
+      // RUN21E-15: the fifteen new area props. All inline SVG in the house sticker style, all
+      // backdrop-layer, all transform-free except the three that carry a light at night.
+      const built = areaGrowthArt(m, night, zoneW);
+      if (!built) return null;
+      w = built.w; h = built.h; svg = built.svg;
+      wrap.style.left = (cx - w / 2) + 'px';
+      wrap.style.top = (groundY - h + (built.dy || 6)) + 'px';
+      wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+      // The rockpool is the one that answers a tap, so it — and only it — opts out of the
+      // backdrop layer's pointer-events:none, with a real target on the crab's own pool.
+      if (m.key === 'rockpool') {
+        wrap.classList.add('tg-tappable');
+        wrap.setAttribute('role', 'button');
+        wrap.setAttribute('tabindex', '0');
+        wrap.setAttribute('aria-label', 'The rockpool — see who is in it');
+        const peek = () => {
+          if (REDUCED) { sparkleAtNode(wrap); return; }
+          propPlay(wrap, 'tg-crab-peek', 2200);
+          if (wishSound.allow('growth:rockpool', { tapped: true })) sfx.pop();
+        };
+        wrap.addEventListener('click', (e) => { e.stopPropagation(); peek(); });
+        wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); peek(); } });
+      }
+      return wrap;
+    }
     wrap.style.left = (cx - w / 2) + 'px';
     wrap.style.top = (m.key === 'banner' ? groundY - 250 : m.key === 'fairylights' ? groundY - 150 : groundY - h + 6) + 'px';
     wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
     return wrap;
+  }
+  // The art for RUN21E-15's fifteen. Kept in one place, keyed by milestone, so the reveal, the
+  // scene and the world-map ribbon all agree about what exists.
+  function areaGrowthArt(m, night, zw) {
+    const INK = '#2A1B4E';
+    const lit = night ? 1 : 0;
+    switch (m.key) {
+      // ---- riverside ----
+      case 'steppingstones':
+        return { w: Math.min(300, zw * 0.24), h: 40, dy: 4, svg: Array.from({ length: 5 }, (_, i) =>
+          `<ellipse cx="${26 + i * 52}" cy="${24 + (i % 2) * 7}" rx="21" ry="9" fill="#C9C2D8" stroke="${INK}" stroke-width="2.5"/>`
+          + `<ellipse cx="${22 + i * 52}" cy="${21 + (i % 2) * 7}" rx="8" ry="3" fill="#E4DFF0" opacity="0.7"/>`).join('') };
+      case 'heron':
+        return { w: 110, h: 150, svg:
+          `<path d="M54 146 v-42 M64 146 v-42" stroke="#E8A33C" stroke-width="4" stroke-linecap="round"/>`
+          + `<path d="M34 104 Q30 66 58 58 Q86 62 84 92 Q82 108 58 108 Z" fill="#DCE6F2" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M58 58 Q56 30 62 16" stroke="#DCE6F2" stroke-width="9" stroke-linecap="round" fill="none"/>`
+          + `<path d="M58 58 Q56 30 62 16" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" fill="none" opacity="0.5"/>`
+          + `<circle cx="63" cy="15" r="8" fill="#DCE6F2" stroke="${INK}" stroke-width="2.6"/>`
+          + `<path d="M70 15 L92 19 L70 21 Z" fill="#E8A33C" stroke="${INK}" stroke-width="2"/>`
+          + `<circle cx="61" cy="13" r="1.8" fill="${INK}"/>`
+          + `<path d="M46 70 Q60 84 76 74" fill="none" stroke="${INK}" stroke-width="2" opacity="0.45"/>`
+          + `<ellipse cx="59" cy="148" rx="34" ry="5" fill="${INK}" opacity="0.12"/>` };
+      case 'bridgelanterns': {
+        const w = Math.min(280, zw * 0.22);
+        return { w, h: 96, svg:
+          `<path d="M10 40 Q ${w / 2} 74 ${w - 10} 40" fill="none" stroke="#6E4534" stroke-width="3"/>`
+          + Array.from({ length: 4 }, (_, i) => {
+            const x = 24 + i * (w - 48) / 3, y = 46 + Math.sin(i / 3 * Math.PI) * 20;
+            return `<line x1="${x}" y1="${y - 8}" x2="${x}" y2="${y}" stroke="${INK}" stroke-width="2"/>`
+              + `<g class="tg-lantern"><path d="M${x - 9} ${y} h18 l-3 20 h-12 z" fill="${lit ? '#FFE9A8' : '#E8DFC8'}" stroke="${INK}" stroke-width="2.4"/>`
+              + (lit ? `<ellipse cx="${x}" cy="${y + 10}" rx="15" ry="14" fill="#FFC93C" opacity="0.30"/>` : '') + `</g>`;
+          }).join('') };
+      }
+      // ---- hilltop ----
+      case 'cairn':
+        return { w: 96, h: 104, svg:
+          `<ellipse cx="48" cy="98" rx="34" ry="7" fill="${INK}" opacity="0.12"/>`
+          + [[48, 86, 30, 12], [48, 66, 25, 11], [46, 48, 19, 10], [48, 32, 13, 8], [48, 20, 8, 6]]
+            .map(([x, y, rx, ry], i) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${['#B9AFC4', '#CFC6D8', '#A9A0B6', '#C4BBD0', '#B0A7BE'][i]}" stroke="${INK}" stroke-width="2.6"/>`).join('') };
+      case 'crestflag':
+        return { w: 96, h: 150, svg:
+          `<ellipse cx="34" cy="146" rx="26" ry="6" fill="${INK}" opacity="0.12"/>`
+          + `<rect x="30" y="14" width="7" height="130" rx="3" fill="#8A6B3A" stroke="${INK}" stroke-width="2.4"/>`
+          + `<path class="tg-flag" d="M37 20 L92 34 L37 50 Z" fill="#FF7AC6" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>`
+          + `<circle cx="33" cy="12" r="6" fill="#FFC93C" stroke="${INK}" stroke-width="2.4"/>` };
+      case 'beacon':
+        return { w: 110, h: 140, svg:
+          `<ellipse cx="55" cy="134" rx="38" ry="7" fill="${INK}" opacity="0.12"/>`
+          + `<path d="M34 132 L44 56 h22 l10 76 z" fill="#9A8FAE" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M40 96 h30 M37 116 h36" stroke="${INK}" stroke-width="2" opacity="0.4"/>`
+          + `<rect x="40" y="34" width="30" height="24" rx="5" fill="${lit ? '#FFE9A8' : '#D8CFE4'}" stroke="${INK}" stroke-width="2.8"/>`
+          + (lit ? `<ellipse cx="55" cy="46" rx="34" ry="26" fill="#FFC93C" opacity="0.26"/>`
+                 + `<path class="tg-beam" d="M55 46 L106 20 L106 72 Z" fill="#FFE9A8" opacity="0.20"/>` : '')
+          + `<path d="M38 34 h34 l-6 -10 h-22 z" fill="#7A6F8E" stroke="${INK}" stroke-width="2.6"/>` };
+      // ---- beach ----
+      case 'parasols': {
+        const w = Math.min(300, zw * 0.24);
+        return { w, h: 112, svg: [0, 1, 2].map(i => {
+          const x = 50 + i * (w - 100) / 2;
+          const c = ['#FF7AC6', '#35D0BA', '#FFC93C'][i];
+          return `<line x1="${x}" y1="46" x2="${x}" y2="104" stroke="#8A5A32" stroke-width="5" stroke-linecap="round"/>`
+            + `<path d="M${x - 38} 46 A 38 26 0 0 1 ${x + 38} 46 Z" fill="${c}" stroke="${INK}" stroke-width="2.8"/>`
+            + `<path d="M${x - 13} 46 A 13 26 0 0 1 ${x + 13} 46 Z" fill="#FFF8F0" opacity="0.85"/>`
+            + `<circle cx="${x}" cy="20" r="4.5" fill="#FFC93C" stroke="${INK}" stroke-width="2"/>`;
+        }).join('') };
+      }
+      case 'rockpool':
+        return { w: 150, h: 78, dy: 2, svg:
+          `<ellipse cx="75" cy="52" rx="62" ry="22" fill="#9FD8E8" stroke="${INK}" stroke-width="3"/>`
+          + `<ellipse cx="75" cy="50" rx="46" ry="14" fill="#BFEAF4" opacity="0.8"/>`
+          + `<ellipse cx="20" cy="54" rx="16" ry="12" fill="#B9AFC4" stroke="${INK}" stroke-width="2.6"/>`
+          + `<ellipse cx="132" cy="52" rx="14" ry="11" fill="#A9A0B6" stroke="${INK}" stroke-width="2.6"/>`
+          + `<g class="tg-crab"><ellipse cx="75" cy="46" rx="15" ry="11" fill="#FF7A5C" stroke="${INK}" stroke-width="2.4"/>`
+          + `<circle cx="70" cy="40" r="2.2" fill="${INK}"/><circle cx="80" cy="40" r="2.2" fill="${INK}"/>`
+          + `<path d="M60 46 q-8 -6 -12 -1 M90 46 q8 -6 12 -1" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/></g>` };
+      case 'lighthouse':
+        return { w: 110, h: 178, svg:
+          `<ellipse cx="55" cy="172" rx="40" ry="7" fill="${INK}" opacity="0.12"/>`
+          + `<path d="M32 170 L42 56 h26 l10 114 z" fill="#FFF8F0" stroke="${INK}" stroke-width="3"/>`
+          + [0, 1, 2].map(i => `<path d="M${36 + i * 1.5} ${86 + i * 28} h${38 - i * 3} l-1 16 h-${36 - i * 3} z" fill="#FF5C8A" opacity="0.9"/>`).join('')
+          + `<rect x="38" y="32" width="34" height="26" rx="4" fill="${lit ? '#FFE9A8' : '#D8D2E0'}" stroke="${INK}" stroke-width="2.8"/>`
+          + (lit ? `<ellipse cx="55" cy="45" rx="36" ry="26" fill="#FFC93C" opacity="0.26"/>` : '')
+          + `<path d="M34 32 h42 l-8 -12 h-26 z" fill="#4E9A8F" stroke="${INK}" stroke-width="2.6"/>`
+          + `<circle cx="55" cy="14" r="5" fill="#FFC93C" stroke="${INK}" stroke-width="2.2"/>` };
+      // ---- playground ----
+      case 'hopscotch': {
+        // The playground already HAS a painted hopscotch, drawn into its zone scenery. This is
+        // a fresh coat over it — brighter chalk in the same shape, in the growth layer.
+        const w = 130;
+        return { w, h: 210, dy: 4, svg: [0, 1, 2, 3, 4, 5, 6].map(i => {
+          const row = Math.floor(i / 1), y = 176 - row * 26;
+          return `<rect x="34" y="${y}" width="58" height="24" rx="4" fill="none" stroke="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke-width="4" opacity="0.95"/>`
+            + `<text x="63" y="${y + 17}" font-family="Fredoka,sans-serif" font-size="14" font-weight="700" fill="${INK}" text-anchor="middle" opacity="0.75">${i + 1}</text>`;
+        }).join('') };
+      }
+      case 'scoreboard':
+        return { w: 140, h: 132, svg:
+          `<rect x="26" y="104" width="10" height="26" rx="3" fill="#8A6B3A" stroke="${INK}" stroke-width="2.4"/>`
+          + `<rect x="104" y="104" width="10" height="26" rx="3" fill="#8A6B3A" stroke="${INK}" stroke-width="2.4"/>`
+          + `<rect x="14" y="16" width="112" height="92" rx="8" fill="#3B3357" stroke="${INK}" stroke-width="3"/>`
+          + `<rect x="24" y="28" width="92" height="30" rx="4" fill="#1F1B33"/>`
+          + `<text x="70" y="51" font-family="Fredoka,sans-serif" font-size="21" font-weight="700" fill="#FFC93C" text-anchor="middle">HOORAY</text>`
+          + [0, 1, 2, 3].map(i => `<circle cx="${34 + i * 24}" cy="80" r="9" fill="${['#FF7AC6', '#35D0BA', '#FFC93C', '#8FC7FF'][i]}" stroke="${INK}" stroke-width="2.2"/>`).join('') };
+      case 'pgbunting': {
+        const w = Math.min(320, zw * 0.26);
+        return { w, h: 92, dy: -70, svg:
+          `<path d="M8 18 Q ${w / 2} 62 ${w - 8} 18" fill="none" stroke="${INK}" stroke-width="2.6"/>`
+          + Array.from({ length: 9 }, (_, i) => {
+            const x = 14 + i * (w - 28) / 8, y = 20 + Math.sin(i / 8 * Math.PI) * 30;
+            return `<path d="M${x} ${y} l14 0 l-7 18 z" fill="${['#FF7AC6', '#FFC93C', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="${INK}" stroke-width="1.8"/>`;
+          }).join('') };
+      }
+      // ---- funfair ----
+      case 'photobooth':
+        return { w: 116, h: 156, svg:
+          `<rect x="14" y="26" width="88" height="126" rx="8" fill="#8FA8E0" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M8 26 h100 l-8 -16 h-84 z" fill="#FF5C8A" stroke="${INK}" stroke-width="2.8"/>`
+          + `<rect x="26" y="42" width="64" height="46" rx="5" fill="#FFF8F0" stroke="${INK}" stroke-width="2.4"/>`
+          + `<circle cx="58" cy="65" r="14" fill="#3B3357" stroke="${INK}" stroke-width="2.4"/>`
+          + `<circle cx="53" cy="60" r="4" fill="#FFF8F0" opacity="0.8"/>`
+          + `<rect x="30" y="98" width="56" height="46" rx="4" fill="#6E86C0" stroke="${INK}" stroke-width="2.4"/>`
+          + [0, 1, 2].map(i => `<rect x="${38}" y="${104 + i * 14}" width="40" height="10" rx="2" fill="#FFF8F0" opacity="0.9"/>`).join('') };
+      case 'fairlights': {
+        const w = Math.min(300, zw * 0.24);
+        return { w, h: 88, dy: -90, svg:
+          `<path d="M8 20 Q ${w / 2} 60 ${w - 8} 20" fill="none" stroke="${INK}" stroke-width="2.4" opacity="0.7"/>`
+          + Array.from({ length: 10 }, (_, i) => {
+            const x = 12 + i * (w - 24) / 9, y = 22 + Math.sin(i / 9 * Math.PI) * 28;
+            const c = ['#FFC93C', '#FF7AC6', '#35D0BA'][i % 3];
+            return `<circle class="tg-bulb" cx="${x}" cy="${y}" r="6" fill="${c}" opacity="${lit ? 1 : 0.72}"/>`
+              + (lit ? `<circle cx="${x}" cy="${y}" r="12" fill="${c}" opacity="0.22"/>` : '');
+          }).join('') };
+      }
+      case 'fairarch': {
+        const w = 230;
+        return { w, h: 190, svg:
+          `<rect x="16" y="86" width="22" height="100" rx="5" fill="#FF5C8A" stroke="${INK}" stroke-width="3"/>`
+          + `<rect x="${w - 38}" y="86" width="22" height="100" rx="5" fill="#FF5C8A" stroke="${INK}" stroke-width="3"/>`
+          + `<path d="M27 90 Q ${w / 2} 8 ${w - 27} 90" fill="none" stroke="#FFC93C" stroke-width="20" stroke-linecap="round"/>`
+          + `<path d="M27 90 Q ${w / 2} 8 ${w - 27} 90" fill="none" stroke="${INK}" stroke-width="3"/>`
+          + `<text x="${w / 2}" y="62" font-family="Fredoka,sans-serif" font-size="22" font-weight="700" fill="${INK}" text-anchor="middle">FUNFAIR</text>`
+          + [0, 1, 2, 3, 4].map(i => `<circle cx="${44 + i * (w - 88) / 4}" cy="${70 - Math.sin(i / 4 * Math.PI) * 26}" r="5" fill="#FFF8F0" stroke="${INK}" stroke-width="1.8"/>`).join('') };
+      }
+      default: return null;
+    }
   }
   // A construction site: fence, sign, two hard-hat builder Boos, sawdust puffs.
   function siteNode(m) {
@@ -2426,12 +3153,42 @@ export function mount(container, params, ctx) {
   }
 
   // The reveal ceremony: fence drops, confetti, guide line, Journal stamp (C6).
-  function playGrowthReveal(m, done = () => {}) {
+  // RUN21E-15: several milestones of one area, celebrated together in ONE reveal — the same
+  // ceremony, the same fence drop, one combined headline instead of a queue of them.
+  function playAreaGrownReveal(list, done = () => {}) {
     sfx.fanfare();
+    const headline = grownHeadline(AREA.name);
     const ov = el('div', { class: 'overlay growth-reveal' });
     const panel = el('div', { class: 'card gr-panel' }, [
       el('h2', { class: 'gr-title', text: '🔨 Ta-daa!' }),
-      el('p', { class: 'gr-line', text: guideLine('builders') }),
+      el('p', { class: 'gr-line', text: headline }),
+      el('div', { class: 'gr-scene' }, [
+        el('div', { class: 'gr-upgrade', html: list.map(m => `<div class="gr-name">${m.name}</div>`).join('') }),
+        el('div', { class: 'gr-fence' })
+      ]),
+      el('button', { class: 'btn big', text: 'Hooray! 🎉', onclick: () => {
+        sfx.tap(); ov.remove();
+        completeCatchup(AREA.key);
+        for (const m of list) stampJournal('growth_' + m.key);
+        renderPlaced();
+        done();
+      } })
+    ]);
+    ov.appendChild(panel);
+    root.appendChild(ov);
+    requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
+    confetti({ count: 110, power: 1.1 });
+    speakMaybe(headline);
+  }
+  function playGrowthReveal(m, done = () => {}) {
+    sfx.fanfare();
+    // The Meadow's original five keep the line they have always had; RUN21E-15's fifteen name
+    // what the Builders finished, which is what the pack authors.
+    const line = m.basis === 'area' ? builderHeadline(m) : guideLine('builders');
+    const ov = el('div', { class: 'overlay growth-reveal' });
+    const panel = el('div', { class: 'card gr-panel' }, [
+      el('h2', { class: 'gr-title', text: '🔨 Ta-daa!' }),
+      el('p', { class: 'gr-line', text: line }),
       el('div', { class: 'gr-scene' }, [
         el('div', { class: 'gr-upgrade', html: `<div class="gr-name">${m.name}</div>` }),
         el('div', { class: 'gr-fence' })
@@ -2447,7 +3204,7 @@ export function mount(container, params, ctx) {
     root.appendChild(ov);
     requestAnimationFrame(() => { ov.classList.add('show'); setTimeout(() => panel.querySelector('.gr-fence').classList.add('drop'), REDUCED ? 0 : 500); });
     confetti({ count: 110, power: 1.1 });
-    speakMaybe(guideLine('builders'));
+    speakMaybe(line);
   }
 
   // ---- the Boo Funfair (RUN6 C1b) -----------------------------------------
@@ -2470,7 +3227,12 @@ export function mount(container, params, ctx) {
       if (z.key === 'funfair') return;
       if (stars < z.unlock) return;                            // locked zones show only their signpost
       const caperOpen = !!(getState().caper && getState().caper.open);
-      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen });
+      // RUN21E-2: rain is computed HERE, with the same expression renderWeather uses. The
+      // mount-scoped `currentSeasonName` is only set by renderWeather, which runs AFTER the
+      // scenery is built — reading it from inside the scenery would race and silently give ''.
+      const rain = (typeof window !== 'undefined' && window.__bootownWeather === 'rain')
+        || isRainDay(seasonOf(currentMonth()), todayKeyLocal());
+      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen, rain, tide: TIDE });
       if (!html) return;
       const wrap = el('div', { class: 't-zone-props ' + z.key + (night ? ' night' : ''), html });
       wrap.style.left = (i * zoneW) + 'px'; wrap.style.top = '0';
@@ -2480,10 +3242,13 @@ export function mount(container, params, ctx) {
       wrap.style.width = zoneW + 'px'; wrap.style.height = viewH + 'px'; wrap.style.zIndex = '3';
       ground.insertBefore(wrap, ground.firstChild);
     });
+    renderNoticePoster();   // RUN21E-4C: the tappable half of the Playground's noticeboard
+    renderShells();         // RUN21E-3: the low tide's three shells — buttons, not scenery,
+    renderSavedCastle();    //           and the castle the sea has not taken yet
   }
 
   function renderFunfair() {
-    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door, .ff-sign').forEach(n => n.remove());
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door, .ff-sign, .ff-fairbooth').forEach(n => n.remove());
     if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
@@ -2492,9 +3257,13 @@ export function mount(container, params, ctx) {
     // layer so it lines up with the rides; night makes the string lights glow (C1b)
     // RUN18D D10: the visible width matters. Without it the fair's furniture is laid out
     // across all four viewports and none of it lands on the screen she arrives at.
-    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour()), viewW) });
+    // RUN21E-6: on Saturdays the fair dresses up — an extra swag over the ride tops, the
+    // string lights on in daylight, and a booth that gives something away.
+    const fairDay = isFairDay(todayKeyLocal());
+    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour()), viewW, fairDay) });
     sc.style.left = (zi * zoneW) + 'px'; sc.style.top = '0'; sc.style.width = zoneW + 'px'; sc.style.height = viewH + 'px'; sc.style.zIndex = '1';
     ground.insertBefore(sc, ground.firstChild);
+    if (fairDay && !READONLY) renderFairBooth(zi);
     for (const ride of view.built) {
       const box = renderRide(ride);
       const px = zi * zoneW + RIDE_X[ride] * zoneW;
@@ -2513,6 +3282,65 @@ export function mount(container, params, ctx) {
   // at 0.68 of a four-viewport area and the Disco Hall's door at 0.51, so a child who
   // arrives at the gate and never drags right meets neither. Two hanging signs at the
   // entrance say where they are and take her there.
+  // ---- RUN21E-6: the fair-day ticket booth ------------------------------------------------
+  // The booth is DRAWN inside the scenery svg, which is pointer-events:none, so — exactly like
+  // the Playground's noticeboard — the tappable half is its own button in the ground layer,
+  // sitting over the entrance screen's booth. It exists ONLY on fair day, which is what makes
+  // "non-Saturdays are simply normal" true by construction: there is nothing extra to find and
+  // nothing to have missed.
+  const FAIR_BOOTH_LINE = 'Happy fair day! This one\'s on us.';
+  function renderFairBooth(zi) {
+    if (!zoneW || !viewW) return;
+    // The same geometry funfair.js lays the drawn booth out with, for screen 0.
+    const screenW = Math.max(240, Math.min(viewW || zoneW, zoneW));
+    const bx = screenW * 0.06;
+    const btn = el('button', {
+      class: 'ff-fairbooth', type: 'button', 'aria-label': 'The fair-day ticket booth',
+      onclick: (e) => { e.stopPropagation(); fairBoothTap(); }
+    });
+    btn.style.left = (zi * zoneW + bx - 6) + 'px';
+    btn.style.top = (viewH * 0.40 + 8) + 'px';
+    btn.style.zIndex = String(Math.round(groundY) + 2);
+    ground.appendChild(btn);
+  }
+  function fairBoothTap() {
+    if (READONLY || softened) return;
+    const day = todayKeyLocal();
+    const already = ((getState().seen || {}).fairPrizeDay === day);
+    if (already) {
+      // Never a refusal and never a "you already had yours": a friendly booth that simply
+      // has nothing more to hand over today.
+      sfx.tap();
+      const node = ground.querySelector('.ff-fairbooth');
+      if (node) sparkleAtNode(node);
+      return;
+    }
+    const word = fairPrizeWord(day);
+    const id = wishId(word);
+    sfx.chime(2);
+    sayInWorld(FAIR_BOOTH_LINE);
+    // The gift ARRIVES, in the fair, where she is looking — the wish-arrival ceremony, not a
+    // toast and not the box ceremony (which consumes a box, rolls at random and walks her out
+    // to the hub; see the ledger). A word she already wished still places a real second one:
+    // unlocking is what happens once, receiving is what happens today.
+    const spot = freeWishSpot();
+    mutate(st => {
+      st.seen = st.seen || {};
+      st.seen.fairPrizeDay = day;
+      st.wishes = st.wishes || { unlocked: {} };
+      st.wishes.unlocked = st.wishes.unlocked || {};
+      if (!st.wishes.unlocked[word]) st.wishes.unlocked[word] = true;
+      if (spot) areaItems(st).push({ id: nextPlacementId(st), zone: AREA.key, x: spot.x, row: spot.row, item: id });
+    });
+    if (spot) {
+      wishPuffAt(spot);
+      renderPlaced();
+      const node = ground.querySelector(`.t-item[data-item="${id}"]`);
+      if (node && !REDUCED) { node.classList.remove('wish-arrive'); void node.offsetWidth; node.classList.add('wish-arrive'); }
+    }
+    renderDrawer(); updateDrawerTabs();
+  }
+
   function renderFairSigns(zi) {
     for (const sg of FAIR_SIGNS) {
       const sign = el('button', {
@@ -3397,6 +4225,66 @@ export function mount(container, params, ctx) {
 
   // The request card: the line (spoken), a 48px picture of the wanted thing, and — for the
   // verbs that live on another screen — one button that takes her straight there.
+  // ---- RUN21E-4C / E5: "Today at Boo Town" ------------------------------------------------
+  // ONE line about what is happening in the whole town right now, chosen by priority. Two
+  // things open it — the Playground's notice poster and the Meadow's signpost — and both read
+  // this single function, which is what the pack means by "shared component, one copy source".
+  //
+  // The names carry their own articles ('The Meadow', 'Riverside'), so the template is
+  // "at <Name>" rather than the pack's literal "at the <Area>" — writing it literally ships
+  // "at the The Meadow". Same correction the socket-claim line already makes.
+  const TODAY_FALLBACK = 'A lovely day for the playground!';
+  function areaDisplayName(key) {
+    if (HOUSE_ROOM_KEYS.includes(key)) return 'The Boo House';
+    const a = AREAS.find(x => x.key === key);
+    return a ? a.name : 'The Meadow';
+  }
+  // Fair day (E6) is one helper, in js/funfair.js, which owns the fair. This card reads it —
+  // it does not grow a second Saturday check.
+  function todayLine() {
+    const hide = currentHide();
+    if (hide && hide.spot) return `Someone's playing hide-and-seek at ${areaDisplayName(hide.spot.zone)}! 👀`;
+    if (isFairDay(todayKeyLocal()) && funfairUnlocked(getState())) return `It's fair day at the Boo Funfair! 🎪`;
+    const gSite = growthView().site;
+    if (gSite) return `The Boo Builders are busy at ${areaDisplayName(gSite.zone)}…`;
+    if (funfairView().site) return `The Boo Builders are busy at ${areaDisplayName('funfair')}…`;
+    const req = activeRequests()[0];
+    if (req) return `${getDisplayName(req.booId)} is wondering something — go and see!`;
+    return TODAY_FALLBACK;
+  }
+  function openTodayCard() {
+    sfx.tap();
+    const line = todayLine();
+    const ov = el('div', { class: 'overlay show today-card-ov' });
+    const card = el('div', { class: 'card today-card', role: 'dialog', 'aria-label': 'Today at Boo Town' });
+    card.appendChild(el('h3', { class: 'today-title', text: 'Today at Boo Town' }));
+    card.appendChild(el('p', { class: 'today-line', text: line }));
+    const dismiss = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 180); };
+    card.appendChild(el('div', { class: 'dialog-btns' }, [
+      el('button', { class: 'btn soft', text: 'Okay!', onclick: () => { sfx.tap(); dismiss(); } })
+    ]));
+    ov.appendChild(card);
+    ov.addEventListener('click', e => { if (e.target === ov) dismiss(); });
+    document.body.appendChild(ov);
+    speakMaybe(line);
+  }
+  // The Playground's noticeboard is DRAWN in the zone-scenery layer, which is
+  // pointer-events:none by law (a placement tap must fall through it). So the tappable poster
+  // is its own button in the ground layer, sitting exactly over the drawn board — the same
+  // shape the fair signs and the bandstand already use.
+  const NOTICE_X = 0.215;          // where playgroundScenery draws the board
+  function renderNoticePoster() {
+    if (AREA.key !== 'playground' || !zoneW) return;
+    ground.querySelectorAll('.pg-notice-btn').forEach(n => n.remove());
+    const btn = el('button', {
+      class: 'pg-notice-btn', type: 'button', 'aria-label': 'Today at Boo Town — read the notice',
+      onclick: (e) => { e.stopPropagation(); openTodayCard(); }
+    });
+    btn.style.left = (NOTICE_X * zoneW - 46) + 'px';
+    btn.style.top = (groundY - 76) + 'px';
+    ground.appendChild(btn);
+  }
+
   function openRequestCard(r) {
     sfx.tap();
     const line = requestLine(r);
@@ -3493,7 +4381,67 @@ export function mount(container, params, ctx) {
   function notePlacement() {
     pruneImpossible();                                    // the friend may have been put away
     fireRequest('placement', { area: STORE_KEY });
+    maybeAckAreaBusy();       // RUN21E-13
+    maybeAckNewItem();        // RUN21E-13
+    checkAdjacency();         // RUN21E-11: what she just put down may have made a pair
+    maybeAckDressing();       // RUN21E-13: a Boo just arrived in a freshly-decorated room
   }
+  // ---- RUN21E-13: acknowledgement wave two ------------------------------------------------
+  // Three more moments where the town notices what she has made. They join the SAME two-per-
+  // session budget as everything else in ack.js — seven moments now share two slots, which is
+  // the point: the town notices, it does not chatter. `acknowledge()` returning '' is the
+  // common case by design and every caller here takes silence for an answer.
+  const AREA_BUSY_AT = 12;   // the pack's threshold
+  function maybeAckAreaBusy() {
+    const st = getState();
+    const n = areaItems(st).length;
+    if (n < AREA_BUSY_AT) return;
+    if (((st.seen || {}).areaBusyAck || {})[STORE_KEY]) return;   // first time per area, ever
+    // The authored line already supplies "the", and the area names carry their own articles
+    // ("The Meadow"), so the name goes in BARE or it ships "the The Meadow" — the same
+    // correction the socket-claim line makes, for the same reason.
+    const line = acknowledge('areaBusy', { areaName: areaDisplayName(STORE_KEY).replace(/^The\s+/i, '') });
+    if (!line) return;   // budget said no: stay silent, and try again another session
+    mutate(s => { s.seen = s.seen || {}; s.seen.areaBusyAck = Object.assign({}, s.seen.areaBusyAck, { [STORE_KEY]: true }); });
+    sayInWorld(line);
+  }
+  // "Once per day, a named Boo near her most recently placed item." Most-recent is the highest
+  // placement id — the counter only ever goes up, so it is the one field that cannot lie about
+  // order. The day stamp is the ONE thing this run writes to the save about acknowledgements,
+  // and it is what makes "once per day" mean across reloads rather than merely per session.
+  const NEW_ITEM_REACH = 0.10;
+  function maybeAckNewItem() {
+    const st = getState();
+    if (((st.delights || {}).newItemAckDay) === todayKeyLocal()) return;
+    const items = areaItems(st);
+    const newest = items.filter(t => !isBooItem(t.item)).sort((a, b) => (b.id || 0) - (a.id || 0))[0];
+    if (!newest) return;
+    const near = nearestBooTo(newest.x, NEW_ITEM_REACH);
+    if (!near) return;
+    const what = resolveItem(newest.item);
+    if (!what) return;
+    const line = acknowledge('newItemLove', { booName: getDisplayName(near.place.item), itemName: what.name });
+    if (!line) return;
+    mutate(s => { s.delights = s.delights || {}; s.delights.newItemAckDay = todayKeyLocal(); });
+    const w = near.actor ? near.actor.wrap : null;
+    if (w) sayOver(w, line, 2800); else sayInWorld(line);
+  }
+  // "A Boo enters a room within 2 minutes of a dressing apply." Boos do not walk between rooms
+  // by themselves — an interior actor is spawned from that room's own placements at mount — so
+  // "enters" is read as the two ways a Boo really does arrive in a decorated room: she mounts
+  // the room with a Boo already in it, or she puts one down there.
+  const DRESSING_WINDOW_MS = 120000;
+  function maybeAckDressing() {
+    if (!isInterior || !lastDressingApply) return;
+    if (lastDressingApply.roomKey !== STORE_KEY) return;
+    if (nowMs() - lastDressingApply.t > DRESSING_WINDOW_MS) return;
+    if (!areaItems(getState()).some(t => isBooItem(t.item))) return;
+    const line = acknowledge(lastDressingApply.slot === 'floors' ? 'newDressingFloor' : 'newDressing');
+    if (!line) return;
+    lastDressingApply = null;   // one notice per redecoration, not one per Boo
+    sayInWorld(line);
+  }
+  const isBooItem = (id) => (id || '').startsWith('boo_') || (id || '').startsWith('custom:');
   function noteSocketClaim(booId, t) {
     fireRequest('socketClaim', { booId, itemId: t.item, area: STORE_KEY, x: t.x });
   }
@@ -3573,6 +4521,53 @@ export function mount(container, params, ctx) {
     const range = zoneW * WANDER_FRAC;
     const dx = Math.max(-range, Math.min(range, (aimFrac - a.place.x) * zoneW));
     return Math.abs(dx - (a.dx || 0)) < 6 ? null : dx;   // already there: take a normal wander
+  }
+  // ---- RUN21E H3 / B1 (APPROVED): BOOS VISIBLY USE HER PATHS -------------------------------
+  // RUN21C item 5 gave the MICRO-WANDER a pull toward a path run. It is real in the numbers and
+  // invisible on screen, and the C report diagnosed exactly why: a micro-wander is a minority of
+  // a Boo's time (goals own 56-62% of it) and it is clamped to WANDER_FRAC — 4.5% of the area —
+  // so the pull can never carry a Boo more than a few pixels.
+  //
+  // The approved fix is to bias GOAL DESTINATIONS toward path runs. Goals are the thing that
+  // moves a Boo any real distance, and they pick their destinations in exactly one place:
+  // `chooseBehaviourKind` / `startBehaviour`. So "prefer a spot on a path run" becomes its own
+  // candidate — a Boo that decides to go somewhere can now decide to go and walk the path, and
+  // then pads its whole length, which is what using a path looks like.
+  //
+  // RUN21C-5's own machinery (PATH_REACH_X, PATH_PULL_CHANCE, pathWalkTargetDx and the
+  // micro-wander branch) is deliberately left byte-identical.
+  const PATH_GOAL_REACH = 0.35;   // a GOAL walks across a screen, so it looks much further than a wander does
+  const PATH_GOAL_WEIGHT = 2.6;   // peer of 'approach' and 'nap' — a real option, never a rail
+  // The path run this Boo could go and walk: nearest same-style contiguous run in its own
+  // depth row, returned as x-fractions.
+  function pickPathRun(a) {
+    const cells = currentPaths();
+    if (!cells.length) return null;
+    const row = rowOf(a.place);
+    const here = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    const geom = cellGeom();
+    const tiles = [];
+    let bestCx = null, bestD = Infinity, style = null;
+    for (const c of cells) {
+      const yPx = geom.bandTopPx + (c.cy + 0.5) * geom.cellH;
+      let r = 0, rb = Infinity;
+      ROWS.forEach((g, i) => { const d = Math.abs(yPx - viewH * g); if (d < rb) { rb = d; r = i; } });
+      if (r !== row) continue;
+      const xFrac = (c.cx + 0.5) * PATH_CELL;
+      tiles.push({ cx: c.cx, xFrac, style: c.style });
+      const d = Math.abs(xFrac - here);
+      if (d <= PATH_GOAL_REACH && d < bestD) { bestD = d; bestCx = c.cx; style = c.style; }
+    }
+    if (bestCx == null) return null;
+    const has = (cx) => tiles.some(t => t.cx === cx && t.style === style);
+    let lo = bestCx, hi = bestCx;
+    while (has(lo - 1)) lo--;
+    while (has(hi + 1)) hi++;
+    const loFrac = (lo + 0.5) * PATH_CELL, hiFrac = (hi + 0.5) * PATH_CELL;
+    // A single lonely tile is a stepping stone, not a path to walk — leave those to the
+    // micro-wander pull, so this candidate only ever fires on something that reads as a route.
+    if (hi - lo < 1) return null;
+    return { loFrac, hiFrac, style, cells: hi - lo + 1 };
   }
   const PATH_STYLE_WORD = { stone: 'stone', sand: 'sandy', flower: 'flowery' };
   // Called on a wanderer's arrival. Cheap by design: a handful of numeric comparisons, and
@@ -3774,7 +4769,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall')) return; // interactive scenery handles its own taps
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall') || e.target.closest('.pg-notice-btn') || e.target.closest('.ff-fairbooth')) return; // interactive scenery handles its own taps
     // RUN20 W2: a tap on the right PART of the scene is this area's own secret. It runs before
     // the scroll drag starts, and only when it actually matched something — a miss falls
     // straight through to the normal pan, so the scene never feels sticky.
@@ -4442,6 +5437,10 @@ export function mount(container, params, ctx) {
         if (!onWall) {
           showDropPreview(wrap, zi, x, row, live);   // illegal-drop tint + nearest-legal ghost (RUN10 P2)
         }
+        // RUN21E-10: a swag FOLLOWS the end being dragged. Nothing commits until pointerup, so
+        // redrawing from the save would only snap on drop; this recomputes from the live wrap
+        // positions instead, and the ordinary render on drop then makes it truthful.
+        if (wrap.dataset.item === 'land_buntingend') redrawSwagsLive(wrap, x);
       }
     });
     wrap.addEventListener('pointerup', e => {
@@ -4519,6 +5518,150 @@ export function mount(container, params, ctx) {
     wrap.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); down = false; wrap.classList.remove('dragging'); hideDropPreview(wrap); clearSlotGlow(); });   // RUN21B-4
   }
 
+  // ---- RUN21E-12: the dead-prop amnesty --------------------------------------------------
+  // Five things a child could always SEE and never do anything with. Each now answers her
+  // finger with the engine that already exists for it: the fridge and the wardrobe open
+  // (hinged svg door groups, art.js), the oven lights and dings, the bath borrows the
+  // paddle-pool's own transform, and the mirror borrows the wander pause.
+  //
+  // Nothing here is added to ACT_IDS or SOCKETS on purpose: the role sweep would then claim
+  // these props AMBIENTLY, and the pack asks for a response to HER TAP, not for a fridge that
+  // opens itself. Verbs run on the play path only (`!softened`) so an arranging tap still
+  // gets Move / Put away, exactly as the wish verbs do.
+  const PROP_VERB_IDS = new Set(['deco_fridge', 'deco_oven', 'deco_bathtub', 'deco_wardrobe', 'deco_wardrobe2', 'deco_mirror']);
+  const FRIDGE_OPEN_MS = 2600;      // door held open long enough to read what peeked out
+  const OVEN_COOK_MS = 3000;        // the pack's 3s glow, then the ding
+  const BATH_MS = 8000;             // the pack's soak
+  const BATH_REACH = 0.15;          // "a Boo within 15%" — zone-x fraction, the save's own unit
+  const MIRROR_REACH = 0.06;        // a passing Boo is one that walks CLOSE to the glass
+  const FOOD_WORDS = ['cake', 'apple', 'pizza', 'banana', 'carrot', 'cheese', 'cookie'];
+  let mirrorSeenThisVisit = false;
+
+  // The nearest placed Boo to an x, with its live actor when it has one.
+  function nearestBooTo(xFrac, maxFrac = Infinity) {
+    let best = null, bestD = Infinity;
+    for (const t of areaItems(getState())) {
+      const id = t.item || '';
+      if (!id.startsWith('boo_') && !id.startsWith('custom:')) continue;
+      const d = Math.abs(t.x - xFrac);
+      if (d < bestD) { bestD = d; best = t; }
+    }
+    if (!best || bestD > maxFrac) return null;
+    return { place: best, actor: actors.find(a => a.place && a.place.item === best.item) || null, dist: bestD };
+  }
+  // A one-shot class on a node, token-guarded so a second tap can never be cut short by the
+  // first tap's cleanup (the RUN21B lesson from playOnce, applied to wraps as well as svgs).
+  function propPlay(node, cls, ms) {
+    if (!node) return;
+    const token = (node._propToken = (node._propToken || 0) + 1);
+    node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls);
+    setTimeout(() => { if (node._propToken === token) node.classList.remove(cls); }, ms);
+  }
+
+  // The whole dispatch. Returns true when it OWNED the tap (so the arranging menu stays shut).
+  function itemVerb(wrap, place, item) {
+    const id = item && item.id;
+    if (!PROP_VERB_IDS.has(id)) return false;
+    switch (id) {
+      case 'deco_fridge': {
+        // The door swings, the inside lights, and one of her food wishes peeks out. The
+        // nearest Boo trots over for the chomp the FOOD wishes already run.
+        const peek = wrap.querySelector('.pd-peek');
+        if (peek) {
+          const word = FOOD_WORDS[Math.floor(Math.random() * FOOD_WORDS.length)];
+          const art = WISH_ART[word];
+          peek.innerHTML = art ? `<svg x="44" y="62" width="34" height="37" viewBox="0 0 120 130">${art}</svg>` : '';
+        }
+        propPlay(wrap, 'prop-open', FRIDGE_OPEN_MS);
+        sfx.tap();
+        const near = nearestBooTo(place.x);
+        if (near && near.actor) {
+          clearRole(near.actor); endWait(near.actor);
+          near.actor.goal = { kind: 'approach', deco: place, targetDx: (place.x - near.actor.place.x) * zoneW, start: performance.now() };
+          if (wishSound.allow(placementIdOf(place), { tapped: true })) sfx.chomp();
+        }
+        // No line by design (pack): the animation IS the response.
+        return true;
+      }
+      case 'deco_oven': {
+        // Three seconds of oven light, then the ding and a puff of steam. The ack line is
+        // "may" — it asks the shared budget and takes silence for an answer.
+        propPlay(wrap, 'prop-cooking', OVEN_COOK_MS + 400);
+        sfx.tap();
+        setTimeout(() => {
+          if (!wrap.isConnected) return;
+          sfx.chime(4);
+          for (let i = 0; i < 3; i++) {
+            const pip = el('i', { class: 'wish-wisp' });
+            pip.style.left = (36 + i * 14) + '%';
+            pip.style.animationDelay = (i * 160) + 'ms';
+            wrap.appendChild(pip);
+            setTimeout(() => pip.remove(), 1800 + i * 160);
+          }
+          if (roomId === 'kitchen') {
+            const line = acknowledge('ovenBake');
+            if (line) sayOver(wrap, line, 2600);
+          }
+        }, OVEN_COOK_MS);
+        return true;
+      }
+      case 'deco_bathtub': {
+        const near = nearestBooTo(place.x, BATH_REACH);
+        if (!near || !near.actor) {
+          // Never a dead tap: the tub sloshes and says what would make it happen.
+          propPlay(wrap, 'pd-shake', 460);
+          sfx.tap();
+          hint.textContent = 'Pop a Boo beside the bath for a splash!';
+          return true;
+        }
+        const a = near.actor;
+        clearRole(a); endWait(a); if (a.goal) endGoal(a);
+        a.goal = { kind: 'bath', tub: place, tubWrap: wrap, targetDx: (place.x - a.place.x) * zoneW, start: performance.now() };
+        sfx.tap();
+        return true;
+      }
+      case 'deco_wardrobe':
+      case 'deco_wardrobe2': {
+        propPlay(wrap, 'prop-open', 2200);
+        sfx.tap();
+        // Dress-up EDITS a Boo, so a visitor watches the doors open and nothing more.
+        if (READONLY) return true;
+        const near = nearestBooTo(place.x);
+        const booItem = near && resolveItem(near.place.item);
+        if (booItem) setTimeout(() => openDressUp(booItem, { onDone: () => renderPlaced() }), 320);
+        else hint.textContent = 'Put a Boo nearby and open the doors again!';
+        return true;
+      }
+      case 'deco_mirror': {
+        const near = nearestBooTo(place.x);
+        sfx.tap();
+        if (near && near.actor) mirrorLook(near.actor);
+        else { sparkleAtNode(wrap); hint.textContent = 'Who will look in the mirror?'; }
+        return true;
+      }
+    }
+    return false;
+  }
+  // A Boo catching its own reflection: it stops, faces out, one sparkle, and walks on.
+  function mirrorLook(a) {
+    if (!a) return;
+    a.state = 'pause'; a.vx = 0; a.walkTo = null; a.next = 1600;
+    const svg = a.wrap.querySelector('svg');
+    if (svg && !REDUCED) propPlay(svg, 'pd-mirror-look', 1500);
+    sparkleAtNode(a.wrap);
+  }
+  // ...and the ambient half: once a visit, a Boo that happens to walk past a placed mirror
+  // does it without being asked. Called from the wanderer's own arrival, beside the path ack.
+  function maybeMirrorLook(a) {
+    if (mirrorSeenThisVisit || REDUCED || !a || !a.place) return;
+    const mirrors = areaItems(getState()).filter(t => t.item === 'deco_mirror');
+    if (!mirrors.length) return;
+    const landing = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    if (!mirrors.some(m => Math.abs(m.x - landing) <= MIRROR_REACH)) return;
+    mirrorSeenThisVisit = true;
+    mirrorLook(a);
+  }
+
   function onTap(wrap, place, item) {
     if (item.kind === 'boo') {
       const napper = actors.find(x => x.wrap === wrap);
@@ -4546,7 +5689,18 @@ export function mount(container, params, ctx) {
     // and simply do not open.
     if (item.id === 'deco_wishwell') { if (!READONLY) openWellHere(wrap); return; }
     if (item.id === 'deco_jokestage') { sfx.tap(); if (!READONLY) ctx.go('jokeboo', { from: 'town' }); return; }   // RUN17 X1; `from` added RUN18A H3 so Back returns to the Meadow, not the hub
+    // RUN21E-5: the Notice Post reads out the same "Today at Boo Town" card the Playground's
+    // poster shows — one function, one copy source. The shop's four-armed Signpost gets it
+    // too: it is a signpost with nothing to say today, which is the definition of a dead prop.
+    // Reading the news grants nothing, so a visitor may read it as well.
+    if (item.id === 'deco_noticepost' || item.id === 'deco_signpost') { openTodayCard(); return; }
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
+    // RUN21E-7: a lamp indoors, in the daytime, offers to make it night-time in here. Same
+    // shape as the wish verbs — arranging taps (softened) still get Move / Put away.
+    if (offerPretendNight(wrap, item)) return;
+    // RUN21E-12: the five amnestied props answer the tap instead of opening the menu — the
+    // same shape as the wish verbs above, and for the same reason.
+    if (!softened && itemVerb(wrap, place, item)) return;
     if (READONLY) return;   // …and the arranging menu (Move / Put away / size) never opens
     openMenu(wrap, place, item);
   }
@@ -5412,6 +6566,8 @@ export function mount(container, params, ctx) {
         // stand still. If it happens to have landed on a path she painted, the town notices
         // (once or twice a session at most, per the shared budget).
         if (a.state === 'walk') maybeAckPath(a);
+        // RUN21E-12: and if it has stopped beside a mirror, it catches its own eye (1/visit).
+        if (a.state === 'walk') maybeMirrorLook(a);
         if (roll < 0.5) { a.state = 'pause'; a.vx = 0; a.walkTo = null; a.next = 700 + Math.random() * 1600; }
         else if (roll < 0.85) {
           a.state = 'walk';
@@ -5659,6 +6815,10 @@ export function mount(container, params, ctx) {
       const key = ACT_MULT_KEY[freeAct.item];
       cands.push(['approach', 2.6 * (key ? personalityMult(booId, key) : 1)]);
     }
+    // RUN21E H3/B1 (APPROVED): if she has painted a path this Boo could go and walk, that is a
+    // real option among the others — not a rail, and not a magnet. Weighted as a peer of
+    // 'approach', so a Boo near a path chooses it often enough to be SEEN choosing it.
+    if (pickPathRun(a)) cands.push(['pathwalk', PATH_GOAL_WEIGHT]);
     cands.push(['chase', 1.6 * personalityMult(booId, 'chase')]);
     cands.push(['watch', 1.3 * personalityMult(booId, 'watch')]);
     // a just-woken Boo stays up (no instant re-nap); mirrors the sleep-role wake rule
@@ -5669,7 +6829,10 @@ export function mount(container, params, ctx) {
     // width) of the bed, no Boo ever went to bed at all. Indoors the gate is now the
     // authored NAP_CHANCE per qualifying pause instead: any hour, a bed is for napping in.
     // Outdoors it stays night-only — a Boo dozing under a tree at noon is a different thing.
-    const napAllowed = night || (isInterior && Math.random() < NAP_CHANCE);
+    // RUN21E-7: "nap likelihood tripled" during a pretend night. NAP_CHANCE is 0.5, and
+    // 3 x 0.5 saturates at certainty — so during a pretend night indoors a qualifying pause
+    // ALWAYS considers the bed. Recorded as a deviation: tripling a half is just "always".
+    const napAllowed = night || pretendHere() || (isInterior && Math.random() < NAP_CHANCE);
     if (napAllowed && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6 * personalityMult(booId, 'nap')]);
     if (!a.riding && pickBoardableRide(a)) cands.push(['board', 3.2]);   // funfair: hop on a ride (C1b)
     // musical (RUN10 P5): drawn to a placed Dance Stage, or the funfair bandstand while
@@ -5677,7 +6840,11 @@ export function mount(container, params, ctx) {
     const music = pickMusicTarget(a);
     if (music) cands.push(['musicwatch', 1.2 * personalityMult(booId, music.kind)]);
     // zone-only behaviours (RUN7 C2): daytime acts tied to the zone she's standing in
-    if (!night) { const zb = ZONE_BEHAVIOURS[a.place.zone]; if (zb) for (const [k, wt] of zb) cands.push([k, wt]); }
+    // RUN21E-4: zone acts take the personality tilt too, the way every other candidate above
+    // already does. Behaviour-neutral for every act that shipped before this run — none of
+    // them appear in WEIGHTS, so their multiplier is exactly 1 — and it is what makes a sporty
+    // Boo the one who starts the game of tag.
+    if (!night) { const zb = ZONE_BEHAVIOURS[a.place.zone]; if (zb) for (const [k, wt] of zb) cands.push([k, wt * personalityMult(booId, k)]); }
     return cands.length ? weightedPick(cands) : null;
   }
   // The nearest thing worth dancing near: a placed Dance Stage anywhere in the area, else
@@ -5725,6 +6892,46 @@ export function mount(container, params, ctx) {
     const st = getState(); const zi = ZONE_INDEX[a.place.zone];
     return areaItems(st).some(t => t.item === 'deco_boohouse' && (ZONE_INDEX[t.zone] ?? 0) === zi && Math.abs(t.x - a.place.x) <= ACT_RADIUS);
   }
+  // RUN21E-4: who is free to be PLAYED WITH. Stricter than pickFriend, which happily picks a
+  // Boo that is already off doing something — a game needs partners who can actually come.
+  // Same-zone, on screen (a hider's wrap is display:none and a rider's is hidden too), not
+  // roled, not parading, not already in a goal of their own, and near enough to run to.
+  const PLAYMATE_REACH = 0.30;   // zone-x fraction: across a screen or so, not across the area
+  function pickPlaymates(a, n) {
+    const zi = ZONE_INDEX[a.place.zone];
+    const mine = a.place.x + (a.dx || 0) / (zoneW || 1);
+    return actors
+      .filter(b => b !== a && !b.role && !b.goal && !b.dancing && !b.parading && !b.riding
+        && b.wrap && b.wrap.style.display !== 'none'
+        && (ZONE_INDEX[b.place.zone] ?? 0) === zi
+        && Math.abs((b.place.x + (b.dx || 0) / (zoneW || 1)) - mine) <= PLAYMATE_REACH)
+      .sort((p, q) => Math.abs(p.place.x - mine) - Math.abs(q.place.x - mine))
+      .slice(0, n);
+  }
+  // Every multi-Boo game ends for EVERYONE, on every exit path — the timer running out, a tap
+  // interrupting, the area unmounting. A partner left holding a goal nobody drives would stand
+  // frozen for ever and never be picked again, so release is one function and endGoal calls it.
+  function releaseTeam(a) {
+    const g = a && a.goal;
+    if (!g || !g.team) return;
+    for (const mate of g.team) {
+      if (mate === a || !mate.goal) continue;
+      if (mate.goal.kind === 'tagpartner' || mate.goal.kind === 'ringpartner') {
+        mate.goal = null; mate.state = 'pause'; mate.vx = 0; mate.t = 0; mate.next = 500 + Math.random() * 1200;
+        mate.home = Math.max(-zoneW * 0.45, Math.min(zoneW * 0.45, mate.dx || 0));
+      }
+    }
+  }
+  // The giggle-hop every game ends on: everyone at once, one sound between them.
+  function giggleHop(team) {
+    if (!team || !team.length) return;
+    sfx.giggle();
+    if (REDUCED) return;
+    for (const b of team) {
+      const s = b.wrap && b.wrap.querySelector('svg');
+      if (s) propPlay(s, 'pd-giggle-hop', GIGGLE_HOP_MS);
+    }
+  }
   function startBehaviour(a, kind, now) {
     now = now || performance.now();
     if (kind === 'visit') {
@@ -5745,6 +6952,34 @@ export function mount(container, params, ctx) {
     } else if (kind === 'nap') {
       const d = pickNapSpot(a); if (!d) return;
       a.goal = { kind, spot: d, targetDx: (d.x - a.place.x) * zoneW, start: now, curled: false };
+    } else if (kind === 'pathwalk') {
+      // RUN21E H3/B1: go to the near end of the run, then pad along it to the far end.
+      const run = pickPathRun(a); if (!run) return;
+      const here = a.place.x + ((a.dx || 0) / (zoneW || 1));
+      const nearFrac = Math.abs(run.loFrac - here) <= Math.abs(run.hiFrac - here) ? run.loFrac : run.hiFrac;
+      const farFrac = nearFrac === run.loFrac ? run.hiFrac : run.loFrac;
+      a.goal = { kind, start: now, run, farFrac, leg: 0, targetDx: (nearFrac - a.place.x) * zoneW };
+    } else if (kind === 'tag') {
+      // RUN21E-4: TAG. Two Boos, and it takes two — with nobody free to play, this returns
+      // goal-less and the chooser (and the Pulse's beat ladder) simply moves on.
+      const partner = pickPlaymates(a, 1)[0];
+      if (!partner) return;
+      // Whoever is on the left runs first; the other one is It. Arbitrary and fair.
+      const runner = partner.place.x < a.place.x ? partner : a;
+      const chaser = runner === a ? partner : a;
+      const team = [a, partner];
+      a.goal = { kind, start: now, team, chaser, runner, swaps: 0, dir: Math.random() < 0.5 ? -1 : 1 };
+      partner.goal = { kind: 'tagpartner', start: now, leader: a };
+    } else if (kind === 'ringroses') {
+      // RUN21E-4: RING-A-ROSES. Three Boos in a circle for six seconds, then one hop
+      // together. The ring geometry and the arrive-lerp are the campfire circle's own; what
+      // is new is that this is a daytime GOAL and needs no fire to gather round.
+      const mates = pickPlaymates(a, 2);
+      if (mates.length < 2) return;
+      const team = [a, ...mates];
+      const centre = team.reduce((s, b) => s + b.place.x + (b.dx || 0) / (zoneW || 1), 0) / team.length;
+      a.goal = { kind, start: now, team, centreFrac: centre };
+      mates.forEach(m => { m.goal = { kind: 'ringpartner', start: now, leader: a }; });
     } else if (kind === 'chase') {
       a.goal = { kind, start: now, critter: spawnChaseCritter(a), dir: Math.random() < 0.5 ? -1 : 1 };
     } else if (kind === 'watch') {
@@ -5802,15 +7037,27 @@ export function mount(container, params, ctx) {
     const cy = parseFloat(a.wrap.style.top) + a.wrap.offsetHeight - 12;
     c.style.left = (cx - 32) + 'px'; c.style.top = (cy - 42) + 'px';
     c.style.zIndex = String(Math.round(cy) + 6);   // in front, so she reads as patting it up
-    c.innerHTML = `<svg width="64" height="52" viewBox="0 0 64 52"><g fill="#E8C784" stroke="#C79A54" stroke-width="2.5">
+    c.innerHTML = sandcastleSVG();
+    ground.appendChild(c);
+    requestAnimationFrame(() => c.classList.add('rise'));
+    // RUN21E-3: it no longer fades at 22s. The castle she watched a Boo build is SAVED — in
+    // fractions, so it lands in the same place at any viewport — and stands until the next tide
+    // change smooths the sand. Only the newest survives: one castle, never a beach of them.
+    if (!READONLY) {
+      mutate(st => {
+        st.beach = Object.assign({}, st.beach, {
+          castle: { xFrac: +((cx - 32) / (zoneW || 1)).toFixed(4), topFrac: +((cy - 42) / (viewH || 1)).toFixed(4), day: todayKeyLocal(), tide: TIDE }
+        });
+      });
+    }
+    return c;
+  }
+  // The castle's art, shared by the one a Boo is patting up and the one restored from the save.
+  function sandcastleSVG() {
+    return `<svg width="64" height="52" viewBox="0 0 64 52"><g fill="#E8C784" stroke="#C79A54" stroke-width="2.5">
       <rect x="5" y="22" width="12" height="26"/><rect x="26" y="14" width="12" height="34"/><rect x="47" y="22" width="12" height="26"/><rect x="2" y="42" width="60" height="8"/></g>
       <path d="M5 22 l6 -10 6 10 z M26 14 l6 -10 6 10 z M47 22 l6 -10 6 10 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.8"/>
       <path d="M11 12 v-8 l5 4 z M32 4 v-8 l5 4 z M53 12 v-8 l5 4 z" fill="#35D0BA"/></svg>`;
-    ground.appendChild(c);
-    requestAnimationFrame(() => c.classList.add('rise'));
-    // it fades later (C2) — a gentle, then removed
-    setTimeout(() => { c.classList.add('fade'); setTimeout(() => { try { c.remove(); } catch {} }, 1600); }, SANDCASTLE_FADE_MS);
-    return c;
   }
   function spawnTowel(a) {
     const t = el('div', { class: 't-towel' });
@@ -5868,10 +7115,12 @@ export function mount(container, params, ctx) {
   function spawnHeart(wrap) { const h = el('div', { class: 'pop-heart', text: '❤' }); wrap.appendChild(h); setTimeout(() => h.remove(), 900); }
   function endGoal(a) {
     const g = a.goal;
+    releaseTeam(a);   // RUN21E-4: a game ends for everyone playing it, however it ended
     if (g && g.critter) { try { g.critter.remove(); } catch {} }
     if (g && g.kite) { try { g.kite.remove(); } catch {} }         // put the kite away (C2)
     if (g && g.towel) { try { g.towel.remove(); } catch {} }       // fold up the towel (C2)
     if (g && g.stone) { try { g.stone.remove(); } catch {} }       // the stone sinks (C2)
+    if (g && g.pips) { for (const p of g.pips) { try { p.remove(); } catch {} } }   // RUN21E-12: the foam and the duck drain away with the bath
     // NOTE: a sandcastle deliberately LINGERS and fades on its own timer (C2) — not removed here.
     a.wrap.querySelectorAll('.t-zzz').forEach(n => n.remove());
     a.goal = null; a.state = 'pause'; a.vx = 0; a.t = 0; a.next = 600 + Math.random() * 1400;
@@ -5962,6 +7211,119 @@ export function mount(container, params, ctx) {
       } else {
         svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
         if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+      }
+      return;
+    }
+    // RUN21E H3/B1: walking the path. Leg 0 gets onto it; leg 1 pads its whole length. The
+    // acknowledgement fires on arrival, exactly as it does for a wanderer that lands on one.
+    if (g.kind === 'pathwalk') {
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.02) {
+        if (g.leg === 0) {
+          g.leg = 1;
+          g.start = now;                                   // the second leg gets its own timeout
+          g.targetDx = (g.farFrac - a.place.x) * zoneW;
+          maybeAckPath(a);
+        } else {
+          maybeAckPath(a);
+          endGoal(a);
+        }
+      } else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);   // never stuck
+      return;
+    }
+    // ---- RUN21E-4: the playground's two social games ------------------------------------
+    // Both are driven ENTIRELY from the leader's goal: the leader's step writes its partners'
+    // transforms too. A partner carries only a marker goal ('tagpartner'/'ringpartner') so
+    // nothing else conscripts it mid-game, and releaseTeam frees them however this ends.
+    if (g.kind === 'tagpartner' || g.kind === 'ringpartner') {
+      // Driven by the leader. If the leader is gone (unmounted, tapped, timed out), stop
+      // waiting — a Boo is never stuck.
+      if (!g.leader || g.leader.goal == null || !g.leader.goal.team || !g.leader.goal.team.includes(a)) endGoal(a);
+      return;
+    }
+    if (g.kind === 'tag') {
+      const T = now - g.start;
+      const other = g.chaser === a ? g.runner : g.chaser;
+      const chaserA = g.chaser, runnerA = g.runner;
+      const cSvg = chaserA.wrap.querySelector('svg'), rSvg = runnerA.wrap.querySelector('svg');
+      // The runner flees along the band, turning at the edges of its own wander room; the
+      // chaser runs it down a third faster (the 'chase' branch's own 1.3x).
+      const room = zoneW * 0.16;
+      runnerA.dx += g.dir * stride * 0.9;
+      if (Math.abs(runnerA.dx) > room) { g.dir *= -1; runnerA.dx = Math.sign(runnerA.dx) * room; }
+      const gapPx = (runnerA.place.x * zoneW + runnerA.dx) - (chaserA.place.x * zoneW + chaserA.dx);
+      chaserA.dx += Math.sign(gapPx) * Math.min(Math.abs(gapPx), stride * TAG_CHASER_MULT);
+      const bounce = (who, phase) => -Math.abs(Math.sin((T + phase) / 210)) * 11;
+      if (rSvg) rSvg.style.transform = `translate(${runnerA.dx.toFixed(1)}px, ${bounce(runnerA, 0).toFixed(1)}px) scaleX(${g.dir < 0 ? -1 : 1})`;
+      if (cSvg) cSvg.style.transform = `translate(${chaserA.dx.toFixed(1)}px, ${bounce(chaserA, 90).toFixed(1)}px) scaleX(${gapPx < 0 ? -1 : 1})`;
+      // Caught! Swap who is It, and keep playing — being caught is the fun, never a loss.
+      if (Math.abs(gapPx) < TAG_CATCH_PX && now - (g.lastSwap || 0) > 900) {
+        g.lastSwap = now; g.swaps++;
+        g.chaser = runnerA; g.runner = chaserA;
+        g.dir = gapPx < 0 ? -1 : 1;
+        sparkleAtNode(runnerA.wrap);
+      }
+      if (T > TAG_MS) { giggleHop(g.team); endGoal(a); }
+      return;
+    }
+    if (g.kind === 'ringroses') {
+      const T = now - g.start;
+      const arrive = Math.min(1, T / RING_ARRIVE_MS);
+      // The ring turns slowly once everyone is in place — "circle for 6s" read as a circle
+      // that actually goes round, which is what the game is.
+      const spin = arrive >= 1 ? ((T - RING_ARRIVE_MS) / 1800) * Math.PI * 2 : 0;
+      g.team.forEach((b, i) => {
+        const s = b.wrap.querySelector('svg'); if (!s) return;
+        const base = RING_SLOTS[i % RING_SLOTS.length];
+        const ang = spin + (i / g.team.length) * Math.PI * 2;
+        const ringX = Math.cos(ang) * 52;
+        const home = (g.centreFrac - b.place.x) * zoneW;
+        const target = home + (arrive >= 1 ? ringX : base);
+        b.dx = lerp(b.dx, target, arrive >= 1 ? 0.12 : Math.min(1, dt / 260));
+        const sway = arrive >= 1 ? Math.sin(T / 520 + i) * 3 : 0;
+        const lift = arrive >= 1 ? Math.sin(T / 380 + i * 1.4) * 3 : 0;
+        s.style.transform = `translate(${b.dx.toFixed(1)}px, ${lift.toFixed(1)}px) rotate(${sway.toFixed(1)}deg)`;
+      });
+      if (T > RING_MS) { giggleHop(g.team); endGoal(a); }
+      return;
+    }
+    // RUN21E-12: BATH TIME. Walk to the tub, hop in, and paddle — the transform is the
+    // paddle-pool's own (stepRole case 'paddle'), because a Boo splashing in a bath and a Boo
+    // splashing in a pool are the same Boo doing the same thing. Foam and the duck are DOM
+    // pips on the TUB's wrap, never on the actor's svg: stepGoal rewrites that transform every
+    // frame and anything parented there is wiped by the next one.
+    if (g.kind === 'bath') {
+      if (!g.soaking) {
+        if (Math.abs(a.dx - g.targetDx) > zoneW * 0.02) {
+          svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+          if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
+          return;
+        }
+        g.soaking = true; g.soakStart = now;
+        sfx.splash();
+        const tub = g.tubWrap;
+        if (tub && !REDUCED) {
+          g.pips = [];
+          for (let i = 0; i < 4; i++) {
+            const foam = el('i', { class: 'pd-foam' });
+            foam.style.left = (18 + i * 20) + '%';
+            foam.style.top = (24 + (i % 2) * 12) + '%';
+            foam.style.animationDelay = (i * 240) + 'ms';
+            tub.appendChild(foam); g.pips.push(foam);
+          }
+          const duck = el('i', { class: 'pd-duck', html: `<svg width="26" height="28" viewBox="0 0 120 130" aria-hidden="true">${WISH_ART.duck || ''}</svg>` });
+          duck.style.left = '58%'; duck.style.top = '18%';
+          tub.appendChild(duck); g.pips.push(duck);
+        }
+      }
+      const T = now - g.soakStart;
+      // The paddle-pool's own numbers, verbatim (stepRole 'paddle').
+      const px = a.dx + Math.sin(T / 900) * 12;
+      const py = -18 + Math.sin(T / 500) * 4;
+      svg.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) rotate(${(Math.sin(T / 700) * 8).toFixed(1)}deg)`;
+      if (T > BATH_MS) {
+        if (svg && !REDUCED) propPlay(svg, 'pd-shake', 460);
+        endGoal(a);
       }
       return;
     }
@@ -6214,6 +7576,22 @@ export function mount(container, params, ctx) {
         maybeAckPath(a);
         return { landing: +landing.toFixed(4), row, hit, tileRows: [...new Set(tiles.map(t => t.row))], tileXs: tiles.map(t => +t.xFrac.toFixed(3)).slice(0, 14) };
       },
+      // RUN21E: the seams the new ACCEPTs drive. All read-only except notePlacement, which is
+      // the app's own post-drop hook — a suite that seeds a placement must run the same code a
+      // real drop runs, or it proves nothing about the real path.
+      notePlacement: () => notePlacement(),
+      // RUN21E-7 seams: start it without the card (the card itself is tested by clicking it),
+      // read whether this room is pretending, and end it early instead of waiting out 90s.
+      pretendNight: () => pretendHere(),
+      // RUN21E-11 seams: run the check on demand, and read the shared session budget.
+      checkAdjacency: () => { checkAdjacency(); return adjacencyScenes; },
+      adjacencyScenes: () => adjacencyScenes,
+      resetAdjacency: () => { adjacencyScenes = 0; return adjacencyScenes; },
+      startPretendNight: () => { startPretendNight(); return pretendHere(); },
+      endPretendNight: () => { endPretendNight(); return pretendHere(); },
+      todayLine: () => todayLine(),
+      fairDay: () => isFairDay(todayKeyLocal()),
+      rackedKites: () => [...ground.querySelectorAll('.t-item.wish-racked')].map(w => w.dataset.item),
       waitingCount: () => actors.filter(a => a.waitUntil != null).length,
       waitersForSeat: () => seatWaiters.size,
       napOf: (i) => {
@@ -6563,6 +7941,10 @@ export function mount(container, params, ctx) {
       if (pathCommitTimer) clearInterval(pathCommitTimer);
       commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)
       if (hideWiggleTimer) clearTimeout(hideWiggleTimer);
+      // RUN21E-7: the pretend night's timer belongs to this mount, but the pretend night
+      // itself does NOT — the module-level record survives so a room switch and back returns
+      // to the same dusk, and the mount that finds it re-arms the remainder.
+      clearTimeout(pretendTimer); pretendTimer = null;
       if (lingerResizeTimer) clearTimeout(lingerResizeTimer);   // RUN21C-6
       clearTimeout(undoChipTimer);                              // RUN21C-7: the stack dies with the mount
       ambient.stop();
@@ -6821,8 +8203,8 @@ function roomBuiltinsHTML(rid, worldW, wallH, viewH, hour) {
 function zoneScenery(key, w, h, night, opts = {}) {
   if (key === 'meadow')     return meadowScenery(w, h, night);
   if (key === 'riverside')  return riversideScenery(w, h, night);
-  if (key === 'hilltop')    return hilltopScenery(w, h, night);
-  if (key === 'beach')      return beachScenery(w, h, night);
+  if (key === 'hilltop')    return hilltopScenery(w, h, night, opts);
+  if (key === 'beach')      return beachScenery(w, h, night, opts);
   if (key === 'playground') return playgroundScenery(w, h, night, opts);
   return '';
 }
@@ -6929,7 +8311,7 @@ function riversideScenery(w, h, night) {
     + (night ? '' : `<div class="rv-boat" style="--d:${(w + 120).toFixed(0)}px;top:${(top + 6).toFixed(0)}px"><svg viewBox="0 0 54 34" width="46" height="30"><path d="M4 20 h46 l-8 12 h-30 z" fill="#FFF3E0" stroke="#C97B4A" stroke-width="2"/><path d="M27 20 v-16 l14 12 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.6"/></svg></div>`);
 }
 
-function hilltopScenery(w, h, night) {
+function hilltopScenery(w, h, night, opts = {}) {
   const grass = night ? '#3E6E4A' : '#7CC98A';
   const crestX = WINDMILL_X * w, crestY = h * 0.44;
   const bandTop = h * 0.62;
@@ -6982,15 +8364,22 @@ function hilltopScenery(w, h, night) {
     <path d="M${(crestX - 20).toFixed(0)} ${(ty + 66).toFixed(0)} L${(crestX - 12).toFixed(0)} ${ty.toFixed(0)} L${(crestX + 12).toFixed(0)} ${ty.toFixed(0)} L${(crestX + 20).toFixed(0)} ${(ty + 66).toFixed(0)} Z" fill="#EFE3C8" stroke="#8A6B3A" stroke-width="2.5"/>
     <path d="M${(crestX - 15).toFixed(0)} ${(ty + 6).toFixed(0)} h30 l-4 -14 h-22 z" fill="#C0568F" stroke="#8A3A66" stroke-width="2"/>
     <rect x="${(crestX - 6).toFixed(0)}" y="${(ty + 34).toFixed(0)}" width="12" height="16" rx="2" fill="#8A5A32"/>
-    <g class="hl-blades">
+    <g class="hl-blades${opts.rain ? ' hl-rain' : ''}">
       ${[0, 90, 180, 270].map(a => `<g transform="rotate(${a} ${crestX.toFixed(1)} ${(ty + 2).toFixed(1)})"><path d="M${crestX.toFixed(0)} ${(ty + 2).toFixed(0)} l-6 -46 l12 0 z" fill="#FFF8F0" stroke="#8A6B3A" stroke-width="2"/></g>`).join('')}
       <circle cx="${crestX.toFixed(0)}" cy="${(ty + 2).toFixed(0)}" r="5" fill="#8A6B3A"/>
     </g></g>`;
   return rSVG(w, h, `${farHills}${hill}${kite}${windmill}${longGrass}`) + clouds;
 }
 
-function beachScenery(w, h, night) {
-  const seaTop = h * 0.26, seaBot = h * 0.38;   // sea band y 26-38% (RUN10 P1)
+function beachScenery(w, h, night, opts = {}) {
+  // RUN21E-3: THE TIDE. Two authored waterlines, 6% of scene height apart. LOW is exactly
+  // where the sea has always stopped (0.38h), so a low-tide beach is pixel-familiar; HIGH
+  // deepens the band to 0.44h. seaTop is untouched — the sea comes IN, it does not slide down.
+  // Which line is showing is decided ONCE at mount and passed in, never recomputed here:
+  // renderZoneScenery re-runs on every renderPlaced, so reading the clock at this depth would
+  // flip the waterline mid-session on the next drag instead of at the next visit.
+  const TIDE_LOW_Y = 0.38, TIDE_HIGH_Y = 0.44;
+  const seaTop = h * 0.26, seaBot = h * (opts.tide === 'high' ? TIDE_HIGH_Y : TIDE_LOW_Y);
   const sea = night ? '#2C567A' : '#4FB3D9', sea2 = night ? '#21415E' : '#3C97C2';
   // rolling foam edge: a wavy white band that rolls sideways at the shore line
   const foamPath = (dl, op) => `<path class="bc-foam" style="--d:${(w * 0.16).toFixed(0)}px;--dl:${dl}s" d="M-30 ${seaBot.toFixed(0)} q 26 -9 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0 t 52 0" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="${op}"/>`;

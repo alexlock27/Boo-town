@@ -61,6 +61,13 @@ function freshSave() {
     // on sight and pruned on sight, which is how "expires at local midnight" holds without a
     // timer that would have to survive a backgrounded tablet.
     sparkles: {},
+    // RUN21E-3: the beach's own day. ADDITIVE with safe defaults — deepDefaults() backfills it
+    // on every existing save at load, so no VERSION bump and no migration step (v24 stands).
+    //   tideDay/tideSeen  the local day + which waterline she has already been told about
+    //   shellsDay/taken   which day's three shells, and which of them she has picked up
+    //   castle            the surviving Boo-built sandcastle: FRACTIONS only, never pixels,
+    //                     so it lands in the same place on a phone as on a tablet
+    beach: { tideDay: '', tideSeen: '', shellsDay: '', shellsTaken: [], castle: null },
     opened: 0,
     pity: { commons: 0 },       // consecutive Common opens, for the pity rule
     inventory: {},               // itemId -> count

@@ -186,6 +186,15 @@ export const sfx = {
   // Pond fishing (RUN10 P3): a happy little triplet on a catch...
   giggle() { play(t => { [700, 880, 660, 940].forEach((f, i) => envTone(f, t + i * 0.07, 0.09, 'triangle', 0.3, sfxGain, 'giggle')); }); },
   whirr() { play(t => { [180, 240, 210].forEach((f, i) => envTone(f, t + i * .045, .08, 'sawtooth', .07, sfxGain, 'wheel-whirr')); }); },
+  // RUN21E-2: the little train's whistle — two soft tones a fifth apart, the second falling
+  // away, which is the shape of a whistle going past. Original, synthesised, like everything
+  // else in here; no sample, no melody.
+  choo() { play(t => {
+      envTone(392, t, 0.30, 'triangle', 0.20, sfxGain, 'train-choo');
+      envTone(588, t + 0.02, 0.30, 'sine', 0.13, sfxGain, 'train-choo');
+      envTone(330, t + 0.30, 0.42, 'triangle', 0.17, sfxGain, 'train-choo');
+      envTone(494, t + 0.32, 0.42, 'sine', 0.10, sfxGain, 'train-choo');
+    }); },
   // ...and a trombone-ish descending wobble for the comedy boot.
   trombone() { play(t => {
       const o = ctx.createOscillator(), g = ctx.createGain();

@@ -21,6 +21,29 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21E "Every Area a Job". Every area got something to DO that it did not have before,
+  // so every entry here names a place and a thing to try there. The Notice Post and the
+  // Playground poster share one entry because they show the same card. Nothing here needs a
+  // grown-up to switch anything on, and nothing frames fair day as missable — a Saturday that
+  // has already gone is never mentioned.
+  {
+    version: 'run21e-20260810',
+    entries: [
+      { icon: '🏃', title: 'The Playground plays', blurb: 'Put a few Boos in the Playground and watch. Two will start a game of tag, and three will hold hands and go round and round.', route: 'town', params: { area: 'playground' } },
+      { icon: '📜', title: 'Today at Boo Town', blurb: 'There is a little Notice Post by the Wish Well, and a poster in the Playground. Tap either one and it tells you what is happening in the town right now.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🎪', title: 'Fair day', blurb: 'On Saturdays the Boo Funfair puts up extra bunting, turns its lights on in the daytime, and the ticket booth has a present for you.', route: 'town', params: { area: 'funfair' } },
+      { icon: '🚂', title: 'The train tells the time', blurb: 'Tap the sky on the Hilltop and the little train goes past — and Twiggy will tell you what o\'clock it is.', route: 'town', params: { area: 'hilltop' } },
+      { icon: '🪁', title: 'A rack for your kites', blurb: 'There is a Kite Rack in Landscape now. Wish for a kite, put it near the rack on the Hilltop, and it will fly there on a string all day.', route: 'town', params: { area: 'hilltop' } },
+      { icon: '🚪', title: 'Five things that do something now', blurb: 'In the Boo House, tap the fridge, the oven, the bath, the wardrobe or the mirror. Every one of them has been waiting to show you something.', route: 'town', params: { area: 'boohouse', room: 'kitchen' } },
+      { icon: '🌊', title: 'The sea comes in and goes out', blurb: 'Visit the beach in the morning and again after lunch — the water will be in a different place. When the tide is out there are shells on the sand to collect.', route: 'town', params: { area: 'beach' } },
+      { icon: '🏰', title: 'Sandcastles stay put', blurb: 'A castle a Boo builds on the beach waits for you now. It stands there until the tide comes and smooths the sand for a new one.', route: 'town', params: { area: 'beach' } },
+      { icon: '🌙', title: 'Make it night-time in here', blurb: 'Tap a lamp in the Boo House in the daytime and it will ask if you want it to be night. Say yes: the room goes dark, the stars come out, and the Boos get sleepy.', route: 'town', params: { area: 'boohouse', room: 'lounge' } },
+      { icon: '🏗️', title: 'Every place can grow now', blurb: 'The Boo Builders only worked in the Meadow before. Fill up any other place and they will build there too — stepping stones, a lighthouse, a big fair arch.', route: 'town', params: { area: 'riverside' } },
+      { icon: '🏮', title: 'Hang things in your trees', blurb: 'Landscape has a little lantern and a bunting end now. A lantern in a tree glows at night, and two bunting ends near each other string their own flags.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🦋', title: 'Things that like being together', blurb: 'Put a bench by the lamppost and look after dark. Put flowers by the pond and look in the daytime. Some things are nicer next to each other.', route: 'town', params: { area: 'meadow' } },
+      { icon: '🐾', title: 'The Boos walk on your paths', blurb: 'Lay a path near your Boos and watch: they will pad along it instead of wandering anywhere. It is theirs now, because you made it.', route: 'town', params: { area: 'meadow' } }
+    ]
+  },
   // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it
   // buys is not: things she puts ON things now travel with them. F6 gets NO entry — it
   // completes the promise RUN21A already made ("a friend can come and look around your
@@ -40,12 +63,17 @@ export const WHATSNEW = [
       { icon: '✨', title: 'Your town is always ready', blurb: 'Open the tray at the bottom and drag anything straight onto the grass, any time. The Boos hold still while you arrange, then carry on the moment you finish.', route: 'town', params: { area: 'meadow' } },
       { icon: '🪣', title: 'The Path Pot', blurb: 'Look in Landscape for the little pot of stones. Pick it up and drag along the ground to lay a path — paint over it to sweep it away. Paths curve round corners now!', route: 'town', params: { area: 'meadow' } },
       { icon: '🧱', title: 'New ways to lay a path', blurb: 'Bricks, stepping stones and a rainbow path are waiting on the Town shelf in the shop. Once one is yours, it is yours forever.', route: 'shop', params: { shelf: 'town' } },
-      // RUN21C-5 is BLOCKED (B1): the path pull is real in the code and measured, but a
-      // child watching for 90s cannot SEE it — goals drive a Boo 56-62% of the time and
-      // swamp the micro-wander the pull lives in. Re-measured independently at the F5/F6
-      // gate: with the path on the RIGHT the drift went further LEFT than with no path at
-      // all. Telling a child to watch for something that does not happen is worse than
-      // saying nothing, so the entry is withdrawn until the behaviour is visible.
+      // RUN21C-5 was BLOCKED (B1) and its entry withdrawn: the path pull was real in the code
+      // and measured, but a child watching for 90s could not SEE it — goals drive a Boo
+      // 56-62% of the time and swamped the micro-wander the pull lived in.
+      //
+      // RUN21E H3 fixed that at the approved place (a 'pathwalk' GOAL, so the bias lives where
+      // destinations are actually chosen) and re-ran the same three-way 90s observation:
+      //   path-left  mean drift -0.0268, 34.6% of samples standing ON the path
+      //   no path    mean drift +0.0100,  0.0%
+      //   path-right mean drift +0.0879, 69.8%
+      // Direction and occupancy both hold, so the entry is restored — under RUN21E's stamp,
+      // where the behaviour that makes it true actually ships.
       { icon: '↩️', title: 'Changed your mind? Undo!', blurb: 'Move something, put something away, or paint a path, and a little Undo button pops up for a few seconds. Tap it to put things back — up to five times.', route: 'town', params: { area: 'meadow' } }
     ]
   },

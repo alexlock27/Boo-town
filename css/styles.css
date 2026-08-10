@@ -2811,8 +2811,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .ff-scenery.night .ff-bulb:nth-child(3n) { animation-delay: 0.9s; }
 .ff-scenery.night .ff-bulb:nth-child(3n+1) { animation-delay: 1.7s; }
 @keyframes ffTwinkle { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+/* RUN21E-6: FAIR DAY. The string lights come on in broad daylight — a separate class, never
+   `night`, because `.ff-scenery.night` also recolours the far wheel and is what three suites
+   read as "it is night at the fair". Saturday is not night; it is a party. */
+.ff-scenery.fairday .ff-bulb { opacity: 1; filter: drop-shadow(0 0 5px currentColor); animation: ffTwinkle 2.6s ease-in-out infinite; }
+.ff-scenery.fairday .ff-bulb:nth-child(3n) { animation-delay: 0.9s; }
+.ff-scenery.fairday .ff-bulb:nth-child(3n+1) { animation-delay: 1.7s; }
+/* The fair-day booth: a real button over the drawn ticket booth, invisible until focused. */
+.ff-fairbooth { position: absolute; width: 104px; height: 78px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.ff-fairbooth:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
 .ff-silhouette { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%); opacity: 0.5; }
-@media (prefers-reduced-motion: reduce) { .ff-scenery.night .ff-bulb { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ff-scenery.night .ff-bulb, .ff-scenery.fairday .ff-bulb { animation: none; } }
 
 /* ============================================================
    Zone identity (RUN7 C2): distinct animated backdrop per zone.
@@ -2839,6 +2848,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 @keyframes rvSail { from { transform: translateX(0) rotate(-2deg); } 50% { transform: translateX(calc(var(--d, 800px) * 0.5)) rotate(2deg); } to { transform: translateX(var(--d, 800px)) rotate(-2deg); } }
 /* Hilltop: turning windmill + faster clouds */
 .hl-blades { animation: hlSpin 8s linear infinite; transform-box: fill-box; transform-origin: center; }
+/* RUN21E-2: on a rain day the wind is up and the sails turn twice as fast. Only the duration
+   changes — the reduced-motion block below resets the whole shorthand, so a faster spin can
+   never resurrect motion for a child who asked for none. */
+.hl-blades.hl-rain { animation-duration: 4s; }
 @keyframes hlSpin { to { transform: rotate(360deg); } }
 .hl-cloud { position: absolute; animation: hlCloud var(--t, 26s) linear infinite; animation-delay: var(--dl, 0s); }
 @keyframes hlCloud { from { transform: translateX(-40px); } to { transform: translateX(var(--d, 400px)); } }
@@ -4875,6 +4888,31 @@ body.care-teaching .intro-overlay { z-index: 12500; }
    behind placed items; hammering + dust are transform/opacity.
    ============================================================ */
 .t-growth { position: absolute; pointer-events: none; z-index: 0; }
+/* ---- RUN21E-15: the per-area growth tracks ------------------------------------------------ */
+/* The rockpool is the ONE growth prop that answers a tap, so it is the one that opts back in to
+   pointer events — with a real target and a focus ring, since it is a button in all but name. */
+.t-growth.tg-tappable { pointer-events: auto; cursor: pointer; min-width: 48px; min-height: 48px; }
+.t-growth.tg-tappable:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; border-radius: 10px; }
+.tg-crab { transform-box: fill-box; transform-origin: 50% 100%; }
+.t-growth.tg-crab-peek .tg-crab { animation: tg-crab-peek 2.2s ease-in-out 1; }
+@keyframes tg-crab-peek {
+  0%, 100% { transform: translateY(10px) scale(0.9); opacity: 0.55; }
+  25%, 75% { transform: translateY(-4px) scale(1); opacity: 1; }
+  50%      { transform: translateY(-6px) rotate(-4deg) scale(1); opacity: 1; }
+}
+/* The flag on the crest ripples; the beacon and lighthouse breathe their light at night. */
+.tg-flag { transform-box: fill-box; transform-origin: 0% 50%; animation: tg-flag 3.2s ease-in-out infinite; }
+@keyframes tg-flag { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-3deg) scaleX(0.96); } }
+.tg-beam { transform-box: fill-box; transform-origin: 0% 50%; animation: tg-beam 7s linear infinite; }
+@keyframes tg-beam { 0%, 100% { transform: rotate(-9deg); opacity: 0.10; } 50% { transform: rotate(9deg); opacity: 0.24; } }
+.tg-lantern, .tg-bulb { animation: tg-glow 3.4s ease-in-out infinite; }
+.tg-lantern:nth-child(3n), .tg-bulb:nth-child(3n) { animation-delay: 1.1s; }
+@keyframes tg-glow { 0%, 100% { opacity: 0.82; } 50% { opacity: 1; } }
+/* The world-map ribbon for a finished track. Sits top-right of the badge, clear of the label. */
+.mb-ribbon { position: absolute; top: -6px; right: -4px; pointer-events: none; line-height: 0; filter: drop-shadow(0 1px 2px rgba(42,27,78,0.35)); }
+@media (prefers-reduced-motion: reduce) {
+  .tg-flag, .tg-beam, .tg-lantern, .tg-bulb, .t-growth.tg-crab-peek .tg-crab { animation: none !important; }
+}
 .t-item { z-index: 1; }
 .tg-fairylights .fl-bulb { opacity: 0.5; }
 .tg-fairylights.lit .fl-bulb { opacity: 1; animation: fl-twinkle 2.2s ease-in-out infinite; }
@@ -6983,7 +7021,11 @@ html.bigger-text { --vz: 1.125; }
 /* ---- the room dressings ---------------------------------------------------------------- */
 /* The pattern fill sits at the very back of its band, behind the built-ins and the skirting,
    so a new wallpaper never covers the window or the fireplace. */
-.t-dressing { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+/* RUN21E-7: the dim EASES now, so a pretend night falls and lifts rather than snapping. The
+   authored night values below are untouched — only how fast they arrive. At mount the class is
+   set before first paint, so this changes nothing about arriving at a room after dark. */
+.t-dressing { position: absolute; inset: 0; pointer-events: none; z-index: 0; transition: filter 1.2s ease; }
+@media (prefers-reduced-motion: reduce) { .t-dressing { transition: none; } }
 /* A dressing is a full-bleed layer INSIDE the wall/floor band, so it paints over that band's
    OWN background — including the `.town2.night` background the bedroom relies on to go dark.
    The floor survived by luck: its night rule is a `filter`, and filters inherit to children.
@@ -7174,6 +7216,121 @@ html.bigger-text { --vz: 1.125; }
   .costume-salute, .costume-scan, .costume-spyglass, .costume-floatspin, .t-item.t-bonked { animation: none !important; }
 }
 
+/* ---- RUN21E-12: the dead-prop amnesty — five props answer a tap -------------------------- */
+/* Doors are their own svg groups (art.js), hinged with transform-box: opening is a pure
+   transform (each door collapses toward its hinge) and the painted inside shows through. */
+.pd-door { transform-box: fill-box; transform-origin: left center; transition: transform 420ms cubic-bezier(.34, 1.4, .64, 1); }
+.pd-door-r { transform-origin: right center; }
+.t-item.prop-open .pd-door { transform: scaleX(0.16); }
+/* The fridge peek: the food art pops up as the door swings. */
+.pd-peek { opacity: 0; }
+.t-item.prop-open .pd-peek { opacity: 1; animation: pd-peek 700ms ease-out 1; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes pd-peek { 0% { transform: translateY(8px) scale(0.7); } 60% { transform: translateY(-2px) scale(1.04); } 100% { transform: none; } }
+/* The oven's bright pane fades up while it cooks and breathes — light, not motion. */
+.pd-ovenlight { opacity: 0; transition: opacity 500ms ease; }
+.t-item.prop-cooking .pd-ovenlight { opacity: 1; animation: pd-ovenbreathe 1s ease-in-out infinite alternate; }
+@keyframes pd-ovenbreathe { from { opacity: 0.55; } to { opacity: 1; } }
+/* Bath time: foam pips and the little rubber duck bobbing in the tub (DOM overlays). */
+.pd-foam { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; opacity: 0.9; pointer-events: none; z-index: 3; animation: pd-foam 2.2s ease-in-out infinite alternate; }
+@keyframes pd-foam { from { transform: translateY(0) scale(1); } to { transform: translateY(-4px) scale(1.15); } }
+.pd-duck { position: absolute; pointer-events: none; z-index: 3; animation: pd-duckbob 1.6s ease-in-out infinite alternate; }
+@keyframes pd-duckbob { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-5px) rotate(4deg); } }
+/* The hop-out shake. */
+.pd-shake { animation: pd-shake 420ms ease-out 1; }
+@keyframes pd-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-8deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } }
+/* ---- RUN21E-11: adjacency delights -------------------------------------------------------- */
+/* All three are inline SVG, never emoji: a moth orbiting a lit lamp, a dragonfly over the pond,
+   a marshmallow on a stick. Transform-only, and all of them are simply never created under
+   reduced motion (checkAdjacency returns early), which is why there is no reduced block here. */
+.t-moth { position: absolute; pointer-events: none; animation: t-moth 2.4s ease-in-out infinite; }
+@keyframes t-moth {
+  0%, 100% { transform: translate(-16px, 4px) rotate(-8deg); }
+  25%      { transform: translate(0, -12px) rotate(6deg); }
+  50%      { transform: translate(16px, 2px) rotate(8deg); }
+  75%      { transform: translate(2px, 12px) rotate(-4deg); }
+}
+.t-dragonfly { position: absolute; pointer-events: none; animation: t-dragonfly 3s ease-in-out infinite alternate; }
+@keyframes t-dragonfly { from { transform: translate(-22px, 0) rotate(-4deg); } to { transform: translate(22px, -8px) rotate(4deg); } }
+.t-marshmallow { position: absolute; pointer-events: none; z-index: 60; animation: t-marsh 2.8s ease-in-out infinite alternate; }
+@keyframes t-marsh { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+/* Her frog hopping to the pond and back — one arc out, one arc home. */
+.t-frog-hop svg { animation: t-frog-hop 2.6s ease-in-out 1; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes t-frog-hop {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(calc(var(--hop-dx, 60px) * 0.5), -26px); }
+  50%  { transform: translate(var(--hop-dx, 60px), 0); }
+  75%  { transform: translate(calc(var(--hop-dx, 60px) * 0.5), -26px); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-moth, .t-dragonfly, .t-marshmallow, .t-frog-hop svg { animation: none !important; }
+}
+
+/* ---- RUN21E-3: the beach's shells and the sand the tide smooths -------------------------- */
+/* Real buttons in the ground layer — the decorative shells in the scenery SVG are
+   pointer-events:none and could never be picked up. 44px target around a 26px shell. */
+.t-shell {
+  position: absolute; width: 44px; height: 44px; padding: 0; border: 0; background: transparent;
+  cursor: pointer; display: grid; place-items: center; border-radius: 50%;
+}
+.t-shell:focus-visible { outline: 3px solid var(--star); outline-offset: 2px; }
+.t-shell svg { animation: t-shell-glint 5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes t-shell-glint { 0%, 88%, 100% { transform: rotate(0); } 94% { transform: rotate(-6deg); } }
+/* The +1 that flies off the shell she just picked up. */
+.fly-star {
+  position: absolute; font: 700 15px/1 Fredoka, system-ui, sans-serif; color: var(--ink);
+  pointer-events: none; z-index: 60; animation: fly-star 1.2s ease-out forwards; white-space: nowrap;
+}
+@keyframes fly-star { 0% { opacity: 0; transform: translateY(0) scale(0.8); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-52px) scale(1.1); } }
+/* A soft puff of sand where a castle used to be. */
+.sand-puff { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 40; }
+.sand-puff i {
+  position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #E8C784;
+  opacity: 0; animation: sand-puff 900ms ease-out forwards; animation-delay: var(--d, 0ms);
+}
+@keyframes sand-puff { 0% { opacity: 0.9; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -20px)) scale(0.5); } }
+@media (prefers-reduced-motion: reduce) {
+  .t-shell svg, .fly-star, .sand-puff i { animation: none !important; }
+  .fly-star { opacity: 1; }
+}
+
+/* ---- RUN21E-2: a kite flying from its rack ----------------------------------------------- */
+/* It hovers on its string rather than drifting free across the sky. Transform-only. */
+.t-item.wish-racked { animation: none; }
+.t-item.wish-racked svg { animation: wish-racked 4.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes wish-racked {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  35%      { transform: translateY(-30px) rotate(3deg); }
+  70%      { transform: translateY(-12px) rotate(-1deg); }
+}
+.wish-string { position: absolute; pointer-events: none; overflow: visible; z-index: -1; }
+@media (prefers-reduced-motion: reduce) { .t-item.wish-racked svg { animation: none !important; } }
+
+/* ---- RUN21E-4: the playground's two social games ----------------------------------------- */
+/* The end-of-game hop, everyone together. Transform-only, like every other pose. */
+.pd-giggle-hop { animation: pd-giggle-hop 620ms cubic-bezier(.3,1.5,.5,1) 1; transform-origin: 50% 100%; }
+@keyframes pd-giggle-hop { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-16px) scale(0.94, 1.08); } 70% { transform: translateY(0) scale(1.06, 0.94); } }
+/* The tappable half of the Playground's drawn noticeboard: a real 92x76 target sitting over
+   the painted board, invisible until focused. The board itself stays pure scenery. */
+.pg-notice-btn {
+  position: absolute; width: 92px; height: 76px; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; cursor: pointer; z-index: 4;
+}
+.pg-notice-btn:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
+/* "Today at Boo Town" — one line about the whole town, from the poster or the notice post. */
+.today-card { max-width: 22rem; text-align: center; }
+.today-card .today-title { margin: 0 0 .5rem; font-size: 1.15rem; color: var(--ink); }
+.today-card .today-line { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.45; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .pd-giggle-hop { animation: none !important; } }
+
+/* Catching your own eye in the mirror: a small lean in, and back. */
+.pd-mirror-look { animation: pd-mirror-look 1.5s ease-in-out 1; transform-origin: 50% 100%; }
+@keyframes pd-mirror-look { 0%, 100% { transform: none; } 25% { transform: scale(1.06) rotate(-3deg); } 60% { transform: scale(1.06) rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pd-door, .pd-ovenlight { transition: none; }
+  .t-item.prop-open .pd-peek, .t-item.prop-cooking .pd-ovenlight, .pd-foam, .pd-duck, .pd-shake, .pd-mirror-look { animation: none !important; }
+}
+
 /* RUN20 W4: one shared 6s flourish loop per unlocked badge, with per-area content. Three nodes
    max per badge, transform-only, static under reduced motion. */
 .mb-flourish { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
@@ -7309,3 +7466,8 @@ body.visiting .screen-root { top: var(--visit-banner-h, 54px); }
   border-radius: 10px; padding: 8px; resize: vertical; color: var(--ink); background: #FBF7FF;
 }
 .gu-visit .gu-visit-go { font-size: 18px; padding: 12px 22px; }
+
+/* ---- RUN21E-10: the bunting a pair of ends strings between them --------------------------- */
+/* A swag belongs to the PAIR, so it is its own node in the ground layer rather than living
+   inside either end's wrap. Purely decorative — taps fall through to whatever is behind it. */
+.t-swag { position: absolute; pointer-events: none; overflow: visible; line-height: 0; }
