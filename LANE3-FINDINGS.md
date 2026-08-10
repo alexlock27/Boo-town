@@ -317,6 +317,40 @@ guitar is the weakest of those. That is the right target for tonight's rebuild.
 
 **One rules conflict this uncovered** — see §4.4.
 
+### 3B. The Boo Band — AFTER (Lane 5's `run21g`), played cold on a throwaway clone
+
+Read-only clone of `run21g` (`run21g-20260810`) served on the reserved port 8047, played
+with **the identical scripts** used for the before-state, so the two are directly comparable.
+
+**Verdict: a real improvement, and the right one.** The two things I named as the failure —
+"there is no guitar" and "the gesture produces no picture" — are both addressed.
+
+| | BEFORE (`main`, run21f) | AFTER (`run21g`) |
+|---|---|---|
+| The instrument | a **purple gradient rectangle** labelled STRUM, with the arrow drawn *through* the word | a **wooden soundboard with four drawn strings**; the struck-through label is gone |
+| Response to a drag | **none** — 6 frames across and after the gesture are pixel-identical | a `plucked` class lands on **each string in turn**: 5 distinct DOM states sampled at 40ms, ordered string 1 → 2 → 3 → 4 as the finger crosses |
+| What a strum sounds like | 16 oscillators in **4 identical block chords** (~180–280ms apart) — a chord button pressed repeatedly | 8 oscillators = **4 strings × 2 timbres** (sawtooth + triangle), one per string as the finger crosses; in a fast strum the strings arrive **48–85ms apart** — an actual arpeggio |
+| Up vs down strum | audibly identical | strings fire in crossing order, so direction is now expressed |
+
+Evidence: `g-band-390x844-g-band-guitar-01-guitar-arrive.png` (the new soundboard) vs
+`band2-390x844-band-06-guitar-01-guitar-arrive.png` (the purple pad);
+`g-band-390x844-g-strumfeel-01..09`; the sampler output above.
+
+**Honest caveats, so this is not a rave:**
+1. I proved per-string reaction by **DOM class sampling**, not by eye: my screenshots at
+   35–60ms intervals do not visibly show a string displaced. The `plucked` state is real and
+   correctly sequenced; how *legible* the vibration is to a child at arm's length is a
+   question a human should answer by looking, and I would ask Alex to look before calling it
+   done.
+2. **The Boo still holds an emoji** (🎸) beside its head, on both branches — the art law
+   ("no emoji-as-art in game scenes") is still unmet in the band, and the rebuild did not
+   change that.
+3. **The band landing is unchanged**: still a six-row text menu with emoji tiles, no
+   bandstand, nobody playing. The rebuild fixed the instrument, not the room.
+4. Not assessed tonight: the keys play-along after-state, and the `run21g` claims about a
+   finished song being "a moment, not a wrap-around" — out of time, flagged rather than
+   guessed.
+
 ---
 
 ## 4. Programme audit (Part B)
@@ -360,6 +394,60 @@ amendment to the flake rule:** a re-run that passes downgrades *urgency*, it doe
 establish *absence* — a failure gets one look at what it was actually touching before it is
 called a flake.
 
+### 4.2c The parent pass (Part A2)
+
+| Thing | Verdict |
+|---|---|
+| **Getting in** | Gear → press-and-hold → a confirm card ("This part is for a grown-up. Open it?" · Not now / Open). Sensible child-gate. |
+| **The panel's copy** | **The best-written thing in the app.** Privacy is stated plainly and repeatedly ("Recordings are saved on THIS device only and never uploaded"), the Feelings Corner explains it "never asks why, never gives advice, and nothing they choose is saved or shown to anyone, **including you**", and the content picker says outright that "all the learning stays installed… her progress and Boos are never touched". |
+| **Bigger text** | **Works.** `html.bigger-text` + `body { zoom: 1.125 }`, persisted to the save; checked hub, town and shop at 390px: no horizontal scroll and **zero clipped elements**, exactly as the label promises. |
+| **Mutes** | Four independent switches (sound effects · music · voice · haptics) present, plus a voice picker listing the device's real voices with a 🔊 Hi preview per voice. |
+| **Backup** | Storage estimate, "protected against automatic clearing" status, honest warning that clearing browser data erases progress, optional inclusion of creations and recordings, file download **and** a `BOO1.` text code (copies with a "Copied ✓"). |
+| **Restore (v24 path)** | **Works, and is exemplary.** Pasting a code and pressing Preview shows a summary card *before anything changes* — "Changed's Boo Town · ⭐ 1 stars · 👻 3 Boos · 🏆 0 trophies · 📅 saved 2026-08-10 · 🎨 no creations included" — plus "Restoring first keeps a 'before restore' safety copy on this tablet, so you can undo it", then Restore this / Cancel. Restore applied cleanly at version 24. There are also automatic snapshots (last three days + undo points) with their own Preview. |
+| **Reset** | Behind a type-`RESET`-to-confirm box, with the consequence spelled out. Correct. |
+| **Play journal (QA flag)** | Not surfaced anywhere in the panel with the flag off — consistent with the "never advertise a switch-on feature" law. Not exercised further. |
+
+**Parent-pass defect — F-07 · S3 · the Grown-ups panel reports `Build: unknown`.** The version
+line reads "Build: unknown" whenever the service worker is not controlling the page (a first
+visit, or any non-installed use). A parent checking which version they have — and the deploy
+gate's own "confirm the new stamp serves" step — gets nothing. Smallest fix: fall back to a
+stamp constant baked into the page rather than asking the worker.
+
+**Parent-pass defect — F-08 · S3 · switch controls are 60×34px**, under the 44px tap-target
+standard the protected core keeps (every toggle in the panel: sound, music, voice, haptics,
+calm motion, bigger text, requests, Feelings Corner). They are wide but short. This is a
+grown-up surface, which lowers the stakes, but it is the same class of miss as the ABC
+keyboard finding (N25) and it is in the accessibility panel itself.
+
+### 4.2d Visit a Town / the Postcard loop — a full family round-trip
+
+Ran host and guest as two separate saves ("Ada", 8 · "Sam", 6).
+
+- **Host**: 💌 on the town map → "Postcard copied! A grown-up can paste it in another Boo
+  Town to visit." Clear and honest about needing a grown-up. Code is `BTPC1.`, 1,966 chars.
+- **Payload privacy — verified independently by decoding it**: top-level keys are exactly
+  `format, version, createdAt, areas, dressings, roster`. **No name, no age, no guide
+  identity** anywhere in the payload. A11's whitelist holds. ✓
+- **Wrong prefix**: pasting a `BOO1.` backup code returns, verbatim,
+  "That looks like a backup code — Visit needs a Town Postcard." ✓
+- **The visit**: banner exactly "You're visiting a friend's town ✈️ Look, don't touch!" with
+  a Leave button ✓; no tray ✓; the friend's Meadow renders their four placements with
+  `__townLife` running ✓ — it is a **place, not a photograph**, as F6 intended.
+- **Nothing is written**: the guest's save was byte-identical across the entire visit,
+  including after pressing things, and `localStorage` held only the one save key. ✓
+
+**New finding — F-09 · S2 · "Look, don't touch" is contradicted by a full care panel.**
+Tapping a friend's Boo says "Boing boing BOING!" (lovely) **and opens the complete "Care for
+Inky" panel** — five enabled buttons (Treat · Brush · Teeth · Bath · Play), a hearts row, a
+treat counter, and even Boo Care's first-play tutorial card ("Pick something lovely to do
+together!"). Pressing them does nothing at all (save unchanged — the read-only guard holds).
+So a child is shown five things to do in a town whose banner has just told her she cannot do
+anything, presses them, and gets silence. *What she feels:* that it is broken, or that she
+did it wrong. *Smallest honest fix:* in visit mode, let the tap keep its squeak and pose but
+not open the care arc — the care arc is the one tap verb that promises persistence.
+*Engine reuse:* the same `isVisiting()` guard that already suppresses the tray.
+*Evidence:* `guest-390x844-visit-04-care-01-care-arc-open.png`, `…-02-pressed-Treat.png`.
+
 ### 4.3 Secrets and names
 
 Tracked tree: **clean** — no emails, tokens, phone numbers, or child names (the only
@@ -373,6 +461,25 @@ none fixable by this lane:
 2. `HANDOVER-2026-07-31.md` is tracked and published although `.gitignore:78` declares that
    file class "never published to the public repo". One `git rm --cached` fixes it.
 3. `TONIGHT-*.zip` has no gitignore pattern; one sits untracked in the main worktree today.
+
+---
+
+### 4.4 A hard law the app itself already breaks (for the rules audit)
+
+CLAUDE.md's hard laws say: *"No real-world song melodies (copyright): original compositions
+only."* The Boo Band ships **three real-world melodies note-for-note** — Twinkle Twinkle
+(`data/songs.js:24`), Row Your Boat (`:33`) and Old MacDonald (`:40`) — under the header
+comment "Little Boo Songs: authored EXACTLY per the brief (**public-domain nursery tunes**)".
+
+There is no copyright problem: all three are public domain, and `js/band.js:22` says so
+explicitly. The problem is the **rule**, which is stricter than its own purpose and would, if
+enforced literally, delete three tunes small children already know and love. This is the
+clearest example in the file of a rule written by an agent for agents that no longer serves
+the child. Proposed rewrite (also in `CLAUDE-v2-PROPOSAL.md`):
+
+> **No melody ships unless its licence is verifiable in the repo.** Original compositions are
+> the default. Traditional/public-domain melodies are allowed where they serve the child,
+> with the public-domain basis recorded next to the notes. Nothing under copyright, ever.
 
 ---
 
