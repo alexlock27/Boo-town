@@ -509,6 +509,90 @@ for (const [label, day, want] of [['Saturday', '2026-08-08', true], ['Sunday', '
 }
 
 // ============================================================================
+// E13 — acknowledgement wave two
+// ============================================================================
+console.log('\n== E13: the town notices ==');
+{
+  // The three new moments share ONE budget with the four that shipped before them, so each is
+  // driven directly through ack.js with the budget reset first (the r19z4 pattern) — otherwise
+  // the assertions would be testing the latch, not the lines.
+  const { ctx, page } = await open(SAVE(), { area: null });
+  const lines = await page.evaluate(async () => {
+    const a = await import('/js/ack.js');
+    const out = {};
+    for (const [m, vars] of [['areaBusy', { areaName: 'The Meadow' }], ['newDressing', null],
+                             ['newDressingFloor', null], ['newItemLove', { booName: 'Inky', itemName: 'Cosy Bench' }],
+                             ['ovenBake', null]]) {
+      a.resetAcks();
+      out[m] = a.acknowledge(m, vars);
+    }
+    return { out, moments: a.ackMoments ? null : Object.keys(a.ACK_MOMENTS), cap: a.ACK_CAP };
+  });
+  assert(lines.out.areaBusy === 'Look how busy the The Meadow is getting!',
+    `E13-1's template substitutes literally ("${lines.out.areaBusy}") — town.js is what strips the article`);
+  assert(lines.out.newDressing === 'Ooh — new wallpaper!', `E13-2 walls: exactly "Ooh — new wallpaper!" (got "${lines.out.newDressing}")`);
+  assert(lines.out.newDressingFloor === 'Ooh — a new floor!', `E13-2 floors: exactly "Ooh — a new floor!" (got "${lines.out.newDressingFloor}")`);
+  assert(lines.out.newItemLove === 'Inky loves the new Cosy Bench!', `E13-3: exactly "<Name> loves the new <item>!" (got "${lines.out.newItemLove}")`);
+  assert(lines.out.ovenBake === 'Something smells lovely!', `E12 oven: exactly "Something smells lovely!" (got "${lines.out.ovenBake}")`);
+  assert(lines.cap === 2, 'and they all still share the SAME two-per-session budget');
+  // The budget really binds: seven moments, two slots, never two in a row.
+  const budget = await page.evaluate(async () => {
+    const a = await import('/js/ack.js');
+    a.resetAcks();
+    const said = [];
+    for (let i = 0; i < 8; i++) said.push(a.acknowledge('areaBusy', { areaName: 'The Meadow' }));
+    return { spoken: said.filter(Boolean).length, total: a.acksSaid() };
+  });
+  assert(budget.spoken <= 2 && budget.total <= 2, `eight tries in one session yield at most two lines (${budget.spoken})`);
+  await ctx.close();
+}
+{
+  // …and in the world: a twelfth item in an area earns the line once, ever.
+  const eleven = Array.from({ length: 11 }, (_, i) => P('meadow', 'deco_rock', +(0.04 + i * 0.018).toFixed(3), i % 3));
+  const { ctx, page } = await open(SAVE({
+    town: { areas: withItems({ meadow: eleven }), nextId: 900 },
+    seen: { trophyRetro: true, townFirst: true, lastStarsShown: 400, whatsnewVersion: 'x', funfairOpened: true, wishWellSeeded: true, jokeStageSeeded: true, noticePostSeeded: true }
+  }), { area: 'meadow' });
+  const n0 = await page.evaluate(() => window.__townLife.placements().length);
+  assert(n0 === 11, `the fixture really has eleven things in it (${n0})`);
+  // Put down a twelfth through the app's own path.
+  await page.evaluate(() => {
+    const st = window.BooTown.__state ? window.BooTown.__state() : null;
+    window.__townLife.rerender();
+  });
+  const fired = await page.evaluate(async () => {
+    const a = await import('/js/ack.js');
+    a.resetAcks();
+    // Place a twelfth item the way a drop does, then run the notice.
+    const s = await import('/js/state.js');
+    s.mutate(st => { st.town.areas.meadow.items.push({ id: s.nextPlacementId(st), zone: 'meadow', x: 0.30, row: 0, item: 'deco_rock' }); });
+    window.__townLife.notePlacement();
+    await new Promise(r => setTimeout(r, 300));
+    const n = document.querySelector('.wish-said');
+    return { said: n ? n.textContent : null, count: window.__townLife.placements().length };
+  });
+  assert(fired.count === 12, `the twelfth thing is really down (${fired.count})`);
+  assert(fired.said === 'Look how busy the Meadow is getting!',
+    `E13-1 lands in the world at twelve items, with the article NOT doubled ("${fired.said}")`);
+  await page.screenshot({ path: `${SHOTS}/e13-areabusy.png` });
+  // …and never a second time for that area.
+  const again = await page.evaluate(async () => {
+    const a = await import('/js/ack.js');
+    a.resetAcks();
+    document.querySelectorAll('.wish-said').forEach(n => n.remove());
+    const s = await import('/js/state.js');
+    s.mutate(st => { st.town.areas.meadow.items.push({ id: s.nextPlacementId(st), zone: 'meadow', x: 0.36, row: 0, item: 'deco_rock' }); });
+    window.__townLife.notePlacement();
+    await new Promise(r => setTimeout(r, 300));
+    const n = document.querySelector('.wish-said');
+    return n ? n.textContent : null;
+  });
+  assert(again !== 'Look how busy the Meadow is getting!',
+    `E13-1 is first-time-per-area only (second crossing said ${again === null ? 'nothing' : '"' + again + '"'})`);
+  await ctx.close();
+}
+
+// ============================================================================
 console.log('\n== console health ==');
 // ERR_NO_BUFFER_SPACE is this machine's socket exhaustion when several lanes serve at once,
 // not anything the app did — the lane brief names it by name. Everything else counts.

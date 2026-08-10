@@ -20,7 +20,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E10 | Outdoor hang points (lantern, bunting swags) | TODO |
 | E11 | Adjacency delights (moth, frog/dragonfly, marshmallows) | TODO |
 | E12 | Dead-prop amnesty (fridge, oven, bathtub, wardrobe, mirror) | **DONE** (22/22, 18s) |
-| E13 | Acknowledgement wave two (3 ack lines) | TODO |
+| E13 | Acknowledgement wave two (3 ack lines) | **DONE** (11/11) |
 | E14 | Photo mode → postcards | TODO |
 | E15 | Per-area growth tracks | TODO |
 | H1 | Verify pumpWishIdles re-pointed to !softened (C report note 2) | DONE (verified) |
@@ -114,6 +114,26 @@ candidates received NO personality multiplier at all; `personalityMult` was appl
 visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier to the zone-candidate
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
+
+**DEV-22 · E13-2 "a Boo ENTERS a room".** Pack said → detect a Boo entering. What was true → Boos
+never walk between rooms; an interior actor is spawned from that room's own placements at mount,
+and `applyDressing` recorded no timestamp at all. What I did → recorded `{roomKey, slot, t}` at
+MODULE scope (a room switch is a remount, so a mount-local record would be gone before a Boo could
+meet the new wall) and fire the line the two ways a Boo really does arrive in a decorated room:
+she mounts the room with one already in it, or she puts one down there. Two minutes, as authored.
+
+**DEV-23 · E13-3 "once per day" vs ack.js's no-persistence stance.** `js/ack.js` states plainly
+that nothing about how often she has been complimented is ever written to the save. But "once per
+day" cannot mean anything across a reload without a day stamp. DECIDED: store exactly ONE additive
+key, `delights.newItemAckDay` (safe default `undefined`, no VERSION bump), following the existing
+`delights.crowns` day-stamp precedent. The budget itself stays module-level and unwritten — what
+persists is the DAY, not the niceness. Logged because it is a deliberate, minimal exception to a
+stated stance.
+
+**DEV-24 · E13-1 "the `<Area>`".** Same double-article correction as DEV-7: the authored line
+supplies "the", so the area name is substituted BARE (`Look how busy the Meadow is getting!`). The
+guideLines template is unchanged and still substitutes literally — `js/town.js` is what strips the
+article, which the suite pins from both ends.
 
 **DEV-16 · E2-A "first sky-tap summon in each real-clock hour plays it (existing rule)".** Pack
 said → an hourly rule exists. What was true → there is no hour-based gate anywhere in the file;
@@ -231,6 +251,9 @@ parented there is wiped by the next one.
 | `r7p2-zones` | PASS (24) | ~40s |
 | `r10p1-worldmap` | PASS (77) | ~90s |
 | `r20-wishlife` | FLAKE then PASS (74). First run died on a `.hub` boot timeout — the failure mode the handover names. One serial re-run per board law: clean. | ~2m |
+| `r21e-jobs` (all five packets so far) | PASS 98/98 | 68s |
+| `r19z4-acknowledge` | PASS (34) | ~45s |
+| `r19z5-nouns` | FLAKE then PASS (53). One run failed the Sprinkle hint assertion because the hint bar had been overwritten — pre-existing contention (`updateHint`, the hider chance at ~0.9s and the pulse invitation at ~9s all write that one bar); E13 writes no hints at all. Proved by running it with my `js/town.js` stashed (PASS) and again with it restored (PASS). | ~2m each |
 
 ## Stale pins re-pointed (never weakened)
 - `tests/r21d-alive.mjs:125` — playground invitation `Try the swings…` → `Someone fancies a game of

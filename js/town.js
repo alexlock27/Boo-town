@@ -95,6 +95,9 @@ const CLOCK_TICK_MS = 20000;     // how often a placed wall clock re-reads the d
 // RUN13 T3: each Boo House room remembers where its camera was left. Module-level, so it
 // survives the re-mount that switching rooms performs (the module itself is cached).
 const roomScroll = new Map();
+// RUN21E-13: the last wallpaper/floor she applied, at MODULE scope — a room switch is a
+// remount, so a mount-local record would be gone before a Boo could meet the new wall.
+let lastDressingApply = null;
 // House furniture that a Boo can actually USE (RUN13 T3). These join ACT_IDS below, so the
 // existing generic socket loop claims them exactly like a swing or a bench — one code path,
 // no parallel system. NOTHING here is a need: a snack is a scene, a nap is a nap (G9).
@@ -852,6 +855,9 @@ export function mount(container, params, ctx) {
 
   requestAnimationFrame(() => {
     layout(); renderDrawer(); updateHint(); startLoop();
+    // RUN21E-13: arriving in a room she has just redecorated, with a Boo already in it, is
+    // the other way "a Boo enters a room" really happens.
+    if (!READONLY) maybeAckDressing();
     // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
     // there", so she arrives with the tray already open on that item's own drawer tab — no
     // hunting through six tabs. Selected, not held on the finger: the pack is explicit that
@@ -1731,6 +1737,10 @@ export function mount(container, params, ctx) {
     if (band && !REDUCED) { band.classList.remove('dressing-wash'); void band.offsetWidth; band.classList.add('dressing-wash'); setTimeout(() => band.classList.remove('dressing-wash'), 340); }
     hint.textContent = `${d.name}!`;
     sfx.tap();
+    // RUN21E-13: remember WHEN and WHICH, at module scope so it survives the remount a room
+    // switch performs. The line lands when a Boo is next in this room within two minutes.
+    lastDressingApply = { roomKey: STORE_KEY, slot: d.slot, t: nowMs() };
+    maybeAckDressing();   // …and immediately, if one is already standing here
     return true;
   }
   // The Decorate tab: two rows of swatches, Walls and Floors. Owned ones apply instantly;
@@ -3739,7 +3749,66 @@ export function mount(container, params, ctx) {
   function notePlacement() {
     pruneImpossible();                                    // the friend may have been put away
     fireRequest('placement', { area: STORE_KEY });
+    maybeAckAreaBusy();       // RUN21E-13
+    maybeAckNewItem();        // RUN21E-13
+    maybeAckDressing();       // RUN21E-13: a Boo just arrived in a freshly-decorated room
   }
+  // ---- RUN21E-13: acknowledgement wave two ------------------------------------------------
+  // Three more moments where the town notices what she has made. They join the SAME two-per-
+  // session budget as everything else in ack.js — seven moments now share two slots, which is
+  // the point: the town notices, it does not chatter. `acknowledge()` returning '' is the
+  // common case by design and every caller here takes silence for an answer.
+  const AREA_BUSY_AT = 12;   // the pack's threshold
+  function maybeAckAreaBusy() {
+    const st = getState();
+    const n = areaItems(st).length;
+    if (n < AREA_BUSY_AT) return;
+    if (((st.seen || {}).areaBusyAck || {})[STORE_KEY]) return;   // first time per area, ever
+    // The authored line already supplies "the", and the area names carry their own articles
+    // ("The Meadow"), so the name goes in BARE or it ships "the The Meadow" — the same
+    // correction the socket-claim line makes, for the same reason.
+    const line = acknowledge('areaBusy', { areaName: areaDisplayName(STORE_KEY).replace(/^The\s+/i, '') });
+    if (!line) return;   // budget said no: stay silent, and try again another session
+    mutate(s => { s.seen = s.seen || {}; s.seen.areaBusyAck = Object.assign({}, s.seen.areaBusyAck, { [STORE_KEY]: true }); });
+    sayInWorld(line);
+  }
+  // "Once per day, a named Boo near her most recently placed item." Most-recent is the highest
+  // placement id — the counter only ever goes up, so it is the one field that cannot lie about
+  // order. The day stamp is the ONE thing this run writes to the save about acknowledgements,
+  // and it is what makes "once per day" mean across reloads rather than merely per session.
+  const NEW_ITEM_REACH = 0.10;
+  function maybeAckNewItem() {
+    const st = getState();
+    if (((st.delights || {}).newItemAckDay) === todayKeyLocal()) return;
+    const items = areaItems(st);
+    const newest = items.filter(t => !isBooItem(t.item)).sort((a, b) => (b.id || 0) - (a.id || 0))[0];
+    if (!newest) return;
+    const near = nearestBooTo(newest.x, NEW_ITEM_REACH);
+    if (!near) return;
+    const what = resolveItem(newest.item);
+    if (!what) return;
+    const line = acknowledge('newItemLove', { booName: getDisplayName(near.place.item), itemName: what.name });
+    if (!line) return;
+    mutate(s => { s.delights = s.delights || {}; s.delights.newItemAckDay = todayKeyLocal(); });
+    const w = near.actor ? near.actor.wrap : null;
+    if (w) sayOver(w, line, 2800); else sayInWorld(line);
+  }
+  // "A Boo enters a room within 2 minutes of a dressing apply." Boos do not walk between rooms
+  // by themselves — an interior actor is spawned from that room's own placements at mount — so
+  // "enters" is read as the two ways a Boo really does arrive in a decorated room: she mounts
+  // the room with a Boo already in it, or she puts one down there.
+  const DRESSING_WINDOW_MS = 120000;
+  function maybeAckDressing() {
+    if (!isInterior || !lastDressingApply) return;
+    if (lastDressingApply.roomKey !== STORE_KEY) return;
+    if (nowMs() - lastDressingApply.t > DRESSING_WINDOW_MS) return;
+    if (!areaItems(getState()).some(t => isBooItem(t.item))) return;
+    const line = acknowledge(lastDressingApply.slot === 'floors' ? 'newDressingFloor' : 'newDressing');
+    if (!line) return;
+    lastDressingApply = null;   // one notice per redecoration, not one per Boo
+    sayInWorld(line);
+  }
+  const isBooItem = (id) => (id || '').startsWith('boo_') || (id || '').startsWith('custom:');
   function noteSocketClaim(booId, t) {
     fireRequest('socketClaim', { booId, itemId: t.item, area: STORE_KEY, x: t.x });
   }
@@ -6777,6 +6846,13 @@ export function mount(container, params, ctx) {
         maybeAckPath(a);
         return { landing: +landing.toFixed(4), row, hit, tileRows: [...new Set(tiles.map(t => t.row))], tileXs: tiles.map(t => +t.xFrac.toFixed(3)).slice(0, 14) };
       },
+      // RUN21E: the seams the new ACCEPTs drive. All read-only except notePlacement, which is
+      // the app's own post-drop hook — a suite that seeds a placement must run the same code a
+      // real drop runs, or it proves nothing about the real path.
+      notePlacement: () => notePlacement(),
+      todayLine: () => todayLine(),
+      fairDay: () => isFairDay(todayKeyLocal()),
+      rackedKites: () => [...ground.querySelectorAll('.t-item.wish-racked')].map(w => w.dataset.item),
       waitingCount: () => actors.filter(a => a.waitUntil != null).length,
       waitersForSeat: () => seatWaiters.size,
       napOf: (i) => {
