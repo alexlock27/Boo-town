@@ -24,10 +24,12 @@ r8p1-migrations pin. Nothing else references the number.
 - [x] Hub card (a card, not a ninth door — 5 primary buttons at phone width)
 - [x] Meadow parcel spawn + claim + ceremony reveal (new `grant` adapter)
 - [x] guideLines `L_DAILY_DONE` / `L_DAILY_OPEN`, verbatim
-- [x] `tests/r21j-daily.mjs` — six ACCEPTs + no-guilt guard + reachability (37.5s)
+- [x] `tests/r21j-daily.mjs` — six ACCEPTs + guards + critic pins (87.3s, 178 assertions)
 - [x] Gate: affected + core, all green (table below)
 - [x] Staged What's New (placeholder version until the merge stamps it)
 - [x] Delight self-critique (below)
+- [x] Independent gate-verifier + cold playtest critic — **4 defects found, all 4 fixed**
+- [x] Found-in-passing: a pre-existing OFFLINE LAW gap on main, fixed in its own commit
 
 ## Commits on `run21j`
 
@@ -45,6 +47,8 @@ r8p1-migrations pin. Nothing else references the number.
 | `fbe3cc2` | ledger: DEVIATE-with-proof, standing guards |
 | `ad235aa` | gate table: the one boot-timeout flake, recorded and cleared |
 | `af02d51` | **precache js/playjournal.js** — pre-existing OFFLINE LAW gap (own commit) |
+| `07ef8d1` | **the playtest critic's four defects**, fixed and pinned |
+| `a068160` | ledger: the full independent-review cycle |
 
 Final confirmation run after the sw.js change: `r21j-daily` 44s PASS · `r8p1-migrations` 1s
 PASS · `m3-pwa` 3s PASS · `r18a-copyguard` 14s PASS.
