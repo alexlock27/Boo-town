@@ -65,6 +65,10 @@ export function mount(container, params, ctx) {
       el('div', { class: 'band-song-actions' }, [
         tempoBtn,
         previewBtn,
+        // RUN21G item 4: a Hit carries a chord progression, so it can be strummed as well
+        // as played. Little Boo Songs have none — the button is simply absent, and nothing
+        // explains an absence (empty-state law).
+        ...(song.progression ? [el('button', { class: 'btn soft band-song-strum', text: 'Strum it 🎸', onclick: () => { stopPreview(); sfx.tap(); ctx.go('band-guitar', { song: song.id }); } })] : []),
         el('button', { class: 'btn band-song-play', text: 'Play it ✨', onclick: () => { stopPreview(); sfx.tap(); ctx.go('band-keys', { song: song.id }); } })
       ])
     ]);

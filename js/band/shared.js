@@ -25,6 +25,7 @@ const KEY_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B', "C'", "D'", "E'"];
 const XYLO_COLOURS = ['#EF476F', '#FF9F68', '#FFC93C', '#9CCC65', '#35D0BA', '#8FC7FF', '#8A6BF0', '#C6A9F0'];
 const DRUM_LABEL = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', cymbal: 'Cymbal', tom1: 'Tom', tom2: 'Tom' };
 const MAX_LAYERS = 3;
+const STRUM_BARS = 16;   // RUN21G item 4: a Hit's four-chord progression runs sixteen bars
 
 function playEvent(ev, opts) {
   if (ev.i === 'drum') voices.drum(ev.v);
@@ -68,6 +69,15 @@ export function mountInstrument(container, params, ctx, instrument) {
   const meta = INSTRUMENTS[instrument];
   music.stop();
 
+  const song = params && params.song ? SONGS.find(s => s.id === params.song) : null;
+  const wantedKeys = songKeys(song);
+  // RUN21G item 4: the guitar plays along too, on the chord pads. Boo Pop Hits carry a
+  // four-chord `progression`; Little Boo Songs do not, and simply never offer it.
+  const strumChords = (instrument === 'guitar' && song && Array.isArray(song.progression) && song.progression.length)
+    ? song.progression : null;
+  const playAlong = instrument === 'keys' ? (wantedKeys.length ? 'keys' : null) : (strumChords ? 'strum' : null);
+  const songTotal = playAlong === 'strum' ? STRUM_BARS : wantedKeys.length;
+
   const root = el('div', { class: `screen band-scene band-instrument-scene inst-${instrument}` });
   const performer = performerFor(instrument);
   const status = el('div', { class: 'band-scene-status' });
@@ -81,10 +91,10 @@ export function mountInstrument(container, params, ctx, instrument) {
     backControl(() => ctx.go('band')),
     el('h2', { text: meta.label })
   ];
-  if (instrument === 'keys') {
+  if (instrument === 'keys' || playAlong === 'strum') {
     headerKids.push(el('button', {
       class: 'band-playalong-toggle',
-      text: params && params.song ? '✨ Play-along on' : 'Choose a song',
+      text: song ? '✨ Play-along on' : 'Choose a song',
       onclick: () => ctx.go('band-songs')
     }));
   } else {
@@ -96,17 +106,16 @@ export function mountInstrument(container, params, ctx, instrument) {
   const lane = el('div', { class: 'band-sparkle-lane', 'aria-label': 'Play-along sparkle lane' });
   const playfield = el('div', { class: 'band-playfield' });
   root.append(header, performer);
-  if (instrument === 'keys') root.appendChild(lane);
+  if (instrument === 'keys' || playAlong === 'strum') root.appendChild(lane);
   root.append(playfield, status);
   container.appendChild(root);
 
-  let song = params && params.song ? SONGS.find(s => s.id === params.song) : null;
-  let wantedKeys = songKeys(song);
-  let songPos = 0;
+  let songPos = 0;         // keys: the note index · strum: the bar index (0-15)
   let done = false;        // RUN21G item 2: true once every note of the song has been played
   let countEl = null;      // the lane's progress readout (beat 3 pulses it on every advance)
   let keysRow = null;      // set by renderKeys; updateWanted() moves the ✨ between its children
   let guitarSeam = null;   // set by renderGuitar (RUN21G item 3): chord/strings/pluck evidence
+  let chordPads = null;    // set by renderGuitar; the ✨ rides one of these in strum-along
   let recording = false;
   let recordStart = 0;
   let pass = [];
@@ -122,11 +131,18 @@ export function mountInstrument(container, params, ctx, instrument) {
   if (params && params.record) setTimeout(() => toggleRecord(), 250);
 
   // RUN21G item 2: the keys scene tells her what this screen is for; the other
-  // instruments keep their original line.
+  // instruments keep their original line. Item 4: strum-along says the same thing in
+  // the guitar's verb.
   function defaultStatus() {
+    if (playAlong === 'strum') return `${song.name} — strum on the ✨`;
     if (instrument !== 'keys') return 'Tap Record, then play!';
-    if (song && wantedKeys.length) return `${song.name} — follow the ✨`;
+    if (playAlong === 'keys') return `${song.name} — follow the ✨`;
     return 'Play anything you like! Tap ● to keep a jam.';
+  }
+
+  // The chord the strum-along is waiting for: four chords repeating over sixteen bars.
+  function wantedChord() {
+    return strumChords ? strumChords[songPos % strumChords.length] : null;
   }
 
   async function loadExisting() {
@@ -206,13 +222,19 @@ export function mountInstrument(container, params, ctx, instrument) {
   function renderLane() {
     clear(lane);
     countEl = null;
-    lane.classList.toggle('active', !!(song && wantedKeys.length));
-    if (!song || !wantedKeys.length) {
+    lane.classList.toggle('active', !!playAlong);
+    if (!playAlong) {
       lane.appendChild(el('span', { class: 'band-lane-empty', text: 'Choose a song for press-paced sparkles' }));
       return;
     }
-    const peek = wantedKeys.slice(songPos, songPos + 3).map(i => KEY_NAMES[i]).join(' · ');
-    countEl = el('span', { class: 'band-lane-count', text: `✨ ${Math.min(songPos + 1, wantedKeys.length)} of ${wantedKeys.length}` });
+    const at = Math.min(songPos + 1, songTotal);
+    const peek = playAlong === 'strum'
+      ? Array.from({ length: 3 }, (_, k) => strumChords[(songPos + k) % strumChords.length]).join(' · ')
+      : wantedKeys.slice(songPos, songPos + 3).map(i => KEY_NAMES[i]).join(' · ');
+    countEl = el('span', {
+      class: 'band-lane-count',
+      text: playAlong === 'strum' ? `♪ bar ${at} of ${songTotal}` : `✨ ${at} of ${songTotal}`
+    });
     lane.append(
       el('span', { class: 'band-lane-song', text: song.name }),
       el('span', { class: 'band-lane-next', text: peek }),
@@ -220,22 +242,25 @@ export function mountInstrument(container, params, ctx, instrument) {
     );
   }
 
-  // The wanted key carries the target: class `wanted` puts the ✨ badge and halo on the
-  // key button itself, so the sparkle's centre IS the key's centre at every viewport.
+  // The wanted control carries the target: class `wanted` puts the ✨ badge and halo on the
+  // key (or, in strum-along, the chord pad) itself, so the sparkle's centre IS the control's
+  // centre at every viewport.
   function updateWanted() {
-    if (!keysRow) return;
-    [...keysRow.children].forEach(k => k.classList.remove('wanted'));
-    if (song && !done && wantedKeys.length && songPos < wantedKeys.length) {
-      const k = keysRow.children[wantedKeys[songPos]];
-      if (k) k.classList.add('wanted');
-    }
+    const row = playAlong === 'strum' ? chordPads : keysRow;
+    if (!row) return;
+    [...row.children].forEach(k => k.classList.remove('wanted'));
+    if (!playAlong || done || songPos >= songTotal) return;
+    const idx = playAlong === 'strum' ? GUITAR_CHORDS.indexOf(wantedChord()) : wantedKeys[songPos];
+    const k = row.children[idx];
+    if (k) k.classList.add('wanted');
   }
 
   // RUN21G item 2: the last note is a moment, not a wrap-around. Fires exactly once;
-  // the keys stay fully playable afterwards (free play).
+  // the instrument stays fully playable afterwards (free play). Item 4 reuses it verbatim
+  // for the sixteenth bar of a strum-along.
   function finishSong() {
     done = true;
-    songPos = wantedKeys.length;
+    songPos = songTotal;
     renderLane();
     updateWanted();
     celebrate(status, { counter: countEl, sound: 'fanfare', line: guideLine('L_BAND_SONGDONE') });
@@ -245,6 +270,15 @@ export function mountInstrument(container, params, ctx, instrument) {
       el('button', { class: 'btn soft', text: 'Play it again', onclick: () => restartSong() }),
       el('button', { class: 'btn soft', text: 'More songs ✨', onclick: () => ctx.go('band-songs') })
     );
+  }
+
+  // One step of a play-along: the last one is the moment, the rest tick the counter.
+  function advanceSong() {
+    if (songPos + 1 === songTotal) { finishSong(); return; }
+    songPos += 1;
+    renderLane();
+    updateWanted();
+    beatTick(countEl);   // legible even when the target does not move (a repeated note or chord)
   }
 
   function restartSong() {
@@ -293,16 +327,7 @@ export function mountInstrument(container, params, ctx, instrument) {
         setTimeout(() => key.classList.remove('down'), 150);
         // Free play is never wrong: a non-wanted key plays exactly as above and the
         // sparkle simply waits (no-guilt law). Only the wanted key advances the song.
-        if (song && !done && wantedKeys[songPos] === idx) {
-          if (songPos + 1 === wantedKeys.length) {
-            finishSong();   // item 2: no modulo — the whole song is a witnessed ending
-          } else {
-            songPos += 1;
-            renderLane();
-            updateWanted();
-            beatTick(countEl);   // legible even when the same note repeats and the ✨ stays put
-          }
-        }
+        if (playAlong === 'keys' && !done && wantedKeys[songPos] === idx) advanceSong();
       });
       row.appendChild(key);
     });
@@ -318,7 +343,10 @@ export function mountInstrument(container, params, ctx, instrument) {
     let chord = 'C';
     let stringSemis = (GUITAR_CHORD_NOTES[chord] || GUITAR_CHORD_NOTES.C).slice();   // low→high
     const STRING_WIDTHS = [4, 3.5, 3, 2.5];   // authored stroke px, top→bottom (thick = low)
-    const chords = el('div', { class: 'p6-chord-column' });
+    // in strum-along the pads reserve the badge's space on ALL FOUR, so the ✨ never
+    // collides with a chord letter and the wanted pad does not jump against its neighbours
+    const chords = el('div', { class: `p6-chord-column${playAlong === 'strum' ? ' playalong' : ''}` });
+    chordPads = chords;
     const strings = el('div', { class: 'p6-strings', 'aria-label': 'Guitar strings — drag across them to strum' });
     const rows = [];
     for (let i = 0; i < 4; i++) {
@@ -333,6 +361,7 @@ export function mountInstrument(container, params, ctx, instrument) {
     }
     const lastHitAt = [0, 0, 0, 0];   // per-string retrigger guard (90ms each)
     const pluckLog = [];              // seam evidence: { row, semi, vel, at, retune? }
+    let gestureRows = new Set();      // strings actually sounded in the current gesture
     const wiggleRow = (row) => {
       row.classList.remove('plucked'); void row.offsetWidth; row.classList.add('plucked');
       // the class comes back off so the reduced-motion opacity flash (a transition,
@@ -345,7 +374,16 @@ export function mountInstrument(container, params, ctx, instrument) {
       lastHitAt[rowIdx] = now;
       hit('pluck', stringSemis[rowIdx], vel !== undefined ? { vel } : undefined);
       pluckLog.push({ row: rowIdx, semi: stringSemis[rowIdx], vel: vel === undefined ? 1 : vel, at: now });
+      gestureRows.add(rowIdx);   // only strings that actually SOUNDED count towards a strum
       wiggleRow(rows[rowIdx]);
+    }
+    // RUN21G item 4: a strum is two or more strings in one gesture. On the wanted chord it
+    // moves the song on a bar; on any other chord it is simply music (no-guilt law — free
+    // strumming is never wrong, the sparkle just waits).
+    function endGesture() {
+      const strummed = gestureRows.size >= 2;
+      gestureRows = new Set();
+      if (strummed && playAlong === 'strum' && !done && chord === wantedChord()) advanceSong();
     }
     GUITAR_CHORDS.forEach(c => {
       const b = el('button', { class: `p6-chord${c === chord ? ' sel' : ''}`, text: c });
@@ -353,6 +391,7 @@ export function mountInstrument(container, params, ctx, instrument) {
         chord = c;
         stringSemis = (GUITAR_CHORD_NOTES[chord] || GUITAR_CHORD_NOTES.C).slice();
         [...chords.children].forEach((x, i) => x.classList.toggle('sel', GUITAR_CHORDS[i] === chord));
+        updateWanted();   // `sel` and `wanted` are different things; selecting never clears the target
         // retuning is HEARD: each string flashes once, low→high, gently (not recorded —
         // it is the instrument answering the pad, not the child playing)
         rows.forEach((row, i) => setTimeout(() => {
@@ -393,7 +432,7 @@ export function mountInstrument(container, params, ctx, instrument) {
       }
       prevY = e.clientY; prevT = now;
     });
-    const lift = () => { down = false; last = -1; };
+    const lift = () => { if (!down) return; down = false; last = -1; endGesture(); };
     strings.addEventListener('pointerup', lift);
     strings.addEventListener('pointercancel', lift);
     suppressContextMenu(strings);
@@ -401,9 +440,11 @@ export function mountInstrument(container, params, ctx, instrument) {
       chord: () => chord,
       stringSemis: () => stringSemis.slice(),
       plucks: () => pluckLog.slice(),
+      wantedChord: () => wantedChord(),
       stringRects: () => rows.map(r => { const b = r.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right }; })
     };
     playfield.append(el('div', { class: 'p6-guitar' }, [chords, strings]));
+    updateWanted();
   }
 
   function renderXylo() {
@@ -432,9 +473,11 @@ export function mountInstrument(container, params, ctx, instrument) {
     song: () => song && song.id,
     songPosition: () => songPos,
     songDone: () => done,
+    playAlong: () => playAlong,
+    songTotal: () => songTotal,
     // QA only: jump the song to a position (suites afford one honest full run, then
     // fast-forward for the moment-under-test instead of 42 clicks per assertion)
-    qaSetSongPos: (n) => { if (!song) return; done = false; songPos = Math.max(0, Math.min(wantedKeys.length - 1, n)); renderLane(); updateWanted(); },
+    qaSetSongPos: (n) => { if (!playAlong) return; done = false; songPos = Math.max(0, Math.min(songTotal - 1, n)); renderLane(); updateWanted(); },
     wantedKey: () => wantedKeys[songPos] ?? -1,
     savedId: () => lastSavedId,
     laneBox: () => lane.getBoundingClientRect(),

@@ -7,7 +7,10 @@
 //         velocity (slow gentle / fast loud), audible retune per chord pad, plucks record
 //         as {i:'pluck',v,t} into instrument:'guitar' layers, legacy {i:'guitar'} chord
 //         jams play the full chord voice unchanged.
-// Runtime: 16s measured on the reference box — budget ≤90s (board law; stated per RUN21G pack).
+// Item 4: strum-along — Strum it 🎸 on Hits only, the wanted PAD carries the ✨, the bar
+//         counter, the ≥2-string rule, sixteen correct strums → item 2's moment verbatim,
+//         and free-play guitar left exactly as it was.
+// Runtime: 34s measured on the reference box — budget ≤90s (board law; stated per RUN21G pack).
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8000';
@@ -313,6 +316,119 @@ for (const [w, h] of [[768, 1024], [390, 844]]) {
     return { svg: getComputedStyle(row.querySelector('svg')).animationName, rest, lit: getComputedStyle(core).opacity };
   });
   ok(rm.svg === 'none' && rm.rest === '0.5' && rm.lit === '1', `reduced motion: wiggle off, core line brightness-flash rides the transition (${rm.rest} → ${rm.lit})`);
+  await ctx.close();
+}
+
+// ---------- Item 4 ----------
+console.log('== Item 4: Strum it 🎸 exists on Hits only, and routes ==');
+{
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
+  await page.goto(`${BASE}/index.html`, { waitUntil: 'load' });
+  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('.hub');
+  await page.evaluate(() => window.BooTown.go('band-songs'));
+  await page.waitForSelector('.band-song-list');
+  const cards = await page.evaluate(() => [...document.querySelectorAll('.band-song-card')].map(c => ({ name: c.querySelector('h3').textContent, strum: !!c.querySelector('.band-song-strum') })));
+  const LITTLE = ['Twinkle Twinkle', 'Row Your Boat', 'Old MacDonald'];
+  ok(cards.filter(c => !LITTLE.includes(c.name)).every(c => c.strum), 'every Boo Pop Hit offers Strum it 🎸');
+  ok(cards.filter(c => LITTLE.includes(c.name)).every(c => !c.strum), 'Little Boo Songs have no strum button and nothing explains the absence');
+  await page.click('.band-song-card:has-text("Golden Boo") .band-song-strum');
+  await page.waitForSelector('.p6-strings', { timeout: 4000 });
+  const routed = await page.evaluate(() => ({ song: window.__bandScene.song(), mode: window.__bandScene.playAlong() }));
+  ok(routed.song === 'golden' && routed.mode === 'strum', `Strum it 🎸 opens the guitar in strum-along (${JSON.stringify(routed)})`);
+  await ctx.close();
+}
+console.log('== Item 4 ACCEPT: golden Am F C G ×16 — correct strums advance, wrong ones never do ==');
+{
+  const { ctx, page } = await scenePage('band-guitar', { song: 'golden' });
+  const b = await panelBox(page);
+  const cx = b.x + b.w / 2;
+  const strum = async () => {
+    await page.mouse.move(cx, b.y + 6); await page.mouse.down();
+    for (let i = 1; i <= 8; i++) { await page.mouse.move(cx, b.y + 6 + ((b.h - 12) * i) / 8); await sleep(12); }
+    await page.mouse.up(); await sleep(40);
+  };
+  const start = await page.evaluate(() => ({ total: window.__bandScene.songTotal(), want: window.__bandScene.guitar().wantedChord(), pad: document.querySelector('.p6-chord.wanted').textContent, count: document.querySelector('.band-lane-count').textContent }));
+  ok(start.total === 16 && start.want === 'Am' && start.pad === 'Am', `sixteen bars, bar 1 wants Am and the pad carries the ✨ (${start.pad})`);
+  ok(start.count === '♪ bar 1 of 16', `the lane reads the authored bar counter ("${start.count}")`);
+  // C is selected, Am is wanted: a full strum plays and does NOT advance
+  await clearLog(page);
+  await strum();
+  const wrong = await page.evaluate(() => window.__bandScene.songPosition());
+  ok(wrong === 0, 'a strum on a non-wanted chord does not advance');
+  ok((await noteTags(page)).filter(t => t.startsWith('pluck:')).length >= 8, '…but it plays every string (free strumming is never wrong)');
+  // select Am; a single-string pick still does not advance (the rule is ≥2 strings)
+  await page.click('.p6-chord:has-text("Am")');
+  await sleep(320);
+  await page.mouse.click(cx, b.y + b.h / 8);
+  await sleep(60);
+  ok(await page.evaluate(() => window.__bandScene.songPosition()) === 0, 'a single-string pick does not advance a bar');
+  ok(await page.evaluate(() => !!document.querySelector('.p6-chord.wanted')), 'selecting a chord never clears the ✨ target');
+  // sixteen correct strums → completion, exactly once
+  await page.evaluate(() => window.__standards.reset());
+  for (let bar = 0; bar < 16; bar++) {
+    const want = await page.evaluate(() => window.__bandScene.guitar().wantedChord());
+    if ((await page.evaluate(() => window.__bandScene.guitar().chord())) !== want) { await page.click(`.p6-chord:has-text("${want}")`); await sleep(320); }
+    await strum();
+    await sleep(110);
+  }
+  const end = await page.evaluate(() => ({
+    done: window.__bandScene.songDone(), pos: window.__bandScene.songPosition(),
+    cels: window.__standards.celebrations(),
+    status: document.querySelector('.band-scene-status').textContent,
+    chips: [...document.querySelectorAll('.band-scene-status button')].map(x => x.textContent),
+    wantedLeft: document.querySelectorAll('.p6-chord.wanted').length,
+    count: document.querySelector('.band-lane-count').textContent
+  }));
+  ok(end.done && end.pos === 16, `sixteen correct strums finish the song (pos ${end.pos})`);
+  ok(end.cels.length === 1, `completion celebrates exactly ONCE (${end.cels.length})`);
+  ok(end.cels.length && GUIDE_LINES.includes(end.cels[0].line), 'the SAME guide key as the keys ending (L_BAND_SONGDONE)');
+  ok(end.status.includes('You played the whole of Golden Boo! 🎵') && end.chips.join('|') === 'Play it again|More songs ✨', 'item 2\'s moment, verbatim');
+  ok(end.wantedLeft === 0 && end.count === '♪ bar 16 of 16', `sparkle rests, counter at ${end.count}`);
+  await strum();
+  ok(await page.evaluate(() => window.__standards.celebrations().length) === 1, 'strumming after the end does not re-celebrate');
+  await page.screenshot({ path: `${SHOTS}/strum-done-1024x768.png` });
+  await ctx.close();
+}
+console.log('== Item 4: the pad badge is centred and never lands on the pad above ==');
+for (const [w, h] of [[1024, 768], [768, 1024], [390, 844]]) {
+  const { ctx, page } = await scenePage('band-guitar', { song: 'golden' }, { viewport: { width: w, height: h } });
+  const g = await page.evaluate(() => {
+    const pad = document.querySelector('.p6-chord.wanted');
+    const r = pad.getBoundingClientRect();
+    const cs = getComputedStyle(pad, '::after');
+    const m = new DOMMatrixReadOnly(cs.transform === 'none' ? '' : cs.transform);
+    const aw = parseFloat(cs.width);
+    const aLeft = r.left + pad.clientLeft + parseFloat(cs.left) + m.e;
+    const pads = [...document.querySelectorAll('.p6-chord')];
+    const above = pads.indexOf(pad) > 0 ? pads[pads.indexOf(pad) - 1].getBoundingClientRect() : null;
+    return { delta: +(aLeft + aw / 2 - (r.left + r.width / 2)).toFixed(2), badgeTop: +(r.top + parseFloat(cs.top)).toFixed(1), padTop: +r.top.toFixed(1), aboveBottom: above ? +above.bottom.toFixed(1) : null };
+  });
+  ok(Math.abs(g.delta) <= 3, `${w}x${h}: ✨ centre within 3px of the pad centre (Δ ${g.delta}px)`);
+  ok(g.badgeTop >= g.padTop && (g.aboveBottom === null || g.badgeTop > g.aboveBottom), `${w}x${h}: badge sits inside its own pad, clear of the pad above`);
+  await page.screenshot({ path: `${SHOTS}/strum-${w}x${h}.png` });
+  await ctx.close();
+}
+console.log('== Item 4: reduced motion, and free play untouched ==');
+{
+  const { ctx, page } = await scenePage('band-guitar', { song: 'golden' }, { reduced: true });
+  ok(await page.evaluate(() => getComputedStyle(document.querySelector('.p6-chord.wanted'), '::after').animationName) === 'none',
+    'reduced motion: the pad badge does not pulse (the app-wide `*` rule misses pseudo-elements — this needs its own name)');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await scenePage('band-guitar', null);
+  const free = await page.evaluate(() => {
+    const bare = document.createElement('button'); document.body.appendChild(bare);
+    const bareTop = getComputedStyle(bare).paddingTop; bare.remove();
+    return { mode: window.__bandScene.playAlong(), lane: !!document.querySelector('.band-sparkle-lane'), wanted: document.querySelectorAll('.p6-chord.wanted').length, pad: getComputedStyle(document.querySelector('.p6-chord')).paddingTop, bare: bareTop, status: document.querySelector('.band-scene-status').textContent };
+  });
+  ok(free.mode === null && !free.lane && free.wanted === 0, 'free-play guitar: no mode, no lane, no target');
+  ok(free.pad === free.bare, `free-play pads keep the UA default padding, no reserved strip (${free.pad} = ${free.bare})`);
+  ok(free.status === 'Tap Record, then play!', 'free-play status line unchanged');
   await ctx.close();
 }
 
