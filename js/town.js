@@ -98,6 +98,21 @@ const roomScroll = new Map();
 // RUN21E-13: the last wallpaper/floor she applied, at MODULE scope — a room switch is a
 // remount, so a mount-local record would be gone before a Boo could meet the new wall.
 let lastDressingApply = null;
+// ---- RUN21E-7: the pretend night --------------------------------------------------------
+// Also module-scoped, and for the same reason: a room switch is a remount, so "one pretend
+// night at a time" and "come back and it is still dusk in here" both need to outlive a mount.
+// { roomKey, until } — a wall-clock deadline, so leaving and returning inside the 90s picks
+// up the remainder rather than starting again.
+let pretendNight = null;
+const PRETEND_MS = 90000;                       // the pack's 90 seconds
+const PRETEND_HOUR = 22;                        // the hour the room's built-ins are drawn at
+const PRETEND_END_LINE = 'Morning again!';
+const PRETEND_CARD_TITLE = 'Make it night-time in here?';
+function pretendNightIn(roomKey) {
+  if (!pretendNight) return false;
+  if (Date.now() >= pretendNight.until) { pretendNight = null; return false; }
+  return pretendNight.roomKey === roomKey;
+}
 // House furniture that a Boo can actually USE (RUN13 T3). These join ACT_IDS below, so the
 // existing generic socket loop claims them exactly like a swing or a bench — one code path,
 // no parallel system. NOTHING here is a need: a snack is a scene, a nap is a nap (G9).
@@ -878,6 +893,9 @@ export function mount(container, params, ctx) {
     // RUN21E-3: the beach's news — the tide has turned, or the sea has smoothed her castle.
     // After updateHint(), which would otherwise clobber whichever line this writes.
     settleBeachDay();
+    // RUN21E-7: she left this room mid-pretend-night and came back inside the 90 seconds —
+    // it is still dusk in here, for the remainder, and it still ends with its own line.
+    if (pretendHere()) { applyPretendDressing(true); armPretendTimer(); }
     // RUN18B Y2: the shop's handoff. She has just bought a thing and said "take me
     // there", so she arrives with the tray already open on that item's own drawer tab — no
     // hunting through six tabs. Selected, not held on the finger: the pack is explicit that
@@ -1904,6 +1922,64 @@ export function mount(container, params, ctx) {
       && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
   }
 
+  // ---- RUN21E-7: the pretend-night lamp ----------------------------------------------------
+  // A child cannot make it night to see the town's night things — the clock decides, and at
+  // four in the afternoon it decides no. So a lamp she has placed offers to make it night-time
+  // IN THIS ROOM for ninety seconds: the room dims through its real night class, the window
+  // fills with stars, the lamps light, and Boos in here get sleepy.
+  //
+  // Everything outside this room is untouched — the real clock, the wall clock's hands, the
+  // other rooms, every outdoor area. It is a game of pretend, and it says so.
+  const pretendHere = () => pretendNightIn(STORE_KEY);
+  // "Night" for the things that follow the clock, plus this room's pretend one.
+  const nightHere = () => isNight(currentHour()) || pretendHere();
+  function offerPretendNight(wrap, item) {
+    if (!isInterior || READONLY || softened) return false;
+    if (!LAMP_IDS.has(item.id)) return false;
+    if (isNight(currentHour())) return false;      // it is already night; there is nothing to pretend
+    if (pretendHere()) return false;               // already dusk in here
+    if (pretendNight) return false;                // one at a time, anywhere in the house
+    sfx.tap();
+    dialog({
+      title: PRETEND_CARD_TITLE,
+      body: '',
+      buttons: [{ label: 'Yes, night-night!', value: true }, { label: 'Not now', value: false, kind: 'soft' }],
+      dismissable: true
+    }).then(yes => { if (yes) startPretendNight(); });
+    return true;
+  }
+  function applyPretendDressing(on) {
+    root.classList.toggle('night', on || isNight(currentHour()));
+    // The built-ins are SVG regenerated from an hour, not classes — so the starry window,
+    // the drawn curtains and the bedroom's fairy lights need a re-render at the pretend hour.
+    const builtins = hills.querySelector('.t-room-builtins');
+    if (builtins) builtins.innerHTML = roomBuiltinsHTML(roomId || 'lounge', worldW, viewH * INTERIOR_WALL_FRAC, viewH, on ? PRETEND_HOUR : currentHour());
+    renderPlaced();   // …and the lamps light, through the widened night check
+  }
+  function startPretendNight() {
+    pretendNight = { roomKey: STORE_KEY, until: Date.now() + PRETEND_MS };
+    applyPretendDressing(true);
+    sfx.chime(0);
+    armPretendTimer();
+  }
+  let pretendTimer = null;
+  function armPretendTimer() {
+    clearTimeout(pretendTimer);
+    if (!pretendHere()) return;
+    // The REMAINDER, not a fresh 90s: leaving the room and coming back does not extend it.
+    pretendTimer = setTimeout(() => endPretendNight(), Math.max(0, pretendNight.until - Date.now()));
+  }
+  function endPretendNight() {
+    clearTimeout(pretendTimer); pretendTimer = null;
+    const wasHere = pretendHere();
+    pretendNight = null;
+    if (!wasHere || !ground.isConnected) return;
+    // Recompute against the REAL clock: a pretend night that began at 18:59 ends in a room
+    // where it is genuinely night, and "restoring day" would be wrong twice over.
+    applyPretendDressing(false);
+    sayInWorld(PRETEND_END_LINE);
+  }
+
   // ---- RUN21E-3: shells, the tide line, and the castle that survives -----------------------
   // Positions are DAILY-DETERMINISTIC from the day key — the app's own idiom for "the same all
   // day, different tomorrow, nothing stored" (isRainDay, booOfTheDay). Only what she has PICKED
@@ -2174,7 +2250,8 @@ export function mount(container, params, ctx) {
       
       // Table lamp (RUN10 P4): glows 21:00-07:00, same one-render-time-check pattern as
       // growth.js's fairy lights.
-      if (LAMP_IDS.has(t.item) && isNight(currentHour())) wrap.classList.add('lit');
+      // RUN21E-7: …and during a pretend night in THIS room, which is the whole point of it.
+      if (LAMP_IDS.has(t.item) && nightHere()) wrap.classList.add('lit');
       else wrap.classList.remove('lit');
       if (isWish(t.item)) dressWish(wrap, t);   // RUN20 W1
       
@@ -5188,6 +5265,9 @@ export function mount(container, params, ctx) {
     // Reading the news grants nothing, so a visitor may read it as well.
     if (item.id === 'deco_noticepost' || item.id === 'deco_signpost') { openTodayCard(); return; }
     if (item.id === 'deco_pond') spawnPondRipple(wrap);   // tap the pond anytime (RUN10 P3)
+    // RUN21E-7: a lamp indoors, in the daytime, offers to make it night-time in here. Same
+    // shape as the wish verbs — arranging taps (softened) still get Move / Put away.
+    if (offerPretendNight(wrap, item)) return;
     // RUN21E-12: the five amnestied props answer the tap instead of opening the menu — the
     // same shape as the wish verbs above, and for the same reason.
     if (!softened && itemVerb(wrap, place, item)) return;
@@ -6319,7 +6399,10 @@ export function mount(container, params, ctx) {
     // width) of the bed, no Boo ever went to bed at all. Indoors the gate is now the
     // authored NAP_CHANCE per qualifying pause instead: any hour, a bed is for napping in.
     // Outdoors it stays night-only — a Boo dozing under a tree at noon is a different thing.
-    const napAllowed = night || (isInterior && Math.random() < NAP_CHANCE);
+    // RUN21E-7: "nap likelihood tripled" during a pretend night. NAP_CHANCE is 0.5, and
+    // 3 x 0.5 saturates at certainty — so during a pretend night indoors a qualifying pause
+    // ALWAYS considers the bed. Recorded as a deviation: tripling a half is just "always".
+    const napAllowed = night || pretendHere() || (isInterior && Math.random() < NAP_CHANCE);
     if (napAllowed && !recentlyWoken && pickNapSpot(a)) cands.push(['nap', 2.6 * personalityMult(booId, 'nap')]);
     if (!a.riding && pickBoardableRide(a)) cands.push(['board', 3.2]);   // funfair: hop on a ride (C1b)
     // musical (RUN10 P5): drawn to a placed Dance Stage, or the funfair bandstand while
@@ -7067,6 +7150,11 @@ export function mount(container, params, ctx) {
       // the app's own post-drop hook — a suite that seeds a placement must run the same code a
       // real drop runs, or it proves nothing about the real path.
       notePlacement: () => notePlacement(),
+      // RUN21E-7 seams: start it without the card (the card itself is tested by clicking it),
+      // read whether this room is pretending, and end it early instead of waiting out 90s.
+      pretendNight: () => pretendHere(),
+      startPretendNight: () => { startPretendNight(); return pretendHere(); },
+      endPretendNight: () => { endPretendNight(); return pretendHere(); },
       todayLine: () => todayLine(),
       fairDay: () => isFairDay(todayKeyLocal()),
       rackedKites: () => [...ground.querySelectorAll('.t-item.wish-racked')].map(w => w.dataset.item),
@@ -7419,6 +7507,10 @@ export function mount(container, params, ctx) {
       if (pathCommitTimer) clearInterval(pathCommitTimer);
       commitPaths();   // build mode edits commit on exit, whichever comes first (RUN10 P3)
       if (hideWiggleTimer) clearTimeout(hideWiggleTimer);
+      // RUN21E-7: the pretend night's timer belongs to this mount, but the pretend night
+      // itself does NOT — the module-level record survives so a room switch and back returns
+      // to the same dusk, and the mount that finds it re-arms the remainder.
+      clearTimeout(pretendTimer); pretendTimer = null;
       if (lingerResizeTimer) clearTimeout(lingerResizeTimer);   // RUN21C-6
       clearTimeout(undoChipTimer);                              // RUN21C-7: the stack dies with the mount
       ambient.stop();

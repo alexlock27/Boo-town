@@ -6996,7 +6996,11 @@ html.bigger-text { --vz: 1.125; }
 /* ---- the room dressings ---------------------------------------------------------------- */
 /* The pattern fill sits at the very back of its band, behind the built-ins and the skirting,
    so a new wallpaper never covers the window or the fireplace. */
-.t-dressing { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+/* RUN21E-7: the dim EASES now, so a pretend night falls and lifts rather than snapping. The
+   authored night values below are untouched — only how fast they arrive. At mount the class is
+   set before first paint, so this changes nothing about arriving at a room after dark. */
+.t-dressing { position: absolute; inset: 0; pointer-events: none; z-index: 0; transition: filter 1.2s ease; }
+@media (prefers-reduced-motion: reduce) { .t-dressing { transition: none; } }
 /* A dressing is a full-bleed layer INSIDE the wall/floor band, so it paints over that band's
    OWN background — including the `.town2.night` background the bedroom relies on to go dark.
    The floor survived by luck: its night rule is a `filter`, and filters inherit to children.

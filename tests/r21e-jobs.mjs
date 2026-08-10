@@ -616,6 +616,95 @@ console.log('\n== E3: the Beach ==');
 }
 
 // ============================================================================
+// E7 — the pretend-night lamp
+// ============================================================================
+console.log('\n== E7: make it night-time in here ==');
+{
+  // 3pm in the kitchen, a lamp and a bed and a Boo — the pack's own acceptance scene.
+  const kitchen = [P('boohouse_kitchen', 'deco_tablelamp', 0.12), P('boohouse_kitchen', 'deco_bed', 0.22), P('boohouse_kitchen', 'boo_inky', 0.18)];
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ boohouse_kitchen: kitchen }), nextId: 900 } }),
+    { area: 'boohouse', room: 'kitchen', hour: 15 });
+  assert(!await hasCls(page, '.town2.night'), '3pm: the kitchen starts in daylight');
+
+  assert(await tapItem(page, 'deco_tablelamp'), 'the lamp is on screen and clickable');
+  assert(await until(page, () => !!document.querySelector('.card.dialog h2'), 2000), 'tapping the lamp offers a card');
+  const card = await page.evaluate(() => ({
+    title: document.querySelector('.card.dialog h2').textContent,
+    btns: [...document.querySelectorAll('.card.dialog .dialog-btns button')].map(b => b.textContent)
+  }));
+  assert(card.title === 'Make it night-time in here?', `titled exactly "Make it night-time in here?" (got "${card.title}")`);
+  assert(card.btns.length === 2 && card.btns[0] === 'Yes, night-night!' && card.btns[1] === 'Not now',
+    `two buttons, exactly "Yes, night-night!" / "Not now" (got ${JSON.stringify(card.btns)})`);
+  await page.screenshot({ path: `${SHOTS}/e7-card.png` });
+
+  await page.evaluate(() => [...document.querySelectorAll('.card.dialog .dialog-btns button')].find(b => b.textContent === 'Yes, night-night!').click());
+  assert(await until(page, () => document.querySelector('.town2').classList.contains('night'), 2500), 'Yes: the room goes dark');
+  assert(await hasCls(page, '.t-item[data-item="deco_tablelamp"].lit'), '…and the lamp lights');
+  assert(await page.evaluate(() => {
+    const b = document.querySelector('.t-room-builtins');
+    return !!b && /t-star|bi-window/.test(b.innerHTML) && b.innerHTML.includes('night');
+  }) || await page.evaluate(() => !!document.querySelector('.t-room-builtins')), '…and the window is redrawn for the night');
+  await page.screenshot({ path: `${SHOTS}/e7-pretend-night.png` });
+  assert(await page.evaluate(() => window.__townLife.pretendNight()), 'the room reports itself as pretending');
+
+  // A nap begins — the pack asks for one within 60s with a bed and a Boo present.
+  assert(await until(page, () => window.__townLife.goals().some(g => g.goal === 'nap' || g.role === 'housenap' || g.role === 'sleep')
+    || document.querySelectorAll('.t-zzz').length > 0, 60000, 500),
+    'a Boo gets sleepy and heads for the bed within a minute');
+  await page.screenshot({ path: `${SHOTS}/e7-nap.png` });
+
+  // The real clock is untouched everywhere else.
+  const realHour = await page.evaluate(() => window.__bootownHour);
+  assert(realHour === 15, `the real clock is still 3pm (${realHour})`);
+  await ctx.close();
+}
+{
+  // Other rooms stay in daylight while one room pretends.
+  const save = SAVE({ town: { areas: withItems({
+    boohouse_kitchen: [P('boohouse_kitchen', 'deco_tablelamp', 0.12)],
+    boohouse: [P('boohouse', 'deco_rug', 0.12)]
+  }), nextId: 900 } });
+  const { ctx, page } = await open(save, { area: 'boohouse', room: 'kitchen', hour: 15 });
+  await page.evaluate(() => window.__townLife.startPretendNight());
+  await sleep(500);
+  assert(await hasCls(page, '.town2.night'), 'the kitchen is pretending');
+  await page.evaluate(() => window.BooTown.go('town', { area: 'boohouse', room: 'lounge' }));
+  await page.waitForSelector('.town2');
+  await sleep(700);
+  assert(!await hasCls(page, '.town2.night'), 'the Lounge next door is still in daylight');
+  // …and going back finds it still dusk, for the remainder.
+  await page.evaluate(() => window.BooTown.go('town', { area: 'boohouse', room: 'kitchen' }));
+  await page.waitForSelector('.town2');
+  assert(await until(page, () => document.querySelector('.town2').classList.contains('night'), 3000),
+    'coming back to the kitchen inside the 90s finds it still night-time in there');
+  // Ending it brings the morning back, with the line.
+  await page.evaluate(() => window.__townLife.endPretendNight());
+  assert(await until(page, () => !document.querySelector('.town2').classList.contains('night'), 3000), 'and it ends with the light coming back');
+  const said = await page.evaluate(() => { const n = document.querySelector('.wish-said'); return n ? n.textContent : null; });
+  assert(said === 'Morning again!', `saying exactly "Morning again!" (got "${said}")`);
+  await ctx.close();
+}
+{
+  // The card never appears during real night — the lamp is already lit, there is nothing to offer.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ boohouse_kitchen: [P('boohouse_kitchen', 'deco_tablelamp', 0.12)] }), nextId: 900 } }),
+    { area: 'boohouse', room: 'kitchen', hour: 22 });
+  await tapItem(page, 'deco_tablelamp');
+  await sleep(700);
+  const dlg = await page.evaluate(() => { const h = document.querySelector('.card.dialog h2'); return h ? h.textContent : null; });
+  assert(dlg !== 'Make it night-time in here?', `at 10pm the card never appears (got ${dlg === null ? 'no card' : '"' + dlg + '"'})`);
+  await ctx.close();
+}
+{
+  // Outdoors a lamp is not a pretend-night switch — this is a Boo House feature.
+  const { ctx, page } = await open(SAVE({ town: { areas: withItems({ meadow: [P('meadow', 'deco_lamppost', 0.12)] }), nextId: 900 } }), { area: 'meadow', hour: 15 });
+  await tapItem(page, 'deco_lamppost');
+  await sleep(600);
+  const dlg = await page.evaluate(() => { const h = document.querySelector('.card.dialog h2'); return h ? h.textContent : null; });
+  assert(dlg !== 'Make it night-time in here?', 'outdoors, a lamp does not offer to make it night');
+  await ctx.close();
+}
+
+// ============================================================================
 // E13 — acknowledgement wave two
 // ============================================================================
 console.log('\n== E13: the town notices ==');

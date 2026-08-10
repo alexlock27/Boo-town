@@ -14,7 +14,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E4 | Playground — tag, ring-a-roses, notice poster | **DONE** (15/15) |
 | E5 | Meadow — signpost (shared Today card) | **DONE** (7/7) |
 | E6 | Funfair — fair day (Saturday) | **DONE** (19/19) |
-| E7 | Boo House — pretend-night lamp | TODO |
+| E7 | Boo House — pretend-night lamp | **DONE** (18/18) |
 | E8 | Gallery — three pins + Featured Wall | TODO |
 | E9 | Surfaces wave two (mantelpiece, windowsills, 3 smalls; consider outdoor parent) | TODO |
 | E10 | Outdoor hang points (lantern, bunting swags) | TODO |
@@ -150,6 +150,28 @@ candidates received NO personality multiplier at all; `personalityMult` was appl
 visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier to the zone-candidate
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
+
+**DEV-31 · E7 "fairy-lights glow".** Pack said → they glow during the pretend night, and its own
+acceptance scene is the KITCHEN. What was true → fairy lights are a BEDROOM-only built-in; the
+kitchen has a window, a sink and a shelf. What I did → implemented it as "where the room has them"
+(the bedroom), and the kitchen's pretend night shows the dim, the starry window and the lit lamps.
+Inventing a kitchen fairy-light to satisfy the sentence would have been scope invention.
+
+**DEV-32 · E7 "nap likelihood tripled".** `NAP_CHANCE` is 0.5, so ×3 saturates at certainty. During
+a pretend night indoors, a qualifying pause always considers the bed — which IS min(1, 3×0.5),
+stated plainly rather than dressed up as a multiplier.
+
+**DEV-33 · E7 "one pretend-night at a time" and leaving mid-dusk.** The pack does not say what
+happens if she leaves the room and comes back inside the 90 seconds. DECIDED: it is still dusk in
+there, for the REMAINDER, and it still ends with "Morning again!". The alternative (ending it
+silently on unmount) contradicts the pack's own "auto-ends at 90s with the line". The record is
+module-scoped with a wall-clock deadline; the mount that finds it re-arms the remainder, and the
+per-mount timer is cleared on unmount.
+
+**DEV-34 · E7 the dim needed a transition.** Nothing eased the room's night filter — the class is
+normally set before first paint, so no one had needed one. Without it a pretend night SNAPS. Added
+`transition: filter 1.2s` to `.t-dressing` (authored night values untouched) with a reduced-motion
+path.
 
 **DEV-25 · E3 "+1 ✨ fly to the stardust count".** Pack said → fly to the count. What was true →
 there IS no stardust count on the town screen (the only visible one is on the collection screen),
@@ -326,6 +348,12 @@ parented there is wiped by the next one.
 | `r13bt8-town-dressing` (@serial; beach scenery census) | PASS (52) | ~90s |
 | `r17x4-whatsnew` (deploy gate: every route resolves) | PASS (116) | ~95s |
 | `r18a-buildstamp` | PASS (8) | ~15s |
+| `r21e-jobs` (all eight packets) | PASS 135/135 | ~75s |
+| `r10p4-interiors` | PASS (40) | ~50s |
+| `r13t4-furniture` | PASS (37) | ~50s |
+| `r13bt7-room-identity` | PASS (40) | ~55s |
+| `r13t3-house-rooms` | PASS (56) | ~70s |
+| `r19z3-moments` | **PRE-EXISTING FAIL, proved not mine** — one pillow-clearance assertion (`eyes 456, pillow 460`). Identical on two runs, identical with my working files stashed, and **identical on a pristine `main` checkout served on its own port**. Logged to `BLOCKED.md` with the repro. 36 other assertions pass. | ~90s each |
 | `r19z5-nouns` | FLAKE then PASS (53). One run failed the Sprinkle hint assertion because the hint bar had been overwritten — pre-existing contention (`updateHint`, the hider chance at ~0.9s and the pulse invitation at ~9s all write that one bar); E13 writes no hints at all. Proved by running it with my `js/town.js` stashed (PASS) and again with it restored (PASS). | ~2m each |
 
 ## Stale pins re-pointed (never weakened)
