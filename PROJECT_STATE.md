@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21e-20260810` (sw.js; 159 precached assets)
+- BUILD_STAMP: `run21e-20260810` (sw.js; 160 precached assets)
 - SAVE VERSION: 24 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)
@@ -24,14 +24,14 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - `boohouse` — The Boo House (interior)
 - `gallery` — The Gallery (interior)
 
-## Catalogue — 156 items by kind (data/catalogue.js)
+## Catalogue — 161 items by kind (data/catalogue.js)
 
 - accessory: 34
 - boo: 44
 - deco: 27
-- furniture: 36
-- landscape: 12
-- path: 3
+- furniture: 38
+- landscape: 14
+- path: 4
 
 ## Content counts
 
@@ -277,7 +277,8 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 - RUN21B-PROGRESS.md: ## BLOCKED
 - RUN21E-PROGRESS.md: | F9 | Voice: VOICE still HELD → SKIPPED-GATED | GATED |
 - RUN21E-PROGRESS.md: | `r19z3-moments` | **PRE-EXISTING FAIL, proved not mine** — one pillow-clearance assertion (`eyes 456, pillow 460`). Identical on two runs, identical with my working files stashed, and **identical on a pristine `main` checkout served on its own port**. Logged to `BLOCKED.md` with the repro. 36 other assertions pass. | ~90s each |
-- RUN21E-PROGRESS.md: PICK-UP-HERE.md, BLOCKED.md. Key collisions: no buildMode (use `worldSoftened()`); pan only via
+- RUN21E-PROGRESS.md: and recorded (six DECISION blocks above). F9 stays SKIPPED-GATED because `NEEDS_ALEX.md` says
+- RUN21E-PROGRESS.md: **One pre-existing failure is logged to `BLOCKED.md`** (`r19z3-moments`, a 4px pillow clearance),
 - RUN21F-PROGRESS.md: - [ ] F8 — SKIPPED-GATED: NEEDS_ALEX.md lacks `LEITMOTIFS: APPROVED-TO-COMPOSE`
 - RUN21F-PROGRESS.md: - [ ] F9 — SKIPPED-GATED: lacks `VOICE: APPROVED · BUDGET: <MB>`
 - RUN21F2-PROGRESS.md: SKIPPED-GATED (NEEDS_ALEX.md lacks their approval lines). Nothing else in the pack is
