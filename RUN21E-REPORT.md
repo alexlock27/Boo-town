@@ -1,8 +1,10 @@
 # RUN21E — "Every Area a Job"
 
 Branch `run21e`, cut from `main@22b8d40` (`run21f-20260804`). Ships under **`run21e-20260810`**.
-Save stays at **VERSION 24** — every key this run adds is additive with a safe default, and
-`deepDefaults()` backfills them on load. No migration step was written and none is needed.
+Save stays at **VERSION 24** — every key this run adds is additive with a safe default. Two are
+declared in `freshSave()` and so are genuinely backfilled on load; three sit under `seen`/
+`delights` and are safe because every read site guards. No migration step was written and none is
+needed. (See "Save" below — the first draft of this line claimed one mechanism for all five.)
 
 **Not merged, not deployed.** The lane's standing override suspends "push to main / fetch the
 live URL"; everything else in the deploy gate was done on the branch. The maintainer merges.
