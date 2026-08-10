@@ -3112,23 +3112,28 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   color: rgba(255,255,255,.78);
   font: 700 12px var(--font-display);
 }
-.band-lane-marker {
+/* RUN21G item 1: the ✨ target lives ON the wanted key (below), not in the lane — the lane
+   is now the song readout: name (left) · next three notes (centre) · progress (right).
+   No transform positioning on these spans: cel-tick animates transform, and a transform
+   position would be clobbered mid-pulse (the exact defect the old lane marker had). */
+.band-lane-next {
   position: absolute;
-  bottom: 5px;
-  transform: translateX(-50%);
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(255,201,60,.22);
-  box-shadow: 0 0 0 2px var(--star), 0 0 16px rgba(255,201,60,.65);
-  font-size: 24px;
-  bottom: 4px;
-  animation: bandLaneFall .9s ease-out both;
+  left: 0;
+  right: 0;
+  top: 36px;
+  text-align: center;
+  font: 700 12px var(--font-display);
+  color: rgba(255,255,255,.62);
+  white-space: nowrap;
+  pointer-events: none;
 }
-/* transform-only (house law): the lane sparkle falls via translateY, not `bottom`. */
-@keyframes bandLaneFall { from { transform: translateY(-42px); opacity: .3; } to { transform: translateY(0); opacity: 1; } }
+.band-lane-count {
+  position: absolute;
+  right: 12px;
+  top: 7px;
+  color: #fff;
+  font: 700 13px var(--font-display);
+}
 .band-playfield {
   flex: 1 1 auto;
   min-height: 260px;
@@ -3147,6 +3152,11 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   color: #fff;
   font: 700 14px var(--font-display);
 }
+/* RUN21G item 2: the completion moment lives in the status row — the line plus two chips.
+   Chips are house .btn.soft (min tap size comes from .btn); only the padding compacts so
+   the playfield keeps its space. */
+.band-scene-status .btn { padding: 8px 16px; font-size: 16px; margin: 6px 5px 0; }
+.band-done-line { display: block; }
 .p6-drum-kit {
   width: min(100%, 680px);
   height: 100%;
@@ -3193,6 +3203,32 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   touch-action: none;
 }
 .p6-key.down { background: #FFF0A8; transform: translateY(5px); }
+/* RUN21G item 1: the wanted key wears the target itself — soft halo on the key, ✨ badge
+   pulsing above it. Centred by construction (left 50% of the key), so it cannot drift. */
+.p6-key.wanted { box-shadow: inset 0 -10px 0 #D9D1E8, 0 0 0 3px var(--star); }
+.p6-key.wanted::after,
+.p6-chord.wanted::after {
+  content: '✨';
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px rgba(255,201,60,.9));
+  animation: r21gWantPulse 1.1s ease-in-out infinite;
+}
+@keyframes r21gWantPulse { 50% { transform: translateX(-50%) scale(1.22); } }
+/* RUN21G item 4: the same target on a chord pad. The pads stack vertically with an 8px
+   gap, so the keys' `top: -34px` would land the badge on the pad ABOVE — it sits inside
+   the pad's own reserved top strip instead, same glyph, same pulse, same halo. */
+.p6-chord { position: relative; }
+.p6-chord.wanted { box-shadow: 0 0 0 3px var(--star); }
+.p6-chord.wanted.sel { box-shadow: 0 0 0 3px #fff, 0 0 0 7px var(--star); }
+.p6-chord-column.playalong .p6-chord { padding-top: 30px; }
+.p6-chord-column.playalong .p6-chord.wanted::after { top: 3px; }
+/* the ✨ badge rises above the keys' top edge; only the keys scene may let it out of the
+   playfield box (drums/xylo keep their clip) */
+.inst-keys .band-playfield { overflow: visible; }
 .p6-key-note {
   position: absolute;
   bottom: 13px;
@@ -3211,22 +3247,38 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   font: 800 22px var(--font-display);
 }
 .p6-chord.sel { background: var(--star); box-shadow: 0 0 0 3px #fff; }
-.p6-strum-zone {
+/* RUN21G item 3: four real strings fill the old strum zone's space. A warm sticker-style
+   body plate (the ink strokes need a light backdrop on this dark scene); each string row
+   is a ≥64px thumb-band; the SVG line keeps its authored px stroke via
+   vector-effect: non-scaling-stroke. */
+.p6-strings {
+  display: grid;
+  grid-template-rows: repeat(4, minmax(64px, 1fr));
+  align-items: stretch;
   border: 4px solid var(--ink);
   border-radius: 28px;
-  background: linear-gradient(100deg, #A94FD6, #E0559E);   /* G7: white STRUM needs 3:1 at the light end */
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  background: linear-gradient(160deg, #FFF3E2, #FFDFB8);
+  padding: 8px 6px;
   touch-action: none;
   user-select: none;
-  font: 800 clamp(22px, 5vw, 44px) var(--font-display);
 }
-.p6-strum-arrow { font-size: clamp(70px, 15vh, 130px); line-height: .8; }
-.p6-strum-zone.strummed { animation: p6Strum .18s ease; }
-@keyframes p6Strum { 50% { filter: brightness(1.35); transform: scale(.98); } }
+.p6-string {
+  position: relative;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;   /* authored per-string as well as on the container */
+}
+.p6-string svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+/* the core line's flash rides a TRANSITION, not an animation: the app-wide reduced-motion
+   rule (`* { animation: none !important }`, top of this file) silences every animation,
+   so an animation-based reduced path would be inert. The transition survives it. */
+.p6-string-core { opacity: .5; transition: opacity 160ms ease; }
+/* transform-only wiggle per pluck; reduced motion trades it for a brightness flash on
+   the core line (a colour pulse, which is what the reduced path is allowed to be) */
+.p6-string.plucked svg { animation: r21gStringWiggle 160ms ease; }
+@keyframes r21gStringWiggle { 25% { transform: translateY(2px); } 75% { transform: translateY(-2px); } }
 .p6-xylo-bars {
   width: min(100%, 780px);
   height: 100%;
@@ -3330,7 +3382,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .band-scene-header { grid-template-columns: 48px minmax(0,1fr) auto; gap: 5px; }
   .band-scene-header .band-header-spacer { display: none; }
   .band-scene-header h2 { font-size: 20px; }
-  .inst-keys .band-scene-header {
+  /* RUN21G: any scene carrying the play-along toggle needs the two-row header, not just
+     the keys — the guitar carries it in strum-along, and keying this off `.inst-keys`
+     left the chip squeezed into the top row where the Boo overlapped and clipped it. */
+  .has-toggle .band-scene-header {
     height: 98px;
     flex: 0 0 98px;
     grid-template-rows: 52px 38px;
@@ -3346,9 +3401,18 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .band-jam-sparkline { width: 180px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .band-room-bopper, .band-record-circle.recording, .band-lane-marker,
-  .band-scene-performer.played, .p6-drum-pad.hit, .p6-strum-zone.strummed,
+  .band-room-bopper, .band-record-circle.recording,
+  .band-scene-performer.played, .p6-drum-pad.hit,
   .band-jam-delete.holding { animation: none; }
+  /* RUN21G: the wanted control's halo alone marks the target when motion is reduced.
+     Named explicitly because the app-wide `*` rule at the top of this file does not
+     match pseudo-elements — measured: without this the badge kept pulsing. */
+  .p6-key.wanted::after,
+  .p6-chord.wanted::after { animation: none; }
+  /* RUN21G item 3: the pluck wiggle becomes a 160ms brightness flash on the core line
+     (opacity transition; the class comes off 160ms after the pluck) */
+  .p6-string.plucked svg { animation: none; }
+  .p6-string.plucked .p6-string-core { opacity: 1; }
 }
 
 /* RUN10 P18 — Funfair Disco Hall */

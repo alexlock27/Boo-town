@@ -43,7 +43,7 @@ console.log('== Instrument scenes: hit reaction and zero interactive overlap =='
 for (const [route, selector] of [
   ['band-drums', '.p6-drum-pad'],
   ['band-keys', '.p6-key'],
-  ['band-guitar', '.p6-strum-zone'],
+  ['band-guitar', '.p6-string'],   // RUN21G item 3: the strum zone became four real strings
   ['band-xylophone', '.p6-xylo-bar']
 ]) {
   const { ctx, page } = await pageAt(1024, 768);

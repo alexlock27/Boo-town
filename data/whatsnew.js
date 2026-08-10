@@ -21,6 +21,16 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21G. TWO entries — the cap for this run. Item 4's strum-along gets no entry of its
+  // own: the songs screen's new "Strum it 🎸" button is discovery enough, and the guitar
+  // entry below already tells her the strings are the thing to go and touch.
+  {
+    version: 'run21g-20260810',
+    entries: [
+      { icon: '🎸', title: 'The guitar has real strings now', blurb: 'Run your finger across them! Strum down, strum up, fast or gentle — every string sings on its own. The chord buttons change their tune.', route: 'band-guitar' },
+      { icon: '✨', title: 'Follow the sparkle to play a whole song', blurb: 'Pick a song and the sparkle sits right on the next key. Press it and it hops along — play every note and see what happens!', route: 'band-songs' }
+    ]
+  },
   // RUN21E "Every Area a Job". Every area got something to DO that it did not have before,
   // so every entry here names a place and a thing to try there. The Notice Post and the
   // Playground poster share one entry because they show the same card. Nothing here needs a

@@ -271,5 +271,8 @@ export const LINES = {
   wishMapX: ["X marks the spot… somewhere!"],
   wishKey: ["What might it open?"],
   wishFoodNoBoo: ["Pop a Boo nearby first!"],
-  wishChefYum: ["Delicious!"]
+  wishChefYum: ["Delicious!"],
+
+  // ---- RUN21G item 2: finishing a whole play-along song is a witnessed moment --------
+  L_BAND_SONGDONE: ["A whole song! The Boos want an encore!", "You played every single note. Star musician!"]
 };

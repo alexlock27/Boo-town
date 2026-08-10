@@ -120,6 +120,13 @@ const FIXTURES = {
   ],
   'band-drums': [["record mode", "({ record: true })"]],
   'band-keys': [["a song", "({ song: 'twinkle' })"]],
+  // RUN21G item 4: the songs screen's "Strum it 🎸" deep-links a Hit into the guitar.
+  // Driven with a Hit (a progression is what puts the guitar into strum-along) AND with a
+  // Little Boo Song, which has none and must fall back to free play rather than throw.
+  'band-guitar': [
+    ["a Hit to strum along to", "({ song: 'golden' })"],
+    ["a song with no progression falls back to free play", "({ song: 'twinkle' })"]
+  ],
   booroll: [["resume a course", "({ resume: { course: 'c1' } })"]],
   // RUN18E L1: the Toddler hub's restricted doors into Sound Sorter / Story Order.
   soundsorter: [["the Toddler door (initial sounds only)", "({ toddler: true })"]],

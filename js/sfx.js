@@ -526,12 +526,20 @@ export const DRUM_PADS = ['kick', 'snare', 'hihat', 'cymbal', 'tom1', 'tom2'];
 export const KEY_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];   // ten white keys C4→E5
 const CHORD = { C: [0, 4, 7, 12], G: [7, 11, 14, 19], Am: [9, 12, 16, 21], F: [5, 9, 12, 17] };
 export const GUITAR_CHORDS = ['C', 'G', 'Am', 'F'];
+export const GUITAR_CHORD_NOTES = CHORD;   // RUN21G: the strings retune to these (low→high)
 // Xylophone (RUN9 C6): eight rainbow bars, a C-major scale, a bright bell-like tone.
 export const XYLO_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12];   // C D E F G A B C'
 export const band = {
   drum(pad, { time, vel = 1 } = {}) { play(t => { (DRUMS[pad] || DRUMS.kick)(time !== undefined ? time : t, vel); logEvent({ kind: 'note', t: time !== undefined ? time : t, freq: 0, dur: 0.2, bus: 'sfx', tag: 'drum:' + pad }); }); },
   key(semi, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; const f = 261.63 * Math.pow(2, semi / 12); envTone(f, rt, 0.9, 'triangle', 0.30 * vel, sfxGain, 'key'); envTone(f * 2, rt, 0.5, 'sine', 0.09 * vel, sfxGain, 'key'); }); },
   guitar(chord, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; (CHORD[chord] || CHORD.C).forEach((s, i) => envTone(196 * Math.pow(2, s / 12), rt + i * 0.06, 0.7, 'sawtooth', 0.13 * vel, sfxGain, 'guitar:' + chord)); }); },
+  // RUN21G: one plucked string — same 196Hz base and sawtooth family as guitar(), so
+  // plucks and legacy chords are one instrument to the ear.
+  pluck(semi, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t;
+    const f = 196 * Math.pow(2, semi / 12);
+    envTone(f, rt, 0.65, 'sawtooth', 0.16 * vel, sfxGain, 'pluck:' + semi);
+    envTone(f * 2, rt + 0.004, 0.28, 'triangle', 0.05 * vel, sfxGain, 'pluck:' + semi);
+  }); },
   // bright bell-like mallet tone: a high sine fundamental + an octave shimmer, quick decay
   xylo(idx, { time, vel = 1 } = {}) { play(t => { const rt = time !== undefined ? time : t; const semi = XYLO_SEMIS[idx % XYLO_SEMIS.length]; const f = 523.25 * Math.pow(2, semi / 12); envTone(f, rt, 0.55, 'sine', 0.30 * vel, sfxGain, 'xylo'); envTone(f * 2, rt + 0.005, 0.30 * vel, 'sine', 0.10 * vel, sfxGain, 'xylo'); envTone(f * 3, rt + 0.005, 0.15, 'triangle', 0.05 * vel, sfxGain, 'xylo'); }); }
 };

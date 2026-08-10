@@ -86,6 +86,7 @@ function playEvent(ev) {
   if (ev.i === 'drum') voices.drum(ev.v);
   else if (ev.i === 'key') voices.key(ev.v);
   else if (ev.i === 'guitar') voices.guitar(ev.v);
+  else if (ev.i === 'pluck') voices.pluck(ev.v);  // one guitar string (RUN21G item 3)
   else if (ev.i === 'xylo') voices.xylo(ev.v);   // xylophone (RUN9 C6)
 }
 // A jam may be stored as a flat { events } (RUN6) or as multitrack { layers:[{instrument,
