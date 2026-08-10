@@ -98,20 +98,23 @@ assert(afterDash.plays === beforeDash.plays + 1 && afterDash.total > beforeDash.
 
 // bonk path: a wrong gate bonks, same fact stays, hearts never end (bonks tracked).
 // (run-up-and-wait: taps only land while WAITING at the gates, so wait for that phase.)
+// RUN18B Y7 removed the hearts ROW from every tier (it counted down while the round carried
+// on regardless); shell.dimHeart() survives as an internal counter only. So the guarantee
+// here is the Y7 one: the bonk is tracked, and no heart UI is ever drawn to count down.
 await enterDash();
 const bonkTest = await page.evaluate(async () => {
   const D = window.__dash; const sleep = ms => new Promise(r => setTimeout(r, ms));
   let g = 0; while (D.state().phase !== 'wait' && g++ < 40) await sleep(100);
-  const heartsBefore = document.querySelectorAll('.heart-ic.on').length;
+  const heartsBefore = document.querySelectorAll('.heart-ic, .hearts-row').length;
   const q0 = D.correct();
   D.tap(false); await sleep(250);   // wrong gate
   const st = D.state();
-  const heartsAfter = document.querySelectorAll('.heart-ic.on').length;
+  const heartsAfter = document.querySelectorAll('.heart-ic, .hearts-row').length;
   const sameFact = D.correct() === q0;   // the same question stays
   return { bonks: st.bonks, gate: st.gate, sameFact, heartsBefore, heartsAfter, phase: st.phase };
 });
 assert(bonkTest.bonks === 1 && bonkTest.gate === 0, 'a wrong arch is a soft bonk that does not advance the gate');
-assert(bonkTest.heartsAfter === bonkTest.heartsBefore - 1, 'a wrong tap dims a heart (' + bonkTest.heartsBefore + ' -> ' + bonkTest.heartsAfter + ')');
+assert(bonkTest.heartsBefore === 0 && bonkTest.heartsAfter === 0, 'no hearts row is ever drawn — RUN18B Y7 (' + bonkTest.heartsBefore + '/' + bonkTest.heartsAfter + ' heart nodes)');
 assert(bonkTest.phase === 'wait', 'after a bonk the world stays stopped at the same gates');
 assert(bonkTest.sameFact, 'the same fact re-approaches after a bonk');
 
