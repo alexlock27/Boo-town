@@ -146,7 +146,9 @@ export const LINES = {
   L_AREA_FULL: ["This spot's bursting! Try another area?"],
 
   // ---- Run 10 P3 additions (Town 4.0: build mode, paths, landscape, fishing) ----
-  L_PATH_FULL: ["That's a LOT of path! Erase some to lay more."],
+  // RUN21E (sanctioned by the RUN21C report): the Erase tool is gone — painting over a
+  // path sweeps it away — so the line names the verb the control actually has.
+  L_PATH_FULL: ["That's a LOT of path! Paint over some to lay more."],
 
   // ---- Run 10 P4 additions (Interiors: the Boo House and the Gallery) ----
   // Superseded L_LANDSCAPE_OUTDOORS — the packet's own general-purpose line now covers

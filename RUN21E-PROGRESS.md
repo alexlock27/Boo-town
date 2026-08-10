@@ -23,8 +23,8 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E13 | Acknowledgement wave two (3 ack lines) | TODO |
 | E14 | Photo mode → postcards | TODO |
 | E15 | Per-area growth tracks | TODO |
-| H1 | Verify pumpWishIdles re-pointed to !softened (C report note 2) | TODO |
-| H2 | L_PATH_FULL "Erase some to lay more" fix (sanctioned) | TODO |
+| H1 | Verify pumpWishIdles re-pointed to !softened (C report note 2) | DONE (verified) |
+| H2 | L_PATH_FULL "Erase some to lay more" fix (sanctioned) | DONE |
 | H3 | B1 APPROVED: bias maybePickBehaviour goals toward path runs + 90s observation | TODO |
 | H4 | D's debt: playground Pulse invitation → `Someone fancies a game of tag…` (after E4) | TODO |
 | F8 | Leitmotifs: APPROVED-TO-COMPOSE — compose 5 loops + audition tool; shipping GATED on SIGNED-OFF | TODO |
@@ -34,6 +34,20 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 - `LEITMOTIFS: APPROVED-TO-COMPOSE` (line 404) — compose allowed, ship gated on SIGNED-OFF.
 - `B1: APPROVED — bias goal destinations toward path runs; restore the What's New entry only if the 90s observation passes` (405).
 - `VOICE: still HELD` (409) — F9 stays gated.
+
+## Evidence — handover items
+
+**H1 (pumpWishIdles) — VERIFIED, no change needed.** `js/town.js:6117`:
+`const wishIdleTimer = setInterval(() => { if (!document.hidden && !softened) pumpWishIdles(); }, 2000);`
+with the RUN21C merge comment directly above (lines 6114–6116) and the cross-run note at 590–593.
+The gate reads `softened` (kept current by `updateSoftened()` ← `worldSoftened()` = drawer open ‖
+chip held ‖ pot held), exactly what the C report required. Cleanup clears the timer (6560).
+
+**H2 (L_PATH_FULL) — DONE.** `data/guideLines.js:149`:
+before `"That's a LOT of path! Erase some to lay more."` →
+after `"That's a LOT of path! Paint over some to lay more."` — names the verb the control has
+(painting over sweeps away, per PATH_POT_HINT). `tests/r10p3-buildmode.mjs:264` asserts
+`/LOT of path/i`, which still matches; suite re-verified at the E-area packet gate.
 
 ## Decisions (governance §1 format)
 (none yet)
