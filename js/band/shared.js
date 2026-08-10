@@ -10,6 +10,7 @@ import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, XYLO_S
 import { idbGet, idbPut } from '../idb.js';
 import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../../data/songs.js';
 import { bandTrio, jamEvents, startBandWatch, listJams, MAX_JAMS } from '../band.js';
+import { beatTick } from '../celebrate.js';
 
 export const INSTRUMENTS = {
   drums: { route: 'band-drums', label: 'Drums', icon: '🥁', event: 'drum', role: 'drummer' },
@@ -98,6 +99,8 @@ export function mountInstrument(container, params, ctx, instrument) {
   let song = params && params.song ? SONGS.find(s => s.id === params.song) : null;
   let wantedKeys = songKeys(song);
   let songPos = 0;
+  let countEl = null;      // the lane's progress readout (beat 3 pulses it on every advance)
+  let keysRow = null;      // set by renderKeys; updateWanted() moves the ✨ between its children
   let recording = false;
   let recordStart = 0;
   let pass = [];
@@ -182,19 +185,35 @@ export function mountInstrument(container, params, ctx, instrument) {
     status.textContent = `Saved ${existingJam.layers.length} layer${existingJam.layers.length === 1 ? '' : 's'} — find it in My Jams!`;
   }
 
+  // RUN21G item 1: the lane no longer pretends to know the keys' geometry — the ✨ target
+  // lives on the wanted key itself (renderKeys). The lane is the song's readout instead:
+  // name · the next three note letters · progress count.
   function renderLane() {
     clear(lane);
+    countEl = null;
     lane.classList.toggle('active', !!(song && wantedKeys.length));
     if (!song || !wantedKeys.length) {
       lane.appendChild(el('span', { class: 'band-lane-empty', text: 'Choose a song for press-paced sparkles' }));
       return;
     }
-    const idx = wantedKeys[songPos];
-    const marker = el('span', { class: 'band-lane-marker', text: '✨', style: { left: `${(idx + 0.5) * 10}%` } });
+    const peek = wantedKeys.slice(songPos, songPos + 3).map(i => KEY_NAMES[i]).join(' · ');
+    countEl = el('span', { class: 'band-lane-count', text: `✨ ${Math.min(songPos + 1, wantedKeys.length)} of ${wantedKeys.length}` });
     lane.append(
       el('span', { class: 'band-lane-song', text: song.name }),
-      marker
+      el('span', { class: 'band-lane-next', text: peek }),
+      countEl
     );
+  }
+
+  // The wanted key carries the target: class `wanted` puts the ✨ badge and halo on the
+  // key button itself, so the sparkle's centre IS the key's centre at every viewport.
+  function updateWanted() {
+    if (!keysRow) return;
+    [...keysRow.children].forEach(k => k.classList.remove('wanted'));
+    if (song && wantedKeys.length && songPos < wantedKeys.length) {
+      const k = keysRow.children[wantedKeys[songPos]];
+      if (k) k.classList.add('wanted');
+    }
   }
 
   function renderPlayfield() {
@@ -222,6 +241,7 @@ export function mountInstrument(container, params, ctx, instrument) {
 
   function renderKeys() {
     const row = el('div', { class: 'p6-keys-row' });
+    keysRow = row;
     KEY_SEMIS.forEach((semi, idx) => {
       const key = el('button', { class: 'p6-key', dataset: { idx: String(idx) } }, [
         el('span', { class: 'p6-key-note', text: KEY_NAMES[idx] })
@@ -232,14 +252,19 @@ export function mountInstrument(container, params, ctx, instrument) {
         hit('key', semi);
         key.classList.remove('down'); void key.offsetWidth; key.classList.add('down');
         setTimeout(() => key.classList.remove('down'), 150);
+        // Free play is never wrong: a non-wanted key plays exactly as above and the
+        // sparkle simply waits (no-guilt law). Only the wanted key advances the song.
         if (song && wantedKeys[songPos] === idx) {
           songPos = (songPos + 1) % wantedKeys.length;
           renderLane();
+          updateWanted();
+          beatTick(countEl);   // legible even when the same note repeats and the ✨ stays put
         }
       });
       row.appendChild(key);
     });
     playfield.appendChild(row);
+    updateWanted();
   }
 
   function renderGuitar() {
