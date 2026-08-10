@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boo Town — leitmotif audition (RUN21F F8)</title>
+<!--
+  LOCAL-ONLY dev tool. Never linked from the app, never in sw.js ASSETS[].
+  Serve the repo locally and open this page:
+      python scripts/serve.py 8042
+      http://127.0.0.1:8042/tools/leitmotif-audition.html
+  (ES module imports need a server; file:// will not work. No network is touched —
+   everything imports from this repo.)
+
+  It plays each area's 8-bar loop through the REAL engine — js/sfx.js's leitmotif
+  scheduler on the music bus — so what you hear is exactly what the game plays,
+  at the game's own music volume. Turn your speakers up a little; the in-game
+  music level is deliberately gentle.
+-->
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #2A1B4E; color: #FFF7EC;
+    min-height: 100vh; padding: 24px;
+  }
+  header { max-width: 880px; margin: 0 auto 18px; }
+  h1 { font-size: 1.5rem; margin-bottom: 6px; }
+  header p { color: #C6A9F0; font-size: .92rem; line-height: 1.45; }
+  .cards { max-width: 880px; margin: 0 auto; display: grid; gap: 14px; }
+  .card {
+    background: #3A2A63; border-radius: 16px; padding: 16px 18px;
+    border: 2px solid transparent; transition: border-color .25s;
+  }
+  .card.playing { border-color: #FFC93C; }
+  .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .card h2 { font-size: 1.12rem; }
+  .card h2 small { color: #C6A9F0; font-weight: normal; font-size: .8rem; margin-left: 8px; }
+  .meta { color: #C6A9F0; font-size: .82rem; margin-top: 2px; }
+  button {
+    font: inherit; border: 0; border-radius: 999px; padding: 10px 22px;
+    background: #FFC93C; color: #2A1B4E; font-weight: 700; cursor: pointer;
+    min-width: 96px; min-height: 44px; margin-left: auto;
+  }
+  button.stop { background: #FF7AC6; }
+  .roll { margin-top: 12px; background: #2A1B4E; border-radius: 10px; overflow: hidden; position: relative; }
+  .roll svg { display: block; width: 100%; height: 96px; }
+  .playhead {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
+    background: #FFC93C; opacity: 0; pointer-events: none;
+  }
+  .playing .playhead { opacity: .9; animation: sweep var(--loop-s) linear infinite; }
+  @keyframes sweep { from { left: 0; } to { left: 100%; } }
+  .legend { color: #C6A9F0; font-size: .78rem; margin-top: 8px; }
+  .legend b { font-weight: 600; }
+  .lead-dot, .pad-dot, .bass-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 10px; vertical-align: -1px; }
+  .lead-dot { background: #FFC93C; } .pad-dot { background: #8FC7FF; } .bass-dot { background: #FF7AC6; }
+  footer { max-width: 880px; margin: 22px auto 0; color: #C6A9F0; font-size: .82rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Region leitmotifs — audition</h1>
+  <p>Five original 8-bar loops, one per outdoor area, played by the real in-game engine at the real
+     in-game music level (it is deliberately gentle — nudge your volume up). Pentatonic major,
+     76–92&nbsp;bpm, at most three voices, Web&nbsp;Audio synthesis only. Each loops seamlessly until
+     you stop it; only one plays at a time, exactly as in the game.</p>
+</header>
+<div class="cards" id="cards"></div>
+<footer>
+  <b>Sign-off gate:</b> F8 does not merge until NEEDS_ALEX.md gains <code>LEITMOTIFS: SIGNED-OFF</code>.
+  Rows: <span class="lead-dot"></span><b>lead</b> (triangle, the tune)
+  <span class="pad-dot"></span><b>pad</b> (sine, the warmth)
+  <span class="bass-dot"></span><b>bass</b> (low triangle, the floor).
+</footer>
+<script type="module">
+  import { LEITMOTIFS } from '../data/leitmotifs.js';
+  import { initAudio, setMusicEnabled, music } from '../js/sfx.js';
+
+  const NICE = { meadow: 'The Meadow', riverside: 'Riverside', hilltop: 'Hilltop', beach: 'Sunny Beach', playground: 'The Playground' };
+  const VOICE_FILL = { lead: '#FFC93C', pad: '#8FC7FF', bass: '#FF7AC6' };
+  const cards = document.getElementById('cards');
+  let playing = null;
+
+  function rollSvg(spec) {
+    const vs = spec.events.map(e => e.v);
+    const lo = Math.min(...vs) - 1, hi = Math.max(...vs) + 1;
+    const W = 640, H = 96;
+    const x = t => (t / spec.durMs) * W;
+    const y = v => H - ((v - lo) / (hi - lo)) * (H - 10) - 5;
+    const bars = Array.from({ length: 8 }, (_, i) =>
+      `<line x1="${(i * W / 8).toFixed(1)}" y1="0" x2="${(i * W / 8).toFixed(1)}" y2="${H}" stroke="#3A2A63" stroke-width="1"/>`).join('');
+    const notes = spec.events.map(e =>
+      `<rect x="${x(e.t).toFixed(1)}" y="${(y(e.v) - 2.5).toFixed(1)}" width="${Math.max(2, x(e.d)).toFixed(1)}" height="5" rx="2" fill="${VOICE_FILL[e.i] || '#FFF'}" opacity="${e.i === 'pad' ? .55 : .95}"/>`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}${notes}</svg>`;
+  }
+
+  function stopAll() {
+    music.stop();
+    if (playing) {
+      playing.card.classList.remove('playing');
+      playing.btn.textContent = '▶ Play';
+      playing.btn.classList.remove('stop');
+      playing = null;
+    }
+  }
+
+  for (const [area, spec] of Object.entries(LEITMOTIFS)) {
+    const voices = [...new Set(spec.events.map(e => e.i))];
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.style.setProperty('--loop-s', (spec.durMs / 1000) + 's');
+    card.innerHTML = `
+      <div class="row">
+        <div>
+          <h2>${NICE[area] || area} <small>“${spec.title}”</small></h2>
+          <div class="meta">${spec.root} major pentatonic · ${spec.bpm} bpm · ${voices.length} voice${voices.length > 1 ? 's' : ''}
+            (${voices.join(' + ')}) · 8 bars ≈ ${(spec.durMs / 1000).toFixed(1)}s · ${spec.events.length} notes</div>
+        </div>
+        <button type="button">▶ Play</button>
+      </div>
+      <div class="roll">${rollSvg(spec)}<div class="playhead"></div></div>`;
+    const btn = card.querySelector('button');
+    btn.addEventListener('click', () => {
+      if (playing && playing.area === area) { stopAll(); return; }
+      stopAll();
+      initAudio();
+      setMusicEnabled(true);
+      music.play('leitmotif:' + area);
+      card.classList.add('playing');
+      btn.textContent = '■ Stop';
+      btn.classList.add('stop');
+      playing = { area, card, btn };
+    });
+    cards.appendChild(card);
+  }
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21h-20260810';  // RUN21H: some animals sound REAL now (seven licence-clean recordings), and the questions across the literacy games make sense and stop repeating.
+const BUILD_STAMP = 'run21f8-20260810';  // RUN21F F8: every outdoor place has its own little tune now.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [
@@ -146,6 +146,7 @@ const ASSETS = [
   'data/spelling.js',
   'data/detective.js',
   'data/songs.js',
+  'data/leitmotifs.js',
   'data/spellingBanks.js',
   'data/phonemes.js',
   'data/blending.js',

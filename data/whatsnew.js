@@ -81,6 +81,17 @@ export const WHATSNEW = [
       { icon: '🎁', title: 'Today in Boo Town', blurb: 'Three little doings every day — play a game, say hello somewhere, look after a Boo — and a parcel arrives in the Meadow just for you.', route: 'hub' }
     ]
   },
+  // RUN21F F8. ONE entry. Five tunes, but a child does not want a list of five — she wants
+  // to be told there is something to notice and where to go and notice it. The Meadow is
+  // the route because it is the one place every save can already reach; the copy names the
+  // others so she knows to listen for them as she goes. Nothing here mentions music
+  // settings: if her music is off, this is simply a thing she has not heard yet.
+  {
+    version: 'run21f8-20260810',
+    entries: [
+      { icon: '🎵', title: 'Every place has its own little tune', blurb: 'Listen! The Meadow potters along, the river ripples, the Hilltop sings long and windy, the Beach sways and the Playground skips.', route: 'town', params: { area: 'meadow' } }
+    ]
+  },
   // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it
   // buys is not: things she puts ON things now travel with them. F6 gets NO entry — it
   // completes the promise RUN21A already made ("a friend can come and look around your
