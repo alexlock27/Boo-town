@@ -21,6 +21,16 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
+  // RUN21G. TWO entries — the cap for this run. Item 4's strum-along gets no entry of its
+  // own: the songs screen's new "Strum it 🎸" button is discovery enough, and the guitar
+  // entry below already tells her the strings are the thing to go and touch.
+  {
+    version: 'run21g-20260810',
+    entries: [
+      { icon: '🎸', title: 'The guitar has real strings now', blurb: 'Run your finger across them! Strum down, strum up, fast or gentle — every string sings on its own. The chord buttons change their tune.', route: 'band-guitar' },
+      { icon: '✨', title: 'Follow the sparkle to play a whole song', blurb: 'Pick a song and the sparkle sits right on the next key. Press it and it hops along — play every note and see what happens!', route: 'band-songs' }
+    ]
+  },
   // RUN21F F5/F6. ONE entry. F5's migration is invisible by design, but the behaviour it
   // buys is not: things she puts ON things now travel with them. F6 gets NO entry — it
   // completes the promise RUN21A already made ("a friend can come and look around your

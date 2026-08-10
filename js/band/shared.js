@@ -224,7 +224,7 @@ export function mountInstrument(container, params, ctx, instrument) {
     countEl = null;
     lane.classList.toggle('active', !!playAlong);
     if (!playAlong) {
-      lane.appendChild(el('span', { class: 'band-lane-empty', text: 'Choose a song for press-paced sparkles' }));
+      lane.appendChild(el('span', { class: 'band-lane-empty', text: 'Pick a song and a sparkle will show you the way!' }));
       return;
     }
     const at = Math.min(songPos + 1, songTotal);

@@ -18,7 +18,9 @@ export function mount(container, params, ctx) {
     el('h2', { text: 'Songs' }),
     el('span', { class: 'band-header-spacer' })
   ]);
-  const intro = el('p', { class: 'band-library-intro', text: 'Hear a little preview, then follow the sparkles on the keys.' });
+  // RUN21G item 5: was "…follow the sparkles on the keys" — the sparkle rides the chord
+  // pads too now, so the line no longer names one instrument.
+  const intro = el('p', { class: 'band-library-intro', text: 'Hear a little preview, then follow the sparkle.' });
   const list = el('div', { class: 'band-song-list' });
   root.append(header, intro, list);
   container.appendChild(root);
