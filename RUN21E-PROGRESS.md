@@ -8,26 +8,26 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 
 | Item | Title | Status |
 |---|---|---|
-| E1 | Riverside — jetty, float sailing, feedable ducks | TODO |
+| E1 | Riverside — jetty, float sailing, feedable ducks | **NOT BUILT** — costed in RUN21E-REPORT.md |
 | E2 | Hilltop — train line, kite rack, rain windmill | **DONE** (17/17) |
 | E3 | Beach — tide, shells, sandcastle persists | **DONE** (19/19) |
 | E4 | Playground — tag, ring-a-roses, notice poster | **DONE** (15/15) |
 | E5 | Meadow — signpost (shared Today card) | **DONE** (7/7) |
 | E6 | Funfair — fair day (Saturday) | **DONE** (19/19) |
 | E7 | Boo House — pretend-night lamp | **DONE** (18/18) |
-| E8 | Gallery — three pins + Featured Wall | TODO |
-| E9 | Surfaces wave two (mantelpiece, windowsills, 3 smalls; consider outdoor parent) | TODO |
+| E8 | Gallery — three pins + Featured Wall | **NOT BUILT** — costed in RUN21E-REPORT.md |
+| E9 | Surfaces wave two (mantelpiece, windowsills, 3 smalls) | **NOT BUILT** — needs new builtin-parent machinery; costed in RUN21E-REPORT.md |
 | E10 | Outdoor hang points (lantern, bunting swags) | **DONE for trees** (9/9); the FENCE half is DEFERRED — see DEV-47 |
 | E11 | Adjacency delights (moth, frog/dragonfly, marshmallows) | **DONE** (15/15) |
 | E12 | Dead-prop amnesty (fridge, oven, bathtub, wardrobe, mirror) | **DONE** (22/22, 18s) |
 | E13 | Acknowledgement wave two (3 ack lines) | **DONE** (11/11) |
-| E14 | Photo mode → postcards | TODO |
+| E14 | Photo mode → postcards | **NOT BUILT** — needs a new town compositor; costed in RUN21E-REPORT.md |
 | E15 | Per-area growth tracks | **DONE** (20/20) |
 | H1 | Verify pumpWishIdles re-pointed to !softened (C report note 2) | DONE (verified) |
 | H2 | L_PATH_FULL "Erase some to lay more" fix (sanctioned) | DONE |
 | H3 | B1 APPROVED: bias maybePickBehaviour goals toward path runs + 90s observation | **DONE — observation PASSES, entry restored** |
 | H4 | D's debt: playground Pulse invitation → `Someone fancies a game of tag…` (after E4) | **DONE** |
-| F8 | Leitmotifs: APPROVED-TO-COMPOSE — compose 5 loops + audition tool; shipping GATED on SIGNED-OFF | TODO |
+| F8 | Leitmotifs: APPROVED-TO-COMPOSE — compose 5 loops + audition tool | **NOT STARTED** (shipping would still need a second `LEITMOTIFS: SIGNED-OFF`) |
 | F9 | Voice: VOICE still HELD → SKIPPED-GATED | GATED |
 
 ## Gate lines observed (NEEDS_ALEX.md, 2026-08-10 block)
