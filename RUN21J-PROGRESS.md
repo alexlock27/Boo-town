@@ -68,15 +68,15 @@ Served from the worktree on **8048**. Board law: affected + core, no full board.
 
 | Suite | Why | Wall | Result |
 |---|---|---|---|
-| `r21j-daily` | this run's ACCEPTs + guards | 44.2s | **PASS** |
+| `r21j-daily` | this run's ACCEPTs + guards + critic pins | 87.3s (178 ✓) | **PASS** |
 | `r8p1-migrations` | core · save v25 | 0.1s | **PASS** |
 | `r12s1-routes` | core · new ceremony params | 122s | **PASS** (294 ✓) |
 | `m3-pwa` | core · sw ASSETS | 3s | **PASS** |
-| `r12s4-contrast` | core · new card + parcel | 143s | **PASS** |
+| `r12s4-contrast` | core · new card + parcel + banner fix | 143s → 139s | **PASS** ×2 |
 | `r18a-copyguard` | core · new authored copy | 15s | **PASS** |
 | `p2-rewards` | results.js changed | 9s | **PASS** |
 | `r4p3-rewards` | results.js changed | 109s | **PASS** |
-| `r12s5-ceremony` | ceremony.js changed | 7s | **PASS** |
+| `r12s5-ceremony` | ceremony.js changed | 7s ✓ / 9s ✗ → 10s ✓ | **PASS** (1 flake) |
 | `r10p12-care` | care.js changed | 11s | **PASS** |
 | `r13t1-care-direct` | care.js changed | 186s | **PASS** |
 | `r13t2-care-discovery` | care.js changed | 28s | **PASS** |
@@ -177,6 +177,93 @@ because the feature adds a new interactive element.
   pattern. · WHY: Playwright's actionability check never sees a perpetually wobbling
   button as "stable" — r12s5-ceremony/run12probe established the pattern; the real tap
   target is verified separately by elementFromPoint hit-test. · REVERSIBLE: test-side.
+
+## INDEPENDENT REVIEW — a cold gate-verifier and a cold playtest critic
+
+Both ran against the branch with fresh context; the critic played it cold without reading
+this ledger. **Between them they found four real defects, two of them mine. All four are
+fixed and pinned.** This is the single most valuable thing that happened tonight and it is
+why the review step exists — every one of the four was invisible to me.
+
+### The critic's four MUST-FIXes — all fixed
+
+1. **The hub card went stale, and lied.** Boo Care opens as an overlay over a
+   *still-mounted* hub, and `createTodayCard` ran once at mount. So she looked after a Boo,
+   was told a parcel had arrived, closed the sheet — and the card underneath still said
+   "Look after a Boo" unticked, with no "Show me!". The announcement and the signpost
+   disagreed at the exact moment the signpost mattered.
+   **Fix:** `tick()` now emits `bootown:dailytick` on any change and the card redraws
+   itself in place; the listener drops itself once the node is detached, so it cannot leak
+   across hub mounts. Pinned: complete a care action from the hub, close it, and the card
+   must show the tick, the authored all-done copy, and the "Show me!".
+2. **The moment was SILENT outside the Meadow.** `onDailyDone` returned early unless
+   `AREA.key === 'meadow'`. Completing the third doing by walking into Riverside — and the
+   Town button lands on the map, so five of the six unlocked areas take this path —
+   produced nothing on screen at all. With voice off (the default) it was completely
+   silent: a gift arrived and she was never told.
+   **Fix:** the bubble now lands in whichever area she is standing in. In the Meadow it
+   sits beside the parcel (`.at-parcel`, measured **43px above it**, tail pointing at it —
+   it used to float in the sky ~200px away); elsewhere it is centred as a signpost, and the
+   authored line already names the Meadow. Pinned across riverside, playground and meadow.
+3. **My care note repeated the pack's authored line verbatim.** The heading I wrote,
+   "All three doings done! 🎁", sat directly above `L_DAILY_DONE` — whose first variant
+   opens with *exactly* those words. Half the time she read the same sentence twice, in the
+   feature's headline moment.
+   **Fix:** the heading is gone; a gift icon carries the moment and the authored line
+   speaks for itself. Pinned by sampling the two-line pool six times.
+4. **The reveal banner was unreadable — and this one was worse than reported.**
+   `dropKind()` returns `boo | accessory | costume | furniture | town`, but the CSS styled
+   `.type-deco`, **a value `dropKind` never returns**. So that rule was dead and three of
+   the five kinds had no background at all: white text on the cream card, measured
+   **1.05:1**. Digging further, `--pop` and `--zing` are *light*, so white-on-them was never
+   AA either — `type-boo`, the most-shown reveal in the entire game, measured **2.37:1**.
+   **Fix:** light pills take dark ink (the pattern `.shiny-banner` in this very file already
+   uses); the dark pills were re-picked to clear the bar with room. Every kind now reads
+   **5.42:1 – 7.97:1** against the AA large-text bar of 3:1 (20px bold uppercase). Pinned by
+   computing the real ratio for every kind the Daily Pool can produce.
+   *Pre-existing and NOT caused by this run* — but this feature routes 20 of its 28 pool
+   items through those three kinds, which is how it finally surfaced.
+
+### The verifier's findings — coverage gaps, all closed
+
+It confirmed the copy **byte-identical** (it `od -c`'d the pack against the shipped strings
+rather than eyeballing glyphs — em dash, U+2026 ellipsis, straight apostrophes, the 🎁
+codepoint), the pool clean against every inventory write site, the seams correct and
+READONLY-guarded, no listener leak, and 5 primary buttons at phone width. Its substantive
+point was **coverage**: three shipped code paths that no test executed.
+
+- `.result-daily-done` (the results-card note) — **now driven**, and asserted to render
+  above the star meter as its own beat.
+- The live `parcel-pop` and the arrival bubble — **now driven**; this is the *witnessing*
+  half of the feature, and "working-but-dead is a FAIL" applies to it most of all.
+- ACCEPT 3's recycle proof was near-tautological (`stillEligible` could not fail) and one
+  assertion (`day === DAY || day === NEXT_DAY`) was a **no-op that passed on either value**.
+  Replaced with a real **negative control**: owning a pool item must remove it, must move
+  the day's pick, and must restore it when un-owned — proving the filter is real, not that
+  the pool never filters.
+- It also noted ACCEPT 1 simulates the spellboo round at the seam rather than playing it.
+  I tried a full playthrough; it cost ~30s and would only prove that *one* game arrives.
+  **DECISION:** replaced with a stronger, cheaper check — read all 15 game modules and
+  require every one to route through `ctx.go('results')`, plus assert `results.js` calls
+  `noteDailyPlay` exactly once. That is the actual claim behind hooking a single seam, and a
+  game that ever grew its own ending now fails loudly instead of silently never ticking.
+
+### Critic suggestions NOT taken, with reasons
+
+- *"The doing rows look tappable and swallow a tap."* Fair, and I left them. The pack is
+  explicit that the card is not a door; adding navigation would make it one, and restyling
+  the rows to look inert is a visual-design call better made in daylight against the rest of
+  the hub. Logged for POLISH, not improvised at 3am.
+- *"Persist an unclaimed parcel through the date roll."* **Deliberately refused.** The
+  parcel being derived from today's doings is exactly what makes the recycle mechanic
+  bookkeeping-free, and persisting the *object* is the first step toward "open it now or
+  lose it" — the precise instinct the feel gate exists to prevent. The item itself is never
+  lost, which is the property that matters.
+- *"Two daily three-task lists on one hub (this, and the pre-existing Quests)."* A real
+  observation and a genuine design question, but merging two features is a pack-level
+  decision, not an executor's. Raised for the morning report.
+- *"Mark the Meadow on the town map while a parcel is due."* Good idea, out of scope
+  tonight (worldmap.js is untouched by this run). Logged for POLISH.
 
 ## FOUND IN PASSING — an OFFLINE LAW violation on `main`, fixed here (one line)
 
