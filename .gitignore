@@ -83,3 +83,7 @@ seed code for testing-alex only.pdf
 
 # RUN21 evidence screenshots (regenerable; referenced from the RUN21*-REPORT files)
 _evidence/
+
+# RUN21J evidence shots + the throwaway shot script (screenshots are evidence, not source)
+_evidence/
+_evidence-shots.mjs

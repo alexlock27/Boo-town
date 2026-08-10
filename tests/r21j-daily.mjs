@@ -32,7 +32,7 @@ const SEED = (o = {}) => ({
   stars: { total: 60, byType: { maths: 20, word: 20, puzzle: 10, creative: 5, lesson: 5 }, byGame: {} },
   care: { bonds: {}, treats: 3 },
   settings: { sound: false, music: false, voice: false, content: 'full' },
-  seen: { whatsnewVersion: 'run21f-20260804', tourDone: true },
+  seen: { whatsnewVersion: 'run21j-STAGED', welcomeTour: true },
   ...o
 });
 
@@ -320,7 +320,7 @@ console.log('== ACCEPT 4: a pre-v25 save loads unchanged ==');
     stars: { total: 140, byGame: { spellboo: { best: 3, plays: 12, earned: 44 } } },
     nicknames: { boo_inky: 'Inks' }, care: { bonds: { boo_inky: 30 }, treats: 2 },
     settings: { sound: false, music: false, voice: false, content: 'full' },
-    seen: { whatsnewVersion: 'run21f-20260804', tourDone: true },
+    seen: { whatsnewVersion: 'run21j-STAGED', welcomeTour: true },
     town: { areas: { meadow: { items: [{ id: 1, zone: 'meadow', x: 0.4, row: 1, item: 'deco_bench' }], paths: [] } }, nextId: 2 }
   };
   const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
@@ -504,6 +504,37 @@ console.log('== the no-guilt guard: nothing streak-shaped exists in the feature 
   await pp.screenshot({ path: 'screenshots/r21j-card-390.png' });
   await phone.close();
   await ctx.close();
+
+  // The parcel is REACHABLE on every viewport (protected core: reachable tap targets).
+  // Four probe points, not one: the Meadow's Wish Well stands near the authored spot, so
+  // "is anything drawn over it" is a real question and not a formality.
+  for (const [w, h] of [[1024, 768], [768, 1024], [390, 844]]) {
+    const c = await browser.newContext({ viewport: { width: w, height: h } });
+    const p = await c.newPage();
+    await p.addInitScript((s) => {
+      window.__bootownDay = '2026-08-10';
+      try { localStorage.clear(); localStorage.setItem('bootown.save.v1', JSON.stringify(s)); } catch {}
+    }, SEED({ daily: { day: DAY, doings: { play: true, visit: true, care: true }, visited: [], delivered: false } }));
+    await p.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await p.waitForTimeout(800);
+    await go(p, 'town', { area: 'meadow' }); await p.waitForTimeout(1300);
+    const r = await p.evaluate(() => {
+      const n = document.querySelector('.daily-parcel');
+      if (!n) return null;
+      const b = n.getBoundingClientRect();
+      const pts = [[.5, .5], [.25, .35], [.75, .65], [.5, .85]];
+      return {
+        w: Math.round(b.width), h: Math.round(b.height),
+        allHit: pts.every(([fx, fy]) => n.contains(document.elementFromPoint(b.left + b.width * fx, b.top + b.height * fy))),
+        onCamera: b.left >= 0 && b.right <= window.innerWidth
+      };
+    });
+    assert(!!r, `${w}x${h}: the parcel is there`);
+    assert(r && r.w >= 56 && r.h >= 56, `${w}x${h}: it is a reachable tap target (${r && r.w}x${r && r.h}, law: 56)`);
+    assert(r && r.onCamera, `${w}x${h}: on camera at default scroll`);
+    assert(r && r.allHit, `${w}x${h}: nothing is drawn over it — all four probe points land on the parcel`);
+    await c.close();
+  }
 }
 
 await browser.close();
