@@ -1087,6 +1087,22 @@ export function renderDeco(item, opts = {}) {
         ell(60, 58, 8, 10, COLORS.cocoa, ink) +
         `<circle cx="60" cy="56" r="3" fill="${COLORS.gold}"/>`;
       break;
+    case 'kiterack':
+      // RUN21E-2: a low wooden stand with three pegs, the way a kite rack on a hill looks —
+      // two feet, a crossbar, three pegs standing proud of it.
+      inner =
+        ell(60, 112, 30, 7, COLORS.teal, halo) +
+        ell(60, 112, 30, 7, COLORS.teal, ink) +
+        rrect(30, 84, 8, 28, 3, COLORS.cocoa, halo) +
+        rrect(30, 84, 8, 28, 3, COLORS.cocoa, ink) +
+        rrect(82, 84, 8, 28, 3, COLORS.cocoa, halo) +
+        rrect(82, 84, 8, 28, 3, COLORS.cocoa, ink) +
+        rrect(26, 76, 68, 10, 4, COLORS.sand, halo) +
+        rrect(26, 76, 68, 10, 4, COLORS.sand, ink) +
+        [38, 58, 78].map((x, i) =>
+          rrect(x - 3, 56 - i % 2 * 4, 6, 22 + i % 2 * 4, 3, COLORS.cocoa, ink) +
+          ell(x, 54 - i % 2 * 4, 5, 5, [COLORS.bubblegum, COLORS.gold, COLORS.aqua][i], ink)).join('');
+      break;
     case 'noticepost':
       // RUN21E-5: a small wooden post with ONE arm — deliberately not the four-armed
       // shop Signpost. The arm carries a little pinned notice, which is what it is for.

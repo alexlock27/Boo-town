@@ -254,6 +254,13 @@ const BRIDGE_X = 0.5;           // the little wooden bridge sits mid-zone (river
 const WINDMILL_X = 0.7;         // the windmill turns on the hill crest (hilltop)
 const PALM_X = 0.10, PALM2_X = 0.92, HUT_X = 0.75;   // two palms bookend the beach (RUN10 P1: palm×2)
 const KITE_MS = 6000;           // a Boo flies a kite for a spell (hilltop)
+const KITE_RACK_REACH = 0.20;   // RUN21E-2: "within 20% x of a rack" — zone-x, the save's unit
+const KITE_RACK_PEGS = 3;       // three pegs on the rack, so three kites fly from it
+const KITE_FLY_Y = 0.34;        // fraction of viewport height a racked kite hovers at
+// RUN21E-2: the hour, spelled. 12-hour, lowercase, index = hour % 12 with noon/midnight
+// reading "twelve" — the way a child says it out loud.
+const HOUR_WORDS = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+const hourWord = (h) => HOUR_WORDS[((h % 12) + 12) % 12];
 const PADDLE_MS = 4200;         // paddling at the bank / in the shallows (riverside / beach)
 const SKIM_MS = 2600;           // a stone skim + plink (riverside)
 const BRIDGE_SIT_MS = 5200;     // sitting on the bridge (riverside)
@@ -1483,8 +1490,13 @@ export function mount(container, params, ctx) {
         // same sightline — take half the growth back to keep it where it always ran.
         const train = el('i', { class: 't-train', style: { top: (r.height * 0.34 - 12) + 'px' } });
         put(train, 4200);
-        hint.textContent = 'Choo choo! There goes the little train!';
-        if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.chime(4);
+        // RUN21E-2: the train stops being silent — a real two-note whistle instead of the
+        // generic chime — and Twiggy names the hour, once per visit, so the little train is
+        // also the hilltop's clock.
+        if (wishSound.allow('sig:hilltop', { tapped: true })) sfx.choo();
+        const line = guideLine('hilltopTrain', { hour: hourWord(currentHour()) });
+        hint.textContent = line;
+        speakMaybe(line);
         return true;
       }
       case 'meadow': {
@@ -1862,6 +1874,53 @@ export function mount(container, params, ctx) {
       && Math.abs((t.x || 0) - (place.x || 0)) < 0.0015 && rowOf(t) === rowOf(place)) || null;
   }
 
+  // ---- RUN21E-2: the kite rack ------------------------------------------------------------
+  // Which rack, if any, a placed kite belongs to. Nothing is STORED: rackedness is derived
+  // from the placements on every render, so putting the rack away lets the kite go back to
+  // the free sky with no save change and no migration.
+  //
+  // 0.20 is read the only way the save can express it — a fraction of the AREA — which
+  // outdoors is generous (an outdoor area is four viewports wide). That generosity is
+  // deliberate: a child parking a kite "by the rack" should not have to be precise.
+  function rackFor(t, st) {
+    if (AREA.key !== 'hilltop' || t.item !== 'wish_kite') return null;
+    const racks = areaItems(st).filter(p => p.item === 'deco_kiterack');
+    if (!racks.length) return null;
+    let best = null, bestD = KITE_RACK_REACH;
+    for (const r of racks) {
+      const d = Math.abs(r.x - t.x);
+      if (d <= bestD) { bestD = d; best = r; }
+    }
+    if (!best) return null;
+    // Three pegs, three kites. A fourth kite by the same rack simply keeps flying free.
+    const mine = areaItems(st)
+      .filter(p => p.item === 'wish_kite' && Math.abs(p.x - best.x) <= KITE_RACK_REACH)
+      .sort((p, q) => Math.abs(p.x - best.x) - Math.abs(q.x - best.x));
+    const idx = mine.findIndex(p => p === t);
+    return (idx >= 0 && idx < KITE_RACK_PEGS) ? { rack: best, peg: idx } : null;
+  }
+  // The string: from the kite's own belly down to the rack's pegs. Drawn in the wrap so it
+  // travels with the kite and is torn down with it.
+  function attachKiteString(wrap, kiteTopPx, racked) {
+    const rackPx = racked.rack.x * zoneW;
+    const kitePx = parseFloat(wrap.style.left || '0') + (wrap.offsetWidth || 60) / 2;
+    const dx = rackPx - kitePx;
+    const dy = (groundY + viewH * 0.06) - kiteTopPx;   // down to the pegs, roughly rack height
+    if (!isFinite(dx) || !isFinite(dy) || dy <= 0) return;
+    const w = Math.max(2, Math.abs(dx) + 4), h = Math.max(2, dy);
+    const x0 = dx >= 0 ? 2 : w - 2, x1 = dx >= 0 ? w - 2 : 2;
+    const html = `<svg class="wish-string" width="${w.toFixed(0)}" height="${h.toFixed(0)}" viewBox="0 0 ${w.toFixed(0)} ${h.toFixed(0)}" aria-hidden="true">`
+      + `<path d="M${x0.toFixed(0)} 0 Q${((x0 + x1) / 2).toFixed(0)} ${(h * 0.62).toFixed(0)} ${x1.toFixed(0)} ${h.toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="1.6" opacity="0.5" stroke-linecap="round"/></svg>`;
+    let node = wrap.querySelector('.wish-string');
+    if (!node) { wrap.insertAdjacentHTML('beforeend', html); node = wrap.querySelector('.wish-string'); }
+    else if (node.outerHTML !== html) node.outerHTML = html;
+    node = wrap.querySelector('.wish-string');
+    if (node) {
+      node.style.left = (dx >= 0 ? (wrap.offsetWidth || 60) / 2 - 2 : (wrap.offsetWidth || 60) / 2 - w + 2) + 'px';
+      node.style.top = ((wrap.offsetHeight || 60) * 0.6) + 'px';
+    }
+  }
+
   function renderPlaced() {
     groundOrphans();   // RUN19 Z6: nothing she placed is ever lost when its table goes away
     const existing = Array.from(ground.querySelectorAll('.t-item'));
@@ -1891,9 +1950,16 @@ export function mount(container, params, ctx) {
       // RUN20 W1 — the SKY plane (reserved in Z6's plane union precisely so this needed no
       // second migration). A sky wish anchors by fraction of viewport height inside the sky
       // band, not on a ground row, and drifts along it.
-      const onSky = planeOf(t) === 'sky' || (wishNeedsSky(t.item) && SKY_WISHES.has(t.item));
+      // RUN21E-2: A RACKED KITE. On the Hilltop, a kite parked near a Kite Rack comes off the
+      // free sky plane and flies FROM THE RACK — hovering on a visible string above its own
+      // spot, for as long as it stands there. Everywhere else (and with no rack near) it keeps
+      // its RUN20 sky behaviour untouched, which is what "elsewhere kites keep RUN20
+      // behaviour" means with no code at all.
+      const racked = rackFor(t, st);
+      const onSky = !racked && (planeOf(t) === 'sky' || (wishNeedsSky(t.item) && SKY_WISHES.has(t.item)));
       const row = onWall ? WALL_ROW : rowOf(t);
-      const rowGroundPx = onSky ? viewH * skyYFor(t)
+      const rowGroundPx = racked ? viewH * KITE_FLY_Y
+        : onSky ? viewH * skyYFor(t)
         : onWall ? viewH * clampWallY(t.y != null ? t.y : WALL_Y_FRAC) : viewH * ROWS[row];
       const baseSize = onWall ? (ACT_SIZE[t.item] || 92) : (ACT_SIZE[t.item] || 92) * ROW_SCALE[row];
       const size = baseSize * itemScaleOf(t, scaleMaxFor(item, isInterior));
@@ -1931,6 +1997,7 @@ export function mount(container, params, ctx) {
         // pumpWishIdles below. Recomputed here every render, which is also how the owl's
         // night gate re-evaluates as the clock rolls over.
         + (isWish(t.item) ? ' wishidle-' + (wishIdleClass(t.item, isNight(currentHour())) || 'none').toLowerCase() : '')
+        + (racked ? ' wish-racked' : '')
         + (bff ? ' care-bff' : '');
       if (wrap.className !== newClass) wrap.className = newClass;
 
@@ -1992,7 +2059,12 @@ export function mount(container, params, ctx) {
         wrap.innerHTML = newHTML;
         wrap._lastHTML = newHTML;
       }
-      
+      // RUN21E-2: the racked kite's STRING. It lives inside the wrap and is re-added after the
+      // innerHTML diff above (which would otherwise wipe it on the next unrelated placement),
+      // and it is drawn as an overflow-visible SVG so the line can reach down to the rack.
+      if (racked) attachKiteString(wrap, placedTop, racked);
+      else { const old = wrap.querySelector('.wish-string'); if (old) old.remove(); }
+
       // Shared rarity VFX (C2): full effect for the first RARITY_TOWN_CAP fancy items,
       // then a static sheen so the emitter cap holds (distant/numerous items degrade).
       const shiny = ((st.shinies && st.shinies[t.item]) || 0) > 0;
@@ -2515,7 +2587,12 @@ export function mount(container, params, ctx) {
       if (z.key === 'funfair') return;
       if (stars < z.unlock) return;                            // locked zones show only their signpost
       const caperOpen = !!(getState().caper && getState().caper.open);
-      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen });
+      // RUN21E-2: rain is computed HERE, with the same expression renderWeather uses. The
+      // mount-scoped `currentSeasonName` is only set by renderWeather, which runs AFTER the
+      // scenery is built — reading it from inside the scenery would race and silently give ''.
+      const rain = (typeof window !== 'undefined' && window.__bootownWeather === 'rain')
+        || isRainDay(seasonOf(currentMonth()), todayKeyLocal());
+      const html = zoneScenery(z.key, zoneW, viewH, night, { caperOpen, rain });
       if (!html) return;
       const wrap = el('div', { class: 't-zone-props ' + z.key + (night ? ' night' : ''), html });
       wrap.style.left = (i * zoneW) + 'px'; wrap.style.top = '0';
@@ -7307,7 +7384,7 @@ function roomBuiltinsHTML(rid, worldW, wallH, viewH, hour) {
 function zoneScenery(key, w, h, night, opts = {}) {
   if (key === 'meadow')     return meadowScenery(w, h, night);
   if (key === 'riverside')  return riversideScenery(w, h, night);
-  if (key === 'hilltop')    return hilltopScenery(w, h, night);
+  if (key === 'hilltop')    return hilltopScenery(w, h, night, opts);
   if (key === 'beach')      return beachScenery(w, h, night);
   if (key === 'playground') return playgroundScenery(w, h, night, opts);
   return '';
@@ -7415,7 +7492,7 @@ function riversideScenery(w, h, night) {
     + (night ? '' : `<div class="rv-boat" style="--d:${(w + 120).toFixed(0)}px;top:${(top + 6).toFixed(0)}px"><svg viewBox="0 0 54 34" width="46" height="30"><path d="M4 20 h46 l-8 12 h-30 z" fill="#FFF3E0" stroke="#C97B4A" stroke-width="2"/><path d="M27 20 v-16 l14 12 z" fill="#FF9AD5" stroke="#C0568F" stroke-width="1.6"/></svg></div>`);
 }
 
-function hilltopScenery(w, h, night) {
+function hilltopScenery(w, h, night, opts = {}) {
   const grass = night ? '#3E6E4A' : '#7CC98A';
   const crestX = WINDMILL_X * w, crestY = h * 0.44;
   const bandTop = h * 0.62;
@@ -7468,7 +7545,7 @@ function hilltopScenery(w, h, night) {
     <path d="M${(crestX - 20).toFixed(0)} ${(ty + 66).toFixed(0)} L${(crestX - 12).toFixed(0)} ${ty.toFixed(0)} L${(crestX + 12).toFixed(0)} ${ty.toFixed(0)} L${(crestX + 20).toFixed(0)} ${(ty + 66).toFixed(0)} Z" fill="#EFE3C8" stroke="#8A6B3A" stroke-width="2.5"/>
     <path d="M${(crestX - 15).toFixed(0)} ${(ty + 6).toFixed(0)} h30 l-4 -14 h-22 z" fill="#C0568F" stroke="#8A3A66" stroke-width="2"/>
     <rect x="${(crestX - 6).toFixed(0)}" y="${(ty + 34).toFixed(0)}" width="12" height="16" rx="2" fill="#8A5A32"/>
-    <g class="hl-blades">
+    <g class="hl-blades${opts.rain ? ' hl-rain' : ''}">
       ${[0, 90, 180, 270].map(a => `<g transform="rotate(${a} ${crestX.toFixed(1)} ${(ty + 2).toFixed(1)})"><path d="M${crestX.toFixed(0)} ${(ty + 2).toFixed(0)} l-6 -46 l12 0 z" fill="#FFF8F0" stroke="#8A6B3A" stroke-width="2"/></g>`).join('')}
       <circle cx="${crestX.toFixed(0)}" cy="${(ty + 2).toFixed(0)}" r="5" fill="#8A6B3A"/>
     </g></g>`;

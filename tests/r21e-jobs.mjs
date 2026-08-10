@@ -346,6 +346,81 @@ console.log('\n== E5: the Notice Post ==');
 }
 
 // ============================================================================
+// E2 — Hilltop: the train names the hour, a racked kite flies, rain speeds the sails
+// ============================================================================
+console.log('\n== E2: the Hilltop ==');
+{
+  // --- A: the train announces the hour ---
+  for (const [hour, word] of [[15, 'three'], [9, 'nine'], [12, 'twelve'], [0, 'twelve']]) {
+    const { ctx, page } = await open(SAVE(), { area: 'hilltop', hour });
+    // The signature is a SKY tap: anywhere above 0.42 of the viewport height.
+    const box = await page.evaluate(() => { const v = document.querySelector('.t-viewport').getBoundingClientRect(); return { x: Math.round(v.left + v.width / 2), y: Math.round(v.top + v.height * 0.2) }; });
+    await page.mouse.move(box.x, box.y);
+    await page.mouse.down(); await page.mouse.up();
+    const ok = await until(page, () => !!document.querySelector('.t-train'), 2500);
+    assert(ok, `${hour}:00 — the little train runs on a sky tap`);
+    const hint = await page.evaluate(() => document.querySelector('.town-hint-bar').textContent);
+    assert(hint === `Listen — the ${word} o'clock train!`, `${hour}:00 — Twiggy says exactly "Listen — the ${word} o'clock train!" (got "${hint}")`);
+    if (hour === 15) await page.screenshot({ path: `${SHOTS}/e2-train.png` });
+    await ctx.close();
+  }
+}
+{
+  // --- B: a kite by the rack flies from it; the same kite elsewhere does not ---
+  const { ctx, page } = await open(SAVE({
+    wishes: { unlocked: { kite: true } },
+    town: { areas: withItems({ hilltop: [P('hilltop', 'deco_kiterack', 0.10), P('hilltop', 'wish_kite', 0.14, 1, { plane: 'sky' })] }), nextId: 900 }
+  }), { area: 'hilltop' });
+  assert(await until(page, () => !!document.querySelector('.t-item[data-item="wish_kite"].wish-racked'), 2500),
+    'a kite parked by the rack flies FROM the rack');
+  assert(await count(page, '.t-item[data-item="wish_kite"] .wish-string') === 1, '…on a visible string');
+  assert(!await hasCls(page, '.t-item[data-item="wish_kite"].on-sky'), '…and it has come off the free sky plane');
+  await page.screenshot({ path: `${SHOTS}/e2-racked-kite.png` });
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(SAVE({
+    wishes: { unlocked: { kite: true } },
+    town: { areas: withItems({ hilltop: [P('hilltop', 'deco_kiterack', 0.10), P('hilltop', 'wish_kite', 0.90, 1, { plane: 'sky' })] }), nextId: 900 }
+  }), { area: 'hilltop' });
+  assert(!await hasCls(page, '.t-item[data-item="wish_kite"].wish-racked'), 'a kite far from any rack keeps its RUN20 sky behaviour');
+  assert(await hasCls(page, '.t-item[data-item="wish_kite"].on-sky'), '…still on the sky plane');
+  await ctx.close();
+}
+{
+  // Elsewhere means elsewhere: the same fixture in the Meadow must not rack.
+  const { ctx, page } = await open(SAVE({
+    wishes: { unlocked: { kite: true } },
+    town: { areas: withItems({ meadow: [P('meadow', 'deco_kiterack', 0.10), P('meadow', 'wish_kite', 0.14, 1, { plane: 'sky' })] }), nextId: 900 }
+  }), { area: 'meadow' });
+  assert(!await hasCls(page, '.t-item[data-item="wish_kite"].wish-racked'), 'a rack in the Meadow does not rack a kite — the hill is where kites fly');
+  await ctx.close();
+}
+{
+  // --- C: rain days turn the sails twice as fast ---
+  for (const [weather, want] of [['rain', '4s'], ['clear', '8s']]) {
+    const cctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+    const page = await cctx.newPage();
+    page.on('pageerror', e => pageErrors.push(String(e).split('\n')[0]));
+    await page.addInitScript(w => { window.__bootownHour = 13; if (w === 'rain') window.__bootownWeather = 'rain'; }, weather);
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE());
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => window.BooTown, null, { timeout: 25000 });
+    await page.evaluate(() => window.BooTown.go('town', { area: 'hilltop' }));
+    await page.waitForSelector('.town2', { timeout: 15000 });
+    await sleep(400);
+    const dur = await page.evaluate(() => { const b = document.querySelector('.hl-blades'); return b ? getComputedStyle(b).animationDuration : null; });
+    assert(dur === want, `${weather} day: the windmill sails turn at ${want} (got ${dur})`);
+    if (weather === 'rain') {
+      assert(await hasCls(page, '.hl-blades.hl-rain'), 'rain day: the sails carry the rain class');
+      await page.screenshot({ path: `${SHOTS}/e2-windmill-rain.png` });
+    }
+    await cctx.close();
+  }
+}
+
+// ============================================================================
 // E6 — fair day
 // ============================================================================
 console.log('\n== E6: fair day ==');

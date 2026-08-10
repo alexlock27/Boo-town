@@ -9,7 +9,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | Item | Title | Status |
 |---|---|---|
 | E1 | Riverside — jetty, float sailing, feedable ducks | TODO |
-| E2 | Hilltop — train line, kite rack, rain windmill | TODO |
+| E2 | Hilltop — train line, kite rack, rain windmill | **DONE** (17/17) |
 | E3 | Beach — tide, shells, sandcastle persists | TODO |
 | E4 | Playground — tag, ring-a-roses, notice poster | **DONE** (15/15) |
 | E5 | Meadow — signpost (shared Today card) | **DONE** (7/7) |
@@ -115,6 +115,41 @@ visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
 
+**DEV-16 · E2-A "first sky-tap summon in each real-clock hour plays it (existing rule)".** Pack
+said → an hourly rule exists. What was true → there is no hour-based gate anywhere in the file;
+the summon has always been ONCE PER VISIT (`areaSeen.train`), and the train was never silent — it
+played `sfx.chime(4)`. What I did → kept the shipped once-per-visit gate (the stricter of the two,
+and the one the Pulse's signature beat already depends on), and made "stops being silent" true by
+giving it a real two-note whistle of its own (`sfx.choo()`, original synthesis) in place of the
+generic chime. Twiggy's line is once per visit exactly as the pack says.
+
+**DEV-17 · E2-A the hour word.** No hour-word helper existed anywhere (the clock game prints
+digits). Added `HOUR_WORDS` + `hourWord()` in `js/town.js`: 12-hour, lowercase, with both noon and
+midnight reading `twelve` — the way a child says it out loud. Line authored in
+`data/guideLines.js` as `hilltopTrain`, per the house rule that guide strings live there.
+
+**DEV-18 · E2-B `land_kiterack`.** Pack said → a `land_*` id. What was true → no `land_*` id
+exists anywhere; every landscape item is `deco_*` with `kind:'landscape', free:true`, and the
+toybox / no-drop / outdoor-only / unlimited-stock behaviours all key off `kind` and `free`, never
+off the prefix. What I did → shipped it as `deco_kiterack` so it inherits all of that
+automatically, and logged the rename here.
+
+**DEV-19 · E2-B "within 20% x of a rack".** The pack does not say which space. Implemented as
+0.20 of the AREA (zone-x), the only x the save has — which outdoors is generous, roughly
+four-fifths of a screen. Deliberate: a child parking a kite "by the rack" should not have to be
+precise. Three pegs = three kites; a fourth by the same rack keeps flying free rather than
+being refused.
+
+**DEV-20 · E2-B "flies permanently".** Nothing is stored. Rackedness is DERIVED from the
+placements on every render, so putting the rack away simply lets the kite go back to the sky.
+Permanence with no save change and no migration — v24 is untouched.
+
+**DEV-21 · E2-C the rain flag.** The flag exists, but the scenery pipeline never received it, and
+the mount-scoped `currentSeasonName` is set by `renderWeather` AFTER the scenery is built — so
+reading it from inside the scenery would have raced and silently produced `''`. Rain is now
+computed at the `zoneScenery` call site with the same expression `renderWeather` uses and passed
+through the existing `opts` channel.
+
 **DEV-11 · E6 "the existing box-ceremony granting ONE small prize".** Pack said → run the box
 ceremony. What was true → three things make that impossible as written: the box ceremony
 (`js/ceremony.js` → `openOneBox()`) REQUIRES and CONSUMES a box from `st.boxes`, it rolls the prize
@@ -192,6 +227,10 @@ parented there is wiped by the next one.
 | `r7p1-funfair` | PASS (47) | ~50s |
 | `r6p2-funfair` | PASS (27) | ~30s |
 | `r18d-funfair-scenery` | PASS (20) | ~25s |
+| `r21e-jobs` (E12+E4+E5+E6+E2) | PASS 87/87 | 62s |
+| `r7p2-zones` | PASS (24) | ~40s |
+| `r10p1-worldmap` | PASS (77) | ~90s |
+| `r20-wishlife` | FLAKE then PASS (74). First run died on a `.hub` boot timeout — the failure mode the handover names. One serial re-run per board law: clean. | ~2m |
 
 ## Stale pins re-pointed (never weakened)
 - `tests/r21d-alive.mjs:125` — playground invitation `Try the swings…` → `Someone fancies a game of

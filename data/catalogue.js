@@ -153,6 +153,9 @@ export const CATALOGUE = [
   // landmark that is seeded once and always lives in Build → Landscape, so putting it away is
   // never losing it. One arm, and it tells you what is happening in the town today.
   { id: 'deco_noticepost', kind: 'landscape', name: 'Notice Post', rarity: 'rare',  deco: 'noticepost', free: true, blurb: 'One little arm, and all the news in Boo Town.' },
+  // RUN21E-2: the Hilltop's kite rack. Three pegs; a wished kite parked near it flies from
+  // the rack for as long as it stands there.
+  { id: 'deco_kiterack',   kind: 'landscape', name: 'Kite Rack',   rarity: 'common', deco: 'kiterack',  free: true, blurb: 'Three pegs on the hill, for three kites at once.' },
 
   // --- Furniture (8, RUN10 P4): kind:'furniture', indoor-only, joins box pools at
   // decoration odds (bucketed under 'deco' in BY_TYPE_RARITY below, not a separate type

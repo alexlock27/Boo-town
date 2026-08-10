@@ -259,6 +259,9 @@ export const LINES = {
   ackDressingFloor: ["Ooh — a new floor!"],
   ackNewItem: ["{booName} loves the new {itemName}!"],
 
+  // ---- RUN21E E2: the Hilltop's little train names the hour ---------------------------
+  hilltopTrain: ["Listen — the {hour} o'clock train!"],
+
   // ---- RUN19 Z5: stardust, surfaced ------------------------------------------------
   stardustExplain: ["Stardust comes from doubles — 10 makes a Boo shiny, 5 makes anything sparkle!"],
 
