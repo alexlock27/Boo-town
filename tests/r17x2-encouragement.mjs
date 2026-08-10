@@ -208,14 +208,21 @@ console.log('== the whole thing goes through the guide speech path and obeys the
 {
   // voice ON: the line is spoken
   const { ctx, page } = await open();
+  // Drain first, then snapshot on a condition — never synchronously. open() returns as soon
+  // as window.BooTown exists, so the hub's own greeting can still hold tts.js's `playing`;
+  // a kind word queued behind it would be missed by an instantaneous slice(). tts.cancel()
+  // guarantees nothing is playing, so speakMaybe delivers straight to the stub.
   const on = await page.evaluate(async () => {
     const { encouragementFor } = await import('./js/encouragement.js');
     const { speakMaybe } = await import('./js/guide.js');
+    const t = await import('./js/tts.js'); t.cancel();
     window.__spoken.length = 0;
     const line = encouragementFor('firstTry', { stars: 1 });
     speakMaybe(line);
-    return { line, spoken: window.__spoken.slice() };
+    return { line };
   });
+  await page.waitForFunction(l => window.__spoken.includes(l), on.line, { timeout: 8000 }).catch(() => {});
+  on.spoken = await page.evaluate(() => window.__spoken.slice());
   assert(on.line && on.spoken.includes(on.line), 'with voice on, a kind word is spoken');
   await ctx.close();
 
@@ -267,9 +274,16 @@ console.log('== a never-played save is not greeted as "coming back" ==');
 console.log('== the results screen shows a kind word on a hard round, and none on an aced one ==');
 {
   // an above-comfort round scoring one star: the hard-round moment
+  // Wait on the thing itself, not a stopwatch: the ceremony reveals and speaks on its own
+  // schedule, and a fixed 2600ms sleep flakes late under load in one direction and hides a
+  // regression in the other (a kind word arriving at 3s would read as "absent").
   const { ctx, page } = await open();
   await page.evaluate(() => window.BooTown.go('results', { game: 'bubblepop', gameName: 'Bubble Pop', stars: 1, cat: 'tables', level: 3 }));
-  await page.waitForTimeout(2600);
+  await page.waitForSelector('.result-encourage', { timeout: 12000 });
+  await page.waitForFunction(() => {
+    const n = document.querySelector('.result-encourage');
+    return n && window.__spoken.includes(n.textContent);
+  }, null, { timeout: 12000 }).catch(() => {});
   const hard = await page.evaluate(() => ({
     node: document.querySelector('.result-encourage') ? document.querySelector('.result-encourage').textContent : null,
     spoken: window.__spoken.slice()
@@ -280,12 +294,23 @@ console.log('== the results screen shows a kind word on a hard round, and none o
   await page.screenshot({ path: `${SHOTS}/results-kind-1024.png` });
   await ctx.close();
 
-  // a three-star round: nothing, ever
+  // A three-star round: nothing, ever. Absence needs a POSITIVE completion signal, not a
+  // sleep — wait until the ceremony has finished speaking (the stars are up and the tts
+  // queue is empty), then assert nothing kind was said or shown.
   const { ctx: c2, page: p2 } = await open();
   await p2.evaluate(() => window.BooTown.go('results', { game: 'bubblepop', gameName: 'Bubble Pop', stars: 3, cat: 'tables', level: 1 }));
-  await p2.waitForTimeout(2600);
-  const aced = await p2.evaluate(() => !!document.querySelector('.result-encourage'));
-  assert(aced === false, 'a three-star round shows no kind word at all');
+  await p2.waitForSelector('.rstar.pop', { timeout: 12000 });
+  await p2.waitForFunction(async () => {
+    const t = await import('./js/tts.js');
+    const q = t.queueState();
+    return q.length === 0 && !q.playing;
+  }, null, { timeout: 12000 });
+  const aced = await p2.evaluate(() => ({
+    node: !!document.querySelector('.result-encourage'),
+    spoken: window.__spoken.slice()
+  }));
+  assert(aced.node === false, 'a three-star round shows no kind word at all');
+  assert(!aced.spoken.some(s => HARD.includes(s) || EFFORT.includes(s)), 'and none is spoken either');
   await c2.close();
 }
 

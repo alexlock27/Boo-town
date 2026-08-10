@@ -264,7 +264,7 @@ export function mount(container, params, ctx) {
       const q = el('div', { class: 'so-question' }, [
         el('div', { class: 'ss-guide', html: renderGuide(guide, { view: 'head', size: 56 }) }),
         el('div', { class: 'so-q-text', text: story.question }),
-        el('button', { class: 'btn soft ss-say', text: '🔊 Ask me again', 'aria-label': 'Hear the question again — always free', onclick: () => { sfx.tap(); speakMaybe(story.question); } })
+        el('button', { class: 'btn soft ss-say', text: '🔊 Ask me again', 'aria-label': 'Hear the question again — always free', onclick: () => { sfx.tap(); speakMaybe(story.question, true, { interrupt: true }); } })
       ]);
       const opts = el('div', { class: 'so-options' });
       shuffle(story.options.slice()).forEach(o => {
@@ -552,7 +552,7 @@ function mountReader(container, params, ctx) {
       const q = el('div', { class: 'so-question' }, [
         el('div', { class: 'ss-guide', html: renderGuide(guide, { view: 'head', size: 56 }) }),
         el('div', { class: 'so-q-text', text: story.question }),
-        el('button', { class: 'btn soft ss-say', text: '🔊 Ask me again', onclick: () => { sfx.tap(); speakMaybe(story.question); } })
+        el('button', { class: 'btn soft ss-say', text: '🔊 Ask me again', onclick: () => { sfx.tap(); speakMaybe(story.question, true, { interrupt: true }); } })
       ]);
       const opts = el('div', { class: 'so-options' });
       shuffle(story.options.slice()).forEach(o => {

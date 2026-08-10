@@ -127,15 +127,28 @@ console.log('== 3. the blend sounds each part in order, then the whole word ==')
   // Instrument the real speech path at its exit — window.speechSynthesis.speak — so this
   // proves what the child would actually HEAR, not what a stubbed module was asked to say.
   // (A module export cannot be reassigned from outside; the browser API can.)
-  await page.evaluate(() => {
+  // Then DRAIN before trusting the capture: the level-start line went to the REAL engine
+  // before this stub existed, and a real headless utterance may never fire onend — leaving
+  // tts.js's `playing` wedged (graphemes never reach the stub: the 31 Jul failure) or
+  // releasing the queue at an arbitrary later moment (stale lines leak into __said and the
+  // positional asserts misalign). App-level tts.cancel() clears queue AND `playing`
+  // synchronously, with or without engine events.
+  await page.evaluate(async () => {
     window.__said = [];
     const ss = window.speechSynthesis;
     ss.speak = (u) => { window.__said.push(String(u.text)); if (u.onend) setTimeout(() => u.onend(), 0); };
+    const t = await import('./js/tts.js'); t.cancel();
   });
   const word = await page.evaluate(() => window.__blend.word());
   const tiles = await page.evaluate(() => window.__blend.tiles());
   await page.evaluate(() => { window.__said = []; window.__blend.blend(); });
   await page.waitForFunction(() => window.__blend.phase() === 'pick', null, { timeout: 12000 });
+  // let the tts queue drain fully before snapshotting, so the whole-word line is in
+  await page.waitForFunction(async () => {
+    const t = await import('./js/tts.js');
+    const q = t.queueState();
+    return q.length === 0 && !q.playing;
+  }, null, { timeout: 8000 });
   const said = await page.evaluate(() => window.__said.slice());
   assert(said.length >= tiles.length + 1, `the blend spoke ${said.length} things for a ${tiles.length}-part word`);
   const seq = said.slice(0, tiles.length);

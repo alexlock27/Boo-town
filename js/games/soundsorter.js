@@ -217,7 +217,7 @@ export function mount(container, params, ctx) {
     const graphemeCard = el('div', { class: 'ss-grapheme', 'aria-live': 'polite' });
     const sayBtn = el('button', {
       class: 'btn soft ss-say', 'aria-label': 'Say the pictures again — always free',
-      text: '🔊 Say them again', onclick: () => sayCards()
+      text: '🔊 Say them again', onclick: () => sayCards({ interrupt: true })
     });
     const prompt = el('div', { class: 'ss-prompt' }, [
       el('div', { class: 'ss-guide', html: renderGuide(guide, { view: 'head', size: 64 }) }),
@@ -276,10 +276,12 @@ export function mount(container, params, ctx) {
     }
 
     // Free, unlimited, never disabled: it repeats only what she was already shown.
-    function sayCards() {
+    // SAY-AGAIN (approved 2026-08-10): only the button passes interrupt — the first-time
+    // naming pass (shell.timeout call below) and the QA hook stay non-interrupting.
+    function sayCards(opts) {
       sfx.tap();
       const words = shown.cards;
-      speakMaybe(words.join('. ') + '.');
+      speakMaybe(words.join('. ') + '.', true, opts);
       if (REDUCED) return;
       words.forEach((w, i) => shell.timeout(() => {
         const n = cardNodes[i];

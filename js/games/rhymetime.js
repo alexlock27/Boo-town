@@ -192,7 +192,8 @@ export function mount(container, params, ctx) {
         el('div', { class: 'ss-guide', html: renderGuide(guide, { view: 'head', size: 60 }) }),
         el('span', { html: renderWordArt(t.target, { size: 72, label: t.target }) }),
         el('div', { class: 'rt-word', text: t.target }),
-        el('button', { class: 'btn soft ss-say', text: '🔊 Say it again', 'aria-label': 'Hear the word again — always free', onclick: () => { sfx.tap(); speakMaybe(t.target); } })
+        // SAY-AGAIN (approved 2026-08-10): "again" means NOW — cut whatever is mid-line.
+        el('button', { class: 'btn soft ss-say', text: '🔊 Say it again', 'aria-label': 'Hear the word again — always free', onclick: () => { sfx.tap(); speakMaybe(t.target, true, { interrupt: true }); } })
       ]);
       const count = el('div', { class: 'rt-count', text: `Find ${CORRECT_PER_TARGET} that rhyme with ${t.target}` });
       const cards = el('div', { class: 'rt-cards' });
@@ -265,7 +266,7 @@ export function mount(container, params, ctx) {
       );
       const say = el('button', {
         class: 'btn soft ss-say', text: '🔊 Read it again', 'aria-label': 'Hear the rhyme again — always free',
-        onclick: () => { sfx.tap(); speakMaybe(spoken); }
+        onclick: () => { sfx.tap(); speakMaybe(spoken, true, { interrupt: true }); }
       });
       const cards = el('div', { class: 'rt-cards three' });
       cardNodes = t.cards.map(w => { const n = pictureCard(w, tapCouplet); cards.appendChild(n); return n; });
