@@ -69,9 +69,28 @@ loss. Once the `run21f-20260804` cache activates and old caches are deleted, a f
 *offline* launch 504s on `./playjournal.js` and the module graph — the whole app — fails to
 boot. It self-heals only if an online launch happens first under the new cache.
 
-**Verification:** independently re-verified by an adversarial check
-(`git show 22b8d40:sw.js | grep -c playjournal` → 0; the import is boot-critical, not dead).
-Live offline-boot test result is recorded in §4.
+**PROVEN IN THE BROWSER, not just in the tree.** A real offline boot was run against the
+review server through `http://app.localhost:8043` (the app deliberately skips SW registration
+on `localhost`/`127.0.0.1` — `js/main.js:373-406` — so this is the only hostname that
+exercises the real cache path, which is why `m3-pwa` uses it too):
+
+```
+controller after 2nd load: true          ← the service worker IS in charge
+--- OFFLINE ---
+reload: ok
+offline boot state: {"boo":false,"screen":null}      ← the app never initialises
+FAILED REQUESTS OFFLINE (1):
+  ! net::ERR_ABORTED /js/playjournal.js
+  ! console.error: Failed to load resource: … status of 504 (offline)
+```
+
+**Exactly one request failed, and it is the missing file.** Everything else served from
+cache. What the child sees is `offline3-390x844-offline-02-boot-01-offline-boot.png`: an
+**empty dark-blue screen**. No Boo Town, no guide, no error she could act on — the app is
+simply gone until she is back online.
+
+That makes this the most severe finding of the night: it breaks protected-core rule 3
+("works fully offline once installed"), which is the promise the whole PWA exists to keep.
 
 **Smallest honest fix:** one line — restore `'js/playjournal.js'` to ASSETS[]. Then make it
 impossible to recur: a suite that enumerates the import graph from `index.html` and fails on
@@ -203,8 +222,100 @@ Grades: **CONFIRMED** (still true) · **OVERSTATED** (real but smaller than clai
 
 ## 3. The HANDOVER §6 items, answered as demanded
 
-*(filled in §3 of this file as each is completed — lamp-at-several-scales, Bounce sparkle,
-balloon — see the sections above and the screenshots named there.)*
+### 3.1 "Lamp floats above the table" — **the claim is WRONG on today's build**
+
+HANDOVER asked for "a screenshot at several scales, not another measurement". Five table
+scales spanning the full indoor resize contract (0.70 · 1.00 · 1.30 · 1.76 · 2.00), lamp
+parented to the table, phone width:
+
+| scale | crop |
+|---|---|
+| 0.70 | `_evidence/review-aug10/LAMP-zoom-scale-0p7.png` |
+| 1.00 | `LAMP-zoom-scale-1.png` |
+| 1.30 | `LAMP-zoom-scale-1p3.png` |
+| 1.76 | `LAMP-zoom-scale-1p76.png` (the scale the original QA agent used) |
+| 2.00 | `LAMP-zoom-scale-2.png` |
+
+At every scale the lamp's base sits **on the tabletop's back-left rim**. There is no 80–100px
+float at 176% or anywhere else; RUN21B item 3's re-baseline holds up. *Grade: **WRONG** (as
+of `run21f-20260804`) / **ALREADY-HANDLED** relative to when it was written.*
+
+Two honest residuals, neither the reported bug (both **idea**, not defect):
+- The lamp keeps its own scale while the table grows, so on a 2× table it reads doll-sized.
+- Slot 0 is at the back-left corner, so a single child item perches on the rim rather than
+  sitting on the table. Centring a lone surface child would read better.
+
+*(Note on method: I first tried to measure the gap with my own `SURFACE_Y × height`
+arithmetic and got −3px to −12px "float". That arithmetic was mine and wrong — `js/town.js:1738-1745`
+documents precisely this trap, that the parent's rendered box bottom is `pHeight*10/130`
+below its ground line. The pictures are the answer, which is exactly why HANDOVER asked for
+pictures. I am recording my own false start because the same mistake is what produced the
+original 80–100px claim.)*
+
+### 3.2 Bounce last-resort sparkle — **CONFIRMED** (S3)
+
+`js/games/bounce.js:273-285`: the guard sets `target.label = correctText` and clears the
+holder with no `spawnHop(...)`, while the normal reconcile path at `:262` always hops. A
+digit changes under the child's eyes with no motion at all. Smallest fix: call the same
+`spawnHop` the neighbouring branch already uses (engine: the game's own hop).
+
+### 3.3 Balloon `OUTDOOR_ONLY` / `SKY_WISHES` — **structurally CONFIRMED, copy claim WRONG**
+
+`data/wishlife.js:20` lists `balloon` in `OUTDOOR_ONLY`; `js/town.js:1485` `SKY_WISHES` does
+not include `wish_balloon`. So the balloon is refused indoors as a sky wish but never anchors
+to the sky — real mismatch, S3. The corpus quotes the chip as saying "sky only"; that string
+was retired in RUN21C-8. Today it reads "Needs the sky" / "needs the sky!", which is still
+odd for a tethered flyer but is not the reported text.
+
+---
+
+## 3A. The Boo Band — before-state, for Lane 5's rebuild
+
+Captured on main at `run21f-20260804`, phone 390×844, so tonight's rebuild has something
+honest to be measured against.
+
+**Where you arrive.** `The Boo Band` is a **six-row text menu** (Drums · Keys · Guitar ·
+Xylophone · Songs · My Jams) with an emoji tile per row. Above it sit three Boos whose
+instruments are **emoji glyphs pasted beside the art** (🥁 🎹 🎸). It is a menu screen, not a
+bandstand: nothing moves, nobody is playing, and the room has no sound of its own.
+*(`band2-390x844-band-05-rooms-01-band-room.png`)*
+
+**Why the strum is boring — precisely.** *(`…band-06-guitar-01-guitar-arrive.png`,
+`…band-07-strumfeel-01..09`)*
+
+1. **There is no guitar.** The instrument is a **purple gradient rectangle** with a
+   double-headed arrow and the word STRUM. The only guitar on the screen is a ~20px 🎸 emoji
+   beside the Boo's head. A child who wants to play a guitar is given a colour swatch.
+2. **The gesture produces no picture.** I filmed a full drag — frames at 60ms, 150ms, 270ms
+   during the stroke and at +150ms, +450ms, +1050ms after it. **Every frame is identical.**
+   No string moves, no ripple, no flash, no chord name pulse, no Boo animation. The only
+   evidence that anything happened is sound.
+3. **It is not a strum, it is a chord retrigger.** Instrumenting `createOscillator`: one
+   downward drag fired **16 oscillators in 4 groups of 4** — the whole four-note chord fired
+   four separate times, ~180–280ms apart, as the finger crossed zones. A strum's defining
+   sound is strings arriving in fast sequence (a ~20–40ms arpeggio); this is a block chord
+   played four times. Up-strum on a different chord behaves identically (8 oscillators in 2
+   groups of 4) — **the direction the child drags changes nothing audible**.
+4. **Four rapid strums** produced 32 oscillators with inter-group gaps of 182–284ms —
+   consistent, but consistently *blocky*: it sounds like pressing a chord button repeatedly,
+   not like playing.
+5. Typographic detail: the arrow glyph is drawn **through** the word STRUM, striking it out.
+
+**The keys.** *(`…band-08-keys-01-keys-arrive.png`)* Ten white keys, no black keys, drawn as
+plain white bars 33px wide × 534px tall filling most of the screen; the piano is again an
+emoji beside the Boo. There **is** a play-along: "Choose a song" → "Choose a song for
+press-paced sparkles", and Songs offers a preview then "follow the sparkles on the keys".
+Key width of 33px is under the 44px tap-target standard (the extreme height makes them
+hittable in practice — **S3, noted honestly, not inflated**).
+
+**Where the sparkle actually sits today.** Not in the instruments — in **Songs**: seven
+tracks with previews, three "for little Boos" (Twinkle Twinkle, Row Your Boat, Old MacDonald)
+and four original Boo Pop Hits with real tempos (112–124 bpm) and a machine-checked
+composition ruleset (`data/songs.js`, `tests/lib/melody.mjs`). The music *content* is the
+strongest part of the band by a distance; the **instruments are the weak part**, and the
+guitar is the weakest of those. That is the right target for tonight's rebuild.
+
+**One rules conflict this uncovered** — see §4.4.
 
 ---
 
@@ -233,6 +344,21 @@ See **F-02** (S1). The audit enumerated all 149 files under `js/` and `data/`: 1
 ASSETS[], `js/playjournal.js` is the only omission, and every one of the 159 ASSETS entries
 exists on disk (no dangling entries). `js/games/boorollplay.js` is precached but imported
 only by a test — harmless, worth relocating one day.
+
+### 4.2b Walk (pre-merge smoke) — ran twice tonight: **FAIL, then PASS**
+
+| run | result | detail |
+|---|---|---|
+| 1 | **FAIL** | tablet-portrait, funfair: the ack click timed out on a covered overlay button (`walk-output.txt`) |
+| 2 | **PASS** | 10.1 min, all three viewports, 6 laps each, **0 errors** (`walk-output-2.txt`) |
+
+**This matters more than the pass/fail count.** Under the standing "known flakes are flakes
+on sight — one serial re-run to confirm" rule, run 2 passing would have closed the book and
+F-01 would have been thrown away as noise. It is not noise: the DOM hit-test in F-01 proves a
+real stacked-overlay defect that exists whether or not the walk trips over it. **Recommended
+amendment to the flake rule:** a re-run that passes downgrades *urgency*, it does not
+establish *absence* — a failure gets one look at what it was actually touching before it is
+called a flake.
 
 ### 4.3 Secrets and names
 
