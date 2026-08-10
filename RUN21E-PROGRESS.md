@@ -505,6 +505,14 @@ and still were not good enough on screen:
    full-colour. `open()` now waits for the crossfade to finish before anything is photographed.
    Every frame in `_evidence/run21e/` was regenerated.
 
+4. **The pretend night looked like it had not worked.** `e7-pretend-night.png` showed a night
+   window and a lit lamp in a *bright* kitchen — because the 1.2s filter ease I added for E7 was
+   only a fifth of the way through when the frame was taken. The feature was right and the picture
+   was a lie. The suite now waits for the dressing filter to actually reach the room's own real
+   night brightness (0.66) before photographing, which is a stronger assertion than the class
+   check it replaced: it proves the DIM lands, not just that a class was toggled. Proved against
+   real night for comparison — `e7-cmp-realnight.png` vs `e7-cmp-realday.png`.
+
 **What I am happy with.** The combined growth reveal (`e15-combined.png`) genuinely feels like a
 celebration rather than a notification. Tag (`e4-tag.png`) reads instantly as two Boos playing —
 you can see who is chasing whom. The two swags (`e10-two-swags.png`) sag and hang like real

@@ -648,6 +648,15 @@ console.log('\n== E7: make it night-time in here ==');
 
   await page.evaluate(() => [...document.querySelectorAll('.card.dialog .dialog-btns button')].find(b => b.textContent === 'Yes, night-night!').click());
   assert(await until(page, () => document.querySelector('.town2').classList.contains('night'), 2500), 'Yes: the room goes dark');
+  // The class is not the evidence — the DIM is. It eases in over 1.2s, so wait for the filter
+  // to actually arrive at the room's real night value rather than photographing it a fifth of
+  // the way there (which is what the first version of this block did, and the frame was a lie).
+  assert(await until(page, () => {
+    const d = document.querySelector('.t-dressing');
+    if (!d) return false;
+    const m = /brightness\(([\d.]+)\)/.exec(getComputedStyle(d).filter || '');
+    return !!m && parseFloat(m[1]) <= 0.68;
+  }, 4000), '…and the dim really lands (the room reaches its own real night brightness, 0.66)');
   assert(await hasCls(page, '.t-item[data-item="deco_tablelamp"].lit'), '…and the lamp lights');
   assert(await page.evaluate(() => {
     const b = document.querySelector('.t-room-builtins');
