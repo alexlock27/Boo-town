@@ -78,7 +78,11 @@ export function mountInstrument(container, params, ctx, instrument) {
   const playAlong = instrument === 'keys' ? (wantedKeys.length ? 'keys' : null) : (strumChords ? 'strum' : null);
   const songTotal = playAlong === 'strum' ? STRUM_BARS : wantedKeys.length;
 
-  const root = el('div', { class: `screen band-scene band-instrument-scene inst-${instrument}` });
+  // `has-toggle` drives the phone header's two-row layout: any scene carrying the
+  // play-along toggle needs the second row, not just the keys (RUN21G item 4 put the
+  // same control on the guitar, and keying that layout off `.inst-keys` clipped it).
+  const hasToggle = instrument === 'keys' || playAlong === 'strum';
+  const root = el('div', { class: `screen band-scene band-instrument-scene inst-${instrument}${hasToggle ? ' has-toggle' : ''}` });
   const performer = performerFor(instrument);
   const status = el('div', { class: 'band-scene-status' });
   const recBtn = el('button', {
@@ -91,7 +95,7 @@ export function mountInstrument(container, params, ctx, instrument) {
     backControl(() => ctx.go('band')),
     el('h2', { text: meta.label })
   ];
-  if (instrument === 'keys' || playAlong === 'strum') {
+  if (hasToggle) {
     headerKids.push(el('button', {
       class: 'band-playalong-toggle',
       text: song ? '✨ Play-along on' : 'Choose a song',

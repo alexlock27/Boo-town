@@ -3255,12 +3255,13 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   display: flex;
   align-items: center;
   cursor: pointer;
+  touch-action: none;   /* authored per-string as well as on the container */
 }
 .p6-string svg { width: 100%; height: 100%; display: block; pointer-events: none; }
 /* the core line's flash rides a TRANSITION, not an animation: the app-wide reduced-motion
    rule (`* { animation: none !important }`, top of this file) silences every animation,
    so an animation-based reduced path would be inert. The transition survives it. */
-.p6-string-core { opacity: .5; transition: opacity 80ms ease; }
+.p6-string-core { opacity: .5; transition: opacity 160ms ease; }
 /* transform-only wiggle per pluck; reduced motion trades it for a brightness flash on
    the core line (a colour pulse, which is what the reduced path is allowed to be) */
 .p6-string.plucked svg { animation: r21gStringWiggle 160ms ease; }
@@ -3368,7 +3369,10 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   .band-scene-header { grid-template-columns: 48px minmax(0,1fr) auto; gap: 5px; }
   .band-scene-header .band-header-spacer { display: none; }
   .band-scene-header h2 { font-size: 20px; }
-  .inst-keys .band-scene-header {
+  /* RUN21G: any scene carrying the play-along toggle needs the two-row header, not just
+     the keys — the guitar carries it in strum-along, and keying this off `.inst-keys`
+     left the chip squeezed into the top row where the Boo overlapped and clipped it. */
+  .has-toggle .band-scene-header {
     height: 98px;
     flex: 0 0 98px;
     grid-template-rows: 52px 38px;

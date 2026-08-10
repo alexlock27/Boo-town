@@ -177,7 +177,8 @@ console.log('== Item 2: songs end, and it\'s a moment ==');
   ok(await page.evaluate(() => window.__standards.celebrations().length) === 2, 'a replayed song celebrates once more');
   await page.click('.band-scene-status button:has-text("More songs ✨")');
   await page.waitForSelector('.band-song-list', { timeout: 4000 });
-  ok(true, 'More songs ✨ routes to band-songs');
+  const landed = await page.evaluate(() => ({ list: !!document.querySelector('.band-song-list'), cards: document.querySelectorAll('.band-song-card').length, keysGone: !document.querySelector('.p6-key') }));
+  ok(landed.list && landed.cards === 7 && landed.keysGone, `More songs ✨ routes to band-songs (${landed.cards} cards, keys unmounted)`);
   await ctx.close();
 }
 console.log('== Item 2 under reduced motion: the moment still lands ==');
@@ -231,7 +232,12 @@ console.log('== Item 3: strings — crossing order, velocity, retune ==');
   for (let i = 1; i <= 4; i++) { await page.mouse.move(cx, box.y + 208 - (200 * i) / 4); await sleep(14); }
   await page.mouse.up();
   const fastVels = await page.evaluate(t => window.__bandScene.guitar().plucks().filter(x => !x.retune && x.at > t && x.vel !== 1).map(x => x.vel), t1);
-  ok(slowVels.length >= 1 && Math.max(...slowVels) <= 0.9, `slow drag (200px/600ms) stays gentle (max ${slowVels.length ? Math.max(...slowVels).toFixed(2) : '-'} ≤ 0.9)`);
+  // The pack's ACCEPT 2 asks for vel ≤ 0.75 on a 200px/600ms drag, but that is unreachable
+  // under the pack's OWN authored formula, which it forbids retuning: 200/600 = 0.333 px/ms
+  // at every sampling rate, so 0.55 + min(0.65, 0.333*0.9) = 0.8500 exactly. Reaching 0.75
+  // would need the drag to last 901ms, not 600ms. The formula is law, so this asserts the
+  // ceiling the formula actually produces for a drag no faster than the authored gesture.
+  ok(slowVels.length >= 1 && Math.max(...slowVels) <= 0.85, `slow drag (200px/600ms) stays gentle (max ${slowVels.length ? Math.max(...slowVels).toFixed(2) : '-'} ≤ 0.85, the authored formula's exact output for that gesture)`);
   ok(fastVels.length >= 1 && Math.max(...fastVels) >= 1.1, `fast flick (200px/80ms) hits hard (max ${fastVels.length ? Math.max(...fastVels).toFixed(2) : '-'} ≥ 1.1)`);
   // ACCEPT 3: chord pads retune, audibly, and top string = lowest of the chord
   await clearLog(page);
@@ -312,7 +318,9 @@ for (const [w, h] of [[768, 1024], [390, 844]]) {
     const core = row.querySelector('.p6-string-core');
     const rest = getComputedStyle(core).opacity;
     row.classList.add('plucked');
-    await new Promise(r => setTimeout(r, 150));
+    // the flash is a 160ms transition (the pack's authored duration) — read AFTER it lands,
+    // not mid-flight, or this reads 0.99 and fails for the wrong reason
+    await new Promise(r => setTimeout(r, 300));
     return { svg: getComputedStyle(row.querySelector('svg')).animationName, rest, lit: getComputedStyle(core).opacity };
   });
   ok(rm.svg === 'none' && rm.rest === '0.5' && rm.lit === '1', `reduced motion: wiggle off, core line brightness-flash rides the transition (${rm.rest} → ${rm.lit})`);
@@ -333,8 +341,11 @@ console.log('== Item 4: Strum it 🎸 exists on Hits only, and routes ==');
   await page.waitForSelector('.band-song-list');
   const cards = await page.evaluate(() => [...document.querySelectorAll('.band-song-card')].map(c => ({ name: c.querySelector('h3').textContent, strum: !!c.querySelector('.band-song-strum') })));
   const LITTLE = ['Twinkle Twinkle', 'Row Your Boat', 'Old MacDonald'];
-  ok(cards.filter(c => !LITTLE.includes(c.name)).every(c => c.strum), 'every Boo Pop Hit offers Strum it 🎸');
-  ok(cards.filter(c => LITTLE.includes(c.name)).every(c => !c.strum), 'Little Boo Songs have no strum button and nothing explains the absence');
+  const hits = cards.filter(c => !LITTLE.includes(c.name));
+  const littles = cards.filter(c => LITTLE.includes(c.name));
+  // counts asserted too, so a screen that rendered no cards cannot pass these vacuously
+  ok(hits.length === 4 && hits.every(c => c.strum), `all four Boo Pop Hits offer Strum it 🎸 (${hits.length} found)`);
+  ok(littles.length === 3 && littles.every(c => !c.strum), `all three Little Boo Songs have no strum button and nothing explains the absence (${littles.length} found)`);
   await page.click('.band-song-card:has-text("Golden Boo") .band-song-strum');
   await page.waitForSelector('.p6-strings', { timeout: 4000 });
   const routed = await page.evaluate(() => ({ song: window.__bandScene.song(), mode: window.__bandScene.playAlong() }));
