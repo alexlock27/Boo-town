@@ -4,7 +4,7 @@ import { el, clear, confetti, backControl } from './ui.js';
 import { haptic } from './haptics.js';
 import { getState } from './state.js';
 import { renderItem } from './art.js';
-import { RARITY, dropKind, KIND_BANNER, KIND_ONELINER, KIND_GUIDE_LINE, KIND_ACTION } from '../data/catalogue.js';
+import { RARITY, dropKind, KIND_BANNER, KIND_ONELINER, KIND_GUIDE_LINE, KIND_ACTION, BY_ID } from '../data/catalogue.js';
 import { guideLine, speakMaybe } from './guide.js';
 import { sfx, music } from './sfx.js';
 import { openOneBox } from './rewards.js';
@@ -22,6 +22,10 @@ import { tickGrowth } from './growth.js';
 
 export function mount(container, params, ctx) {
   const chestMode = !!(params && params.chest);   // the Star Chest golden variant (RUN4 C8)
+  // RUN21J: the Daily Delivery rides the same signature ceremony on an item that is
+  // ALREADY granted (claimParcel grants before navigating, so a closed tablet mid-reveal
+  // loses nothing). This adapter only builds the reveal — it never grants.
+  const grantMode = !!(params && params.grant && BY_ID[params.grant]);
   const root = el('div', { class: 'ceremony' + (chestMode ? ' chest-reveal' : '') });
   // shared back control (job 3) — safe here: the box is already opened+applied at mount
   const backB = backControl(() => ctx.go('hub'), { floating: true });
@@ -35,10 +39,17 @@ export function mount(container, params, ctx) {
     return { item: r.boo, rarity: r.boo.rarity, duplicate: false, isCustom: false, shiny: r.shiny, chestAcc: r.acc, bonusPoints: 0, extraBoxes: 0 };
   }
 
+  // RUN21J: the reveal shape for an already-granted specific item (never a duplicate —
+  // the Daily Pool only ever picks from the unowned subset).
+  function grantResult() {
+    const item = BY_ID[params.grant];
+    return { item, rarity: item.rarity, duplicate: false, isCustom: false, shiny: !!(params && params.shiny), chestAcc: null, bonusPoints: 0, extraBoxes: 0 };
+  }
+
   function openSequence() {
     // The Star Chest (RUN4 C8) rides the same signature ceremony in gold: a
     // guaranteed Rare-or-better Boo (triple shiny odds) plus an accessory.
-    const result = chestMode ? chestResult() : openOneBox();
+    const result = grantMode ? grantResult() : chestMode ? chestResult() : openOneBox();
     if (!result) { ctx.go('hub'); return; }
     clear(root);
     root.appendChild(backB);
@@ -53,8 +64,9 @@ export function mount(container, params, ctx) {
     else if (result.rarity === 'secret') stampJournal('firstSecret');
 
     let taps = 0;
-    const box = el('button', { class: 'gift-box wobble-idle', 'aria-label': 'Tap the box to open it', html: bigGift() });
-    const hint = el('p', { class: 'ceremony-hint', text: 'Tap the box 3 times!' });
+    const word = grantMode ? 'parcel' : 'box';   // RUN21J: the Daily Delivery is a parcel
+    const box = el('button', { class: 'gift-box wobble-idle', 'aria-label': `Tap the ${word} to open it`, html: bigGift() });
+    const hint = el('p', { class: 'ceremony-hint', text: `Tap the ${word} 3 times!` });
     const stage = el('div', { class: 'ceremony-stage' }, [box, hint]);
     // floating sparkles around the box (the signature moment)
     const sparkPos = [[-150, -60], [150, -50], [-130, 90], [140, 100], [0, -140]];
@@ -72,7 +84,7 @@ export function mount(container, params, ctx) {
       box.classList.remove('wobble-idle');
       box.classList.add('squash-' + taps);
       if (taps === 3) { setTimeout(reveal, 220); hint.textContent = ''; }
-      else hint.textContent = ['Tap the box 3 times!', 'Two more!', 'One more!'][taps];
+      else hint.textContent = [`Tap the ${word} 3 times!`, 'Two more!', 'One more!'][taps];
     });
 
     function reveal() {
@@ -132,7 +144,8 @@ export function mount(container, params, ctx) {
         // Kind first, always. The rarity and Boo-flavoured lines below it are only ever
         // reached by an actual Boo — a bed does not get told it has a little face.
         const seasonLine = { summer: 'summerReveal', spooky: 'spookyReveal', winter: 'winterReveal' };
-        const key = chestMode ? 'chestOpen'
+        const key = grantMode ? 'L_DAILY_OPEN'   // RUN21J: "Ooh — it's yours to keep!"
+          : chestMode ? 'chestOpen'
           : result.isCustom ? 'boxCustom'
           : kind !== 'boo' ? KIND_GUIDE_LINE[kind]
           : result.shiny ? 'boxShiny'
@@ -166,7 +179,9 @@ export function mount(container, params, ctx) {
 
     function next() {
       sfx.tap();
-      if (!chestMode && getState().boxes > 0) openSequence();
+      // grantMode never chains into pending boxes — the parcel was one wrapped thing,
+      // and a surprise box she has not asked to open stays on the hub's gift button.
+      if (!chestMode && !grantMode && getState().boxes > 0) openSequence();
       else ctx.go('hub');
     }
   }

@@ -14,6 +14,7 @@ import { noteRequest } from './requests.js';
 import { checkAndCelebrate } from './trophies.js';
 import { grantRoundTreat } from './care.js';
 import { encouragementFor } from './encouragement.js';   // RUN17 X2
+import { noteDailyPlay } from './daily.js';   // RUN21J: "Play any game" ticks here, the single results seam
 
 export function mount(container, params, ctx) {
   const { game, gameName = 'that round', stars = 1, replay, tricky = [], meterOverride = null,
@@ -94,6 +95,11 @@ export function mount(container, params, ctx) {
   noteRequest('roundEnd', { game, stars });
   if (stars >= 3) stampJournal('star3_' + game);
   if (game === 'golden' && stars >= 3) stampJournal('golden3');
+  // RUN21J: the first Daily Doing — ANY results flow is "played a game today" (partial
+  // rounds included: she played). Returns the L_DAILY_DONE line only when this very tick
+  // completed all three; the line is already spoken (tts queues after this round's own
+  // line) and shown below as its own card row once the stars have landed.
+  const dailyDoneLine = noteDailyPlay();
 
   if (typeof window !== 'undefined') window.__encourage = null;   // RUN17 X2: never read a previous round's
 
@@ -172,6 +178,10 @@ export function mount(container, params, ctx) {
     ]);
     card.insertBefore(awardBox, meterBox);
     if (typeof window !== 'undefined') window.__resultAward = { type: roundType, ...award, above: verdict.above, stars };
+
+    // RUN21J: this round completed the third Daily Doing — say where to look (the line
+    // names the Meadow, and the hub card now carries the all-done copy).
+    if (dailyDoneLine) card.insertBefore(el('div', { class: 'result-daily-done', text: '🎁 ' + dailyDoneLine }), meterBox);
 
     // ---- RUN17 X2: a kind word, at one of the capped moments ------------------------
     // The moment is chosen here; whether anything is actually SAID is js/encouragement.js's

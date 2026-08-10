@@ -3,6 +3,9 @@
 // Written exactly as specified; more may be added later.
 
 export const LINES = {
+  // RUN21J "Today in Boo Town" (keys are lane 7's alone). Authored in the pack, verbatim.
+  L_DAILY_DONE: ["All three doings done! A parcel just arrived in the Meadow…", "Something's waiting for you in the Meadow. It has a bow on it."],
+  L_DAILY_OPEN: ["Ooh — it's yours to keep!", "A little something for a lovely day."],
   L_CARE_NOTREATS: ["Win a round to earn a treat!"],
   L_CARE_BFF: ["{name} and {booName}... best friends FOREVER!"],
   L_BLOCKS_SQUEEZE: ["Squeezy! Want a quick question for a Line Blaster?"],

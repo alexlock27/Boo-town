@@ -30,6 +30,7 @@ import { acknowledge } from './ack.js';   // RUN19 Z4: the <=2-per-session ackno
 import { feelingsAvailable } from './feelings.js';   // RUN17 X3 (gated: off by default, Medium/Full only)
 import { createWhatsNewCard } from './whatsnew.js';
 import { createWelcomeTour } from './welcometour.js';   // RUN18B Y16
+import { createTodayCard } from './daily.js';   // RUN21J: "Today in Boo Town"
 
 // Near-unlock nudge (RUN4 C1): one gentle heads-up when a locked town zone is
 // within this many stars, at most once per session (module state resets on load).
@@ -330,6 +331,14 @@ export function mount(container, params, ctx) {
   {
     const wn = createWhatsNewCard(ctx);
     if (wn) specials.appendChild(wn);
+  }
+
+  // RUN21J: "Today in Boo Town" — three tiny doings, ticked as she plays, and the
+  // parcel when all three are done. A CARD in the specials flow (never a ninth door;
+  // r18d-hub-scroll's primary-button tally counts only .bar-btn + the Town banner).
+  {
+    const daily = createTodayCard(ctx);
+    if (daily) specials.appendChild(daily);
   }
 
   // One-time age question for saves from before the age step existed (job 4).
