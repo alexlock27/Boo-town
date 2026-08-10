@@ -371,18 +371,19 @@ console.log('== PERSISTENCE GUARD: nothing chosen here reaches storage, by any p
   const NEEDLES = ['feeling', 'feelings', 'worried', 'happy', 'excited', 'tired', 'sad', 'calm',
     'breathe', 'heavyCount', 'moodTHIRD', 'feelingsCount', 'feelingsLog', 'feelingsHistory'];
   const leaks = [];
+  // Exactly TWO tokens in a save may legitimately carry feelings vocabulary, and both are
+  // GROWN-UP SWITCHES, not values the child chose: `feelingsCorner` (this feature's own
+  // toggle) and `calmMotion` (RUN18B Y15's motion switch — "calm" the adjective, nothing
+  // to do with the corner; it enters the diff because a pre-v18 seed migrates on load and
+  // the save GAINS the field). Excise those exact boolean tokens before scanning, so a
+  // feelings value stored anywhere else — including right beside them — still trips.
+  const LEGIT_SWITCHES = /"(feelingsCorner|calmMotion)":\s*(true|false|null)/g;
   const scan = (label, bag) => {
     for (const [k, v] of Object.entries(bag)) {
-      const text = String(k) + ' ' + String(v);
+      const text = (String(k) + ' ' + String(v)).replace(LEGIT_SWITCHES, '');
       for (const n of NEEDLES) {
-        // `feelingsCorner: true` is the grown-up's own SWITCH, not a feelings value: it is
-        // a setting they set, in the settings object, and it is the one legitimate hit.
         const re = new RegExp(n, 'i');
         if (!re.test(text)) continue;
-        const onlyTheSwitch = n.startsWith('feeling') && /"feelingsCorner":\s*(true|false)/.test(text)
-          && !/feelingsLog|feelingsHistory|feelingsCount|lastFeeling|moodLog/i.test(text);
-        if (onlyTheSwitch && n !== 'worried' && n !== 'sad') continue;
-        if (!re.test(String(v)) && !re.test(String(k))) continue;
         leaks.push(`${label} ${k}: matched /${n}/`);
       }
     }

@@ -78,8 +78,12 @@ console.log('== every visible control is named and big enough to tap ==');
 }
 
 console.log('== the Expedition picker has a real first-run state ==');
+// RUN18C C1 rebuilt the party select as a screen: the short-party explanation moved from
+// the .exp-guests banner (whose old "win some stars" copy died with 1965e44) into the
+// .exp-need card, whose line is authored in trail.js (NEED_MORE_BOOS, pack C6 verbatim)
+// and whose one useful action is "See my Boos" -> the collection. Assert THAT state.
 {
-  for (const [inv, want] of [[{}, /win some stars/i], [{ boo_inky: 1, boo_plum: 1, boo_pippin: 1 }, /5 more friends/i]]) {
+  for (const inv of [{}, { boo_inky: 1, boo_plum: 1, boo_pippin: 1 }]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await ctx.newPage();
     page.on('pageerror', e => { failed = true; console.log('  ✗ PAGE ERROR:', e.message); });
@@ -88,13 +92,22 @@ console.log('== the Expedition picker has a real first-run state ==');
     await page.waitForFunction(() => window.BooTown, null, { timeout: 12000 });
     await page.evaluate(() => window.BooTown.go('expedition'));
     await page.waitForSelector('.exp-picker', { timeout: 8000 });
-    await page.waitForTimeout(300);
-    const d = await page.evaluate(() => ({
-      banner: (document.querySelector('.exp-guests') || {}).textContent || '',
-      goto: !!document.querySelector('.exp-goto-games:not([hidden])')
-    }));
-    assert(want.test(d.banner), `a short party is explained warmly ("${d.banner}")`);
-    assert(d.goto, 'and offers the one useful action');
+    await page.waitForSelector('.exp-need:not([hidden])', { timeout: 8000 });
+    const d = await page.evaluate(async () => {
+      const { NEED_MORE_BOOS } = await import('./js/expedition/trail.js');
+      const btn = document.querySelector('.exp-need .exp-see-boos');
+      return {
+        line: (document.querySelector('.exp-need .exp-need-line') || {}).textContent || '',
+        authored: NEED_MORE_BOOS,
+        action: !!btn && btn.offsetParent !== null
+      };
+    });
+    assert(d.line === d.authored && d.line.length > 0, `a short party is explained warmly, verbatim from the pack ("${d.line}")`);
+    assert(d.action, 'and offers the one useful action (See my Boos)');
+    // the door really opens: the one action lands on the collection
+    await page.click('.exp-need .exp-see-boos');
+    await page.waitForFunction(() => document.getElementById('screen').dataset.screen === 'collection', null, { timeout: 8000 });
+    assert(true, 'and it opens the collection');
     await ctx.close();
   }
 }

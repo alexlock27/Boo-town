@@ -44,8 +44,24 @@ SAY-AGAIN interrupt (approved): in progress — mapping every 🔊 read-again bu
     `r18b-hearts-chest` already assert the row is never drawn. Fix: the suite now pins
     the Y7 guarantee instead — bonk tracked (bonks===1, already asserted) AND zero heart
     nodes before/after. Strengthened, not weakened: asserts the current design.
-- r11audit: pending.
-- r17x3-feelings: pending.
+- **r11audit: FIXED (test-only), now PASS 6.6s (was 4 FAILs).** The "empty guide line"
+  was NOT an app fault. RUN18C C1 (1965e44) rebuilt the party select: the short-party
+  explanation moved from the `.exp-guests` banner (old "win some stars" copy died with
+  that commit) into the `.exp-need` card — authored NEED_MORE_BOOS line (pack C6
+  verbatim) + a "See my Boos" button. The suite asserted the pre-RUN18C selectors. Now
+  asserts the current state, verbatim against the module constant, and STRENGTHENED:
+  clicks the action and verifies it lands on the collection. Both inventory fixtures.
+- **r17x3-feelings: FIXED (test-only), now PASS 92.4s (was 1 FAIL).** The privacy
+  promise HOLDS — this was never a real leak. Probe (.tmp/feelings-probe.mjs) walked
+  the suite's own path and located the needle hit: `settings.calmMotion` — RUN18B
+  Y15's "Calm motion" grown-up switch. The suite seeds a v17 save; migrate() (v18
+  step) ADDS the field, so bootown.save.v1 changes and the raw-substring scan matched
+  "calm" inside the switch NAME. Same category as `feelingsCorner`, which the guard
+  already excused. Fix: excise the two known grown-up switch tokens
+  (`"feelingsCorner":bool`, `"calmMotion":bool`) from the scanned text before the
+  needle pass — substring strength kept for everything else (a novel `feelingToday`
+  key still trips; the canary self-check still bites). All four precise save-walk
+  assertions passed before and after.
 
 ## Item 3 — never-complete suites: pending.
 
