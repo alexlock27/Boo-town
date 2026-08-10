@@ -253,6 +253,115 @@ One flake, confirmed and dismissed per the board law's one-serial-re-run rule:
   weakened; the suite now drives a route it previously only mounted bare.
 - No other legacy suite was edited. `r9p6-band` needed no change (it drives `band-legacy`).
 
+## Delight self-critique (honest, with before/after frames)
+Frames in `_evidence/r21g/critique/`, captured by `.tmp/frames.mjs` driving BOTH builds side
+by side: BEFORE = a detached worktree at 22b8d40 on :8145, AFTER = this branch on :8045.
+
+**The guitar — the one number that says it all.** One identical downward drag across the
+playfield, measured from the sfx instrumentation log:
+```
+ONE DOWNWARD DRAG (before): 1 distinct sound  -> guitar:C
+ONE DOWNWARD DRAG (after):  4 distinct sounds -> pluck:0 , pluck:4 , pluck:7 , pluck:12
+```
+Before, the whole gesture was one event: the same chord, the same voicing, the same 60ms
+roll, at most every 180ms. "You literally just press strum" was exactly right. After, the
+finger crosses four strings and hears four, low→high, and the reverse drag reverses them.
+Frames: `guitar-before-*.png` (a purple STRUM slab with a ↕ arrow) vs `guitar-after-*.png`
+(four strung lines on a warm body).
+
+**The keys — the sparkle was lying, and the crop proves it.** `keys-before-crop.png` vs
+`keys-after-crop.png`, same song, same position: before, the ✨ floats in the lane in the
+gap BETWEEN two keys, pointing at nothing; after, it sits on the key, which wears a gold
+halo, with `G · A · A` peeking ahead and `✨ 4 of 42` counting.
+
+**The ending — measured on the old build, not assumed:**
+```
+BEFORE at note 42 of 42: {"pos":41,"status":"Tap Record, then play!","lane":"Twinkle Twinkle✨"}
+BEFORE after the 42nd press: {"pos":0,"status":"Tap Record, then play!","lane":"Twinkle Twinkle✨"}
+AFTER  after the 42nd press: {"done":true,"status":"You played the whole of Twinkle Twinkle! 🎵Play it againMore songs ✨","cels":1}
+```
+A child could play every note of a whole song and the old build's answer was to silently
+reset the counter to zero, still showing "Tap Record, then play!". That is the defect this
+pack existed to kill, and it is dead.
+
+**Where I am NOT satisfied.** The strings SOUND alive and LOOK nearly still — see critic
+finding 2 below. I did not retune it, because the wiggle's amplitude and duration are
+authored choreography and tonight's governance keeps pack fidelity for choreography closed.
+It is the first thing I would change with permission.
+
+## Cold playtest-critic verdict (played the branch blind, before reading this ledger)
+**VERDICT: SHIP WITH FIXES. Feel gate (Item 3 ACCEPT 5): PASS.**
+Its evidence for the gate: each crossing fires its own pluck (12 plucks over 6 back-and-forth
+passes); dragging ALONG a string fires once, not machine-gun; down = `pluck:0,4,7,12`, up =
+`pluck:12,7,4,0`; slow drag = onset gaps 227/305/436ms at gain ~0.132–0.139, fast flick =
+gaps 16/27/25ms at gain 0.192 (~+3dB) — "slow = arpeggio, fast = chord. Real." First
+tappable at 35ms, zero console errors on every run.
+
+FIXED tonight in response (commit cbd197f):
+1. **Its worst finding, and it was my regression**: at 390px the play-along chip I added to
+   the guitar header was overlapped and clipped by the performer Boo ("…y-along on"). The
+   two-row phone header was keyed off `.inst-keys`, so the guitar never got the second row.
+   Now keyed off `has-toggle`. Re-measured at 390x844 across keys+song / keys-no-song /
+   guitar strum-along: chip 317x35, **overlap area 0**, not clipped.
+2. **Reduced-motion flash too short** — it was 80ms; the pack authors 160ms. Now 160ms.
+
+NOT fixed, each with why (the maintainer should rule on these):
+3. **The strings barely move.** Critic: 9 screenshots over 700ms after a strum, 1 differed
+   imperceptibly; the note rings 650ms while the wiggle is ±2px over 160ms on a 4px line.
+   NOT CHANGED because `@keyframes r21gStringWiggle { 25% { translateY(2px) } 75% {
+   translateY(-2px) } }` at 160ms is authored verbatim in the pack, and tonight's governance
+   explicitly does NOT loosen pack fidelity for choreography. **My recommendation: raise the
+   amplitude and take it to ~450ms so the string still moves while it still rings.** One
+   keyframe block; nothing else depends on it.
+4. **Free-play guitar never says "drag the strings"** — its only line is "Tap Record, then
+   play!". NOT CHANGED because the pack states, in item 2's copy block, "(Drums/guitar/xylo
+   keep the existing line.)" It is now the wrong line for an instrument that grew a new
+   gesture. Recommend a first-run hint on the guitar only.
+5. **Phone keys are 33–37px wide** (44px tall). Pre-existing geometry — ten keys across a
+   390px screen, the same arithmetic as BLOCKED.md's RUN18D D6 entry about the ABC keyboard.
+   Untouched by this run; `r12s4-contrast` passes.
+6. **The chord pads misname their pitch.** "C" sounds G–B–D–G, "Am" sounds E–G–B; a
+   consistent +7. PRE-EXISTING and pack-mandated: `js/sfx.js` `guitar()` has always used a
+   196Hz base (= G3) with `CHORD.C = [0,4,7,12]`, and the pack REQUIRES `pluck` to use "the
+   same 196Hz base ... so plucks and legacy chords are one instrument to the ear". Fixing the
+   naming would change every existing jam's sound. **This is learning content telling a child
+   the wrong chord name — it deserves a decision, not a quiet fix.** Either retune the base to
+   130.81Hz (C3) so the labels are true, or rename the pads G/D/Em/C so the sound is.
+7. **House-law observations, both pre-existing**: `span.band-scene-instrument` renders 🎸/🎹
+   as emoji in the scene, against "no emoji-as-art in game scenes"; and no band scene has a
+   first-play intro or a "?" replay, against "every game teaches itself". Neither introduced
+   by RUN21G; both predate it on main.
+
+Critic could not confirm key-press audio (its seed had sound muted); `tests/r21g-band.mjs`
+proves it directly — a non-wanted key still logs the `key` tag.
+
+## Independent tree-vs-pack verification (fresh context, file-level)
+**VERDICT: 1 real defect, now fixed; 4 deviations judged justified and all disclosed here.**
+- The real defect it caught: this suite asserted slow-drag `vel ≤ 0.9` where the pack authors
+  `≤ 0.75` — a weakened ACCEPT. **Fixed in cbd197f**, and in fixing it I found the pack's own
+  number is unreachable (below).
+- It confirmed byte-exact: every Item 1 CSS constant, `pluck`'s authored block, the velocity
+  formula, stroke widths, the 90ms guard, the 40ms/vel-0.5 retune, both `L_BAND_SONGDONE`
+  strings, the completion line, both chip labels, both default keys status strings, the
+  songs.js intro line, and both What's New blurbs; `BUILD_STAMP` == the newest block's
+  `version`; no new js/ or data/ files, so ASSETS[] correctly needs no change.
+- It read the ✨ badges as chrome (a target indicator on a control, like a focus ring), not
+  scene art — so no emoji-as-art breach from this run. I agree.
+
+## DEVIATE — the pack's ACCEPT 2 contradicts the pack's own authored formula
+The pack authors the velocity formula and says "Constants are authored; do not retune them",
+then asserts a 200px/600ms drag logs `vel ≤ 0.75`. Those cannot both hold:
+```
+200px / 600ms = 0.3333 px/ms at EVERY sampling rate (1, 2, 4, 8 or 20 moves)
+0.55 + min(0.65, 0.3333 * 0.9) = 0.8500 exactly
+vel <= 0.75 would require 0.2222 px/ms — a 901ms drag, not 600ms
+(the fast half is consistent: 200px/80ms -> 1.2000, asserted >= 1.1)
+```
+The formula is law, so the suite asserts **≤ 0.85** — the formula's exact output for that
+gesture. Tighter than the 0.9 originally shipped, and honest. Vindicated empirically: the
+same gesture measured 0.73 on an idle box and **0.82 under load**, so the pack's 0.75 would
+have flaked hard.
+
 ## Seam left for later (noted per the pack's out-of-scope list)
 The xylophone can adopt the `wanted` model without new machinery: `updateWanted()` picks its
 row from `playAlong`, and `advanceSong()`/`finishSong()` are instrument-agnostic. A xylophone
