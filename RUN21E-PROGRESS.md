@@ -13,7 +13,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E3 | Beach — tide, shells, sandcastle persists | TODO |
 | E4 | Playground — tag, ring-a-roses, notice poster | **DONE** (15/15) |
 | E5 | Meadow — signpost (shared Today card) | **DONE** (7/7) |
-| E6 | Funfair — fair day (Saturday) | TODO |
+| E6 | Funfair — fair day (Saturday) | **DONE** (19/19) |
 | E7 | Boo House — pretend-night lamp | TODO |
 | E8 | Gallery — three pins + Featured Wall | TODO |
 | E9 | Surfaces wave two (mantelpiece, windowsills, 3 smalls; consider outdoor parent) | TODO |
@@ -115,6 +115,42 @@ visit/approach/chase/watch/nap/musicwatch. What I did → applied the multiplier
 push (behaviour-neutral for every pre-existing zone act, since none appear in `WEIGHTS`) and added
 `tag: 1.5` to `sporty`.
 
+**DEV-11 · E6 "the existing box-ceremony granting ONE small prize".** Pack said → run the box
+ceremony. What was true → three things make that impossible as written: the box ceremony
+(`js/ceremony.js` → `openOneBox()`) REQUIRES and CONSUMES a box from `st.boxes`, it rolls the prize
+at RANDOM from the drop pool (there is no forced-prize parameter outside test hooks), and both its
+exits navigate to the HUB — walking the child out of the fair in the middle of her own party. The
+four named prizes are also WISH words, which the box pool does not contain. What I did → gave the
+gift through the ceremony the wishes already own: the booth's line, then `wishPuffAt` + a real
+placement + the `wish-arrive` flourish, in the fair, where she is standing. It is a witnessed gift
+ceremony — the pack's intent — without the three losses. Recorded here because it is the largest
+single deviation in this run.
+
+**DEV-12 · E6 "popcorn ambient rate ×2".** Pack said → double an ambient rate. What was true →
+there is no ambient popcorn anywhere in the app; the only popcorn that has ever existed is the
+tap-triggered area signature's three kernels. What I did → doubled the kernels per burst on fair
+day (3 → 6), which puts the doubling where the popcorn actually is. Building a timed emitter would
+have been a new parallel system with its own pacing caps — exactly what the engine-reuse law
+forbids.
+
+**DEV-13 · E6 "string lights on in daytime".** Pack said → turn them on. What was true → "lights
+on" is a side effect of `.ff-scenery.night`, which ALSO recolours the far-wheel silhouette and is
+what three suites read as "it is night at the fair". What I did → a separate `.fairday` class with
+its own bulb rule. Saturday is not night; it is a party.
+
+**DEV-14 · E6 "extra bunting between ride tops".** Pack said → strung between the ride tops. What
+was true → rides are separately positioned DOM boxes in a different stacking context from the
+single whole-zone scenery SVG, so nothing can literally attach to their tops without a new overlay
+system. What I did → drew a third swag with its own flags at the ride-top band (0.335 of scene
+height) inside the existing scenery generator. From the child's seat it is bunting across the
+rides; from the code's seat it is one additive string.
+
+**DEV-15 · E6 "second tap: normal booth".** Pack said → fall back to normal booth behaviour. What
+was true → the booth has never responded to anything; there is no normal behaviour to fall back
+to. What I did → the booth button EXISTS only on fair day (so non-Saturdays are literally today's
+normal, and there is nothing to have missed), and a second tap the same day gives a tap sound and
+a sparkle — an acknowledgement, never a refusal, never a "you already had yours".
+
 **DEV-1 · E12 "removed from any dead-prop grandfather list/comment".** Pack said → such a list
 exists. What was true → it does not: grepping `js/`, `data/`, `tests/` and every `*.md` finds only
 CLAUDE.md's "No dead props" law (which binds NEW placeables) and a historical comment in
@@ -152,6 +188,10 @@ parented there is wiped by the next one.
 | `r21e-jobs` (E12+E4+E5) | PASS 51/51 | 36s |
 | `p3-town` (re-pointed: SEEDED_LANDMARKS) | PASS | 11s |
 | `r21d-alive` (@serial; re-pointed: invitation + PROOF.zone) | 209/209 assertions PASS; suite FAIL on `ERR_NO_BUFFER_SPACE` + its knock-on module fetch — the box's socket exhaustion under seven lanes, named as such in the lane brief. Two runs, same infra error, zero functional failures. | 4m19s |
+| `r21e-jobs` (E12+E4+E5+E6) | PASS 70/70 | 40s |
+| `r7p1-funfair` | PASS (47) | ~50s |
+| `r6p2-funfair` | PASS (27) | ~30s |
+| `r18d-funfair-scenery` | PASS (20) | ~25s |
 
 ## Stale pins re-pointed (never weakened)
 - `tests/r21d-alive.mjs:125` — playground invitation `Try the swings…` → `Someone fancies a game of

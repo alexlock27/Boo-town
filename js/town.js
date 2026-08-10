@@ -24,7 +24,7 @@ import { noteQuest, stampJournal } from './quests.js';
 import { tickGrowth, completeReveal, growthView, GROWTH_MILESTONES } from './growth.js';
 import { ensureHide, currentHide, foundHide, HIDE_REWARD, duskVisitor, tapDuskVisitor, ensureDayVisitHour } from './delights.js';
 import { addMeterPoints } from './rewards.js';
-import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette } from './funfair.js';
+import { FUNFAIR_UNLOCK, RIDE_ORDER, RIDE_NAME, RIDE_X, RIDE_SEATS, tickFunfair, completeRideReveal, completeCatchupReveal, funfairView, funfairUnlocked, seatsFor, seatBoo, unseatBoo, isSeated, emptySeatCount, renderRide, stepRide, fairSceneryFor, funfairSilhouette, isFairDay, fairPrizeWord } from './funfair.js';
 import { BANDSTAND_X, bandTrio, getBandSongEvents, startBandWatch } from './band.js';
 import { applyRarityFx, clearRarityFx, rarityRank, RARITY_TOWN_CAP } from './rarityfx.js';
 import { SOCKETS, HIDE_POINTS } from '../data/sockets.js';
@@ -1511,7 +1511,11 @@ export function mount(container, params, ctx) {
         if (!cart) return false;
         const cr = cart.getBoundingClientRect();
         if (Math.abs((cr.left + cr.width / 2) - clientX) > 100) return false;
-        for (let i = 0; i < 3; i++) put(el('i', { class: 't-kernel', style: { left: (worldX + (i - 1) * 14) + 'px', top: (r.height * 0.6) + 'px', animationDelay: (i * 110) + 'ms' } }), 1100 + i * 110);
+        // RUN21E-6: "popcorn ambient rate ×2" on fair day. There is no ambient popcorn emitter
+        // in this app — this tap-triggered burst is the only popcorn there has ever been — so
+        // the doubling lands where the popcorn actually is: twice the kernels per burst.
+        const kernels = isFairDay(todayKeyLocal()) ? 6 : 3;
+        for (let i = 0; i < kernels; i++) put(el('i', { class: 't-kernel', style: { left: (worldX + (i - (kernels - 1) / 2) * 14) + 'px', top: (r.height * 0.6) + 'px', animationDelay: (i * 110) + 'ms' } }), 1100 + i * 110);
         if (wishSound.allow('sig:funfair', { tapped: true })) sfx.pop();
         return true;
       }
@@ -2525,7 +2529,7 @@ export function mount(container, params, ctx) {
   }
 
   function renderFunfair() {
-    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door, .ff-sign').forEach(n => n.remove());
+    ground.querySelectorAll('.ff-ride, .ff-consite, .ff-scenery-wrap, .ff-disco-door, .ff-sign, .ff-fairbooth').forEach(n => n.remove());
     if (AREA.key !== 'funfair') return;   // RUN10 P1: the fair only ever renders inside its own area
     if (!funfairUnlocked()) return;
     const zi = ZONE_INDEX['funfair'];
@@ -2534,9 +2538,13 @@ export function mount(container, params, ctx) {
     // layer so it lines up with the rides; night makes the string lights glow (C1b)
     // RUN18D D10: the visible width matters. Without it the fair's furniture is laid out
     // across all four viewports and none of it lands on the screen she arrives at.
-    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour()), viewW) });
+    // RUN21E-6: on Saturdays the fair dresses up — an extra swag over the ride tops, the
+    // string lights on in daylight, and a booth that gives something away.
+    const fairDay = isFairDay(todayKeyLocal());
+    const sc = el('div', { class: 'ff-scenery-wrap', html: fairSceneryFor(zoneW, viewH, isNight(currentHour()), viewW, fairDay) });
     sc.style.left = (zi * zoneW) + 'px'; sc.style.top = '0'; sc.style.width = zoneW + 'px'; sc.style.height = viewH + 'px'; sc.style.zIndex = '1';
     ground.insertBefore(sc, ground.firstChild);
+    if (fairDay && !READONLY) renderFairBooth(zi);
     for (const ride of view.built) {
       const box = renderRide(ride);
       const px = zi * zoneW + RIDE_X[ride] * zoneW;
@@ -2555,6 +2563,65 @@ export function mount(container, params, ctx) {
   // at 0.68 of a four-viewport area and the Disco Hall's door at 0.51, so a child who
   // arrives at the gate and never drags right meets neither. Two hanging signs at the
   // entrance say where they are and take her there.
+  // ---- RUN21E-6: the fair-day ticket booth ------------------------------------------------
+  // The booth is DRAWN inside the scenery svg, which is pointer-events:none, so — exactly like
+  // the Playground's noticeboard — the tappable half is its own button in the ground layer,
+  // sitting over the entrance screen's booth. It exists ONLY on fair day, which is what makes
+  // "non-Saturdays are simply normal" true by construction: there is nothing extra to find and
+  // nothing to have missed.
+  const FAIR_BOOTH_LINE = 'Happy fair day! This one\'s on us.';
+  function renderFairBooth(zi) {
+    if (!zoneW || !viewW) return;
+    // The same geometry funfair.js lays the drawn booth out with, for screen 0.
+    const screenW = Math.max(240, Math.min(viewW || zoneW, zoneW));
+    const bx = screenW * 0.06;
+    const btn = el('button', {
+      class: 'ff-fairbooth', type: 'button', 'aria-label': 'The fair-day ticket booth',
+      onclick: (e) => { e.stopPropagation(); fairBoothTap(); }
+    });
+    btn.style.left = (zi * zoneW + bx - 6) + 'px';
+    btn.style.top = (viewH * 0.40 + 8) + 'px';
+    btn.style.zIndex = String(Math.round(groundY) + 2);
+    ground.appendChild(btn);
+  }
+  function fairBoothTap() {
+    if (READONLY || softened) return;
+    const day = todayKeyLocal();
+    const already = ((getState().seen || {}).fairPrizeDay === day);
+    if (already) {
+      // Never a refusal and never a "you already had yours": a friendly booth that simply
+      // has nothing more to hand over today.
+      sfx.tap();
+      const node = ground.querySelector('.ff-fairbooth');
+      if (node) sparkleAtNode(node);
+      return;
+    }
+    const word = fairPrizeWord(day);
+    const id = wishId(word);
+    sfx.chime(2);
+    sayInWorld(FAIR_BOOTH_LINE);
+    // The gift ARRIVES, in the fair, where she is looking — the wish-arrival ceremony, not a
+    // toast and not the box ceremony (which consumes a box, rolls at random and walks her out
+    // to the hub; see the ledger). A word she already wished still places a real second one:
+    // unlocking is what happens once, receiving is what happens today.
+    const spot = freeWishSpot();
+    mutate(st => {
+      st.seen = st.seen || {};
+      st.seen.fairPrizeDay = day;
+      st.wishes = st.wishes || { unlocked: {} };
+      st.wishes.unlocked = st.wishes.unlocked || {};
+      if (!st.wishes.unlocked[word]) st.wishes.unlocked[word] = true;
+      if (spot) areaItems(st).push({ id: nextPlacementId(st), zone: AREA.key, x: spot.x, row: spot.row, item: id });
+    });
+    if (spot) {
+      wishPuffAt(spot);
+      renderPlaced();
+      const node = ground.querySelector(`.t-item[data-item="${id}"]`);
+      if (node && !REDUCED) { node.classList.remove('wish-arrive'); void node.offsetWidth; node.classList.add('wish-arrive'); }
+    }
+    renderDrawer(); updateDrawerTabs();
+  }
+
   function renderFairSigns(zi) {
     for (const sg of FAIR_SIGNS) {
       const sign = el('button', {
@@ -3453,20 +3520,12 @@ export function mount(container, params, ctx) {
     const a = AREAS.find(x => x.key === key);
     return a ? a.name : 'The Meadow';
   }
-  // Saturday, device-local, honouring the same day override todayKeyLocal already respects.
-  // E6 owns fair day; E4's own ACCEPT needs the line, so the check lives here once and E6
-  // reads it rather than growing a second source of truth.
-  function isFairDay() {
-    const key = todayKeyLocal();
-    const [y, m, d] = key.split('-').map(Number);
-    // Component parse ONLY: new Date('YYYY-MM-DD') is parsed as UTC and reads as the day
-    // before on any device west of Greenwich.
-    return new Date(y, m - 1, d).getDay() === 6;
-  }
+  // Fair day (E6) is one helper, in js/funfair.js, which owns the fair. This card reads it —
+  // it does not grow a second Saturday check.
   function todayLine() {
     const hide = currentHide();
     if (hide && hide.spot) return `Someone's playing hide-and-seek at ${areaDisplayName(hide.spot.zone)}! 👀`;
-    if (isFairDay() && funfairUnlocked(getState())) return `It's fair day at the Boo Funfair! 🎪`;
+    if (isFairDay(todayKeyLocal()) && funfairUnlocked(getState())) return `It's fair day at the Boo Funfair! 🎪`;
     const gSite = growthView().site;
     if (gSite) return `The Boo Builders are busy at ${areaDisplayName(gSite.zone)}…`;
     if (funfairView().site) return `The Boo Builders are busy at ${areaDisplayName('funfair')}…`;
@@ -3884,7 +3943,7 @@ export function mount(container, params, ctx) {
 
   let dragScroll = false, sx = 0, sScroll = 0, vel = 0, lastX = 0, lastT = 0, momRaf = null, movedScroll = false;
   viewport.addEventListener('pointerdown', e => {
-    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall') || e.target.closest('.pg-notice-btn')) return; // interactive scenery handles its own taps
+    if (e.target.closest('.t-item') || e.target.closest('.t-signpost') || e.target.closest('.ff-ride') || e.target.closest('.ff-bandstand') || e.target.closest('.ff-disco-door') || e.target.closest('.ff-sign') || e.target.closest('.t-shop-stall') || e.target.closest('.pg-notice-btn') || e.target.closest('.ff-fairbooth')) return; // interactive scenery handles its own taps
     // RUN20 W2: a tap on the right PART of the scene is this area's own secret. It runs before
     // the scroll drag starts, and only when it actually matched something — a miss falls
     // straight through to the normal pan, so the scene never feels sticky.

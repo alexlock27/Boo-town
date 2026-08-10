@@ -282,7 +282,33 @@ export function stepRide(box, ride, now) {
 // string lights and the far wheel repeat once per viewport, and the booth and the cart are
 // placed within the first one, so they are visibly present on entry with zero placements.
 // `viewW` is the visible width; it defaults to the whole area, which is the old behaviour.
-export function fairSceneryFor(zoneW, viewH, night, viewW) {
+// ---- RUN21E-6: FAIR DAY -----------------------------------------------------------------
+// Every Saturday the fair dresses up. Both helpers take the LOCAL DAY KEY (YYYY-MM-DD), the
+// same string todayKeyLocal() produces, so the existing `window.__bootownDay` override drives
+// them for free and no new QA seam is needed.
+//
+// The date is parsed BY COMPONENT, never `new Date('YYYY-MM-DD')` — that form is parsed as UTC
+// and reads as the day before on every device west of Greenwich, which would give a child in
+// the Americas fair day on Friday night.
+function dayParts(dayKey) {
+  const [y, m, d] = String(dayKey || '').split('-').map(Number);
+  return (y && m && d) ? { y, m, d } : null;
+}
+export function isFairDay(dayKey) {
+  const p = dayParts(dayKey);
+  return !!p && new Date(p.y, p.m - 1, p.d).getDay() === 6;
+}
+// The prize rotates weekly, in the pack's fixed order. Saturdays are exactly seven days
+// apart, so a whole-day count divided by seven advances the index precisely once per week.
+export const FAIR_PRIZES = ['balloon', 'cookie', 'medal', 'flower'];
+export function fairPrizeWord(dayKey) {
+  const p = dayParts(dayKey);
+  if (!p) return FAIR_PRIZES[0];
+  const weeks = Math.floor(Date.UTC(p.y, p.m - 1, p.d) / 86400000 / 7);
+  return FAIR_PRIZES[((weeks % FAIR_PRIZES.length) + FAIR_PRIZES.length) % FAIR_PRIZES.length];
+}
+
+export function fairSceneryFor(zoneW, viewH, night, viewW, fairDay = false) {
   const w = zoneW, h = viewH;
   const screenW = Math.max(240, Math.min(viewW || w, w));
   const screens = Math.max(1, Math.round(w / screenW));
@@ -348,10 +374,24 @@ export function fairSceneryFor(zoneW, viewH, night, viewW) {
   const swag = (frac, dip, opacity) => Array.from({ length: screens }, (_, sc) =>
     `<path d="M${(sc * screenW + 8).toFixed(0)} ${(h * frac).toFixed(0)} Q${(sc * screenW + screenW / 2).toFixed(0)} ${(h * dip).toFixed(0)} ${(sc * screenW + screenW - 8).toFixed(0)} ${(h * frac).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2"${opacity ? ` opacity="${opacity}"` : ''}/>`
   ).join('');
-  return `<svg class="ff-scenery${night ? ' night' : ''}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  // RUN21E-6: fair day hangs a THIRD swag lower down, across the tops of the rides, with its
+  // own flags. Additive — every element that was here before is still here, in the same place
+  // and the same number, so the scenery census suites keep passing.
+  const FAIR_FLAGS_PER_SCREEN = 7;
+  const fairFlags = !fairDay ? '' : Array.from({ length: FAIR_FLAGS_PER_SCREEN * screens }, (_, i) => {
+    const k = i % FAIR_FLAGS_PER_SCREEN, sc = Math.floor(i / FAIR_FLAGS_PER_SCREEN);
+    const x = sc * screenW + 30 + k * (screenW - 60) / (FAIR_FLAGS_PER_SCREEN - 1);
+    const y = h * 0.335 + Math.sin(k / (FAIR_FLAGS_PER_SCREEN - 1) * Math.PI) * 22;
+    return `<path class="ff-fairflag" d="M${x.toFixed(0)} ${y.toFixed(0)} l15 0 l-7.5 18 z" fill="${['#FFC93C', '#FF7AC6', '#35D0BA', '#8FC7FF'][i % 4]}" stroke="#2A1B4E" stroke-width="1.5"/>`;
+  }).join('');
+  const fairSwag = !fairDay ? '' : Array.from({ length: screens }, (_, sc) =>
+    `<path class="ff-fairswag" d="M${(sc * screenW + 12).toFixed(0)} ${(h * 0.335).toFixed(0)} Q${(sc * screenW + screenW / 2).toFixed(0)} ${(h * 0.27).toFixed(0)} ${(sc * screenW + screenW - 12).toFixed(0)} ${(h * 0.335).toFixed(0)}" fill="none" stroke="#2A1B4E" stroke-width="2" opacity="0.6"/>`
+  ).join('');
+  return `<svg class="ff-scenery${night ? ' night' : ''}${fairDay ? ' fairday' : ''}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
     ${farWheel}${bunting2}
     ${swag(0.20, 0.14, null)}${flags}
     ${swag(0.30, 0.24, '0.6')}${bulbs}
+    ${fairSwag}${fairFlags}
     ${booth}${popcorn}</svg>`;
 }
 

@@ -2811,8 +2811,17 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .ff-scenery.night .ff-bulb:nth-child(3n) { animation-delay: 0.9s; }
 .ff-scenery.night .ff-bulb:nth-child(3n+1) { animation-delay: 1.7s; }
 @keyframes ffTwinkle { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+/* RUN21E-6: FAIR DAY. The string lights come on in broad daylight — a separate class, never
+   `night`, because `.ff-scenery.night` also recolours the far wheel and is what three suites
+   read as "it is night at the fair". Saturday is not night; it is a party. */
+.ff-scenery.fairday .ff-bulb { opacity: 1; filter: drop-shadow(0 0 5px currentColor); animation: ffTwinkle 2.6s ease-in-out infinite; }
+.ff-scenery.fairday .ff-bulb:nth-child(3n) { animation-delay: 0.9s; }
+.ff-scenery.fairday .ff-bulb:nth-child(3n+1) { animation-delay: 1.7s; }
+/* The fair-day booth: a real button over the drawn ticket booth, invisible until focused. */
+.ff-fairbooth { position: absolute; width: 104px; height: 78px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.ff-fairbooth:focus-visible { outline: 3px solid var(--star); outline-offset: 3px; }
 .ff-silhouette { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%); opacity: 0.5; }
-@media (prefers-reduced-motion: reduce) { .ff-scenery.night .ff-bulb { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ff-scenery.night .ff-bulb, .ff-scenery.fairday .ff-bulb { animation: none; } }
 
 /* ============================================================
    Zone identity (RUN7 C2): distinct animated backdrop per zone.

@@ -87,10 +87,11 @@ async function tapItem(page, itemId) {
 }
 const hasCls = (page, sel) => page.evaluate(s => !!document.querySelector(s), sel);
 const count = (page, sel) => page.evaluate(s => document.querySelectorAll(s).length, sel);
-// Poll for a condition rather than sleeping a fixed guess.
-async function until(page, fn, ms = 4000, step = 100) {
+// Poll for a condition rather than sleeping a fixed guess. `arg` is passed INTO the page —
+// page.evaluate serialises the function, so a closure over a local would arrive undefined.
+async function until(page, fn, ms = 4000, step = 100, arg = undefined) {
   const t0 = Date.now();
-  while (Date.now() - t0 < ms) { if (await page.evaluate(fn)) return true; await sleep(step); }
+  while (Date.now() - t0 < ms) { if (await page.evaluate(fn, arg)) return true; await sleep(step); }
   return false;
 }
 
@@ -342,6 +343,94 @@ console.log('\n== E5: the Notice Post ==');
   const flag = await page.evaluate(() => (JSON.parse(localStorage.getItem('bootown.save.v1')).seen || {}).noticePostSeeded);
   assert(!flag, 'and the seeding flag is NOT burned, so it still arrives the day she makes room');
   await ctx.close();
+}
+
+// ============================================================================
+// E6 — fair day
+// ============================================================================
+console.log('\n== E6: fair day ==');
+{
+  // The rotation and the weekday test are pure functions — pin them directly, so a timezone
+  // regression is caught by arithmetic rather than by a screenshot.
+  const { ctx, page } = await open(SAVE(), { area: null });
+  const pure = await page.evaluate(async () => {
+    const m = await import('/js/funfair.js');
+    return {
+      sat: m.isFairDay('2026-08-08'), sun: m.isFairDay('2026-08-09'),
+      rota: ['2026-08-08', '2026-08-15', '2026-08-22', '2026-08-29', '2026-09-05'].map(d => m.fairPrizeWord(d)),
+      prizes: m.FAIR_PRIZES
+    };
+  });
+  assert(pure.sat === true && pure.sun === false, 'Saturday is fair day and Sunday is not');
+  assert(JSON.stringify(pure.prizes) === JSON.stringify(['balloon', 'cookie', 'medal', 'flower']),
+    'the prize rotation is exactly the pack\'s four, in order');
+  assert(new Set(pure.rota.slice(0, 4)).size === 4, `four consecutive Saturdays give four different prizes (${pure.rota.slice(0, 4).join(', ')})`);
+  assert(pure.rota[4] === pure.rota[0], 'and the fifth comes back round to the first');
+  await ctx.close();
+}
+// Saturday and Sunday, same save, everything else equal.
+for (const [label, day, want] of [['Saturday', '2026-08-08', true], ['Sunday', '2026-08-09', false]]) {
+  const cctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const page = await cctx.newPage();
+  page.on('pageerror', e => pageErrors.push(String(e).split('\n')[0]));
+  page.on('console', m => { if (m.type() === 'error') pageErrors.push('console: ' + m.text()); });
+  await page.addInitScript(d => { window.__bootownHour = 13; window.__bootownDay = d; }, day);
+  await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+  await page.evaluate(s => localStorage.setItem('bootown.save.v1', JSON.stringify(s)), SAVE());
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => window.BooTown && document.getElementById('screen').dataset.screen, null, { timeout: 25000 });
+  await page.evaluate(() => window.BooTown.go('town', { area: 'funfair' }));
+  await page.waitForSelector('.town2', { timeout: 15000 });
+  await page.evaluate(() => document.querySelectorAll('.overlay').forEach(o => o.remove()));
+  await sleep(400);
+
+  const dressed = await page.evaluate(() => ({
+    fairday: !!document.querySelector('.ff-scenery.fairday'),
+    swags: document.querySelectorAll('.ff-fairswag').length,
+    flags: document.querySelectorAll('.ff-fairflag').length,
+    booth: document.querySelectorAll('.ff-fairbooth').length,
+    bulbGlow: (() => { const b = document.querySelector('.ff-bulb'); return b ? getComputedStyle(b).opacity : null; })(),
+    night: !!document.querySelector('.ff-scenery.night')
+  }));
+  if (want) {
+    assert(dressed.fairday, 'Saturday: the fair wears its fair-day class');
+    assert(dressed.swags > 0 && dressed.flags > 0, `Saturday: extra bunting across the ride tops (${dressed.swags} swags, ${dressed.flags} flags)`);
+    assert(dressed.bulbGlow === '1', `Saturday: the string lights are on in broad daylight (bulb opacity ${dressed.bulbGlow})`);
+    assert(!dressed.night, 'Saturday: …and it is emphatically NOT pretending to be night');
+    assert(dressed.booth === 1, 'Saturday: the ticket booth is there to be tapped');
+    await page.screenshot({ path: `${SHOTS}/e6-fairday.png` });
+
+    // First tap: the line, and one real prize placed in the fair.
+    const before = await page.evaluate(() => window.__townLife.placements().length);
+    await page.evaluate(() => document.querySelector('.ff-fairbooth').click());
+    assert(await until(page, () => { const n = document.querySelector('.wish-said'); return n && n.textContent.includes('fair day'); }, 2500),
+      'Saturday: the booth says its line');
+    const said = await page.evaluate(() => { const n = document.querySelector('.wish-said'); return n ? n.textContent : null; });
+    assert(said === "Happy fair day! This one's on us.", `Saturday: exactly "Happy fair day! This one's on us." (got "${said}")`);
+    assert(await until(page, b => window.__townLife.placements().length === b + 1, 3000, 100, before),
+      'Saturday: exactly one prize arrives, in the fair, where she is standing');
+    const got = await page.evaluate(() => window.__townLife.placements().map(p => p.item).filter(i => i.startsWith('wish_')));
+    assert(got.length === 1 && got[0] === 'wish_cookie', `Saturday: it is THIS week's prize (${got.join(',')} — 2026-08-08 is a cookie week)`);
+    await page.screenshot({ path: `${SHOTS}/e6-prize.png` });
+
+    // Second tap the same day: nothing more, and never a refusal.
+    const after = await page.evaluate(() => window.__townLife.placements().length);
+    await page.evaluate(() => document.querySelector('.ff-fairbooth').click());
+    await sleep(900);
+    const after2 = await page.evaluate(() => window.__townLife.placements().length);
+    assert(after2 === after, 'Saturday: a second tap gives nothing more (one prize a day)');
+    // The autosave is debounced, so poll for the flush rather than reading once — and prove it
+    // on DISK, since "one prize a day" has to survive closing the app.
+    const stamped = await until(page, () => ((JSON.parse(localStorage.getItem('bootown.save.v1') || '{}').seen) || {}).fairPrizeDay === '2026-08-08', 6000);
+    assert(stamped, 'Saturday: the day is stamped in the SAVE, so tomorrow is a fresh gift and today is not repeatable');
+  } else {
+    assert(!dressed.fairday, 'Sunday: no fair-day dressing');
+    assert(dressed.swags === 0 && dressed.flags === 0, 'Sunday: no extra bunting');
+    assert(dressed.booth === 0, 'Sunday: no booth button at all — nothing to have missed');
+    assert(dressed.bulbGlow !== '1', `Sunday: the daytime string lights are off again (${dressed.bulbGlow})`);
+    await page.screenshot({ path: `${SHOTS}/e6-sunday.png` });
+  }
+  await cctx.close();
 }
 
 // ============================================================================
