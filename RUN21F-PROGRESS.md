@@ -82,6 +82,20 @@
         every save can reach), so it carries the most risk of wearing out. Its lead restates
         one dotted "pottering turn" in bars 1, 3 and 7 with varied tails — memorable by
         design, which is also what makes it the likeliest to grate. Worth Alex's ear first.
+        **MEASURED, and it inverted my assumption** (see the density table below): I had
+        guessed the playground was the parent risk because it is fastest and busiest. It is
+        not — it is the AIRIEST of the five, because staccato notes leave gaps. The meadow
+        is the one with the problem: its lead line sounds for **100% of the loop**, never
+        resting once across 22.9 seconds, forever, in the area a child spends most time in.
+        Its texture does thin (the pad deliberately drops out in bars 2 and 4, and bar 8
+        resolves on two long notes), so this is a lead-line observation rather than a wall
+        of sound — but a melody that never stops is the classic way ambient music turns
+        into a nuisance in the room next door. **This is the single thing to listen for
+        first.** I did NOT re-compose it: the tune is judged and validated, "100% sounding"
+        is a proxy rather than a verdict, and rewriting a composition I cannot hear on the
+        strength of a proxy is exactly the improvisation the rules warn against. The fix,
+        if Alex's ears agree, is small and local — rests in place of one or two of the
+        tie-overs in bars 2 and 6.
       · Least confident: whether beach and meadow read as clearly different. They are only
         4 bpm apart (80 vs 84), both mid-density lead-over-bass textures. Their rhythmic
         profiles differ (beach is dotted and off-beat, meadow is a dotted turn resolving on
@@ -89,7 +103,38 @@
         it is a judgement I cannot make without ears.
       · What I deliberately did NOT do: add any in-app signage announcing a tune. Ambient
         music that announces itself stops being ambient. The What's New card tells her once
-        that places have tunes; after that it is for noticing, not for being told.
+        that places have tunes; after that it is for noticing, not for being told. This is
+        the judgement I would most have liked a second opinion on, and did not get (below).
+
+      **DENSITY / REST MEASUREMENTS** (what a parent in the same room actually gets):
+
+      | area | lead notes/s | lead sounding | top note | longest lead rest |
+      |---|---:|---:|---:|---:|
+      | meadow | 1.75 | **100%** | 587 Hz | **0.00 beats** |
+      | riverside | 1.10 | 89% | 587 Hz | 1.50 beats |
+      | hilltop | 0.63 | 97% | 659 Hz | 0.50 beats |
+      | beach | 1.04 | 75% | 659 Hz | 1.50 beats |
+      | playground | 2.25 | 62% | 659 Hz | 0.75 beats |
+
+      No tune's lead goes above **659 Hz (E5)**, so none is shrill; the register ceiling is
+      the same E5 the pack's own C4-E5 range implies. No bar in any tune is a byte-identical
+      repeat of another bar (8 distinct bars in all five), so nothing loops on itself inside
+      the loop. Hilltop reads as 97% sounding because it is a DRONE piece — that number is
+      the drone doing its job, not density.
+
+      **THE COLD PLAYTEST DID NOT RUN — recorded as a gap, not glossed over.** The
+      `playtest-critic` was launched against the running server and produced exactly one
+      line ("Now let me play it cold, as the child") before wedging: 0 bytes of transcript
+      and no activity for 15 minutes, after which I stopped it. The same session limit that
+      killed the composition panel's cross-area reviewer is the likely cause (it reset at
+      09:00 Europe/London). NOTHING was recovered from it. So F8 has had NO cold read by a
+      second party: no independent judgement on discovery (would a child ever notice this
+      exists?), on whether the five read as five different places, or on the parent's ear.
+      I covered the parent's-ear question myself with the measurements above — which is why
+      the meadow finding exists at all — but measurement is not listening, and the
+      discovery and blur questions remain genuinely unexamined by anyone but me.
+      **Re-run `playtest-critic` before or alongside the audition** — it is cheap, and it
+      is the check most likely to catch what I cannot.
 
       Gate re-checked at
       session start: NEEDS_ALEX.md line 404 now carries `LEITMOTIFS: APPROVED-TO-COMPOSE`,
@@ -154,7 +199,10 @@
 ### FOR THE MERGE GATE (Alex)
 
 - **The sign-off gate is UNMET and binding.** `NEEDS_ALEX: audition leitmotifs before
-  merge`. Do not merge F8 until NEEDS_ALEX.md gains `LEITMOTIFS: SIGNED-OFF`. `main` is
+  merge`. Do not merge F8 until NEEDS_ALEX.md gains `LEITMOTIFS: SIGNED-OFF`.
+  Two things to carry into that audition: (1) the **meadow's lead never rests** — 100% of
+  a 22.9s loop, in the busiest area (see the listening notes); (2) **no cold playtest was
+  ever obtained**, so discovery and five-places-blur have had no second opinion. `main` is
   untouched at `22b8d40`; all six F8 commits exist only on `run21f8` / `origin/run21f8`.
 - **The live-URL half of the deploy gate is suspended** for tonight by the lane brief (no
   merges, no pushes to main, no deploys). `BUILD_STAMP` is bumped to `run21f8-20260810`
