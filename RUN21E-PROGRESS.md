@@ -647,3 +647,37 @@ came back DEVIATE. The full per-item mechanism maps (file:line for everything ea
 plus the suites that pin it) were the basis for the fifty deviations catalogued above — including
 detailed maps for E1, E8, E9 and E14, which is what makes their costings in the report trustworthy
 rather than guesses.
+
+## ⚠ HANDOVER NOTE FOR THE MORNING — main took an EARLIER commit than the branch tip
+
+**Somebody else merged `run21e` into `main` at 22:38 (`cb686e5`), and `run21g` at 22:46
+(`972bfe2`). It was not this lane** — this lane never ran a merge and never pushed `main`; every
+push here was `git push` on `run21e` from its own worktree, exactly as the brief requires.
+
+The merge took **`749bf30`**, which is the commit *before* the independent gate check reported.
+So **three commits are on `run21e` and NOT in `main`**:
+
+```
+db0aa1a  RUN21E: regenerate PROJECT_STATE after the gate-check fixes
+47c454a  RUN21E: correct the save-mechanism claim in the report header too
+683e7e7  RUN21E: act on all six gate-check findings
+```
+
+**What `main` is therefore missing** (verified by reading `main`'s own blobs, not inferred):
+
+| gate finding | state in `main` | state on `run21e` |
+|---|---|---|
+| GC-6 `js/playjournal.js` precache | **absent from `sw.js` ASSETS[]** — and `js/main.js` imports it statically, so the app shell has a hard dependency on an unprecached module | fixed |
+| GC-3 one id convention | `land_lantern` / `land_buntingend` still present alongside `deco_kiterack` | all three `deco_*` |
+| GC-5 `townGrowth.catchup` default | not declared in `freshSave()` (safe via read-site guards, but not backfilled) | declared |
+| GC-1 E4-C's 4th/5th poster states | untested — fair-day and request lines asserted nowhere | all five pinned |
+| GC-2 `Ding!` | never shipped | ships as a visible pip |
+
+**Recommended action, in order of importance:** fast-forward `main` to `run21e`'s tip, or
+cherry-pick `683e7e7`. GC-6 is the one that matters beyond this pack — it is an **offline-law**
+gap inherited from `main` itself (RUN21F-10B added `js/playjournal.js` and never precached it), so
+**the other in-flight branches are very likely carrying it too and should be checked.**
+
+Nothing here is urgent enough to justify this lane breaking its own rules to fix: the brief says
+never merge and never push `main`, and a merge is the maintainer's call, so it is written down
+rather than done.
