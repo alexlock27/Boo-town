@@ -72,10 +72,24 @@ export function buildTwinTroubleRound(level) {
   }
   const items = flatten(PAIR_SETS);
   const n = level === 3 ? 10 : 8;
-  const out = shuffle(items.slice()).slice(0, n).map(buildCase);
+  // RUN21H A4: sentences this session has not tried deal first; an exhausted pool
+  // resets its cycle. Module state only.
+  if (items.every(it => SEEN_CASES.has(it.sentence))) items.forEach(it => SEEN_CASES.delete(it.sentence));
+  const fresh = items.filter(it => !SEEN_CASES.has(it.sentence));
+  const deck = shuffle(fresh.slice()).slice(0, n);
+  if (deck.length < n) {
+    const have = new Set(deck.map(it => it.sentence));
+    for (const it of shuffle(items.slice())) {
+      if (deck.length >= n) break;
+      if (!have.has(it.sentence)) { deck.push(it); have.add(it.sentence); }
+    }
+  }
+  deck.forEach(it => SEEN_CASES.add(it.sentence));
+  const out = deck.map(buildCase);
   while (out.length < n && items.length) out.push(buildCase(items[rand(items.length)]));
   return { cases: out, toldSet: null };
 }
+const SEEN_CASES = new Set();   // RUN21H A4 session memory for Twin Trouble deals
 
 export function mount(container, params, ctx) {
   const root = el('div', { class: 'screen soundtwins' });

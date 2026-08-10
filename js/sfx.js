@@ -1,6 +1,14 @@
-// js/sfx.js — all audio synthesised with the Web Audio API. No audio files (spec §3).
+// js/sfx.js — audio for Boo Town. Almost everything is synthesised with the Web Audio API;
+// the one exception is a small set of REAL recorded sounds (see SAMPLES below).
 // Sound effects + gentle music loops, separate mutes, ducking while the guide speaks.
 // Everything is feature-detected and wrapped so a missing/blocked context never throws.
+//
+// RUN21H B3 — "no audio files" was relaxed by GOVERNANCE-TONIGHT §3a'. Music is still
+// original synthesis and always will be; what may now ship as a file is a REAL WORLD NOISE
+// where synthesis is simply worse for the child — a real bleat teaches "sheep" in a way a
+// sawtooth glide never will. Every such file is licence-verified (CC0 or public domain),
+// recorded in assets/sfx/manifest.json, precached in sw.js ASSETS, and served same-origin,
+// so the offline guarantee is untouched.
 
 import { haptic } from './haptics.js';   // a gentle tick on correct answers (RUN9 C7)
 
@@ -115,7 +123,109 @@ function play(fn) {
   try { fn(ctx.currentTime); } catch (e) { console.warn('[sfx] play error', e); }
 }
 
+// ---- RUN21H B3: real recorded samples ------------------------------------------------
+// The ids here are the ONLY paths sample() will ever fetch, and each is a same-origin file
+// listed in sw.js ASSETS — so this stays inside the zero-network law rather than around it
+// (tests/r11q9-zeronet.mjs enforces exactly that, and tests/r21h-ears.mjs proves the three
+// lists agree). Buffers are decoded once and cached module-level; a second tap costs
+// nothing. A missing or undecodable file is never an error the child sees — sample()
+// returns false and the caller falls back to the synth it always had.
+export const SAMPLES = {
+  // the five toddler animals a licence-clean recording exists for
+  cat:   'assets/sfx/cat.wav',
+  sheep: 'assets/sfx/sheep.wav',
+  bee:   'assets/sfx/bee.wav',
+  frog:  'assets/sfx/frog.wav',
+  lion:  'assets/sfx/lion.wav',
+  // world noise: the two sparse events the area beds already fire (RUN21F F7) — the beach's
+  // gull cry and the meadow's birdsong were thin triangle motifs standing in for a bird
+  seagull:   'assets/sfx/seagull.wav',
+  blackbird: 'assets/sfx/blackbird.wav'
+};
+export const SAMPLE_IDS = Object.keys(SAMPLES);
+const buffers = new Map();     // id -> AudioBuffer
+const failed = new Set();      // ids we already know we cannot decode; never retried
+const pending = new Map();     // id -> Promise, so a double tap fetches once
+
+function sampleURL(id) {
+  const rel = SAMPLES[id];
+  if (!rel) return null;
+  // Resolved against this module so it works from any route depth, and stays same-origin.
+  return new URL('../' + rel, import.meta.url).href;
+}
+
+export async function loadSample(id) {
+  if (buffers.has(id)) return buffers.get(id);
+  if (failed.has(id) || !SAMPLES[id]) return null;
+  if (pending.has(id)) return pending.get(id);
+  const p = (async () => {
+    try {
+      if (!ctx && !initAudio()) return null;
+      const r = await fetch(sampleURL(id));
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const buf = await ctx.decodeAudioData(await r.arrayBuffer());
+      buffers.set(id, buf);
+      return buf;
+    } catch (e) {
+      failed.add(id);
+      console.warn('[sfx] sample unavailable:', id, e && e.message);
+      return null;
+    } finally { pending.delete(id); }
+  })();
+  pending.set(id, p);
+  return p;
+}
+
+// Play a real sample through sfxGain — so every existing mute and duck holds, with no
+// special case anywhere. Returns true if it played (or will, once decoded).
+// `bus` lets an area bed play its own sparse event through bedGain, so a real gull obeys
+// the bed's mute and duck contract exactly as the synthesised one did. Everything else
+// defaults to sfxGain and needs no special case at all.
+export function sample(id, { vel = 1, bus = null, time = null } = {}) {
+  if (!soundOn || !SAMPLES[id] || failed.has(id)) return false;
+  const start = (buf) => {
+    if (!buf || !soundOn) return;
+    play(t => {
+      const target = bus || sfxGain;
+      const src = ctx.createBufferSource();
+      const g = ctx.createGain();
+      src.buffer = buf;
+      g.gain.value = Math.max(0, Math.min(1, vel));
+      src.connect(g); g.connect(target);
+      const at = time !== null ? Math.max(time, ctx.currentTime) : t;
+      src.start(at);
+      logEvent({ kind: 'sample', t: at, freq: 0, dur: buf.duration, bus: busName(target), tag: 'sample:' + id });
+    });
+  };
+  const cached = buffers.get(id);
+  if (cached) { start(cached); return true; }
+  loadSample(id).then(start);
+  return true;
+}
+
+// RUN21H B4: the sample-or-speak seam. Where a real recording exists it is heard; where one
+// does not, the guide says the fallback text exactly as before. This is what lets a recorded
+// UK phoneme set drop in one day with ZERO call-site changes — the call site already asks
+// for a sound by id and does not care which way it is produced.
+//
+// NO ROBOT PHONEME FILES SHIP TONIGHT, deliberately. Chrome's TTS reading an isolated
+// grapheme is the worst audio in the app — a lone 'c' comes out "see", 'ng' comes out
+// "en-gee" — and that is letter NAMES where the child is being taught letter SOUNDS, the
+// exact confusion KS1 phonics spends a year undoing. The fix is a recorded UK phoneme set,
+// which does not exist licence-clean tonight (see RUN21F9-VOICE-PREP/PLAN.md). This seam is
+// the thing that makes that a drop-in rather than a rewrite: call sites already say
+// "play phoneme /sh/, and if you can't, say this", so the day the files land they simply
+// start being heard.
+//   id convention for the future set: 'phoneme:sh', 'phoneme:igh', …
+export function sampleOr(id, fallback) {
+  if (sample(id)) return 'sample';
+  if (typeof fallback === 'function') { fallback(); return 'fallback'; }
+  return 'none';
+}
+export const phonemeId = (key) => 'phoneme:' + key;
+
 export const sfx = {
+  sample, sampleOr, loadSample, phonemeId,
   tap()   { play(t => envTone(520, t, 0.08, 'triangle', 0.28)); },
   pop()   { play(t => { envTone(660, t, 0.09, 'sine', 0.4); envTone(990, t + 0.02, 0.12, 'sine', 0.25); }); },
   correct() { play(t => { envTone(587, t, 0.12, 'triangle', 0.4); envTone(880, t + 0.09, 0.16, 'triangle', 0.4); }); try { haptic('tick'); } catch {} },   // gentle tick (RUN9 C7)
@@ -461,10 +571,23 @@ function scheduleBedInner() {
 
 function bedEvent(kind, t) {
   if (kind === 'gull') {
+    // RUN21H B3: a real herring gull where there used to be two thin triangle cries. Same
+    // bus, same rate cap, same tag — only the source of the sound changed. If the file is
+    // ever unavailable the synthesised pair below still answers, so the beach is never silent.
+    if (sample('seagull', { vel: 0.85, bus: bedGain, time: t })) {
+      logEvent({ kind: 'note', t, freq: 0, dur: 2, bus: 'bed', tag: 'bed:beach:gull' });
+      return;
+    }
     // two thin cries, the second answering the first
     glideTone(t, 1500, 2150, 0.10, 'triangle', 0.30, bedGain, 'bed:beach:gull');
     glideTone(t + 0.16, 1980, 1320, 0.14, 'triangle', 0.26, bedGain);
   } else if (kind === 'birdsong') {
+    // RUN21H B3: a real blackbird, the commonest garden song in Britain, where there used to
+    // be a three-note triangle motif. Same fallback contract as the gull.
+    if (sample('blackbird', { vel: 0.8, bus: bedGain, time: t })) {
+      logEvent({ kind: 'note', t, freq: 0, dur: 2.6, bus: 'bed', tag: 'bed:meadow:birdsong' });
+      return;
+    }
     // exactly three notes, a little motif picked from a friendly set
     const MOTIFS = [[2400, 3000, 2650], [2200, 2900, 3300], [2800, 2350, 2600], [2500, 2500, 3100]];
     const m = MOTIFS[Math.floor(Math.random() * MOTIFS.length)];
@@ -582,7 +705,14 @@ function glideTone(t0, f0, f1, dur, type, peak, bus = null, tag = null) {
 export const ANIMAL_KEYS = ['cow', 'cat', 'dog', 'duck', 'sheep', 'owl', 'bee', 'snake', 'frog', 'lion'];
 export const ANIMAL_WORDS = { cow: 'Moo', cat: 'Meow', dog: 'Woof', duck: 'Quack', sheep: 'Baa', owl: 'Twit twoo', bee: 'Buzz', snake: 'Sssss', frog: 'Ribbit', lion: 'ROAR' };
 export const animal = {
+  // RUN21H B3. Five of these ten now have a REAL recording (see SAMPLES), and a real bleat
+  // teaches "sheep" in a way a sawtooth glide never could. The other five keep the
+  // synthesis they have always had — there is no CC0 or public-domain recording of a cow,
+  // a dog, a duck or an owl to be had, and protected core §5 says an unverifiable licence
+  // does not ship, so the honest thing is a mixed set rather than a compromised one.
+  // The call site does not change: animal.call('sheep') is still animal.call('sheep').
   call(key) {
+    if (sample(key)) return;
     play(t => {
       switch (key) {
         case 'cow':   glideTone(t, 300, 150, 0.62, 'sine', 0.42); break;

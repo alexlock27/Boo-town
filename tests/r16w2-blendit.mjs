@@ -69,10 +69,26 @@ console.log('== 1. the four authored levels, exactly as the brief lists them =='
     3: ['rain', 'boat', 'moon', 'star', 'tree', 'corn', 'night', 'cow', 'spoon', 'chair', 'beach', 'green'],
     4: ['rabbit', 'basket', 'magnet', 'picnic', 'sunset', 'helmet', 'pocket', 'carpet', 'dentist', 'tunnel']
   };
+  // RUN21H A3 added words under GOVERNANCE §2 because a round of 8 from a pool of 12 meant
+  // the same handful for ever. The guarantee that still matters — and the one this suite was
+  // written for — is that NOTHING AUTHORED was dropped, changed or reordered: the authored
+  // list must remain an exact PREFIX of the level. The additions are pinned separately, so
+  // both a lost authored word and an unrecorded new one still fail.
+  const ADDED = {
+    1: ['mat', 'bat', 'rat', 'log', 'jog', 'fog', 'bug', 'hug', 'mop', 'hop'],
+    2: ['shed', 'wish', 'chip', 'path', 'king', 'wing', 'song', 'sing', 'thing', 'bell', 'well', 'brush'],
+    3: ['snail', 'train', 'goat', 'coat', 'food', 'boot', 'car', 'farm', 'fork', 'light', 'owl', 'feet'],
+    4: ['balloon', 'cartoon', 'flower']
+  };
   for (const [lvl, words] of Object.entries(AUTHORED)) {
     const got = (r.levels.find(l => String(l.level) === lvl) || {}).words || [];
-    assert(got.join('|') === words.join('|'), `level ${lvl}: all ${words.length} words in the authored order`);
+    assert(got.slice(0, words.length).join('|') === words.join('|'),
+      `level ${lvl}: all ${words.length} authored words still lead the level, in the authored order`);
+    assert(got.slice(words.length).join('|') === ADDED[lvl].join('|'),
+      `level ${lvl}: exactly the ${ADDED[lvl].length} RUN21H additions follow them`);
   }
+  // and the point of the additions: a round of 8 must not exhaust its level
+  for (const l of r.levels) assert(l.words.length >= 13, `level ${l.level} holds ${l.words.length} words for a round of 8`);
   assert(r.badSplit.length === 0, 'every grapheme split spells its own word back' + (r.badSplit.length ? ': ' + r.badSplit.join(',') : ''));
   assert(r.noArt.length === 0, 'every blend word has a picture');
   assert(r.levels.every(l => l.minTiles >= 2), 'no word is a single tile');

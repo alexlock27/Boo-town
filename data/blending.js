@@ -4,10 +4,18 @@
 // brief's, verbatim and in the brief's order: CVC first, then digraph words, then longer.
 // Never substitute, abbreviate or regenerate.
 //
+// RUN21H A3 ADDED words under GOVERNANCE-TONIGHT §2 ("ADD content where a game is thin").
+// Nothing authored was changed, removed or reordered — every addition sits AFTER the
+// authored words, marked `+ RUN21H`, and tests/r16w2-blendit.mjs still asserts the authored
+// list as an exact prefix so a future edit cannot quietly drop one. The reason: a round
+// deals 8 words, and levels 2 and 3 held only 12, so a child met the same handful for ever.
+// Every added word already has a picture in js/wordart.js (a blend word without one is a
+// broken card) and every split is a UK letters-and-sounds unit, same as the authored ones.
+//
 // `g` is the word's GRAPHEME split — the tiles the child slides together and the units the
 // guide sounds out one at a time before saying the whole word. UK phonics (G15): sh/ch/th/
-// ng/ck/ai/oa/oo/ee/ar/or/igh/ow/air/ea are single graphemes, doubled letters (bb, nn) are
-// one grapheme, and 'st' is kept whole at the end of dentist so no word exceeds six tiles.
+// ng/ck/ai/oa/oo/ee/ar/or/igh/ow/air/ea/er are single graphemes, doubled letters (bb, nn, ll)
+// are one grapheme, and 'st' is kept whole at the end of dentist so no word exceeds six tiles.
 
 export const BLEND_LEVELS = [
   {
@@ -28,7 +36,18 @@ export const BLEND_LEVELS = [
       { w: 'net', g: ['n', 'e', 't'] },
       { w: 'rug', g: ['r', 'u', 'g'] },
       { w: 'tin', g: ['t', 'i', 'n'] },
-      { w: 'van', g: ['v', 'a', 'n'] }
+      { w: 'van', g: ['v', 'a', 'n'] },
+      // + RUN21H A3 (16 -> 26)
+      { w: 'mat', g: ['m', 'a', 't'] },
+      { w: 'bat', g: ['b', 'a', 't'] },
+      { w: 'rat', g: ['r', 'a', 't'] },
+      { w: 'log', g: ['l', 'o', 'g'] },
+      { w: 'jog', g: ['j', 'o', 'g'] },
+      { w: 'fog', g: ['f', 'o', 'g'] },
+      { w: 'bug', g: ['b', 'u', 'g'] },
+      { w: 'hug', g: ['h', 'u', 'g'] },
+      { w: 'mop', g: ['m', 'o', 'p'] },
+      { w: 'hop', g: ['h', 'o', 'p'] }
     ]
   },
   {
@@ -45,7 +64,20 @@ export const BLEND_LEVELS = [
       { w: 'sock', g: ['s', 'o', 'ck'] },
       { w: 'duck', g: ['d', 'u', 'ck'] },
       { w: 'back', g: ['b', 'a', 'ck'] },
-      { w: 'lick', g: ['l', 'i', 'ck'] }
+      { w: 'lick', g: ['l', 'i', 'ck'] },
+      // + RUN21H A3 (12 -> 24). Doubled ll counts as one grapheme, as the header already says.
+      { w: 'shed', g: ['sh', 'e', 'd'] },
+      { w: 'wish', g: ['w', 'i', 'sh'] },
+      { w: 'chip', g: ['ch', 'i', 'p'] },
+      { w: 'path', g: ['p', 'a', 'th'] },
+      { w: 'king', g: ['k', 'i', 'ng'] },
+      { w: 'wing', g: ['w', 'i', 'ng'] },
+      { w: 'song', g: ['s', 'o', 'ng'] },
+      { w: 'sing', g: ['s', 'i', 'ng'] },
+      { w: 'thing', g: ['th', 'i', 'ng'] },
+      { w: 'bell', g: ['b', 'e', 'll'] },
+      { w: 'well', g: ['w', 'e', 'll'] },
+      { w: 'brush', g: ['b', 'r', 'u', 'sh'] }
     ]
   },
   {
@@ -62,7 +94,20 @@ export const BLEND_LEVELS = [
       { w: 'spoon', g: ['s', 'p', 'oo', 'n'] },
       { w: 'chair', g: ['ch', 'air'] },
       { w: 'beach', g: ['b', 'ea', 'ch'] },
-      { w: 'green', g: ['g', 'r', 'ee', 'n'] }
+      { w: 'green', g: ['g', 'r', 'ee', 'n'] },
+      // + RUN21H A3 (12 -> 24)
+      { w: 'snail', g: ['s', 'n', 'ai', 'l'] },
+      { w: 'train', g: ['t', 'r', 'ai', 'n'] },
+      { w: 'goat', g: ['g', 'oa', 't'] },
+      { w: 'coat', g: ['c', 'oa', 't'] },
+      { w: 'food', g: ['f', 'oo', 'd'] },
+      { w: 'boot', g: ['b', 'oo', 't'] },
+      { w: 'car', g: ['c', 'ar'] },
+      { w: 'farm', g: ['f', 'ar', 'm'] },
+      { w: 'fork', g: ['f', 'or', 'k'] },
+      { w: 'light', g: ['l', 'igh', 't'] },
+      { w: 'owl', g: ['ow', 'l'] },
+      { w: 'feet', g: ['f', 'ee', 't'] }
     ]
   },
   {
@@ -77,7 +122,15 @@ export const BLEND_LEVELS = [
       { w: 'pocket', g: ['p', 'o', 'ck', 'e', 't'] },
       { w: 'carpet', g: ['c', 'ar', 'p', 'e', 't'] },
       { w: 'dentist', g: ['d', 'e', 'n', 't', 'i', 'st'] },
-      { w: 'tunnel', g: ['t', 'u', 'nn', 'e', 'l'] }
+      { w: 'tunnel', g: ['t', 'u', 'nn', 'e', 'l'] },
+      // + RUN21H A3 (10 -> 13). Level 4 is the ONE level that could not be brought to 24:
+      // every longer word needs its own picture in js/wordart.js, and these three are the
+      // only multi-syllable words the library already draws. See the RUN21H ledger — the
+      // remaining gap is an ART job, not a content one, and padding it with words that have
+      // no picture would ship broken cards.
+      { w: 'balloon', g: ['b', 'a', 'll', 'oo', 'n'] },
+      { w: 'cartoon', g: ['c', 'ar', 't', 'oo', 'n'] },
+      { w: 'flower', g: ['f', 'l', 'ow', 'er'] }
     ]
   }
 ];

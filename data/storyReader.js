@@ -29,6 +29,51 @@ export const STORY_READER_SETS = [
     question: 'When did Pip score?',
     options: ['near the end of the match', 'in the first half', 'at breakfast'],
     answer: 'near the end of the match'
+  },
+  // + RUN21H A3. Two authored sets meant a child met the same two stories every time.
+  // Sentence sequencing needs no panel art, so this is where Story Order depth can honestly
+  // grow tonight (see the ledger DECISION on picture stories). Each set follows the pack's
+  // own pattern exactly: five sentences, each opening with the time connective that fixes
+  // its place, a `why` line built from that connective, and one comprehension question whose
+  // correct option is written FIRST.
+  {
+    id: 'lostGlove', title: 'The Lost Glove',
+    sentences: [
+      { text: 'One snowy morning, Nova pulled on her woolly gloves and set off for school.', why: '"One snowy morning" — this is how the story STARTS.' },
+      { text: 'On the way, she stopped to throw a snowball at the postbox.', why: '"On the way" happens while she is still walking, before she arrives.' },
+      { text: 'By the time she reached the gate, one glove had gone.', why: '"By the time she reached the gate" — she has to set off before she can arrive.' },
+      { text: 'All through the morning, she wondered where it could be.', why: '"All through the morning" comes after she gets to school, not before.' },
+      { text: 'At home time, she found it sitting on top of the postbox.', why: '"At home time" — this is how the story FINISHES.' }
+    ],
+    question: 'Where was the missing glove?',
+    options: ['on top of the postbox', 'at the school gate', 'under her bed'],
+    answer: 'on top of the postbox'
+  },
+  {
+    id: 'birthdayCake', title: 'The Surprise Cake',
+    sentences: [
+      { text: 'A week before the party, Tuft decided to bake a cake in secret.', why: '"A week before" — this happens first, before everything else.' },
+      { text: 'To begin with, he hid all the ingredients in the shed.', why: '"To begin with" comes right after he decides, not later.' },
+      { text: 'While everyone was out, he mixed and baked as fast as he could.', why: '"While everyone was out" is the baking — it comes after "To begin with", not before.' },
+      { text: 'Moments before the guests arrived, he slid the cake onto the table.', why: '"Moments before the guests arrived" is near the end, not the beginning.' },
+      { text: 'Finally, everybody shouted SURPRISE — and Tuft was the most surprised of all.', why: '"Finally" — this is how the story FINISHES.' }
+    ],
+    question: 'Where did Tuft hide the ingredients?',
+    options: ['in the shed', 'in the kitchen', 'under his bed'],
+    answer: 'in the shed'
+  },
+  {
+    id: 'rainyMatch', title: 'The Muddy Match',
+    sentences: [
+      { text: 'Long before kick-off, the rain had turned the pitch into a swamp.', why: '"Long before kick-off" — this is the earliest thing in the story.' },
+      { text: 'As the whistle blew, both teams were already covered in mud.', why: '"As the whistle blew" is the moment the match starts, after the rain.' },
+      { text: 'Halfway through, nobody could tell the two teams apart.', why: '"Halfway through" has to come after the match starts.' },
+      { text: 'With seconds to spare, a muddy Boo poked the ball over the line.', why: '"With seconds to spare" is right at the end of the match.' },
+      { text: 'Later that evening, every single Boo needed a very long bath.', why: '"Later that evening" — this is how the story FINISHES.' }
+    ],
+    question: 'Why could nobody tell the teams apart?',
+    options: ['they were all covered in mud', 'they wore the same shirts', 'it was too dark'],
+    answer: 'they were all covered in mud'
   }
 ];
 

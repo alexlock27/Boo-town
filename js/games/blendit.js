@@ -49,8 +49,22 @@ export function pickPictures(word, level) {
   return shuffle([word, ...others]);
 }
 
+// RUN21H A4: session-scoped repeat avoidance. A round deals words this session has not
+// blended yet first; an exhausted level resets and cycles fresh. Module state only.
+const SEEN_BLEND = new Set();
 export function buildBlendRound(level, n = ROUND_WORDS) {
-  const words = shuffle(blendLevel(level).words.slice()).slice(0, n);
+  const pool = blendLevel(level).words;
+  let fresh = pool.filter(e => !SEEN_BLEND.has(e.w));
+  if (!fresh.length) { pool.forEach(e => SEEN_BLEND.delete(e.w)); fresh = pool.slice(); }
+  const words = shuffle(fresh.slice()).slice(0, n);
+  if (words.length < Math.min(n, pool.length)) {
+    const have = new Set(words.map(e => e.w));
+    for (const e of shuffle(pool.slice())) {
+      if (words.length >= Math.min(n, pool.length)) break;
+      if (!have.has(e.w)) { words.push(e); have.add(e.w); }
+    }
+  }
+  words.forEach(e => SEEN_BLEND.add(e.w));
   return words.map(e => ({ ...e, options: pickPictures(e.w, level) }));
 }
 
@@ -410,14 +424,26 @@ export function joinDiff(item) {
   };
 }
 
+const SEEN_FACTORY = new Set();   // RUN21H A4: same session seam for the Word Factory
 export function buildFactoryRound(level, n = FACTORY_ROUND) {
   const lvl = factoryLevel(level);
   const items = lvl.items;
   // CAUGHT LIVE (Alex, 2026-07-30: "3 questions repeated twice in my first and only
   // 8 question run"): this used to sample WITH replacement — a shuffled deal now, so a
   // round never repeats an item while the level has enough. Only a pool smaller than the
-  // round reuses items, and never back-to-back.
-  const out = shuffle(items.slice()).slice(0, n);
+  // round reuses items, and never back-to-back. RUN21H A4 adds the cross-round memory:
+  // unseen items deal first, and an exhausted level resets its cycle.
+  let fresh = items.filter(it => !SEEN_FACTORY.has(it.id));
+  if (!fresh.length) { items.forEach(it => SEEN_FACTORY.delete(it.id)); fresh = items.slice(); }
+  const out = shuffle(fresh.slice()).slice(0, n);
+  if (out.length < Math.min(n, items.length)) {
+    const have = new Set(out.map(it => it.id));
+    for (const it of shuffle(items.slice())) {
+      if (out.length >= Math.min(n, items.length)) break;
+      if (!have.has(it.id)) { out.push(it); have.add(it.id); }
+    }
+  }
+  out.forEach(it => SEEN_FACTORY.add(it.id));
   let guard = 0;
   while (out.length < n && items.length > 0 && guard++ < n * 20) {
     const it = items[rand(items.length)];

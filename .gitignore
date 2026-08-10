@@ -83,3 +83,6 @@ seed code for testing-alex only.pdf
 
 # RUN21 evidence screenshots (regenerable; referenced from the RUN21*-REPORT files)
 _evidence/
+
+# RUN21H sourcing scratch — regenerable by tools/sfx-source.mjs and tools/sfx-verify.mjs
+.tmp-*

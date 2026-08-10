@@ -74,7 +74,9 @@ function addsubGen(lvl) {
     display = `${a} ${op} ${b}`;
   } else if (lvl === 2) {                 // two-digit ± two-digit, no crossing hundreds
     op = rand(2) ? '+' : '−';
-    if (op === '+') { a = 21 + rand(60); b = 11 + rand(Math.max(1, 98 - a)); answer = a + b; }
+    // RUN21H A2: the bound was `98 - a`, which lets b reach 108-a and produces sums of
+    // 101-108 — past the hundred this level says it does not cross. `88 - a` caps a+b at 98.
+    if (op === '+') { a = 21 + rand(60); b = 11 + rand(Math.max(1, 88 - a)); answer = a + b; }
     else { a = 41 + rand(58); b = 11 + rand(a - 11); answer = a - b; }
     display = `${a} ${op} ${b}`;
   } else {                                // three-digit ± tens/hundreds
@@ -129,7 +131,10 @@ export const BUBBLE_CATEGORIES = [
   { key: 'bonds',    name: 'Number bonds',    levels: ['S', 1, 2],    gen: bondsGen,    sample: '35 + ? = 100' },
   { key: 'addsub',   name: 'Add & subtract',  levels: [1, 2, 3],      gen: addsubGen,   sample: '46 + 37' },
   { key: 'doubles',  name: 'Doubles & halves',levels: [1, 2],         gen: dhGen,       sample: 'Double 14' },
-  { key: 'moreless', name: 'More or less',    levels: [1, 2],         gen: morelessGen, sample: '10 more than 62' }
+  // RUN21H A2: the sample said '10 more than 62', but morelessGen never asks a two-digit
+  // question — L1 draws 100..998 and L2 four digits. The card now advertises a question the
+  // category actually generates.
+  { key: 'moreless', name: 'More or less',    levels: [1, 2],         gen: morelessGen, sample: '10 more than 362' }
 ];
 export const BUBBLE_BY_KEY = Object.fromEntries(BUBBLE_CATEGORIES.map(c => [c.key, c]));
 

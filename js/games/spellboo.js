@@ -50,6 +50,9 @@ const FRIENDLY = {
   silentIshSc:        { name: 'Silent c Words',    sub: 'science · scissors',    group: 'sneaky' },
   eiEighEy:           { name: 'The eigh Gang',     sub: 'eight · they',          group: 'sneaky' },
   ouSoundsLikeU:      { name: 'Short ou Words',    sub: 'young · touch',         group: 'sneaky' },
+  // RUN21H A3: the new y-that-sounds-like-i bank needs a card here or the child can never
+  // reach it — a bank with no picker entry is content that does not exist.
+  yThatSoundsLikeI:   { name: 'Sneaky y says i',   sub: 'myth · pyramid',        group: 'sneaky' },
   homophones:         { name: 'Homophones',        sub: 'piece / peace',         group: 'sneaky' }
 };
 function friendlyChoice(c) {
@@ -65,6 +68,10 @@ const ROUND_WORDS = 8;
 const MAX_HINTS = 2;
 const MASTERED_AT = 3;
 const rand = (n) => (Math.random() * n) | 0;
+// RUN21H A4: session-scoped repeat avoidance for word and twin deals. Module state only —
+// nothing saved; a fresh visit starts a fresh cycle.
+const seenWords = new Set();
+const seenTwins = new Set();
 const starsFor = (wrong, hints) => (hints === 0 && wrong <= 1) ? 3 : (wrong <= 3 ? 2 : 1);
 
 export function mount(container, params, ctx) {
@@ -107,19 +114,6 @@ export function mount(container, params, ctx) {
     ]));
     root.appendChild(card);
     root.appendChild(backControl(() => ctx.go('hub'), { floating: true }));   // shared back (job 3)
-  }
-
-  function pickWords(setKey, tier) {
-    const s = getState();
-    const pool = (SET_BY_KEY[setKey] || SET_BY_KEY.big).words.filter(w => w.t === tier);
-    const weighted = [];
-    for (const wo of pool) { const weight = (s.spellingMastery[wo.w] || 0) >= MASTERED_AT ? 1 : 3; for (let i = 0; i < weight; i++) weighted.push(wo); }
-    const chosen = []; let guard = 0;
-    while (chosen.length < Math.min(ROUND_WORDS, pool.length) && guard++ < 500) {
-      const wo = weighted[rand(weighted.length)];
-      if (!chosen.some(x => x.w === wo.w)) chosen.push(wo);
-    }
-    return chosen;
   }
 
   // ---- Smart Mix pool: every word + every twin set from ALL installed content ----
@@ -319,20 +313,44 @@ export function mount(container, params, ctx) {
   function playTwins(level) { startRound(pickTwins(level), { choice: TWINS_KEY, badgeKey: TWINS_KEY, level }); }
   function playMix() { startRound(buildMixItems(), { choice: MIX_KEY, badgeKey: MIX_KEY }); }
 
-  function pickTwins(level) {
-    const s = getState();
-    const pool = twinItemsForLevel(level).map(it => ({ ...it, kind: 'twin' }));
-    const weighted = [];
-    for (const it of pool) { const weight = (s.spellingMastery[it.answer] || 0) >= MASTERED_AT ? 1 : 3; for (let i = 0; i < weight; i++) weighted.push(it); }
-    const chosen = []; let guard = 0;
-    while (chosen.length < Math.min(ROUND_WORDS, pool.length) && guard++ < 500) {
-      const it = weighted[rand(weighted.length)];
-      if (!chosen.some(x => x.sentence === it.sentence)) chosen.push(it);
-    }
-    return chosen;
-  }
-
   return { unmount() { if (shell) shell.cleanup(); tts.cancel(); if (cleanupKeydown) cleanupKeydown(); } };
+}
+
+// ---- round pickers (module scope, exported so the A4 no-repeat seam is testable) -------
+// RUN21H A4: session-scoped repeat avoidance — draw from items this session has not dealt
+// while enough remain; an exhausted pool resets its cycle. The mastery weighting
+// (unmastered 3x) still applies within the drawable set. Module state only, nothing saved.
+export function pickWords(setKey, tier) {
+  const s = getState();
+  const pool = (SET_BY_KEY[setKey] || SET_BY_KEY.big).words.filter(w => w.t === tier);
+  const want = Math.min(ROUND_WORDS, pool.length);
+  let drawable = pool.filter(wo => !seenWords.has(setKey + ':' + wo.w));
+  if (drawable.length < want) { pool.forEach(wo => seenWords.delete(setKey + ':' + wo.w)); drawable = pool; }
+  const weighted = [];
+  for (const wo of drawable) { const weight = (s.spellingMastery[wo.w] || 0) >= MASTERED_AT ? 1 : 3; for (let i = 0; i < weight; i++) weighted.push(wo); }
+  const chosen = []; let guard = 0;
+  while (chosen.length < want && guard++ < 500) {
+    const wo = weighted[rand(weighted.length)];
+    if (!chosen.some(x => x.w === wo.w)) chosen.push(wo);
+  }
+  chosen.forEach(wo => seenWords.add(setKey + ':' + wo.w));
+  return chosen;
+}
+export function pickTwins(level) {
+  const s = getState();
+  const pool = twinItemsForLevel(level).map(it => ({ ...it, kind: 'twin' }));
+  const want = Math.min(ROUND_WORDS, pool.length);
+  let drawable = pool.filter(it => !seenTwins.has(it.sentence));
+  if (drawable.length < want) { pool.forEach(it => seenTwins.delete(it.sentence)); drawable = pool; }
+  const weighted = [];
+  for (const it of drawable) { const weight = (s.spellingMastery[it.answer] || 0) >= MASTERED_AT ? 1 : 3; for (let i = 0; i < weight; i++) weighted.push(it); }
+  const chosen = []; let guard = 0;
+  while (chosen.length < want && guard++ < 500) {
+    const it = weighted[rand(weighted.length)];
+    if (!chosen.some(x => x.sentence === it.sentence)) chosen.push(it);
+  }
+  chosen.forEach(it => seenTwins.add(it.sentence));
+  return chosen;
 }
 
 function twinMissItem(item) {

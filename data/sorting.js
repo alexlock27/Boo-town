@@ -5,7 +5,29 @@
 
 const rnd = (n) => (Math.random() * n) | 0;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function sampleN(arr, n) { return shuffle(arr.slice()).slice(0, Math.min(n, arr.length)); }
+// RUN21H A4: session-scoped repeat avoidance. A round prefers items this session has not
+// dealt yet; only when a pool genuinely exhausts does its membership reset and a fresh
+// cycle begin. Module state only — nothing saved, nothing decays, nothing punishes a
+// return visit (a reload simply starts a fresh cycle).
+const SEEN = new Set();
+function freshFirst(arr) {
+  const unseen = arr.filter(it => !SEEN.has(it.key));
+  if (!unseen.length && arr.length) { arr.forEach(it => SEEN.delete(it.key)); return arr.slice(); }
+  return unseen;
+}
+function sampleN(arr, n) {
+  const want = Math.min(n, arr.length);
+  const picks = shuffle(freshFirst(arr)).slice(0, want);
+  if (picks.length < want) {
+    const have = new Set(picks.map(it => it.key));
+    for (const it of shuffle(arr.slice())) {
+      if (picks.length >= want) break;
+      if (!have.has(it.key)) { picks.push(it); have.add(it.key); }
+    }
+  }
+  picks.forEach(it => SEEN.add(it.key));
+  return picks;
+}
 function range(lo, hi) { const a = []; for (let i = lo; i <= hi; i++) a.push(i); return a; }
 
 // Build a balanced round from per-bucket candidate pools.
@@ -24,7 +46,13 @@ function assemble(buckets, pools, total = 12) {
     for (let b = 0; b < B && picks.length < total; b++) {
       const used = new Set(picks.filter(x => x.bucket === b).map(x => x.key));
       const spare = pools[b].filter(x => !used.has(x.key));
-      if (spare.length) { picks.push(spare[rnd(spare.length)]); added = true; }
+      if (spare.length) {
+        // RUN21H A4: top-ups prefer items this session has not seen either
+        const fresh = spare.filter(x => !SEEN.has(x.key));
+        const it = (fresh.length ? fresh : spare)[rnd((fresh.length ? fresh : spare).length)];
+        SEEN.add(it.key);
+        picks.push(it); added = true;
+      }
     }
     if (!added) break;
   }
@@ -78,7 +106,7 @@ export const TEMPLATES = [
     const pool0 = range(N + 1, N + 4).map(n => numItem(n, 0));
     const pool1 = [...range(N + 6, N + 9).map(n => numItem(n, 1)), numItem(N + 5, 1)];
     return round(buckets, assemble(buckets, [pool0, pool1], 9),
-      it => `${it.value} rounds to the nearest ten. Remember, a 5 rounds up!`);
+      it => `Round ${it.value} to the nearest ten. Remember, a 5 rounds up!`);
   }},
 
   // 4. round100 (L2)
@@ -88,7 +116,7 @@ export const TEMPLATES = [
     const pool0 = range(H + 1, H + 49).map(n => numItem(n, 0));
     const pool1 = [...range(H + 51, H + 99).map(n => numItem(n, 1)), numItem(H + 50, 1)];
     return round(buckets, assemble(buckets, [sampleN(pool0, 20), sampleN(pool1, 20)]),
-      it => `${it.value} rounds to the nearest hundred. Look at the tens digit — 50 rounds up!`);
+      it => `Round ${it.value} to the nearest hundred. If the tens digit is 5 or more, round up!`);
   }},
 
   // 5. tableMember (L1 [2,5,10], L2 [3,4,8], L3 [6,7,9])
@@ -109,8 +137,11 @@ export const TEMPLATES = [
   // 6. halfEquivalent (L2)
   { id: 'halfEquivalent', level: 2, make() {
     const buckets = ['Equal to a half', 'Not equal'];
-    const eq = [[2,4],[3,6],[4,8],[5,10],[6,12],[50,100]].map(([n,d]) => fracItem(n, d, 0));
-    const ne = [[1,3],[1,4],[2,5],[3,4],[2,3],[3,8],[5,8],[1,5]].map(([n,d]) => fracItem(n, d, 1));
+    // RUN21H A3: 14 -> 36 items, so all three of a sitting's rounds are fresh.
+    const eq = [[2,4],[3,6],[4,8],[5,10],[6,12],[50,100],[7,14],[8,16],[10,20],[9,18],
+      [11,22],[12,24],[15,30],[20,40],[25,50],[30,60],[14,28],[13,26]].map(([n,d]) => fracItem(n, d, 0));
+    const ne = [[1,3],[1,4],[2,5],[3,4],[2,3],[3,8],[5,8],[1,5],[1,6],[5,6],[2,7],[7,8],
+      [3,10],[7,10],[1,8],[4,5],[2,9],[5,7]].map(([n,d]) => fracItem(n, d, 1));
     return round(buckets, assemble(buckets, [eq, ne]),
       it => `Is ${it.num}/${it.den} the same as a half? Is the top exactly half of the bottom?`);
   }},
@@ -118,22 +149,45 @@ export const TEMPLATES = [
   // 7. fractionSize (L3)
   { id: 'fractionSize', level: 3, make() {
     const buckets = ['Less than a half', 'Equal to a half', 'More than a half'];
-    const less = [[1,3],[1,4],[2,5],[3,8],[1,5],[2,6]].map(([n,d]) => fracItem(n, d, 0));
-    const eq   = [[2,4],[3,6],[5,10],[4,8]].map(([n,d]) => fracItem(n, d, 1));
-    const more = [[3,4],[2,3],[5,8],[7,8],[4,5],[5,6]].map(([n,d]) => fracItem(n, d, 2));
+    // RUN21H A3: 16 -> 36 items.
+    const less = [[1,3],[1,4],[2,5],[3,8],[1,5],[2,6],[1,6],[1,8],[2,7],[3,10],
+      [1,10],[2,8],[1,7],[3,12],[2,10]].map(([n,d]) => fracItem(n, d, 0));
+    const eq   = [[2,4],[3,6],[5,10],[4,8],[6,12],[50,100]].map(([n,d]) => fracItem(n, d, 1));
+    const more = [[3,4],[2,3],[5,8],[7,8],[4,5],[5,6],[3,5],[7,10],[9,10],[5,7],
+      [7,12],[9,16],[4,6],[6,10],[11,12]].map(([n,d]) => fracItem(n, d, 2));
     return round(buckets, assemble(buckets, [less, eq, more]),
       it => `Is ${it.num}/${it.den} less than, equal to, or more than a half?`);
   }},
 
-  // 8. units (L1 & L2)
-  ...[1, 2].map(lvl => ({ id: 'units' + lvl, level: lvl, make() {
+  // 8. units (L1 small units, L2 big units)
+  // RUN21H A2: these two were a `[1,2].map(...)` of ONE template, so levelling up served the
+  // identical round advertised as harder. They are now two templates with two different unit
+  // families — small (cm/kg/ml) then big (metres/tonnes-ish/litres) — so level 2 is a step up
+  // rather than a relabel. Captions that named a THING a child could defensibly measure two
+  // ways ('a book', 'a dog', 'a bicycle') now name the ATTRIBUTE, the way the authored
+  // 'the width of a table' already did.
+  { id: 'units1', level: 1, make() {
     const buckets = ['centimetres', 'kilograms', 'millilitres'];
-    const cm = [['✏️','a pencil'],['📕','a book'],['🖐️','your hand span'],['👟','a shoe'],['🪵','the width of a table'],['🪱','a worm']].map(([e,c]) => unitItem(e, c, 0));
-    const kg = [['🐕','a dog'],['🍉','a watermelon'],['🥔','a bag of potatoes'],['🚲','a bicycle'],['🎃','a pumpkin'],['🎒','a school bag']].map(([e,c]) => unitItem(e, c, 1));
-    const ml = [['🥤','water in a cup'],['🧃','juice in a carton'],['🥄','a spoon of medicine'],['🥛','milk on cereal'],['🥫','a can of pop'],['🎨','paint in a pot']].map(([e,c]) => unitItem(e, c, 2));
+    const cm = [['✏️','a pencil'],['🎀','a ribbon'],['🖐️','your hand span'],['👟','the length of a shoe'],['🪵','the width of a table'],['🪱','a worm'],
+      ['📏','the length of a ruler'],['🍴','the length of a fork'],['🧦','the length of a sock'],['🔑','the length of a key'],['🖊️','the length of a pen'],['🍌','the length of a banana']].map(([e,c]) => unitItem(e, c, 0));
+    const kg = [['🐕','how heavy a dog is'],['🍉','how heavy a watermelon is'],['🥔','a bag of potatoes'],['🧳','a heavy suitcase'],['🎃','how heavy a pumpkin is'],['🎒','a full school bag'],
+      ['🧱','how heavy a brick is'],['🐑','how heavy a sheep is'],['📚','how heavy a pile of books is'],['🛒','how heavy the shopping is'],['🧸','how heavy a big teddy is'],['🎳','how heavy a bowling ball is']].map(([e,c]) => unitItem(e, c, 1));
+    const ml = [['🥤','water in a cup'],['🧃','juice in a carton'],['🥄','a spoon of medicine'],['🥛','milk on cereal'],['🥫','a can of pop'],['🎨','paint in a pot'],
+      ['🍵','tea in a mug'],['🧴','shampoo in a bottle'],['🍯','honey in a jar'],['💧','water in a small bottle'],['🧪','liquid in a test tube'],['🥣','soup in a bowl']].map(([e,c]) => unitItem(e, c, 2));
     return round(buckets, assemble(buckets, [cm, kg, ml]),
       it => `Would you measure ${it.caption} in centimetres, kilograms or millilitres?`);
-  }})),
+  }},
+  { id: 'units2', level: 2, make() {
+    const buckets = ['metres', 'grams', 'litres'];
+    const m = [['🏊','the length of a swimming pool'],['🌳','how tall a tree is'],['🏠','how wide a house is'],['🚌','the length of a bus'],['⚽','how far you can kick a ball'],['🪜','how tall a ladder is'],
+      ['🏰','how tall a castle is'],['🛤️','the length of a railway platform'],['🎪','how wide a big top is'],['🌉','the length of a bridge'],['🏟️','the length of a football pitch'],['🗼','how tall a lighthouse is']].map(([e,c]) => unitItem(e, c, 0));
+    const g = [['🪶','how heavy a feather is'],['🍬','how heavy a sweet is'],['📎','how heavy a paperclip is'],['🍪','how heavy a biscuit is'],['🔑','how heavy a key is'],['🍇','how heavy one grape is'],
+      ['🥜','how heavy a peanut is'],['🪙','how heavy a coin is'],['🍓','how heavy a strawberry is'],['✉️','how heavy a letter is'],['🧷','how heavy a safety pin is'],['🍫','how heavy a chocolate bar is']].map(([e,c]) => unitItem(e, c, 1));
+    const l = [['🪣','water in a bucket'],['⛽','petrol in a car'],['🛁','water in a bath'],['🥛','milk in a big bottle'],['💧','water in a watering can'],['🐟','water in a fish tank'],
+      ['🫗','juice in a big jug'],['🚿','water in a shower'],['🧊','water in a paddling pool'],['☕','water in a kettle'],['🛢️','water in a water butt'],['🚰','water in a fish bowl']].map(([e,c]) => unitItem(e, c, 2));
+    return round(buckets, assemble(buckets, [m, g, l]),
+      it => `Would you measure ${it.caption} in metres, grams or litres?`);
+  }},
 
   // 10. twoRule (L3) — RUN18B Y5. Two predicates at once, from the authored set; the rule
   // is spoken and shown exactly as written. Both halves have to be true to feed the left Boo.
@@ -157,12 +211,22 @@ export const TEMPLATES = [
   }},
 
   // 9. shapeSides (L1)
+  // RUN21H A2 + A3. feedboos.js draws these with polygonSVG(sides), which is always a
+  // REGULAR polygon — so a name is only honest here if a regular polygon really is one.
+  // 'right-angled triangle' was NOT: it was drawn as an equilateral triangle, a label
+  // contradicting its own picture. It is replaced rather than redrawn, because the task is
+  // counting sides and a bespoke scalene drawing is an art job, not a content one.
+  // The three additions all pass the same test: a regular triangle IS equilateral and IS
+  // isosceles; a square IS a parallelogram; a regular 9-gon IS a nonagon.
+  // The pool is genuinely bounded by the shape names a Y3/4 child meets, so the round is
+  // shortened to 9 (the file header's own "the round length adapts") rather than padded
+  // with names the drawing would make false.
   { id: 'shapeSides', level: 1, make() {
     const buckets = ['3 sides', '4 sides', '5 or more'];
-    const three = [[3,'triangle'],[3,'right-angled triangle']].map(([s,n]) => shapeItem(s, n, 0));
-    const four = [[4,'square'],[4,'rectangle'],[4,'rhombus'],[4,'kite']].map(([s,n]) => shapeItem(s, n, 1));
-    const more = [[5,'pentagon'],[6,'hexagon'],[7,'heptagon'],[8,'octagon'],[10,'decagon']].map(([s,n]) => shapeItem(s, n, 2));
-    return round(buckets, assemble(buckets, [three, four, more], 12),
+    const three = [[3,'triangle'],[3,'equilateral triangle']].map(([s,n]) => shapeItem(s, n, 0));
+    const four = [[4,'square'],[4,'rectangle'],[4,'rhombus'],[4,'kite'],[4,'parallelogram']].map(([s,n]) => shapeItem(s, n, 1));
+    const more = [[5,'pentagon'],[6,'hexagon'],[7,'heptagon'],[8,'octagon'],[9,'nonagon'],[10,'decagon']].map(([s,n]) => shapeItem(s, n, 2));
+    return round(buckets, assemble(buckets, [three, four, more], 9),
       it => `Count the sides of the ${it.name}. How many are there?`);
   }}
 ];

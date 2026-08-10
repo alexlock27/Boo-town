@@ -43,13 +43,19 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i 
 // A family can host a target only if it has the target plus two more rhymers to find.
 const HOSTABLE = RHYME_FAMILIES.filter(f => rhymersOf(f).length >= CORRECT_PER_TARGET + 1);
 
+// RUN21H A4: session-scoped repeat avoidance — the same family returns, but leads with a
+// target word this session has not asked yet; exhausted families reset and cycle fresh.
+const SEEN_TARGETS = new Set();
 // ---- round building (pure, so the rules can be checked without a browser round) --------
 export function buildRhymeTarget(familyKey, level) {
   const fam = FAMILY_BY_KEY[familyKey];
   if (!fam) return null;
   const members = shuffle(rhymersOf(fam));
   if (members.length < CORRECT_PER_TARGET + 1) return null;
+  if (members.every(w => SEEN_TARGETS.has(w))) members.forEach(w => SEEN_TARGETS.delete(w));
+  members.sort((a, b) => (SEEN_TARGETS.has(a) ? 1 : 0) - (SEEN_TARGETS.has(b) ? 1 : 0));
   const target = members[0];
+  SEEN_TARGETS.add(target);
   const correct = members.slice(1, 1 + CORRECT_PER_TARGET);
   const decoys = [];
   // level 2 always shows the family's near-miss: a word that looks like it belongs and
@@ -70,8 +76,16 @@ export function buildCoupletTarget(i) {
   return { kind: 'couplet', index: i % COUPLETS.length, lines: c.lines, answer: c.answer, cards: shuffle([c.answer, ...c.decoys]) };
 }
 
+const SEEN_COUPLETS = new Set();   // RUN21H A4: couplets cycle fresh-first too
 export function buildRhymeRound(level, n = ROUND_TARGETS) {
-  if (level === 3) return shuffle(COUPLETS.map((_, i) => i)).slice(0, Math.min(n, COUPLETS.length)).map(buildCoupletTarget);
+  if (level === 3) {
+    const idx = COUPLETS.map((_, i) => i);
+    if (idx.every(i => SEEN_COUPLETS.has(i))) SEEN_COUPLETS.clear();
+    shuffle(idx).sort((a, b) => (SEEN_COUPLETS.has(a) ? 1 : 0) - (SEEN_COUPLETS.has(b) ? 1 : 0));
+    const take = idx.slice(0, Math.min(n, COUPLETS.length));
+    take.forEach(i => SEEN_COUPLETS.add(i));
+    return take.map(buildCoupletTarget);
+  }
   const out = [];
   const keys = shuffle(HOSTABLE.map(f => f.key));
   let guard = 0;

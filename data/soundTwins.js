@@ -33,9 +33,12 @@ export const TWIN_SETS = [
       { s: 'I can ___ music playing', a: 'hear' },
       { s: 'Come over ___ right now', a: 'here' }
   ]},
+  // RUN21H A2: both were direct questions printed without a question mark, alone among the
+  // file's questions ('Is anybody ___?', 'Can I come ___?'). Literacy content that models
+  // missing punctuation teaches it.
   { id: 'whoseWhos', level: 2, options: ['whose', "who's"], items: [
-      { s: '___ coat is this on the floor', a: 'whose' },
-      { s: '___ coming to the party', a: "who's" }
+      { s: '___ coat is this on the floor?', a: 'whose' },
+      { s: '___ coming to the party?', a: "who's" }
   ]},
   { id: 'whetherWeather', level: 2, options: ['whether', 'weather'], items: [
       { s: 'I wonder ___ it will rain', a: 'whether' },
@@ -61,8 +64,11 @@ export const TWIN_SETS = [
       { s: 'We ___ at the park at noon', a: 'meet' },
       { s: 'Lions eat ___', a: 'meat' }
   ]},
+  // RUN21H A2: 'The ___ arrives each morning' had a defensible wrong answer — "The male
+  // arrives each morning" is a grammatical sentence in exactly the wildlife register this
+  // set's other item uses. The 'by ___' frame is airtight: "came by male" is not English.
   { id: 'mailMale', level: 2, options: ['mail', 'male'], items: [
-      { s: 'The ___ arrives each morning', a: 'mail' },
+      { s: 'The parcel came by ___', a: 'mail' },
       { s: 'A ___ lion has a big mane', a: 'male' }
   ]},
   { id: 'acceptExcept', level: 3, options: ['accept', 'except'], items: [
@@ -110,7 +116,10 @@ export const TWIN_SETS = [
       { s: 'She won a gold ___ for swimming', a: 'medal' },
       { s: "Don't ___ with my things!", a: 'meddle' },
       { s: 'The ___ shone on its ribbon', a: 'medal' },
-      { s: 'Snaffle loves to ___ in everything', a: 'meddle' }
+      // RUN21H A2: was 'to ___ in everything' — 'to medal in an event' is real Olympic
+      // commentary a child has heard, so "Snaffle loves to MEDAL in everything" survived.
+      // 'meddle with' is idiomatic; 'medal with' is not English in any register.
+      { s: 'Snaffle loves to ___ with everything', a: 'meddle' }
   ]},
   { id: 'berryBury', level: 4, options: ['berry', 'bury'], items: [
       { s: 'The dog wants to ___ his bone', a: 'bury' },
@@ -163,7 +172,9 @@ export const TWIN_EXPLAIN = {
   'meet': "'Meet' means to come together.",
   'meat': "'Meat' is food that comes from animals.",
   'mail': "'Mail' is post and letters.",
-  'male': "'Male' means a boy or a man.",
+  // RUN21H A2: the explanation is shown against this set's own lion sentence, and a lion is
+  // neither a boy nor a man — the child was told a meaning that did not cover what she saw.
+  'male': "'Male' means a boy or a man — or a boy animal, like a male lion.",
   'accept': "'Accept' means to take something offered to you.",
   'except': "'Except' means apart from.",
   'affect': "'Affect' means to change something (it's a doing word).",

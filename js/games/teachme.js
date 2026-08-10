@@ -133,7 +133,7 @@ export function mount(container, params, ctx) {
     const card = el('div', { class: 'start-card card teachme-list' }, [
       el('div', { class: 'sc-guide', html: renderGuide(s.guide, { view: 'head', size: 96 }) }),
       el('h2', { text: 'Teach Me' }),
-      el('p', { class: 'sc-intro', text: "Little lessons, explained two ways — then you have a go. Pick one!" })
+      el('p', { class: 'sc-intro', text: "Pick a lesson! Each one is explained two ways, then you have a go." })
     ]);
     const grid = el('div', { class: 'lesson-grid' });
     for (const lesson of LESSONS) {
