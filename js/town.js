@@ -3889,6 +3889,53 @@ export function mount(container, params, ctx) {
     const dx = Math.max(-range, Math.min(range, (aimFrac - a.place.x) * zoneW));
     return Math.abs(dx - (a.dx || 0)) < 6 ? null : dx;   // already there: take a normal wander
   }
+  // ---- RUN21E H3 / B1 (APPROVED): BOOS VISIBLY USE HER PATHS -------------------------------
+  // RUN21C item 5 gave the MICRO-WANDER a pull toward a path run. It is real in the numbers and
+  // invisible on screen, and the C report diagnosed exactly why: a micro-wander is a minority of
+  // a Boo's time (goals own 56-62% of it) and it is clamped to WANDER_FRAC — 4.5% of the area —
+  // so the pull can never carry a Boo more than a few pixels.
+  //
+  // The approved fix is to bias GOAL DESTINATIONS toward path runs. Goals are the thing that
+  // moves a Boo any real distance, and they pick their destinations in exactly one place:
+  // `chooseBehaviourKind` / `startBehaviour`. So "prefer a spot on a path run" becomes its own
+  // candidate — a Boo that decides to go somewhere can now decide to go and walk the path, and
+  // then pads its whole length, which is what using a path looks like.
+  //
+  // RUN21C-5's own machinery (PATH_REACH_X, PATH_PULL_CHANCE, pathWalkTargetDx and the
+  // micro-wander branch) is deliberately left byte-identical.
+  const PATH_GOAL_REACH = 0.35;   // a GOAL walks across a screen, so it looks much further than a wander does
+  const PATH_GOAL_WEIGHT = 2.6;   // peer of 'approach' and 'nap' — a real option, never a rail
+  // The path run this Boo could go and walk: nearest same-style contiguous run in its own
+  // depth row, returned as x-fractions.
+  function pickPathRun(a) {
+    const cells = currentPaths();
+    if (!cells.length) return null;
+    const row = rowOf(a.place);
+    const here = a.place.x + ((a.dx || 0) / (zoneW || 1));
+    const geom = cellGeom();
+    const tiles = [];
+    let bestCx = null, bestD = Infinity, style = null;
+    for (const c of cells) {
+      const yPx = geom.bandTopPx + (c.cy + 0.5) * geom.cellH;
+      let r = 0, rb = Infinity;
+      ROWS.forEach((g, i) => { const d = Math.abs(yPx - viewH * g); if (d < rb) { rb = d; r = i; } });
+      if (r !== row) continue;
+      const xFrac = (c.cx + 0.5) * PATH_CELL;
+      tiles.push({ cx: c.cx, xFrac, style: c.style });
+      const d = Math.abs(xFrac - here);
+      if (d <= PATH_GOAL_REACH && d < bestD) { bestD = d; bestCx = c.cx; style = c.style; }
+    }
+    if (bestCx == null) return null;
+    const has = (cx) => tiles.some(t => t.cx === cx && t.style === style);
+    let lo = bestCx, hi = bestCx;
+    while (has(lo - 1)) lo--;
+    while (has(hi + 1)) hi++;
+    const loFrac = (lo + 0.5) * PATH_CELL, hiFrac = (hi + 0.5) * PATH_CELL;
+    // A single lonely tile is a stepping stone, not a path to walk — leave those to the
+    // micro-wander pull, so this candidate only ever fires on something that reads as a route.
+    if (hi - lo < 1) return null;
+    return { loFrac, hiFrac, style, cells: hi - lo + 1 };
+  }
   const PATH_STYLE_WORD = { stone: 'stone', sand: 'sandy', flower: 'flowery' };
   // Called on a wanderer's arrival. Cheap by design: a handful of numeric comparisons, and
   // it stops at the first hit — the budget declines almost every call anyway.
@@ -6128,6 +6175,10 @@ export function mount(container, params, ctx) {
       const key = ACT_MULT_KEY[freeAct.item];
       cands.push(['approach', 2.6 * (key ? personalityMult(booId, key) : 1)]);
     }
+    // RUN21E H3/B1 (APPROVED): if she has painted a path this Boo could go and walk, that is a
+    // real option among the others — not a rail, and not a magnet. Weighted as a peer of
+    // 'approach', so a Boo near a path chooses it often enough to be SEEN choosing it.
+    if (pickPathRun(a)) cands.push(['pathwalk', PATH_GOAL_WEIGHT]);
     cands.push(['chase', 1.6 * personalityMult(booId, 'chase')]);
     cands.push(['watch', 1.3 * personalityMult(booId, 'watch')]);
     // a just-woken Boo stays up (no instant re-nap); mirrors the sleep-role wake rule
@@ -6258,6 +6309,13 @@ export function mount(container, params, ctx) {
     } else if (kind === 'nap') {
       const d = pickNapSpot(a); if (!d) return;
       a.goal = { kind, spot: d, targetDx: (d.x - a.place.x) * zoneW, start: now, curled: false };
+    } else if (kind === 'pathwalk') {
+      // RUN21E H3/B1: go to the near end of the run, then pad along it to the far end.
+      const run = pickPathRun(a); if (!run) return;
+      const here = a.place.x + ((a.dx || 0) / (zoneW || 1));
+      const nearFrac = Math.abs(run.loFrac - here) <= Math.abs(run.hiFrac - here) ? run.loFrac : run.hiFrac;
+      const farFrac = nearFrac === run.loFrac ? run.hiFrac : run.loFrac;
+      a.goal = { kind, start: now, run, farFrac, leg: 0, targetDx: (nearFrac - a.place.x) * zoneW };
     } else if (kind === 'tag') {
       // RUN21E-4: TAG. Two Boos, and it takes two — with nobody free to play, this returns
       // goal-less and the chooser (and the Pulse's beat ladder) simply moves on.
@@ -6499,6 +6557,23 @@ export function mount(container, params, ctx) {
         svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
         if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);
       }
+      return;
+    }
+    // RUN21E H3/B1: walking the path. Leg 0 gets onto it; leg 1 pads its whole length. The
+    // acknowledgement fires on arrival, exactly as it does for a wanderer that lands on one.
+    if (g.kind === 'pathwalk') {
+      svg.style.transform = `translate(${a.dx.toFixed(1)}px, ${walkHop.toFixed(1)}px) scaleX(${flip})`;
+      if (Math.abs(a.dx - g.targetDx) < zoneW * 0.02) {
+        if (g.leg === 0) {
+          g.leg = 1;
+          g.start = now;                                   // the second leg gets its own timeout
+          g.targetDx = (g.farFrac - a.place.x) * zoneW;
+          maybeAckPath(a);
+        } else {
+          maybeAckPath(a);
+          endGoal(a);
+        }
+      } else if (now - g.start > GOAL_TIMEOUT_MS) endGoal(a);   // never stuck
       return;
     }
     // ---- RUN21E-4: the playground's two social games ------------------------------------

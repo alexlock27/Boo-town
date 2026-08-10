@@ -25,7 +25,7 @@ Save is **v24** — E adds ONLY additive keys with safe defaults, NO version bum
 | E15 | Per-area growth tracks | TODO |
 | H1 | Verify pumpWishIdles re-pointed to !softened (C report note 2) | DONE (verified) |
 | H2 | L_PATH_FULL "Erase some to lay more" fix (sanctioned) | DONE |
-| H3 | B1 APPROVED: bias maybePickBehaviour goals toward path runs + 90s observation | TODO |
+| H3 | B1 APPROVED: bias maybePickBehaviour goals toward path runs + 90s observation | **DONE — observation PASSES, entry restored** |
 | H4 | D's debt: playground Pulse invitation → `Someone fancies a game of tag…` (after E4) | **DONE** |
 | F8 | Leitmotifs: APPROVED-TO-COMPOSE — compose 5 loops + audition tool; shipping GATED on SIGNED-OFF | TODO |
 | F9 | Voice: VOICE still HELD → SKIPPED-GATED | GATED |
@@ -83,6 +83,42 @@ check.
 requires the fair-day line in one of its four seeded states, and a stub returning false would fail
 it. It lives in ONE helper so E6 reads it rather than growing a second source of truth.
 REVERSIBLE: it is four lines.
+
+## H3 / B1 — the approved decision, and the observation it was conditional on
+
+**What the C run proved and what it could not.** RUN21C item 5 pulled the MICRO-WANDER toward a
+path run. The mechanism was real and measured, and it was invisible: goals own 56-62% of a Boo's
+time, and the micro-wander is clamped to `WANDER_FRAC` — 4.5% of the area — so the pull could never
+carry a Boo more than a few pixels. C's own re-measurement was worse than nothing: with the path on
+the RIGHT the drift went further LEFT than with no path at all.
+
+**What I built.** The approved fix, at the only place goals pick destinations: a new `pathwalk`
+GOAL, weighted 2.6 (a peer of `approach` and `nap`) and offered only when there is a run of two or
+more cells in the Boo's own depth row within 0.35 of the area. It walks to the near end of the run,
+then pads its whole length, acknowledging the path on arrival as any wanderer does. RUN21C-5's
+machinery (`PATH_REACH_X`, `PATH_PULL_CHANCE`, `pathWalkTargetDx`, the micro-wander branch) is
+byte-identical — this is added beside it, not instead of it.
+
+**The observation** — `tests/r21e-b1-observe.mjs`, 90 seconds per case, fresh context each, one
+lone Boo at x 0.20 on row 1, the two runs placed symmetrically 0.075 either side of her. Criteria
+were written into the file BEFORE the numbers came in.
+
+| case | mean drift | samples on the path | pathwalk goals seen |
+|---|---:|---:|---:|
+| path-left | **-0.0268** | 34.6% | 13 / 179 |
+| no path (control) | +0.0100 | 0.0% | 0 / 179 |
+| path-right | **+0.0879** | 69.8% | 15 / 179 |
+
+DIRECTION: PASS (left < control < right). OCCUPANCY: PASS (both ≥ 25%; control 0%).
+Evidence: `_evidence/run21e/b1-observation.json`, `b1-path-left.png`, `b1-no-path.png`,
+`b1-path-right.png`. **Therefore the withdrawn What's New entry is RESTORED**, under RUN21E's
+stamp — where the behaviour that makes it true actually ships.
+
+**One thing the first run of this observation caught, worth recording.** My first fixture wrote
+path cells at `cy: 1` believing that meant depth row 1. It does not: `cy` indexes the fine paint
+grid (5% of the placement band), so `cy: 1` lands at 0.6425 of viewport height — depth row 0 — and
+the Boo could never have been standing on the path the measurement was scoring her against. Row 1
+is `cy: 11`. A test that measured the wrong ground would have "proved" the feature either way.
 
 ## Deviations
 
