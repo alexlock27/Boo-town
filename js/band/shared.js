@@ -6,7 +6,7 @@ import { el, clear, backControl, REDUCED, suppressContextMenu } from '../ui.js';
 import { getState } from '../state.js';
 import { resolveItem } from '../customs.js';
 import { renderItem } from '../art.js';
-import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, XYLO_SEMIS } from '../sfx.js';
+import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, GUITAR_CHORD_NOTES, XYLO_SEMIS } from '../sfx.js';
 import { idbGet, idbPut } from '../idb.js';
 import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../../data/songs.js';
 import { bandTrio, jamEvents, startBandWatch, listJams, MAX_JAMS } from '../band.js';
@@ -26,10 +26,11 @@ const XYLO_COLOURS = ['#EF476F', '#FF9F68', '#FFC93C', '#9CCC65', '#35D0BA', '#8
 const DRUM_LABEL = { kick: 'Kick', snare: 'Snare', hihat: 'Hi-hat', cymbal: 'Cymbal', tom1: 'Tom', tom2: 'Tom' };
 const MAX_LAYERS = 3;
 
-function playEvent(ev) {
+function playEvent(ev, opts) {
   if (ev.i === 'drum') voices.drum(ev.v);
   else if (ev.i === 'key') voices.key(ev.v);
   else if (ev.i === 'guitar') voices.guitar(ev.v);
+  else if (ev.i === 'pluck') voices.pluck(ev.v, opts);   // RUN21G: one guitar string (opts carries live velocity)
   else if (ev.i === 'xylo') voices.xylo(ev.v);
 }
 
@@ -39,7 +40,9 @@ function safeId() {
 
 function dominantInstrument(events, fallback) {
   const counts = {};
-  for (const e of events) counts[e.i] = (counts[e.i] || 0) + 1;
+  // RUN21G: plucks ARE guitar — map before counting so a strummed jam saves as
+  // instrument:'guitar' and old {i:'guitar'} chord jams stay one family with it.
+  for (const e of events) { const k = e.i === 'pluck' ? 'guitar' : e.i; counts[k] = (counts[k] || 0) + 1; }
   return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || fallback;
 }
 
@@ -103,6 +106,7 @@ export function mountInstrument(container, params, ctx, instrument) {
   let done = false;        // RUN21G item 2: true once every note of the song has been played
   let countEl = null;      // the lane's progress readout (beat 3 pulses it on every advance)
   let keysRow = null;      // set by renderKeys; updateWanted() moves the ✨ between its children
+  let guitarSeam = null;   // set by renderGuitar (RUN21G item 3): chord/strings/pluck evidence
   let recording = false;
   let recordStart = 0;
   let pass = [];
@@ -144,9 +148,9 @@ export function mountInstrument(container, params, ctx, instrument) {
     performer.classList.add('played');
   }
 
-  function hit(i, v) {
+  function hit(i, v, opts) {
     const ev = { i, v };
-    playEvent(ev);
+    playEvent(ev, opts);   // opts is live-only colour (pluck velocity); the recorded event stays {i,v,t}
     mirror();
     if (recording) pass.push({ ...ev, t: Math.round(performance.now() - recordStart) });
   }
@@ -306,33 +310,100 @@ export function mountInstrument(container, params, ctx, instrument) {
     updateWanted();
   }
 
+  // RUN21G item 3: four real strings instead of one STRUM gesture. The chord pads stay
+  // and RETUNE the strings (top row = lowest); dragging across the strings plucks each
+  // one it crosses, in crossing order, with drag speed as velocity. Free play is never
+  // wrong in any direction, at any speed.
   function renderGuitar() {
     let chord = 'C';
+    let stringSemis = (GUITAR_CHORD_NOTES[chord] || GUITAR_CHORD_NOTES.C).slice();   // low→high
+    const STRING_WIDTHS = [4, 3.5, 3, 2.5];   // authored stroke px, top→bottom (thick = low)
     const chords = el('div', { class: 'p6-chord-column' });
-    const strum = el('div', { class: 'p6-strum-zone', role: 'button', tabindex: '0' }, [
-      el('span', { class: 'p6-strum-arrow', text: '↕' }),
-      el('strong', { text: 'STRUM' })
-    ]);
+    const strings = el('div', { class: 'p6-strings', 'aria-label': 'Guitar strings — drag across them to strum' });
+    const rows = [];
+    for (let i = 0; i < 4; i++) {
+      const row = el('div', { class: 'p6-string', dataset: { row: String(i) } });
+      // house sticker style: one rounded ink stroke with a subtle lighter core line
+      row.innerHTML = `<svg viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+        <line class="p6-string-line" x1="3" y1="6" x2="97" y2="6" stroke="var(--ink)" stroke-width="${STRING_WIDTHS[i]}" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        <line class="p6-string-core" x1="3" y1="6" x2="97" y2="6" stroke="#fff" stroke-width="${Math.max(1, STRING_WIDTHS[i] * 0.4)}" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      </svg>`;
+      rows.push(row);
+      strings.appendChild(row);
+    }
+    const lastHitAt = [0, 0, 0, 0];   // per-string retrigger guard (90ms each)
+    const pluckLog = [];              // seam evidence: { row, semi, vel, at, retune? }
+    const wiggleRow = (row) => {
+      row.classList.remove('plucked'); void row.offsetWidth; row.classList.add('plucked');
+      // the class comes back off so the reduced-motion opacity flash (a transition,
+      // not an animation) has an edge to fall from
+      clearTimeout(row._pluckT); row._pluckT = setTimeout(() => row.classList.remove('plucked'), 160);
+    };
+    function pluckRow(rowIdx, vel) {
+      const now = performance.now();
+      if (now - lastHitAt[rowIdx] < 90) return;
+      lastHitAt[rowIdx] = now;
+      hit('pluck', stringSemis[rowIdx], vel !== undefined ? { vel } : undefined);
+      pluckLog.push({ row: rowIdx, semi: stringSemis[rowIdx], vel: vel === undefined ? 1 : vel, at: now });
+      wiggleRow(rows[rowIdx]);
+    }
     GUITAR_CHORDS.forEach(c => {
       const b = el('button', { class: `p6-chord${c === chord ? ' sel' : ''}`, text: c });
       b.onclick = () => {
-        chord = c; sfx.tap();
+        chord = c;
+        stringSemis = (GUITAR_CHORD_NOTES[chord] || GUITAR_CHORD_NOTES.C).slice();
         [...chords.children].forEach((x, i) => x.classList.toggle('sel', GUITAR_CHORDS[i] === chord));
+        // retuning is HEARD: each string flashes once, low→high, gently (not recorded —
+        // it is the instrument answering the pad, not the child playing)
+        rows.forEach((row, i) => setTimeout(() => {
+          voices.pluck(stringSemis[i], { vel: 0.5 });
+          pluckLog.push({ row: i, semi: stringSemis[i], vel: 0.5, at: performance.now(), retune: true });
+          wiggleRow(row);
+        }, i * 40));
       };
       chords.appendChild(b);
     });
-    let down = false, lastY = 0, lastHit = 0;
-    const strumNow = y => {
-      const now = performance.now();
-      if (now - lastHit < 180 || Math.abs(y - lastY) < 8) return;
-      lastHit = now; lastY = y; hit('guitar', chord);
-      strum.classList.remove('strummed'); void strum.offsetWidth; strum.classList.add('strummed');
+    // gesture: pointer-captured on the string panel. rowAt clamps to 0-3; a move that
+    // jumps rows fires EVERY row strictly between in crossing order, then the new row,
+    // so a fast swipe never skips a string.
+    let down = false, last = -1, prevY = 0, prevT = 0;
+    const rowAt = (y) => {
+      const r = strings.getBoundingClientRect();
+      return Math.max(0, Math.min(3, Math.floor(((y - r.top) / r.height) * 4)));
     };
-    strum.addEventListener('pointerdown', e => { down = true; lastY = e.clientY - 20; strum.setPointerCapture(e.pointerId); strumNow(e.clientY); });
-    strum.addEventListener('pointermove', e => { if (down) strumNow(e.clientY); });
-    strum.addEventListener('pointerup', () => { down = false; });
-    strum.addEventListener('pointercancel', () => { down = false; });
-    playfield.append(el('div', { class: 'p6-guitar' }, [chords, strum]));
+    strings.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      down = true;
+      try { strings.setPointerCapture(e.pointerId); } catch {}
+      last = rowAt(e.clientY);
+      prevY = e.clientY; prevT = performance.now();
+      pluckRow(last);   // the single-string tap — melody picking is just a short strum
+    });
+    strings.addEventListener('pointermove', e => {
+      if (!down) return;
+      const now = performance.now();
+      // authored velocity: clamp(0.55 + min(0.65, (|Δy|px / Δt ms) * 0.9), 0.55, 1.2)
+      const vel = Math.max(0.55, Math.min(1.2, 0.55 + Math.min(0.65, (Math.abs(e.clientY - prevY) / Math.max(1, now - prevT)) * 0.9)));
+      const cur = rowAt(e.clientY);
+      if (cur !== last) {
+        const step = cur > last ? 1 : -1;
+        for (let r = last + step; r !== cur; r += step) pluckRow(r, vel);
+        pluckRow(cur, vel);
+        last = cur;
+      }
+      prevY = e.clientY; prevT = now;
+    });
+    const lift = () => { down = false; last = -1; };
+    strings.addEventListener('pointerup', lift);
+    strings.addEventListener('pointercancel', lift);
+    suppressContextMenu(strings);
+    guitarSeam = {
+      chord: () => chord,
+      stringSemis: () => stringSemis.slice(),
+      plucks: () => pluckLog.slice(),
+      stringRects: () => rows.map(r => { const b = r.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right }; })
+    };
+    playfield.append(el('div', { class: 'p6-guitar' }, [chords, strings]));
   }
 
   function renderXylo() {
@@ -365,7 +436,9 @@ export function mountInstrument(container, params, ctx, instrument) {
     savedId: () => lastSavedId,
     laneBox: () => lane.getBoundingClientRect(),
     playfieldBox: () => playfield.getBoundingClientRect(),
-    performerPlayed: () => performer.classList.contains('played')
+    performerPlayed: () => performer.classList.contains('played'),
+    // RUN21G item 3: the guitar's evidence seam (null on other instruments)
+    guitar: () => guitarSeam
   };
 
   return {

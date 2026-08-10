@@ -3225,22 +3225,37 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
   font: 800 22px var(--font-display);
 }
 .p6-chord.sel { background: var(--star); box-shadow: 0 0 0 3px #fff; }
-.p6-strum-zone {
+/* RUN21G item 3: four real strings fill the old strum zone's space. A warm sticker-style
+   body plate (the ink strokes need a light backdrop on this dark scene); each string row
+   is a ≥64px thumb-band; the SVG line keeps its authored px stroke via
+   vector-effect: non-scaling-stroke. */
+.p6-strings {
+  display: grid;
+  grid-template-rows: repeat(4, minmax(64px, 1fr));
+  align-items: stretch;
   border: 4px solid var(--ink);
   border-radius: 28px;
-  background: linear-gradient(100deg, #A94FD6, #E0559E);   /* G7: white STRUM needs 3:1 at the light end */
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  background: linear-gradient(160deg, #FFF3E2, #FFDFB8);
+  padding: 8px 6px;
   touch-action: none;
   user-select: none;
-  font: 800 clamp(22px, 5vw, 44px) var(--font-display);
 }
-.p6-strum-arrow { font-size: clamp(70px, 15vh, 130px); line-height: .8; }
-.p6-strum-zone.strummed { animation: p6Strum .18s ease; }
-@keyframes p6Strum { 50% { filter: brightness(1.35); transform: scale(.98); } }
+.p6-string {
+  position: relative;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.p6-string svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+/* the core line's flash rides a TRANSITION, not an animation: the app-wide reduced-motion
+   rule (`* { animation: none !important }`, top of this file) silences every animation,
+   so an animation-based reduced path would be inert. The transition survives it. */
+.p6-string-core { opacity: .5; transition: opacity 80ms ease; }
+/* transform-only wiggle per pluck; reduced motion trades it for a brightness flash on
+   the core line (a colour pulse, which is what the reduced path is allowed to be) */
+.p6-string.plucked svg { animation: r21gStringWiggle 160ms ease; }
+@keyframes r21gStringWiggle { 25% { transform: translateY(2px); } 75% { transform: translateY(-2px); } }
 .p6-xylo-bars {
   width: min(100%, 780px);
   height: 100%;
@@ -3361,10 +3376,14 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 }
 @media (prefers-reduced-motion: reduce) {
   .band-room-bopper, .band-record-circle.recording,
-  .band-scene-performer.played, .p6-drum-pad.hit, .p6-strum-zone.strummed,
+  .band-scene-performer.played, .p6-drum-pad.hit,
   .band-jam-delete.holding { animation: none; }
   /* RUN21G: the wanted key's halo alone marks the target when motion is reduced */
   .p6-key.wanted::after { animation: none; }
+  /* RUN21G item 3: the pluck wiggle becomes a 160ms brightness flash on the core line
+     (opacity transition; the class comes off 160ms after the pluck) */
+  .p6-string.plucked svg { animation: none; }
+  .p6-string.plucked .p6-string-core { opacity: 1; }
 }
 
 /* RUN10 P18 — Funfair Disco Hall */
