@@ -245,6 +245,19 @@ One flake, confirmed and dismissed per the board law's one-serial-re-run rule:
 `.hub` visible with ZERO page/console errors — i.e. the known `.hub` boot-timeout flake
 (PICK-UP-HERE.md note 2). One serial re-run: PASS.
 
+## Pre-merge walk (RUN21F F10) — PASS, on this branch
+`BASE=http://127.0.0.1:8045 node tests/walk.mjs`, FULL length, once, nothing else in flight.
+```
+  ok tablet-landscape: 6 lap(s) of all 10 stops, 10 distinct places, 10 screenshots, 51 real-mouse handles
+  ok tablet-portrait:  6 lap(s) of all 10 stops, 10 distinct places, 10 screenshots, 50 real-mouse handles
+  ok phone:            6 lap(s) of all 10 stops, 10 distinct places, 10 screenshots, 50 real-mouse handles
+wall time: 10.1 min · screenshots in _evidence/walk/2026-08-10
+errors captured: 0
+RESULT: PASS — every area and room walked at every size, zero errors
+```
+All four error hooks armed (console, pageerror, window.onerror, unhandledrejection) plus
+non-aborted request failures: zero across 30 minutes of viewport-time. Exit code 0.
+
 ## Legacy suite changes (one line each)
 - `tests/r10p6-bandscenes.mjs`: guitar scene selector `.p6-strum-zone` → `.p6-string` — the
   surface it named was replaced; every assertion it makes is unchanged and still runs.
