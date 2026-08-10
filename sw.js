@@ -159,6 +159,10 @@ const ASSETS = [
   'data/sorting.js',
   'data/sortingExtra.js',
   'data/quests.js',
+  // RUN21F F10B shipped js/playjournal.js without adding it here, and js/main.js imports it
+  // STATICALLY — app-shell code that the precache did not contain. Found and fixed by RUN21J
+  // (see BLOCKED.md); the defensive runtime-cache in the fetch handler was masking it.
+  'js/playjournal.js',
   'js/daily.js',
   'data/daily.js',
   'assets/fonts/Fredoka-Variable.woff2',

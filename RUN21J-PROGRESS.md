@@ -170,6 +170,46 @@ because the feature adds a new interactive element.
   button as "stable" — r12s5-ceremony/run12probe established the pattern; the real tap
   target is verified separately by elementFromPoint hit-test. · REVERSIBLE: test-side.
 
+## FOUND IN PASSING — an OFFLINE LAW violation on `main`, fixed here (one line)
+
+**`js/playjournal.js` was not in `sw.js` ASSETS[], and `js/main.js` imports it STATICALLY.**
+Pre-existing; NOT caused by this run. `BLOCKED.md` is gitignored and lives in the main tree
+(which this lane must never touch), so the durable record is here.
+
+*Repro (static, definitive):*
+```
+node -e "const fs=require('fs');const sw=fs.readFileSync('sw.js','utf8');
+const seg=sw.slice(sw.indexOf('const ASSETS'),sw.indexOf('];',sw.indexOf('const ASSETS')));
+const A=new Set([...seg.matchAll(/'([^']+)'/g)].map(m=>m[1]));
+const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(d+'/'+e.name):[d+'/'+e.name]);
+console.log([...walk('js'),...walk('data')].filter(f=>f.endsWith('.js')).filter(f=>!A.has(f)));"
+```
+*Repro (empirical):* load `http://app.localhost:<port>/index.html` (plain `localhost`
+unregisters the worker — the trick `m3-pwa` uses), wait for install, then enumerate
+`caches`. Before the fix the real cache held **161 entries with `js/playjournal.js`
+absent**; `js/daily.js` and `data/daily.js` were both present, so this run's own offline
+obligation was already met.
+
+*Provenance:* added by `5cc6569` "RUN21F-10B: play journal behind the QA flag". Absent from
+`main`'s `sw.js` too (`git show main:sw.js | grep -c playjournal` → 0). Imported at
+`js/main.js:13` (`noteScreen`) and `js/grownups.js:23` — so it is app-shell code, not a lazy
+route.
+
+*Why it had not bitten:* the fetch handler runtime-caches any same-origin GET it did not
+precache ("defensive", `sw.js`). So a single online boot pulls it in and it works offline
+thereafter. The exposure is a genuinely cold install that goes offline before the shell has
+ever been fetched — which is exactly the case the OFFLINE LAW exists to cover.
+
+- DECISION: **fixed it**, one additive line in `sw.js`, in its own commit. · WHY: CLAUDE.md
+  states the offline law as absolute and I had positive proof of a violation in app-shell
+  code; governance §1 retires parking, and the escalate-instead list (money/accounts,
+  children's privacy, deleting a child-visible feature, unverifiable licence) does not cover
+  it. The change is additive and cannot regress anything — worst case it precaches a file
+  that would otherwise have been runtime-cached. I was already editing this exact list. ·
+  REVERSIBLE: delete one line. If another lane fixed the same thing tonight the merge shows
+  a duplicate line — drop either. · VERIFIED: every one of the 151 modules on disk is now
+  precached, zero ASSETS entries point at a missing file, `m3-pwa` still PASS.
+
 ## DEVIATE-with-proof — three pack premises that had drifted
 
 The lane brief's instruction is explicit: *"if a seam has drifted, DEVIATE-with-proof and
