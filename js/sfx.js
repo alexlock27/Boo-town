@@ -135,6 +135,13 @@ function play(fn) {
 // nothing. A missing or undecodable file is never an error the child sees — sample()
 // returns false and the caller falls back to the synth it always had.
 export const SAMPLES = {
+  // LANE B: the four RUN21H could not have. They exist under CC-BY (and, for the duck, CC0)
+  // rather than CC0/PD alone, which is why they arrive now: CC-BY's one condition is that
+  // the author is named, and the Grown-ups corner's Sound credits card names them.
+  cow:   'assets/sfx/cow.wav',
+  dog:   'assets/sfx/dog.wav',
+  duck:  'assets/sfx/duck.wav',
+  owl:   'assets/sfx/owl.wav',
   // the five toddler animals a licence-clean recording exists for
   cat:   'assets/sfx/cat.wav',
   sheep: 'assets/sfx/sheep.wav',
@@ -178,6 +185,34 @@ export async function loadSample(id) {
   })();
   pending.set(id, p);
   return p;
+}
+
+// ---- the sound-credits manifest (LANE B) ----------------------------------------------
+// Some of the recordings below are CC-BY, and CC-BY is a licence with a CONDITION attached:
+// name the author. The Grown-ups corner's "Sound credits" card is that condition being met,
+// and it is GENERATED from this file at render time rather than hand-written, so a credit
+// can never drift from what actually ships. A wrong credit is worse than no credit.
+//
+// Reading it costs a SECOND fetch, which is why tests/r11q9-zeronet.mjs is amended in this
+// same commit: the rule was "exactly one fetch", and is now "exactly two, each
+// module-constructed, same-origin, no caller-supplied string, every path in sw.js ASSETS[]".
+// The path is a module constant and never an argument, precisely so that stays true by
+// construction rather than by anyone remembering.
+const MANIFEST_PATH = 'assets/sfx/manifest.json';
+const manifestURL = () => new URL('../' + MANIFEST_PATH, import.meta.url).href;
+let manifestCache = null;
+export async function loadSfxManifest() {
+  if (manifestCache) return manifestCache;
+  try {
+    const r = await fetch(manifestURL());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    manifestCache = await r.json();
+  } catch (e) {
+    // Never an error the grown-up sees as a crash: the card shows its own warm line instead.
+    console.warn('[sfx] manifest unavailable:', e && e.message);
+    return null;
+  }
+  return manifestCache;
 }
 
 // Play a real sample through sfxGain — so every existing mute and duck holds, with no
@@ -724,11 +759,17 @@ function glideTone(t0, f0, f1, dur, type, peak, bus = null, tag = null) {
 export const ANIMAL_KEYS = ['cow', 'cat', 'dog', 'duck', 'sheep', 'owl', 'bee', 'snake', 'frog', 'lion'];
 export const ANIMAL_WORDS = { cow: 'Moo', cat: 'Meow', dog: 'Woof', duck: 'Quack', sheep: 'Baa', owl: 'Twit twoo', bee: 'Buzz', snake: 'Sssss', frog: 'Ribbit', lion: 'ROAR' };
 export const animal = {
-  // RUN21H B3. Five of these ten now have a REAL recording (see SAMPLES), and a real bleat
-  // teaches "sheep" in a way a sawtooth glide never could. The other five keep the
-  // synthesis they have always had — there is no CC0 or public-domain recording of a cow,
-  // a dog, a duck or an owl to be had, and protected core §5 says an unverifiable licence
-  // does not ship, so the honest thing is a mixed set rather than a compromised one.
+  // RUN21H B3, extended by LANE B. NINE of these ten now have a REAL recording (see
+  // SAMPLES), and a real bleat teaches "sheep" in a way a sawtooth glide never could.
+  //
+  // RUN21H could only ship five: it was restricted to CC0/public-domain, and no CC0 cow,
+  // dog, duck or owl exists. Widening to CC-BY — a licence whose one condition, naming the
+  // author, the Sound credits card now meets — found all four. Share-Alike, NonCommercial
+  // and NoDerivatives remain excluded, which is not academic: the two cleanest isolated moos
+  // on Commons are both CC BY-SA and are NOT what ships here.
+  //
+  // Only the snake is still synthesised, and it is the one that loses nothing by it — a
+  // hiss IS filtered noise, which is exactly what noiseHit() makes.
   // The call site does not change: animal.call('sheep') is still animal.call('sheep').
   call(key) {
     if (sample(key)) return;

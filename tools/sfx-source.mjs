@@ -26,8 +26,21 @@
 const API = 'https://commons.wikimedia.org/w/api.php';
 const UA = 'BooTownSfxSourcing/1.0 (offline educational PWA; licence-verification tooling)';
 
-const OK_LICENCE = /^(cc0|public domain|pd(-|$)|cc-zero)/i;
-const OK_TERMS = /(creative commons zero|public domain|cc0)/i;
+// LANE B — the gate now also admits CC-BY, and ONLY CC-BY. Attribution is a condition this
+// app can actually meet (the Grown-ups corner generates a Sound credits card from the
+// manifest); Share-Alike, NonCommercial and NoDerivatives are not, and are rejected BY NAME
+// in both the short name and the usage terms, because Commons serves files whose short name
+// is bare "CC BY" while only the terms reveal the SA. Proven by tests/r21h-ears.mjs §0
+// against 22 real Commons licence strings — shipping a BY-SA file is a licence violation,
+// not a bug, so it is asserted rather than assumed.
+const VIRAL = /share.?alike|noncommercial|non.?commercial|no.?deriv|\bsa\b|\bnc\b|\bnd\b/i;
+const OK_LICENCE = /^(cc0|public domain|pd(-|$)|cc-zero|cc[-\s]?by([-\s]|\d|$))/i;
+const OK_TERMS = /(creative commons zero|public domain|cc0|creative commons attribution)/i;
+export const licenceOk = (short = '', terms = '') => {
+  const s = String(short).trim(), t = String(terms).trim();
+  if (VIRAL.test(s) || VIRAL.test(t)) return false;
+  return OK_LICENCE.test(s) || OK_TERMS.test(t);
+};
 
 export const WANTED = [
   { id: 'cow',      q: 'Bos taurus' },
@@ -92,7 +105,7 @@ export async function metaFor(titles) {
         title: p.title, url: ii.url, mime: ii.mime, bytes: ii.size,
         licence: short || lic, usageTerms: terms, artist: val('Artist'),
         credit: val('Credit'), descUrl: ii.descriptionurl, desc: val('ImageDescription').slice(0, 160),
-        clean: OK_LICENCE.test(short) || OK_LICENCE.test(lic) || OK_TERMS.test(terms)
+        clean: licenceOk(short || lic, terms)
       });
     }
   }

@@ -2184,6 +2184,16 @@ h1, h2, h3, button, .num { font-family: var(--font-display); }
 .gu-card { background: var(--card); border-radius: 16px; padding: 16px 18px; box-shadow: var(--card-shadow); }
 .gu-card h3 { margin: 0 0 10px; font-size: 20px; color: var(--ink); }
 .gu-note { font-size: 15px; color: #5a4d84; margin: 6px 0; font-family: var(--font-body); }
+/* Sound credits (LANE B) — one generated row per real recording that ships. Colours are
+   the .gu-note pair deliberately, because that pair is already proven against the contrast
+   law; the source URI is the same ink rather than a lighter "secondary" grey for the same
+   reason. Wraps to a stack at phone width. */
+.gu-credits { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.gu-credit { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; background: rgba(107,75,168,0.06); border-radius: 10px; font-family: var(--font-body); }
+.gu-credit-what { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink); }
+.gu-credit-by { font-size: 14px; color: #5a4d84; }
+.gu-credit-lic { font-size: 13px; color: #5a4d84; }
+.gu-credit-src { font-size: 12px; color: #5a4d84; word-break: break-all; }
 /* Voice picker (RUN9 C6b) */
 .gu-voice-label { font-family: var(--font-display); font-weight: 700; color: var(--ink); margin: 8px 0 6px; }
 .gu-voice-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }

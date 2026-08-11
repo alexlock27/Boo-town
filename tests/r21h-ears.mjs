@@ -22,7 +22,60 @@ const assert = (c, m) => { if (!c) { failed = true; console.log('  ✗ FAIL:', m
 
 const BUDGET = 1.5 * 1024 * 1024;
 const MAX_SECONDS = 3;
-const OK_LICENCE = /^(cc0|public domain|pd(-|$)|cc-zero)/i;
+
+// LANE B — the licence gate, in the form the three tools/sfx-*.mjs use. CC-BY is admitted
+// because its one condition (name the author) is one this app now meets; Share-Alike,
+// NonCommercial and NoDerivatives are rejected BY NAME, in the short name AND the usage
+// terms, because Commons serves files whose short name reads "CC BY" while only the terms
+// disclose the SA. Shipping a BY-SA file is a LICENCE VIOLATION, not a bug — so §0 proves
+// the gate against real strings rather than trusting it.
+const VIRAL = /share.?alike|noncommercial|non.?commercial|no.?deriv|\bsa\b|\bnc\b|\bnd\b/i;
+const licenceOk = (short = '', terms = '') => {
+  const s = String(short).trim(), t = String(terms).trim();
+  if (VIRAL.test(s) || VIRAL.test(t)) return false;
+  return /^(cc0|public domain|pd(-|$)|cc-zero|cc[-\s]?by([-\s]|\d|$))/i.test(s) ||
+         /(creative commons zero|public domain|cc0|creative commons attribution)/i.test(t);
+};
+const isCcBy = (short = '', terms = '') =>
+  licenceOk(short, terms) && /attribution|^cc[-\s]?by/i.test(String(short) + ' ' + String(terms)) &&
+  !/^(cc0|public domain|pd(-|$)|cc-zero)/i.test(String(short).trim());
+
+// ---- 0. the gate itself, against licence strings Commons really serves --------------------
+console.log('== 0. the licence gate admits CC-BY and CC0/PD, and refuses SA / NC / ND ==');
+{
+  const cases = [
+    [true,  'CC BY 4.0',        'Creative Commons Attribution 4.0 International'],
+    [true,  'CC BY 3.0',        'Creative Commons Attribution 3.0 Unported'],
+    [true,  'CC BY 2.5',        'Creative Commons Attribution 2.5 Generic'],
+    [true,  'CC-BY-4.0',        'Creative Commons Attribution 4.0'],
+    [true,  'cc by 2.0',        ''],
+    [true,  '',                 'Creative Commons Attribution 4.0 International'],
+    [true,  'CC0',              'Creative Commons Zero, Public Domain Dedication'],
+    [true,  'Public domain',    'Public domain'],
+    [true,  'PD-USGov',         'Public domain'],
+    [true,  'CC-Zero',          ''],
+    [false, 'CC BY-SA 4.0',     'Creative Commons Attribution-Share Alike 4.0 International'],
+    [false, 'CC BY-SA 3.0',     'Creative Commons Attribution-Share Alike 3.0 Unported'],
+    [false, 'CC-BY-SA-3.0-DE',  ''],
+    [false, 'CC BY-NC 4.0',     'Creative Commons Attribution-NonCommercial 4.0'],
+    [false, 'CC BY-NC-SA 2.0',  'Creative Commons Attribution-Noncommercial-Share Alike 2.0'],
+    [false, 'CC BY-NC-ND 3.0',  'Creative Commons Attribution-Noncommercial-No Derivative Works 3.0'],
+    [false, 'CC BY-ND 2.0',     'Creative Commons Attribution-No Derivative Works 2.0'],
+    [false, '',                 'Creative Commons Attribution-Share Alike 4.0'],
+    [false, 'Fair use',         ''],
+    [false, 'GFDL',             'GNU Free Documentation License'],
+    [false, 'All rights reserved', ''],
+    [false, '',                 '']
+  ];
+  let wrong = 0;
+  for (const [want, short, terms] of cases) if (licenceOk(short, terms) !== want) {
+    wrong++; console.log(`   wrong: ${JSON.stringify(short)} / ${JSON.stringify(terms)} -> ${!want}`);
+  }
+  assert(wrong === 0, `all ${cases.length} real Commons licence strings are classified correctly`);
+  // the specific trap: a bare "CC BY" short name whose SA only shows in the usage terms
+  assert(licenceOk('CC BY', 'Creative Commons Attribution-Share Alike 4.0') === false,
+    'a Share-Alike hiding behind a bare "CC BY" short name is still refused');
+}
 
 // ---- 1. manifest <-> disk <-> ASSETS, and the licences --------------------------------
 console.log('== 1. the manifest, the files on disk and sw.js ASSETS all agree ==');
@@ -43,10 +96,17 @@ const declared = [...samplesBlock.matchAll(/(\w+):\s*'(assets\/sfx\/[^']+)'/g)].
     assert(assets.has(s.file), `${s.id}: ${s.file} is precached in sw.js ASSETS[]`);
     assert(declared.some(d => d.id === s.id && d.file === s.file), `${s.id}: js/sfx.js SAMPLES points at the same file`);
     // protected core §5 — this is the assertion that is not a judgement call
-    assert(OK_LICENCE.test(s.licence || ''), `${s.id}: licence "${s.licence}" is CC0 or public domain`);
+    assert(licenceOk(s.licence || '', s.usage_terms || ''), `${s.id}: licence "${s.licence}" is CC0, public domain or CC-BY (never SA/NC/ND)`);
     assert(/^https:\/\/commons\.wikimedia\.org\//.test(s.source_url || ''), `${s.id}: carries a source URL on Commons`);
     assert(!!s.downloaded && /^\d{4}-\d{2}-\d{2}$/.test(s.downloaded), `${s.id}: records the date it was downloaded`);
     assert(!!s.what, `${s.id}: says what the recording is ("${s.what}")`);
+    // LANE B — for a CC-BY file, naming the author is the LICENCE CONDITION, not a nicety.
+    // A blank author on a CC-BY entry means the app is using the recording unlawfully, so it
+    // fails here rather than rendering "author not named" quietly at a grown-up.
+    if (isCcBy(s.licence || '', s.usage_terms || '')) {
+      assert(!!(s.author || '').trim(), `${s.id}: CC-BY, so it MUST name its author ("${s.author}")`);
+      assert(!!(s.usage_terms || '').trim(), `${s.id}: CC-BY, so it records the usage terms it was granted under`);
+    }
   }
   assert(assets.has('assets/sfx/manifest.json'), 'the manifest itself is precached, so the licences travel offline too');
   // nothing precached that is not shipped, and nothing shipped that is not precached
@@ -65,6 +125,21 @@ console.log('== 2. inside the 1.5 MB budget, and no clip longer than 3s ==');
     assert(s.seconds > 0 && s.seconds <= MAX_SECONDS, `${s.id}: ${s.seconds}s, at most ${MAX_SECONDS}s`);
     // a normalised clip that is nearly silent means the trim picked the wrong window
     assert(s.rms > 0.02, `${s.id}: rms ${s.rms} — the trim found real sound, not silence`);
+  }
+  // LANE B — the FORMAT, asserted from the bytes on disk rather than implied by the pipeline.
+  // The manifest advertises one format ("16-bit PCM WAV, mono, 16000 Hz") and iOS Safari's
+  // inability to decode WebM/Opus is exactly why. A file that quietly arrived as stereo, or
+  // at 44.1kHz, would still play here and still bloat the budget on a tablet.
+  const DECLARED = /16-bit PCM WAV, mono, 16000 Hz/i;
+  assert(DECLARED.test(manifest.format || ''), `the manifest declares its format ("${manifest.format}")`);
+  for (const s of manifest.samples) {
+    if (!existsSync(s.file)) continue;
+    const b = readFileSync(s.file);
+    assert(b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WAVE', `${s.id}: is a RIFF/WAVE file`);
+    assert(b.readUInt16LE(20) === 1, `${s.id}: uncompressed PCM (format tag 1)`);
+    assert(b.readUInt16LE(22) === 1, `${s.id}: one channel — mono`);
+    assert(b.readUInt32LE(24) === 16000, `${s.id}: 16000 Hz (${b.readUInt32LE(24)})`);
+    assert(b.readUInt16LE(34) === 16, `${s.id}: 16 bits per sample (${b.readUInt16LE(34)})`);
   }
 }
 
@@ -176,6 +251,48 @@ console.log('== 6. sampleOr falls back to speech when no recording exists (the p
   assert(r.res === 'fallback', 'an id with no recording falls back — so today the guide still speaks');
   assert(r.spoke === 1, 'the fallback ran exactly once');
   assert(r.res2 === 'sample', 'an id WITH a recording plays it instead, with no call-site change');
+}
+
+// ---- 7. the Sound credits card, and why it cannot drift ------------------------------
+// CC-BY obliges the app to name the author. A hand-written credits list would satisfy that
+// on the day it was written and slowly stop being true; this card is GENERATED from the
+// manifest at render time, so the assertion that matters is not "the card lists someone" but
+// "the card lists EXACTLY what ships, author for author".
+console.log('== 7. the Grown-ups corner credits every shipped recording, generated from the manifest ==');
+{
+  const r = await page.evaluate(async () => {
+    window.BooTown.go('grownups');
+    const wait = (ms) => new Promise(res => setTimeout(res, ms));
+    await wait(300);
+    const tab = document.querySelector('.gu-tab[data-tab="data"]');
+    if (tab) tab.click();
+    for (let i = 0; i < 30 && !document.querySelector('.gu-credit'); i++) await wait(100);
+    const rows = [...document.querySelectorAll('.gu-credit')].map(n => ({
+      what: (n.querySelector('.gu-credit-what') || {}).textContent || '',
+      by: (n.querySelector('.gu-credit-by') || {}).textContent || '',
+      lic: (n.querySelector('.gu-credit-lic') || {}).textContent || '',
+      src: (n.querySelector('.gu-credit-src') || {}).textContent || ''
+    }));
+    const panel = document.querySelector('.gu-panel[data-tab="data"]');
+    return { rows, heading: !!(panel && /Sound credits/.test(panel.textContent)), anchors: document.querySelectorAll('.gu-credits a').length };
+  });
+  assert(r.heading, 'the Backup & data tab carries a "Sound credits" section');
+  assert(r.rows.length === manifest.samples.length,
+    `one credit row per shipped recording (${r.rows.length} rows vs ${manifest.samples.length} samples)`);
+  for (const s of manifest.samples) {
+    const row = r.rows.find(x => x.what === (s.what || s.id));
+    assert(!!row, `${s.id}: appears in the credits, described as "${s.what}"`);
+    if (row) {
+      assert(row.by.includes(s.author), `${s.id}: credits its author (${s.author})`);
+      assert(row.lic.includes(s.licence), `${s.id}: shows its licence (${s.licence})`);
+      assert(row.src.includes(s.source_url), `${s.id}: shows where it came from`);
+    }
+  }
+  // the copyguard leak class, checked here too: a blank manifest field must never reach a page
+  const leaked = r.rows.filter(x => /\b(undefined|null|NaN|\[object Object\])\b/.test(x.what + x.by + x.lic + x.src));
+  assert(leaked.length === 0, `no credit row renders a leaked token (${leaked.length})`);
+  // and no tappable route out of the app: attribution is text, not a link
+  assert(r.anchors === 0, 'the credits contain no links — the URI is given as plain text');
 }
 
 assert(errors.length === 0, `no JS page errors${errors.length ? ' ! ' + errors[0] : ''}`);

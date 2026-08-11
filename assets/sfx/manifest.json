@@ -1,10 +1,70 @@
 {
-  "generated": "RUN21H",
-  "note": "RUN21H B2 — every file here is CC0 or public domain, with the licence read from the Wikimedia Commons API at download time and re-checked before the file was written. Sourced by tools/sfx-source.mjs (licence gate), filtered by tools/sfx-verify.mjs (is it really that sound, or is it someone SAYING the word), fetched and processed by tools/sfx-fetch.mjs (loudest window, 12ms fades, peak-normalised, mono, 16kHz, 16-bit WAV).",
+  "generated": "run21v3-laneb",
+  "note": "Every file here is CC0, public domain, or CC-BY — never Share-Alike, NonCommercial or NoDerivatives. The licence is read from the Wikimedia Commons API at download time and re-checked before the file is written. CC-BY obliges the app to name the author, which the Grown-ups corner does: its \"Sound credits\" card is generated from THIS file at render time, so it cannot drift. Sourced by tools/sfx-source.mjs (licence gate), filtered by tools/sfx-verify.mjs (is it really that sound, or someone SAYING the word), fetched and processed by tools/sfx-fetch.mjs (loudest window, 12ms fades, peak-normalised, mono, 16kHz, 16-bit WAV).",
   "format": "16-bit PCM WAV, mono, 16000 Hz",
   "budget_bytes": 1572864,
-  "total_bytes": 405296,
+  "total_bytes": 610272,
   "samples": [
+    {
+      "id": "cow",
+      "file": "assets/sfx/cow.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:WWS_Cattleshed.ogg",
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/c/ca/WWS_Cattleshed.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "licence": "CC BY 4.0",
+      "usage_terms": "Creative Commons Attribution 4.0",
+      "author": "Work With Sounds / Museum of Municipal Engineering",
+      "downloaded": "2026-08-11",
+      "what": "cattle in the shed at the National Museum of Agriculture",
+      "seconds": 2,
+      "source_seconds": 143.84,
+      "bytes": 64044,
+      "rms": 0.1418
+    },
+    {
+      "id": "dog",
+      "file": "assets/sfx/dog.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Woof_2_(Gravity_Sound).wav",
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/7/7f/Woof_2_%28Gravity_Sound%29.wav?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "licence": "CC BY 4.0",
+      "usage_terms": "Creative Commons Attribution 4.0",
+      "author": "Gravity Sound",
+      "downloaded": "2026-08-11",
+      "what": "a single dog woof",
+      "seconds": 1.4,
+      "source_seconds": 3.75,
+      "bytes": 44844,
+      "rms": 0.1562
+    },
+    {
+      "id": "duck",
+      "file": "assets/sfx/duck.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ducks_snatching.ogg",
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Ducks_snatching.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "licence": "CC0",
+      "usage_terms": "Creative Commons Zero, Public Domain Dedication",
+      "author": "Bert76",
+      "downloaded": "2026-08-11",
+      "what": "ducks quacking in a Belgian park",
+      "seconds": 1.6,
+      "source_seconds": 3.73,
+      "bytes": 51244,
+      "rms": 0.1751
+    },
+    {
+      "id": "owl",
+      "file": "assets/sfx/owl.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Tawny_owl_calling_at_night_in_Tuntorp,_Brastad,_Sweden.ogg",
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Tawny_owl_calling_at_night_in_Tuntorp%2C_Brastad%2C_Sweden.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "licence": "CC BY 4.0",
+      "usage_terms": "Creative Commons Attribution 4.0",
+      "author": "W.carter",
+      "downloaded": "2026-08-11",
+      "what": "a tawny owl calling at night in Sweden",
+      "seconds": 1.4,
+      "source_seconds": 390.8,
+      "bytes": 44844,
+      "rms": 0.2351
+    },
     {
       "id": "cat",
       "file": "assets/sfx/cat.wav",
@@ -34,6 +94,21 @@
       "source_seconds": 0.5,
       "bytes": 16158,
       "rms": 0.1793
+    },
+    {
+      "id": "lion",
+      "file": "assets/sfx/lion.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Lion_raring-sound1TamilNadu178.ogg",
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Lion_raring-sound1TamilNadu178.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "licence": "Public domain",
+      "usage_terms": "Public domain",
+      "author": "த*உழவன்",
+      "downloaded": "2026-08-10",
+      "what": "lion roaring in captivity",
+      "seconds": 2.4,
+      "source_seconds": 9.04,
+      "bytes": 76844,
+      "rms": 0.4075
     },
     {
       "id": "bee",
@@ -66,19 +141,19 @@
       "rms": 0.2833
     },
     {
-      "id": "lion",
-      "file": "assets/sfx/lion.wav",
-      "source_url": "https://commons.wikimedia.org/wiki/File:Lion_raring-sound1TamilNadu178.ogg",
-      "media_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Lion_raring-sound1TamilNadu178.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "id": "blackbird",
+      "file": "assets/sfx/blackbird.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Turdus_merula_2.ogg",
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Turdus_merula_2.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
       "licence": "Public domain",
       "usage_terms": "Public domain",
-      "author": "த*உழவன்",
+      "author": "Oona Räisänen ( Mysid )",
       "downloaded": "2026-08-10",
-      "what": "lion roaring in captivity",
-      "seconds": 2.4,
-      "source_seconds": 9.04,
-      "bytes": 76844,
-      "rms": 0.4075
+      "what": "blackbird singing in a Finnish forest",
+      "seconds": 2.6,
+      "source_seconds": 24.85,
+      "bytes": 83244,
+      "rms": 0.1608
     },
     {
       "id": "seagull",
@@ -94,21 +169,6 @@
       "source_seconds": 5.74,
       "bytes": 64044,
       "rms": 0.2175
-    },
-    {
-      "id": "blackbird",
-      "file": "assets/sfx/blackbird.wav",
-      "source_url": "https://commons.wikimedia.org/wiki/File:Turdus_merula_2.ogg",
-      "media_url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Turdus_merula_2.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-      "licence": "Public domain",
-      "usage_terms": "Public domain",
-      "author": "Oona Räisänen ( Mysid )",
-      "downloaded": "2026-08-10",
-      "what": "blackbird singing in a Finnish forest",
-      "seconds": 2.6,
-      "source_seconds": 24.85,
-      "bytes": 83244,
-      "rms": 0.1608
     }
   ]
 }

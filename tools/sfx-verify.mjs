@@ -46,8 +46,15 @@ async function api(params, tries = 5) {
   return null;
 }
 
-const OK_LICENCE = /^(cc0|public domain|pd(-|$)|cc-zero)/i;
-const OK_TERMS = /(creative commons zero|public domain|cc0)/i;
+// LANE B — same gate as sfx-source.mjs: CC-BY is admitted, SA/NC/ND are rejected by name.
+const VIRAL = /share.?alike|noncommercial|non.?commercial|no.?deriv|\bsa\b|\bnc\b|\bnd\b/i;
+const OK_LICENCE = /^(cc0|public domain|pd(-|$)|cc-zero|cc[-\s]?by([-\s]|\d|$))/i;
+const OK_TERMS = /(creative commons zero|public domain|cc0|creative commons attribution)/i;
+const licenceOk = (short = '', terms = '') => {
+  const s = String(short).trim(), t = String(terms).trim();
+  if (VIRAL.test(s) || VIRAL.test(t)) return false;
+  return OK_LICENCE.test(s) || OK_TERMS.test(t);
+};
 
 async function meta(titles) {
   const out = [];
@@ -65,7 +72,7 @@ async function meta(titles) {
         licence: short || lic, usageTerms: terms, artist: val('Artist'),
         descUrl: ii.descriptionurl, desc: val('ImageDescription'),
         seconds: Number(md.length || md.playtime_seconds || 0) || null,
-        clean: OK_LICENCE.test(short) || OK_LICENCE.test(lic) || OK_TERMS.test(terms)
+        clean: licenceOk(short || lic, terms)
       });
     }
   }

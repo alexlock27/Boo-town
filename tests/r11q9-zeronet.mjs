@@ -59,19 +59,46 @@ console.log('== no other network egress anywhere in js/ ==');
 // byte it already shipped and precached, so the app still works with the network unplugged.
 // A sample id added without a matching ASSETS entry now fails HERE as well as in
 // tests/r21h-ears.mjs.
+//
+// ---------------------------------------------------------------------------------------
+// LANE B — RULE CHANGED again, and again it is a restatement rather than a relaxation.
+//
+// OLD: js/sfx.js has exactly ONE fetch, and it is fetch(sampleURL(id)).
+// NEW: js/sfx.js has exactly TWO fetches — fetch(sampleURL(id)) and fetch(manifestURL()).
+//      Each takes a MODULE-CONSTRUCTED url and never a caller-supplied string; each
+//      resolves same-origin via import.meta.url; and every path either is a SAMPLES entry
+//      or is MANIFEST_PATH, all of which are present in sw.js ASSETS[].
+// WHY: some of the recordings are now CC-BY, whose one condition is that the author is
+//      named. The Grown-ups corner's "Sound credits" card meets that condition, and it is
+//      generated from assets/sfx/manifest.json at render time — the only form of a credits
+//      list that cannot drift from the files it describes.
+//
+// The GUARANTEE is untouched: every byte the app can ever ask for is a byte it already
+// shipped and precached. What changed is the count, and the count is asserted exactly, so
+// a third fetch appearing tomorrow still fails here.
 console.log('== the sample loader can only ever reach precached, same-origin files ==');
 {
   const sfxSrc = readFileSync('js/sfx.js', 'utf8');
   const swSrc = readFileSync('sw.js', 'utf8');
   const assets = new Set([...swSrc.matchAll(/^\s*'([^']+)',?\s*$/gm)].map(m => m[1]));
 
-  // every fetch in sfx.js goes through sampleURL(), which resolves only SAMPLES entries
+  // every fetch in sfx.js goes through sampleURL() or manifestURL(); neither takes input
   const fetches = sfxSrc.split('\n').map((ln, i) => ({ ln: ln.trim(), n: i + 1 })).filter(x => /\bfetch\s*\(/.test(x.ln));
-  assert(fetches.length === 1, `js/sfx.js has exactly one fetch call (found ${fetches.length})`);
-  assert(fetches.length === 1 && /fetch\(sampleURL\(id\)\)/.test(fetches[0].ln),
-    'the one fetch takes sampleURL(id) — never a caller-supplied string');
+  assert(fetches.length === 2, `js/sfx.js has exactly two fetch calls (found ${fetches.length})`);
+  assert(fetches.some(f => /fetch\(sampleURL\(id\)\)/.test(f.ln)),
+    'the sample fetch takes sampleURL(id) — never a caller-supplied string');
+  assert(fetches.some(f => /fetch\(manifestURL\(\)\)/.test(f.ln)),
+    'the manifest fetch takes manifestURL() — no argument at all, so no caller can steer it');
+  assert(fetches.every(f => /fetch\((sampleURL\(id\)|manifestURL\(\))\)/.test(f.ln)),
+    'there is no third fetch taking anything else');
   assert(/new URL\('\.\.\/' \+ rel, import\.meta\.url\)/.test(sfxSrc),
     'sampleURL resolves against import.meta.url, so a sample path is always same-origin');
+  assert(/new URL\('\.\.\/' \+ MANIFEST_PATH, import\.meta\.url\)/.test(sfxSrc),
+    'manifestURL resolves against import.meta.url too, from a module constant');
+  assert(/const MANIFEST_PATH = 'assets\/sfx\/manifest\.json'/.test(sfxSrc),
+    'MANIFEST_PATH is a literal constant, not built from anything');
+  assert(assets.has('assets/sfx/manifest.json'),
+    'the manifest is itself precached, so the credits render offline like everything else');
   assert(!/https?:/.test(sfxSrc.slice(sfxSrc.indexOf('export const SAMPLES'), sfxSrc.indexOf('export const SAMPLE_IDS'))),
     'no absolute URL appears in the SAMPLES table');
 
