@@ -180,6 +180,34 @@ export async function loadSample(id) {
   return p;
 }
 
+// ---- the sound-credits manifest (LANE B) ----------------------------------------------
+// Some of the recordings below are CC-BY, and CC-BY is a licence with a CONDITION attached:
+// name the author. The Grown-ups corner's "Sound credits" card is that condition being met,
+// and it is GENERATED from this file at render time rather than hand-written, so a credit
+// can never drift from what actually ships. A wrong credit is worse than no credit.
+//
+// Reading it costs a SECOND fetch, which is why tests/r11q9-zeronet.mjs is amended in this
+// same commit: the rule was "exactly one fetch", and is now "exactly two, each
+// module-constructed, same-origin, no caller-supplied string, every path in sw.js ASSETS[]".
+// The path is a module constant and never an argument, precisely so that stays true by
+// construction rather than by anyone remembering.
+const MANIFEST_PATH = 'assets/sfx/manifest.json';
+const manifestURL = () => new URL('../' + MANIFEST_PATH, import.meta.url).href;
+let manifestCache = null;
+export async function loadSfxManifest() {
+  if (manifestCache) return manifestCache;
+  try {
+    const r = await fetch(manifestURL());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    manifestCache = await r.json();
+  } catch (e) {
+    // Never an error the grown-up sees as a crash: the card shows its own warm line instead.
+    console.warn('[sfx] manifest unavailable:', e && e.message);
+    return null;
+  }
+  return manifestCache;
+}
+
 // Play a real sample through sfxGain — so every existing mute and duck holds, with no
 // special case anywhere. Returns true if it played (or will, once decoded).
 // `bus` lets an area bed play its own sparse event through bedGain, so a real gull obeys

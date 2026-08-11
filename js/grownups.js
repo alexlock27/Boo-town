@@ -3,7 +3,7 @@
 import { el, backControl, setCalmMotion, setBiggerText } from './ui.js';
 import { replayTour } from './welcometour.js';
 import { getState, mutate, commit, exportCode, importCode, resetAll } from './state.js';
-import { setSoundEnabled, setMusicEnabled, music } from './sfx.js';
+import { setSoundEnabled, setMusicEnabled, music, loadSfxManifest } from './sfx.js';
 import * as tts from './tts.js';
 import { deleteAllVoices, voiceCount } from './voices.js';
 import { setRequestsEnabled } from './requests.js';
@@ -430,7 +430,7 @@ export function mount(container, params, ctx) {
     // past the whole backup card; and RUN6 C0.2's rule (Settings first, Backup & data last)
     // still holds, tab for tab.
     { id: 'visit',    label: 'Visit a Town', cards: [visitCard] },
-    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), ...journalCards(), reset] }
+    { id: 'data',     label: 'Backup & data', cards: [backup, diagnostics(), soundCredits(), ...journalCards(), reset] }
   ];
   const tabbar = el('div', { class: 'gu-tabs', role: 'tablist' });
   const panels = el('div', { class: 'gu-panels' });
@@ -472,6 +472,44 @@ export function mount(container, params, ctx) {
       el('p', { class: 'gu-note gu-hiccup', text: line }),
       el('p', { class: 'gu-note', text: 'If something ever went wrong, this note is the most recent technical message — handy if you want to report it.' })
     ]);
+  }
+  // ---- sound credits (LANE B) ----------------------------------------------------------
+  // Almost all of Boo Town's audio is synthesised, but a handful of real recordings ship as
+  // files, and some of those are CC-BY — a licence whose one condition is that the author is
+  // named. This card is that condition being met, in the place a grown-up would look.
+  //
+  // It is GENERATED from assets/sfx/manifest.json at render time. There is deliberately no
+  // hand-written list anywhere: a credits list that has to be kept in step with the files is
+  // a credits list that will eventually be wrong, and a wrong credit is worse than none.
+  function soundCredits() {
+    const list = el('div', { class: 'gu-credits' });
+    const card = el('div', { class: 'gu-card' }, [
+      el('h3', { text: 'Sound credits' }),
+      el('p', { class: 'gu-note', text: 'Almost every sound in Boo Town is made by the app itself as it plays. These few are real recordings, used with thanks under their licences.' }),
+      list
+    ]);
+    loadSfxManifest().then(m => {
+      const samples = (m && Array.isArray(m.samples)) ? m.samples : [];
+      if (!samples.length) {
+        list.appendChild(el('p', { class: 'gu-note', text: 'The credits will appear here once the app has finished installing.' }));
+        return;
+      }
+      for (const s of samples) {
+        // EVERY field defaults. A manifest entry with no author would otherwise render the
+        // literal string "undefined" on screen — exactly the leak class r18a-copyguard
+        // exists to catch, and js/ui.js's el() throws on it in dev.
+        list.appendChild(el('div', { class: 'gu-credit' }, [
+          el('span', { class: 'gu-credit-what', text: String(s.what || s.id || 'a recording') }),
+          el('span', { class: 'gu-credit-by', text: s.author ? 'by ' + s.author : 'author not named' }),
+          el('span', { class: 'gu-credit-lic', text: String(s.licence || 'licence not stated') }),
+          // Plain selectable text, NOT a link. CC-BY is satisfied by giving the URI, and a
+          // tappable route out of the app is the one thing a kid-safe offline PWA should not
+          // grow — the Grown-ups corner is still somewhere a child can wander into.
+          el('span', { class: 'gu-credit-src', text: String(s.source_url || '') })
+        ]));
+      }
+    });
+    return card;
   }
   function clearNode(n) { while (n.firstChild) n.removeChild(n.firstChild); }
   function snapshotLabel(sn) {
