@@ -55,17 +55,35 @@ await page.waitForSelector('.slots-wrap'); await page.waitForTimeout(200);
 const clue = await page.evaluate(() => { const c = document.querySelector('.spell-clue'); return c && c.style.display !== 'none' ? c.textContent : null; });
 assert(clue && /_/.test(clue), 'a homophone clue sentence with a blank is shown (' + clue + ')');
 // spell the current word from its slots data (voice off, no peek)
+// RUN21v3 A-4: this returned `!!resultCard || …spellboo.plays >= 0` — a count can never be
+// negative, so the assertion below could not fail, and on the branch where the round did NOT
+// complete it read `.plays` off an undefined byGame entry and threw out of the evaluate
+// instead. Both halves of the claim in its own name are now asserted for real: the round
+// reaches a result card, and finishing it registers a play in the star ledger.
+// The loop is per WORD, and waits for the word to actually change. The old one ran a fixed
+// eight passes with a flat 500ms wait and called that "the round": a spelled word takes ~1.5s
+// of celebration before the next appears, so three passes went on each word and the eight-word
+// round (ROUND_WORDS, js/games/spellboo.js) never got past its third. It never showed, because
+// the assertion it fed could not fail.
 const spelled = await page.evaluate(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  for (let w = 0; w < 8; w++) {
-    if (document.querySelector('.result-card')) break;
-    const word = document.querySelector('.slots-wrap').dataset.word;
-    for (const ch of word) { const t = [...document.querySelectorAll('.tile')].find(x => x.style.visibility !== 'hidden' && x.textContent === ch); if (t) t.click(); await sleep(30); }
-    await sleep(500);
+  const card = () => !!document.querySelector('.result-card');
+  const wordNow = () => { const w = document.querySelector('.slots-wrap'); return w ? w.dataset.word : null; };
+  let words = 0;
+  for (let w = 0; w < 8 && !card(); w++) {
+    const word = wordNow();
+    if (!word) break;
+    let placed = 0;
+    for (const ch of word) { const t = [...document.querySelectorAll('.tile')].find(x => x.style.visibility !== 'hidden' && x.textContent === ch); if (t) { t.click(); placed++; } await sleep(30); }
+    if (placed !== word.length) break;              // a word we could not spell is a real failure
+    words++;
+    for (let i = 0; i < 40 && !card() && wordNow() === word; i++) await sleep(100);   // ≤4s for the next word
   }
-  return !!document.querySelector('.result-card') || window.BooTown.State.getState().stars.byGame.spellboo.plays >= 0;
+  const g = (window.BooTown.State.getState().stars.byGame || {}).spellboo;
+  return { card: card(), words, plays: (g && g.plays) || 0 };
 });
-assert(spelled, 'homophone round is playable to completion without voice or Peek');
+assert(spelled.card, `homophone round is playable to completion without voice or Peek (${spelled.words} words spelled, result card ${spelled.card ? 'reached' : 'NEVER reached'})`);
+assert(spelled.plays >= 1, `and completing it registers a play in the star ledger (plays ${spelled.plays})`);
 
 // §6.5 — seasonal gating by simulated month
 console.log('== 6.5 seasonal gating ==');
