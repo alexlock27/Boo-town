@@ -88,3 +88,8 @@ _evidence/
 .tmp-*
 # RUN21J evidence shots + the throwaway shot script (screenshots are evidence, not source)
 _evidence-shots.mjs
+
+# Nightly programme bundles + their unpacked folders — private planning material, same
+# class as RUN21-programme/ above; they land in the repo root and must never ship (RUN21v3).
+TONIGHT-*.zip
+TONIGHT-*/
