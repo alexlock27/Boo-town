@@ -178,6 +178,10 @@ const ASSETS = [
   // reads it to prove manifest, disk and this list all agree, and tests/r11q9-zeronet.mjs
   // treats a same-origin request for a path in this list as lawful — anything else still fails.
   'assets/sfx/manifest.json',
+  'assets/sfx/cow.wav',
+  'assets/sfx/dog.wav',
+  'assets/sfx/duck.wav',
+  'assets/sfx/owl.wav',
   'assets/sfx/cat.wav',
   'assets/sfx/sheep.wav',
   'assets/sfx/bee.wav',
