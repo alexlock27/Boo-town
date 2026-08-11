@@ -240,19 +240,60 @@ console.log('== Item 3: strings — crossing order, velocity, retune ==');
   ok(slowVels.length >= 1 && Math.max(...slowVels) <= 0.85, `slow drag (200px/600ms) stays gentle (max ${slowVels.length ? Math.max(...slowVels).toFixed(2) : '-'} ≤ 0.85, the authored formula's exact output for that gesture)`);
   ok(fastVels.length >= 1 && Math.max(...fastVels) >= 1.1, `fast flick (200px/80ms) hits hard (max ${fastVels.length ? Math.max(...fastVels).toFixed(2) : '-'} ≥ 1.1)`);
   // ACCEPT 3: chord pads retune, audibly, and top string = lowest of the chord
+  // RUN21v3 A-2: the pads are selected by their INTERNAL id (data-chord) now, never by the
+  // text they print — the printed name is what changed, and a test that matches on it would
+  // both break and stop testing the thing it names.
   await clearLog(page);
-  await page.click('.p6-chord:has-text("G")');
+  await page.click('.p6-chord[data-chord="G"]');
   await sleep(300);
-  ok(JSON.stringify(pluckSeq(await noteTags(page))) === JSON.stringify([7, 11, 14, 19]), 'selecting G is heard low→high (7 11 14 19)');
+  ok(JSON.stringify(pluckSeq(await noteTags(page))) === JSON.stringify([7, 11, 14, 19]), 'selecting chord id G is heard low→high (7 11 14 19)');
   await clearLog(page);
   await page.mouse.click(cx, box.y + box.h / 8);
-  ok(JSON.stringify(pluckSeq(await noteTags(page))) === JSON.stringify([7]), 'G: top string plucks semi 7');
-  await page.click('.p6-chord:has-text("Am")');
+  ok(JSON.stringify(pluckSeq(await noteTags(page))) === JSON.stringify([7]), 'id G: top string plucks semi 7');
+  await page.click('.p6-chord[data-chord="Am"]');
   await sleep(300); await clearLog(page);
   await page.mouse.click(cx, box.y + box.h / 8);
-  ok(JSON.stringify(pluckSeq(await noteTags(page))) === JSON.stringify([9]), 'Am: top string plucks semi 9');
+  ok(JSON.stringify(pluckSeq(await noteTags(page))) === JSON.stringify([9]), 'id Am: top string plucks semi 9');
   ok(await page.evaluate(() => window.__bandScene.performerPlayed()), 'the performer Boo mirrors per pluck');
   await page.screenshot({ path: `${SHOTS}/guitar-1024x768.png` });
+  await ctx.close();
+}
+
+// RUN21v3 A-2 — the pads print the chord they SOUND. guitar() voices every chord off a
+// 196Hz/G3 base, so the offsets in sfx.js's CHORD sound a perfect fifth above their ids: the
+// pad called 'C' sounds G-B-D-G. That is the game telling a child the wrong name for a chord
+// she is learning. The decision (NEEDS_ALEX §4) was RENAME, never retune — retuning would
+// change the sound of every jam she has already recorded. So the ids are untouched everywhere
+// (CHORD, saved jams, songs' progressions, wantedChord) and only the four printed labels move.
+// The semitone assertions above are what prove "zero synthesis change": id G still plucks
+// 7 11 14 19, exactly as before this relabel.
+console.log('== RUN21v3 A-2: the chord pads print the name they sound (display only) ==');
+{
+  const { ctx, page } = await scenePage('band-guitar', null);
+  const pads = await page.evaluate(() => [...document.querySelectorAll('.p6-chord')].map(p => ({ id: p.dataset.chord, label: p.textContent })));
+  ok(JSON.stringify(pads) === JSON.stringify([
+    { id: 'C', label: 'G' }, { id: 'G', label: 'D' }, { id: 'Am', label: 'Em' }, { id: 'F', label: 'C' }
+  ]), `four pads, same order, printing G D Em C over ids C G Am F (${pads.map(p => p.id + '→' + p.label).join(' ')})`);
+  // AA, measured from the live computed styles rather than asserted from the stylesheet —
+  // the label is the pad's only content, so if it fails contrast the control is unreadable.
+  const cr = await page.evaluate(() => {
+    const parse = s => s.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const lum = rgb => { const c = rgb.map(v => v / 255).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const ratio = (a, b) => { const x = lum(parse(a)), y = lum(parse(b)); return +((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)).toFixed(2); };
+    const pads = [...document.querySelectorAll('.p6-chord')];
+    const cs = n => getComputedStyle(n);
+    const plain = pads.find(p => !p.classList.contains('sel')), sel = pads.find(p => p.classList.contains('sel'));
+    return { plain: ratio(cs(plain).color, cs(plain).backgroundColor), sel: ratio(cs(sel).color, cs(sel).backgroundColor) };
+  });
+  ok(cr.plain >= 4.5, `an unselected pad's label clears AA (${cr.plain}:1)`);
+  ok(cr.sel >= 4.5, `and so does the selected pad's (${cr.sel}:1)`);
+  // the legacy band screen carries the same four pads and must not disagree with the room
+  await page.evaluate(() => window.BooTown.go('band-legacy'));
+  await page.waitForSelector('.band-tab');
+  await page.click('.band-tab[data-inst="guitar"]');   // the legacy screen opens on drums
+  await page.waitForSelector('.chord-btn');
+  const legacy = await page.evaluate(() => [...document.querySelectorAll('.chord-btn')].map(b => b.dataset.chord + '→' + b.textContent));
+  ok(legacy.join(' ') === 'C→G G→D Am→Em F→C', `the legacy band screen prints the same four names (${legacy.join(' ')})`);
   await ctx.close();
 }
 console.log('== Item 3: recording, saved jam, legacy chord playback ==');
@@ -362,8 +403,11 @@ console.log('== Item 4 ACCEPT: golden Am F C G ×16 — correct strums advance, 
     for (let i = 1; i <= 8; i++) { await page.mouse.move(cx, b.y + 6 + ((b.h - 12) * i) / 8); await sleep(12); }
     await page.mouse.up(); await sleep(40);
   };
-  const start = await page.evaluate(() => ({ total: window.__bandScene.songTotal(), want: window.__bandScene.guitar().wantedChord(), pad: document.querySelector('.p6-chord.wanted').textContent, count: document.querySelector('.band-lane-count').textContent }));
-  ok(start.total === 16 && start.want === 'Am' && start.pad === 'Am', `sixteen bars, bar 1 wants Am and the pad carries the ✨ (${start.pad})`);
+  const start = await page.evaluate(() => ({ total: window.__bandScene.songTotal(), want: window.__bandScene.guitar().wantedChord(), padId: document.querySelector('.p6-chord.wanted').dataset.chord, pad: document.querySelector('.p6-chord.wanted').textContent, count: document.querySelector('.band-lane-count').textContent }));
+  ok(start.total === 16 && start.want === 'Am' && start.padId === 'Am', `sixteen bars, bar 1 wants chord id Am and the pad carries the ✨ (${start.padId})`);
+  // RUN21v3 A-2: …and that pad PRINTS Em, because Em is what it sounds. The ✨ has to ride the
+  // pad the song means (the id) while the child reads the name she hears (the label).
+  ok(start.pad === 'Em', `and the ✨ pad prints the name it sounds ("${start.pad}", not its internal id)`);
   ok(start.count === '♪ bar 1 of 16', `the lane reads the authored bar counter ("${start.count}")`);
   // C is selected, Am is wanted: a full strum plays and does NOT advance
   await clearLog(page);
@@ -372,7 +416,7 @@ console.log('== Item 4 ACCEPT: golden Am F C G ×16 — correct strums advance, 
   ok(wrong === 0, 'a strum on a non-wanted chord does not advance');
   ok((await noteTags(page)).filter(t => t.startsWith('pluck:')).length >= 8, '…but it plays every string (free strumming is never wrong)');
   // select Am; a single-string pick still does not advance (the rule is ≥2 strings)
-  await page.click('.p6-chord:has-text("Am")');
+  await page.click('.p6-chord[data-chord="Am"]');
   await sleep(320);
   await page.mouse.click(cx, b.y + b.h / 8);
   await sleep(60);
@@ -382,7 +426,7 @@ console.log('== Item 4 ACCEPT: golden Am F C G ×16 — correct strums advance, 
   await page.evaluate(() => window.__standards.reset());
   for (let bar = 0; bar < 16; bar++) {
     const want = await page.evaluate(() => window.__bandScene.guitar().wantedChord());
-    if ((await page.evaluate(() => window.__bandScene.guitar().chord())) !== want) { await page.click(`.p6-chord:has-text("${want}")`); await sleep(320); }
+    if ((await page.evaluate(() => window.__bandScene.guitar().chord())) !== want) { await page.click(`.p6-chord[data-chord="${want}"]`); await sleep(320); }
     await strum();
     await sleep(110);
   }
