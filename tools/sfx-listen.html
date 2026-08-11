@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- tools/sfx-listen.html — LANE B: the listen list, playable.
+     Local tooling, NOT shipped (never in sw.js ASSETS). Needs a local server, like every
+     other page in tools/: ES modules and fetch do not work from file://.
+         python -m http.server 8052    ->    http://127.0.0.1:8052/tools/sfx-listen.html
+     Nothing in the build pipeline can HEAR these files; this page is how a person does,
+     in one pass, with each clip's licence and author next to it. A weak one is a one-file
+     swap: change its entry in tools/sfx-fetch.mjs CHOSEN and re-run with --only <id>. -->
+<meta charset="utf-8">
+<title>Boo Town — sound credits & listen list</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #241a3d; }
+  h1 { font-size: 22px; } h2 { font-size: 16px; margin-top: 28px; color: #5a4d84; }
+  .row { display: grid; grid-template-columns: 90px 1fr; gap: 14px; align-items: start;
+         padding: 12px; border-radius: 12px; background: #f4f1fb; margin-bottom: 10px; }
+  .row.new { background: #eaf7f4; box-shadow: inset 3px 0 0 #35d0ba; }
+  button { font-size: 15px; padding: 9px 12px; border-radius: 9px; border: 1px solid #c9bde8;
+           background: #fff; cursor: pointer; width: 100%; }
+  button:hover { background: #ede8fa; }
+  .what { font-weight: 700; }
+  .meta, .num { color: #5a4d84; font-size: 13px; }
+  .num { font-family: ui-monospace, monospace; }
+  a { color: #4b3b8f; word-break: break-all; }
+  .note { background: #fff8e6; border-left: 3px solid #e0b400; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+</style>
+<h1>Boo Town — the eleven real recordings</h1>
+<p class="note"><strong>What to listen for:</strong> does it sound like the animal a child would name,
+first time, with no context? Everything here passed a licence check and a measurement pass, but
+nothing in the build could hear it. Anything weak is a one-file swap — say which and it is replaced
+in minutes.</p>
+<p id="sum" class="meta"></p>
+<div id="new"></div>
+<div id="old"></div>
+<script type="module">
+  const NEW = new Set(['cow', 'dog', 'duck', 'owl']);
+  const m = await (await fetch('../assets/sfx/manifest.json')).json();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const bufs = new Map();
+
+  document.getElementById('sum').textContent =
+    `${m.samples.length} recordings · ${(m.total_bytes / 1024).toFixed(0)}KB of a 1536KB budget · ${m.format}`;
+
+  const render = (list, host, heading) => {
+    if (!list.length) return;
+    host.insertAdjacentHTML('beforeend', `<h2>${heading}</h2>`);
+    for (const s of list) {
+      const row = document.createElement('div');
+      row.className = 'row' + (NEW.has(s.id) ? ' new' : '');
+      const b = document.createElement('button');
+      b.textContent = '▶ ' + s.id;
+      b.onclick = async () => {
+        if (!bufs.has(s.id)) {
+          const ab = await (await fetch('../' + s.file)).arrayBuffer();
+          bufs.set(s.id, await ctx.decodeAudioData(ab));
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = bufs.get(s.id); src.connect(ctx.destination); src.start();
+      };
+      const d = document.createElement('div');
+      d.innerHTML = `<div class="what">${s.what}</div>
+        <div class="meta">${s.licence} · by ${s.author || 'author not named'} · downloaded ${s.downloaded}</div>
+        <div class="num">${s.seconds}s · ${(s.bytes / 1024).toFixed(0)}KB · rms ${s.rms} · trimmed from ${s.source_seconds ?? '?'}s</div>
+        <div class="meta"><a href="${s.source_url}" target="_blank" rel="noopener noreferrer">${s.source_url}</a></div>`;
+      row.append(b, d);
+      host.appendChild(row);
+    }
+  };
+  render(m.samples.filter(s => NEW.has(s.id)), document.getElementById('new'), 'New this run — the four that needed CC-BY');
+  render(m.samples.filter(s => !NEW.has(s.id)), document.getElementById('old'), 'Already shipping (RUN21H) — controls for comparison');
+</script>
