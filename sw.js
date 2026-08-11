@@ -2,7 +2,7 @@
 // Precache every app file with a versioned cache. Cache-first for everything.
 // The app makes no other network requests. Bump BUILD_STAMP on each deploy.
 
-const BUILD_STAMP = 'run21-v2-20260810';  // RUN21 v2 fix pass: the funfair's grand opening now shows properly (no more hidden ceremony) and only marks itself seen once she's actually dismissed it, and the Feelings Corner hub button's label is readable again (was clipped by a class-name collision with the Feelings Corner screen's own CSS).
+const BUILD_STAMP = 'run21-20260811';  // RUN21v3, two lanes in one ship: the cow, dog, duck and owl are real recordings now (CC-BY, credited on a Sound credits card generated from the manifest so attribution can never drift), and the four guitar chord pads print the chord they actually sound — G, D, Em, C — with the guitar itself untouched, so every jam she has already recorded sounds exactly the same.
 const CACHE = 'bootown-' + BUILD_STAMP;
 
 const ASSETS = [

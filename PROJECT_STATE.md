@@ -6,7 +6,7 @@ Deterministic: no timestamps, so an unchanged tree regenerates byte-identically.
 
 ## Build
 
-- BUILD_STAMP: `run21-v2-20260810` (sw.js; 171 precached assets)
+- BUILD_STAMP: `run21-20260811` (sw.js; 175 precached assets)
 - SAVE VERSION: 25 (js/state.js)
 
 ## Screens — 54 routes (js/main.js registry)

@@ -21,19 +21,26 @@
 //     feature to sell to a child (RUN17 G17).
 
 export const WHATSNEW = [
-  // LANE B. ONE entry, and it says what RUN21H's entry could not.
+  // RUN21v3 (2026-08-11). Two lanes — run21v3-fixes and run21v3-ears — merged and shipped
+  // together under ONE stamp, so their staged blocks are unified into ONE block here rather
+  // than two (r17x4-whatsnew requires every block to carry a distinct version, and a child
+  // does not experience "two releases" — she experiences one morning where things arrived).
   //
-  // RUN21H's draft promised "a real moo, a real woof, a real quack" and had to be rewritten
-  // down to five animals, because its licence rule was CC0/public-domain only and no CC0 cow,
-  // dog, duck or owl exists anywhere. Widening to CC-BY — whose one condition, naming the
-  // author, the Grown-ups corner's Sound credits card now meets — found all four. So the
-  // fuller wording is restored, and every animal it names is one she can actually go and hear.
+  // The sounds entry says what RUN21H's entry could not. RUN21H's draft promised "a real moo,
+  // a real woof, a real quack" and had to be rewritten down to five animals, because its
+  // licence rule was CC0/public-domain only and no CC0 cow, dog, duck or owl exists anywhere.
+  // Widening to CC-BY — whose one condition, naming the author, the Grown-ups corner's Sound
+  // credits card now meets — found all four. So the fuller wording is restored, and every
+  // animal it names is one she can actually go and hear.
   {
-    version: 'run21v3-laneb',
+    version: 'run21-20260811',
     entries: [
       { icon: '🐄', title: 'A real moo, a real woof, a real quack and a real hoot',
         blurb: 'The cow, the dog, the duck and the owl are real recordings now — real animals, not beeps. Nine of the ten animals are real. Can you tell which one still isn\'t?',
-        route: 'toddlergame', params: { game: 'animals' } }
+        route: 'toddlergame', params: { game: 'animals' } },
+      { icon: '🎸', title: 'The guitar chords say their real names',
+        blurb: 'The four chord buttons now show the name of the sound they actually play: G, D, Em and C. Same guitar, exactly the same sound!',
+        route: 'band-guitar' }
     ]
   },
   // RUN21 (2026-08-10 overnight programme). Six lanes — run21e, run21g, run21h, run21j,
