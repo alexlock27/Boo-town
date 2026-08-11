@@ -25,6 +25,16 @@
 export const LEITMOTIFS = {
   // ---- The Meadow — "Pottering Among the Flowers" ----------------------------------------------
   // C major pentatonic · 84 bpm · bass + lead + pad · lead C4-D5
+  // RUN21v3 A-3: the lead BREATHES. As first composed it sounded for 100% of its 22.9s loop
+  // and never rested once — measured by the composing lane itself, in the area a child spends
+  // the most time in, where every other area's lead rests between 3% and 38% of its own loop.
+  // A melody that never stops is how ambient music turns into a nuisance in the room next door.
+  // The fix is the one that lane prescribed and no more: four phrase-ENDING notes shortened, at
+  // the tie-overs into bars 3, 5, 7 and the loop seam. Not one onset, pitch or note was removed,
+  // so the "pottering turn" restated in bars 1/3/7 and the bar-6 peak are exactly as authored —
+  // 92.2% sounding, 7.8% resting, longest rest one beat. The bass runs unbroken underneath, so
+  // the whole texture still never falls silent (the continuity law is about the TEXTURE, not
+  // the lead). Guarded by tests/r21f8-leitmotifs.mjs §0's rest-fraction band.
   meadow: {
     title: "Pottering Among the Flowers", root: 'C', bpm: 84, bars: 8, durMs: 22857.14,
     events: [
@@ -47,7 +57,7 @@ export const LEITMOTIFS = {
       { t:  3928.57, i: 'lead',   v:   7, d:  357.14 },
       { t:  4285.71, i: 'bass',   v:  -5, d: 1428.57 },
       { t:  4285.71, i: 'lead',   v:   9, d:  714.29 },
-      { t:     5000, i: 'lead',   v:   7, d:  714.29 },
+      { t:     5000, i: 'lead',   v:   7, d:  357.14 },
       // bar 3
       { t:  5714.29, i: 'bass',   v: -12, d: 2142.86 },
       { t:  5714.29, i: 'lead',   v:   7, d:  535.71 },
@@ -64,7 +74,7 @@ export const LEITMOTIFS = {
       { t:  8571.43, i: 'lead',   v:   9, d:  535.71 },
       { t:  9107.14, i: 'lead',   v:   7, d:  178.57 },
       { t:  9285.71, i: 'lead',   v:   4, d:  357.14 },
-      { t:  9642.86, i: 'lead',   v:   2, d: 1785.71 },
+      { t:  9642.86, i: 'lead',   v:   2, d: 1071.43 },
       { t:    10000, i: 'bass',   v:  -5, d: 1428.57 },
       // bar 5
       { t: 11428.57, i: 'bass',   v:  -3, d: 1428.57 },
@@ -85,7 +95,7 @@ export const LEITMOTIFS = {
       { t: 15714.29, i: 'bass',   v:  -5, d: 1428.57 },
       { t: 15714.29, i: 'lead',   v:   9, d:  357.14 },
       { t: 16071.43, i: 'lead',   v:   7, d:  357.14 },
-      { t: 16428.57, i: 'lead',   v:   9, d:  714.29 },
+      { t: 16428.57, i: 'lead',   v:   9, d:  357.14 },
       // bar 7
       { t: 17142.86, i: 'bass',   v: -12, d: 2142.86 },
       { t: 17142.86, i: 'lead',   v:   7, d:  535.71 },
@@ -102,7 +112,7 @@ export const LEITMOTIFS = {
       { t:    20000, i: 'lead',   v:   2, d: 1071.43 },
       { t:    20000, i: 'pad',    v:   2, d: 2857.14 },
       { t:    20000, i: 'pad',    v:   7, d: 2857.14 },
-      { t: 21071.43, i: 'lead',   v:   0, d: 1785.71 },
+      { t: 21071.43, i: 'lead',   v:   0, d: 1428.57 },
       { t: 21428.57, i: 'bass',   v:  -5, d: 1428.57 },
     ]
   },
