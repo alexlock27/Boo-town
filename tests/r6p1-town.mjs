@@ -174,12 +174,27 @@ console.log('== reduced motion stills behaviours + weather ==');
 console.log('== ambient: each season renders its weather ==');
 {
   const { ctx, page } = await openTown([{ zone: 'meadow', x: 0.4, item: 'boo_inky' }]);
+  // RUN21v3 A-6 (found by Lane A's gate, pre-existing on main): this block forced the MONTH
+  // but let the real calendar decide the DAY, and since RUN19 Z5 rain is a per-day weather
+  // state that replaces the season in spring and autumn on one day in four (isRainDay,
+  // js/town.js). So these assertions failed on ~25% of dates — including 11 Aug 2026, on a
+  // pristine main, which is how this was found. Pin the day instead of loosening the
+  // assertion: a DRY day proves the four seasons still render, and a RAIN day proves Z5's
+  // own behaviour, which nothing pinned until now.
+  const DRY_DAY = '2026-08-12', RAIN_DAY = '2026-08-11';   // dayNoise('rain:'+d) % 4: 3 and 0
   for (const [m, season, kind] of [[7, 'summer', 'sunrays'], [10, 'autumn', 'particles'], [1, 'winter', 'particles'], [4, 'spring', 'particles']]) {
-    const w = await page.evaluate((mm) => { window.__bootownMonth = mm; window.__townLife.renderWeather(); return window.__townLife.weather(); }, m);
+    const w = await page.evaluate(([mm, day]) => { window.__bootownMonth = mm; window.__bootownDay = day; window.__townLife.renderWeather(); return window.__townLife.weather(); }, [m, DRY_DAY]);
     assert(w && w.season === season, `month ${m} → ${season} weather layer (got ${w && w.season})`);
     if (kind === 'sunrays') assert(w.sunrays >= 1, 'summer shows gentle sun rays');
     else assert(w.particles > 0, `${season} shows drifting particles (${w.particles})`);
   }
+  // RUN19 Z5: rain is a weather state, occasional, and only where a British child expects it.
+  for (const [m, season, wet] of [[4, 'spring', true], [10, 'autumn', true], [7, 'summer', false], [1, 'winter', false]]) {
+    const w = await page.evaluate(([mm, day]) => { window.__bootownMonth = mm; window.__bootownDay = day; window.__townLife.renderWeather(); return window.__townLife.weather(); }, [m, RAIN_DAY]);
+    assert(w && w.season === (wet ? 'rain' : season),
+      `on a rain day, ${season} ${wet ? 'rains' : 'does NOT rain — rain belongs to spring and autumn'} (got ${w && w.season})`);
+  }
+  await page.evaluate(() => { delete window.__bootownDay; delete window.__bootownMonth; });
   await ctx.close();
 }
 

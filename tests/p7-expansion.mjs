@@ -77,7 +77,9 @@ const spelled = await page.evaluate(async () => {
     for (const ch of word) { const t = [...document.querySelectorAll('.tile')].find(x => x.style.visibility !== 'hidden' && x.textContent === ch); if (t) { t.click(); placed++; } await sleep(30); }
     if (placed !== word.length) break;              // a word we could not spell is a real failure
     words++;
-    for (let i = 0; i < 40 && !card() && wordNow() === word; i++) await sleep(100);   // ≤4s for the next word
+    // ≤12s for the next word. The celebration is ~1.5s idle, but this suite runs in a 4-lane
+    // shard and a loaded box stretches it — 4s was enough alone and not enough in the board.
+    for (let i = 0; i < 120 && !card() && wordNow() === word; i++) await sleep(100);
   }
   const g = (window.BooTown.State.getState().stars.byGame || {}).spellboo;
   return { card: card(), words, plays: (g && g.plays) || 0 };
