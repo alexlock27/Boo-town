@@ -7724,6 +7724,7 @@ export function mount(container, params, ctx) {
       ffOpened: () => !!(getState().seen || {}).funfairOpened,
       ffGrandOpen: () => maybeGrandOpening(),   // force the grand-opening check
       ffGrandShown: () => !!root.querySelector('.funfair-grand'),
+      revealDepth: () => revealQueue.length,   // reveals waiting BEHIND the one on screen (r7p1 F-01)
       ffView: () => funfairView(),
       ffRides: () => [...ground.querySelectorAll('.ff-ride')].map(b => b.dataset.ride),
       ffRideSeats: (ride) => seatsFor(ride),

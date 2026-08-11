@@ -660,6 +660,15 @@ export const KEY_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];   // ten white keys
 const CHORD = { C: [0, 4, 7, 12], G: [7, 11, 14, 19], Am: [9, 12, 16, 21], F: [5, 9, 12, 17] };
 export const GUITAR_CHORDS = ['C', 'G', 'Am', 'F'];
 export const GUITAR_CHORD_NOTES = CHORD;   // RUN21G: the strings retune to these (low→high)
+// RUN21v3 A-2 — what the pads PRINT, which is not what they are CALLED in the code.
+// guitar() voices every chord off a 196Hz/G3 base, so the offsets above sound a perfect
+// fifth above their names: pad 'C' sounds G-B-D-G, 'Am' sounds E-G-B, and so on. That is a
+// game printing the wrong chord name at a child who is learning them. The sound is correct
+// and is not being touched (retuning the base would change every jam she has already
+// recorded); the four LABELS move instead, so what is printed is what is heard. The keys on
+// the left of these ids are the save format — 'C','G','Am','F' stay the ids in CHORD, in
+// recorded jams, in songs' progressions and in every test fixture. Display only.
+export const GUITAR_CHORD_LABELS = { C: 'G', G: 'D', Am: 'Em', F: 'C' };
 // Xylophone (RUN9 C6): eight rainbow bars, a C-major scale, a bright bell-like tone.
 export const XYLO_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12];   // C D E F G A B C'
 export const band = {

@@ -76,6 +76,16 @@ The full-board-per-run regime proved too heavy. The regime now is TARGETED:
 - **Known flaky suites are flakes on sight**: at most ONE serial re-run to confirm, then
   move on. (Standing examples: rAF/ceremony-paced waits under parallel load — `m2-full`,
   `r3p1-spellboo`, `r10p3-buildmode`, `r6p8-booquest`.)
+- **A passing re-run downgrades URGENCY; it does not establish ABSENCE** (amended 2026-08-11,
+  RUN21v3 — proposed by Lane 3 on 10 Aug from its own evidence). `walk.mjs` failed once on
+  `main` and passed on the re-run; under the letter of the rule above that re-run threw the
+  finding away as noise, but the DOM-level proof showed a real, reproducible S1 (the funfair
+  grand opening drawn under another overlay, its button unhittable) that simply depends on
+  paint order. So: a suite that fails then passes is DE-PRIORITISED, never CLOSED. Write down
+  what failed and what the failing run showed; a race that needs the right paint order, the
+  right timing or the right load will pass far more often than it fails. This is the rule that
+  the two "not-my-run" instincts — "it went green on the retry" and "nothing I changed touches
+  it" — are both wrong against.
 - **NO full 130-suite board during a run.** One dedicated full-board sweep runs ONCE at
   the very end of the whole programme, after RUN17 ships live, as a standalone job.
 - Never edit any file while any suite run is in flight. Report wall time for what you run.

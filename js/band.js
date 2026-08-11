@@ -8,7 +8,7 @@ import { el, clear, backControl, dialog, REDUCED, suppressContextMenu } from './
 import { getState, mutate, todayKey } from './state.js';
 import { resolveItem } from './customs.js';
 import { renderItem } from './art.js';
-import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, XYLO_SEMIS } from './sfx.js';
+import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, GUITAR_CHORD_LABELS, XYLO_SEMIS } from './sfx.js';
 import { idbPut, idbGetAll, idbDelete } from './idb.js';
 import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../data/songs.js';
 import { contentTier } from './content.js';
@@ -245,7 +245,7 @@ export function mount(container, params, ctx) {
     const wrap = el('div', { class: 'guitar-wrap' });
     const chords = el('div', { class: 'chord-row' });
     for (const c of GUITAR_CHORDS) {
-      const b = el('button', { class: 'chord-btn' + (heldChord === c ? ' sel' : ''), dataset: { chord: c }, text: c, onclick: () => { heldChord = c; sfx.tap(); [...chords.children].forEach(x => x.classList.toggle('sel', x.dataset.chord === heldChord)); } });
+      const b = el('button', { class: 'chord-btn' + (heldChord === c ? ' sel' : ''), dataset: { chord: c }, text: GUITAR_CHORD_LABELS[c] || c, onclick: () => { heldChord = c; sfx.tap(); [...chords.children].forEach(x => x.classList.toggle('sel', x.dataset.chord === heldChord)); } });   // RUN21v3 A-2: prints the chord it sounds; dataset.chord stays the id
       chords.appendChild(b);
     }
     const strum = el('div', { class: 'strum-strip', text: 'strum here →' });

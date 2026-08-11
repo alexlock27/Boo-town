@@ -6,7 +6,7 @@ import { el, clear, backControl, REDUCED, suppressContextMenu } from '../ui.js';
 import { getState } from '../state.js';
 import { resolveItem } from '../customs.js';
 import { renderItem } from '../art.js';
-import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, GUITAR_CHORD_NOTES, XYLO_SEMIS } from '../sfx.js';
+import { sfx, music, band as voices, DRUM_PADS, KEY_SEMIS, GUITAR_CHORDS, GUITAR_CHORD_NOTES, GUITAR_CHORD_LABELS, XYLO_SEMIS } from '../sfx.js';
 import { idbGet, idbPut } from '../idb.js';
 import { LITTLE_BOO_SONGS, BOO_POP_HITS } from '../../data/songs.js';
 import { bandTrio, jamEvents, startBandWatch, listJams, MAX_JAMS } from '../band.js';
@@ -390,7 +390,9 @@ export function mountInstrument(container, params, ctx, instrument) {
       if (strummed && playAlong === 'strum' && !done && chord === wantedChord()) advanceSong();
     }
     GUITAR_CHORDS.forEach(c => {
-      const b = el('button', { class: `p6-chord${c === chord ? ' sel' : ''}`, text: c });
+      // RUN21v3 A-2: the pad prints the chord it SOUNDS (GUITAR_CHORD_LABELS); `c` stays the id
+      // everything else speaks — saved jams, songs' progressions, wantedChord(), the tests.
+      const b = el('button', { class: `p6-chord${c === chord ? ' sel' : ''}`, dataset: { chord: c }, text: GUITAR_CHORD_LABELS[c] || c });
       b.onclick = () => {
         chord = c;
         stringSemis = (GUITAR_CHORD_NOTES[chord] || GUITAR_CHORD_NOTES.C).slice();

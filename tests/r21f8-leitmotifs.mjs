@@ -76,6 +76,21 @@ const LM_AREAS = AREAS.filter(a => a.kind === 'outdoor' && a.key !== 'funfair').
     const peak = lead.reduce((m, e) => e.v > m.v ? e : m, lead[0]);
     assert(peak.t >= 12 * beatMs - 2 && peak.t <= 28 * beatMs + 2,
       `${area}: the melodic peak (v=${peak.v}) lands at beat ${(peak.t / beatMs).toFixed(1)} (bars 4-7)`);
+    // RUN21v3 A-3 — THE LEAD MUST BREATHE. This is the parent-in-the-same-room check, and it
+    // is the one thing §0 could not see: every assertion above passes for a melody that never
+    // stops, which is exactly what the meadow shipped as (100% sounding across 22.9 seconds,
+    // in the busiest area in the game). Continuity is about the TEXTURE — the bass and pad
+    // hold the loop together — so a resting lead breaks nothing above it. The band is the
+    // other four tunes' own measured range (hilltop 3.13% at the floor, playground 37.5% at
+    // the ceiling); anything outside it is either a wall of sound or a tune with holes in it.
+    const leadIv = lead.map(e => [e.t, Math.min(s.durMs, e.t + e.d)]);
+    const leadCov = []; let lc = null;
+    for (const [a2, b2] of leadIv) { if (lc && a2 <= lc[1] + 1) lc[1] = Math.max(lc[1], b2); else { lc = [a2, b2]; leadCov.push(lc); } }
+    const restPct = 100 - 100 * leadCov.reduce((n, [a2, b2]) => n + (b2 - a2), 0) / s.durMs;
+    const leadGaps = leadCov.slice(1).map((c, i) => c[0] - leadCov[i][1]);
+    leadGaps.push(leadCov[0][0] + (s.durMs - leadCov[leadCov.length - 1][1]));   // the rest across the seam
+    assert(restPct >= 3 && restPct <= 38, `${area}: the lead rests ${restPct.toFixed(1)}% of the loop (3-38%, the five tunes' own band)`);
+    assert(Math.max(...leadGaps) >= 0.4 * beatMs, `${area}: and its longest single rest is a real breath (${(Math.max(...leadGaps) / beatMs).toFixed(2)} beats)`);
     openings[area] = lead.slice(0, 5).map((e, i, a) => i ? e.v - a[i - 1].v : 0).slice(1).join(',');
     // LEVEL: the pack says "at existing music volume". Per-voice peaks sit at or below the
     // classic calm loop's, but what a listener hears is the SUM of what sounds at once, so
