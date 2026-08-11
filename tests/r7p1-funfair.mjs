@@ -101,6 +101,15 @@ console.log('== Lane3 F-01: grand opening + a same-tick catch-up never stack, gr
   assert((await page.$$('.overlay')).length === 1, 'exactly one overlay is on screen, not two stacked');
   assert(await page.$('.overlay.funfair-grand'), 'the grand opening is the one showing, ahead of the catch-up');
   assert(!(await page.$('.overlay.growth-reveal')), 'the catch-up reveal is not drawn underneath it');
+  // RUN21v3 Lane A: the three assertions above used to fire at +300ms — BEFORE the mount's own
+  // reveal timer (700ms, js/town.js) has enqueued anything, so "not two stacked" was being
+  // proved against a queue that was still empty. Wait past that timer and re-prove it with the
+  // catch-up genuinely CO-PENDING: one overlay on screen, one reveal waiting behind it.
+  await sleep(900);
+  assert(await page.evaluate(() => window.__townLife.revealDepth()) === 1,
+    'the catch-up is genuinely co-pending — queued BEHIND the grand opening, not merely triggered later');
+  assert((await page.$$('.overlay')).length === 1, 'and with it pending, the grand opening is still the only overlay on screen');
+  assert(await page.$('.overlay.funfair-grand'), 'the once-ever grand opening still holds the screen, having won the slot');
   // its own button is the real hit-test target, not covered by anything else
   const hit = await page.evaluate(() => {
     const btn = document.querySelector('.funfair-grand .fg-go');
@@ -121,6 +130,26 @@ console.log('== Lane3 F-01: grand opening + a same-tick catch-up never stack, gr
   await sleep(300);
   assert(!(await page.$('.overlay')), 'both ceremonies resolved; nothing is left on screen');
   await ctx.close();
+}
+
+// RUN21v3 Lane A — the front-insert, pinned at SOURCE, because no end-to-end scenario can see it.
+// Measured, not assumed: reverting enqueueRevealFirst to a plain push and re-running this whole
+// suite comes back green. The grand opening is enqueued during mount (scrollToZone), ~700ms
+// before the mount reveals' own setTimeout fires, so today it is FIRST IN TIME whichever way the
+// queue is written — the block above proves the child-facing behaviour, and would keep proving it
+// after a silent revert. The unshift is what keeps the once-ever moment winning the next slot if
+// that timing ever changes (a reveal enqueued synchronously at mount, an added earlier trigger),
+// and a change that costs nothing today is exactly the kind that gets "simplified" away. So it is
+// guarded where it lives, the same way r21f8 §0b guards the sustain envelope it cannot hear.
+console.log('== Lane3 F-01: the once-ever moment takes the FRONT of the queue (source guard) ==');
+{
+  const src = await (await fetch(BASE + '/js/town.js')).text();
+  assert(/function enqueueRevealFirst\(fn\)\s*\{\s*revealQueue\.unshift\(fn\)/.test(src),
+    'enqueueRevealFirst puts its reveal at the FRONT of the queue (unshift, not push)');
+  assert(/enqueueRevealFirst\(done => playFunfairGrandOpening\(done\)\)/.test(src),
+    'and the grand opening is the reveal that goes through it');
+  assert(/function enqueueReveal\(fn\)\s*\{\s*revealQueue\.push\(fn\)/.test(src),
+    'while every ordinary reveal still queues at the back (push)');
 }
 
 // ==================== day-one elements on a 0-star save ====================
